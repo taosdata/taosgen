@@ -10,6 +10,10 @@ class SqlInsertDataFormatter final : public IInsertDataFormatter {
 public:
     explicit SqlInsertDataFormatter(const DataFormat& format) : format_(format) {}
 
+    std::string prepare(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances) const {
+        return "";
+    }
+
     FormatResult format(const InsertDataConfig& config, 
                         const ColumnConfigInstanceVector& col_instances, 
                         MultiBatch&& batch) const {
@@ -69,20 +73,17 @@ public:
         if (empty_batch) {
             return FormatResult("");
         } else {
-            SqlInsertData sql_data{
-                BaseInsertData{
-                    .start_time = batch.start_time,
-                    .end_time = batch.end_time,
-                    .total_rows = batch.total_rows
-                },
-                .data = SqlData(std::move(result.str()))
-            };
-            return sql_data;
+            return SqlInsertData(
+                batch.start_time,
+                batch.end_time,
+                batch.total_rows,
+                std::move(result.str())
+            );
         }
     }
 
 private:
-    DataFormat format_;
+    const DataFormat& format_;
 
     inline static bool registered_ = []() {
         FormatterFactory::instance().register_formatter<InsertDataConfig>(

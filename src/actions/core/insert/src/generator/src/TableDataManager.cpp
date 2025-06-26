@@ -70,6 +70,10 @@ size_t TableDataManager::get_total_rows_generated() const {
     return total_rows_generated_.load(std::memory_order_relaxed);
 }
 
+const ColumnConfigInstanceVector& TableDataManager::get_column_instances() const {
+    return col_instances_;
+}
+
 std::optional<MultiBatch> TableDataManager::next_multi_batch() {
     if (!has_more()) {
         return std::nullopt;

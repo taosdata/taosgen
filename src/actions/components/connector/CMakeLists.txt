@@ -28,7 +28,15 @@ add_library(components_connector STATIC
 # 包含头文件目录
 target_include_directories(components_connector PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../utils/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../config/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../formatter/inc
+)
+
+# 链接依赖库
+link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../config/build)
+target_link_libraries(components_connector PUBLIC 
+    actions_config
 )
 
 # 添加测试

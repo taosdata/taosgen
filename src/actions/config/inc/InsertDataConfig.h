@@ -1,5 +1,4 @@
-#ifndef INSERT_DATA_CONFIG_H
-#define INSERT_DATA_CONFIG_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -112,5 +111,3 @@ struct InsertDataConfig {
         } time_interval;
     } control;
 };
-
-#endif // INSERT_DATA_CONFIG_H

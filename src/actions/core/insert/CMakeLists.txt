@@ -47,6 +47,7 @@ link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../components/reader/build)
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../components/reader/csv/build)
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/generator/build)
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/pipeline/build)
+link_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/writter/build)
 target_link_libraries(actions_insert PUBLIC
     insert_generator
     insert_pipeline

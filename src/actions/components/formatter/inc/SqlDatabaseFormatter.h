@@ -21,7 +21,7 @@ public:
 
 
 private:
-    DataFormat format_;
+    const DataFormat& format_;
 
     // 注册 SqlDatabaseFormatter 到 FormatterFactory
     inline static bool registered_ = []() {

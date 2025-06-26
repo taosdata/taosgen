@@ -37,7 +37,7 @@ target_include_directories(actions_create PUBLIC
 
 # 链接依赖库
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../utils/build)
-link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../workflow/build)
+# link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../workflow/build)
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../config/build)
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../components/connector/build)
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../components/formatter/build)
@@ -52,7 +52,6 @@ target_link_libraries(actions_create PUBLIC
     components_reader
     reader_csv
     utils
-    workflow
 )
 
 

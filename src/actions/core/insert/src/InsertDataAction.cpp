@@ -8,6 +8,7 @@
 #include "FormatterFactory.h"
 #include "TableNameManager.h"
 #include "TableDataManager.h"
+#include "WriterFactory.h"
 
 
 void InsertDataAction::execute() {
@@ -72,7 +73,7 @@ void InsertDataAction::execute() {
         // Start consumer threads
         for (size_t i = 0; i < consumer_thread_count; i++) {
             consumer_threads.emplace_back([&, i] {
-                consumer_thread_function(i, pipeline, consumer_running[i]);
+                consumer_thread_function(i, col_instances, pipeline, consumer_running[i]);
             });
         }
 
@@ -232,20 +233,40 @@ void InsertDataAction::producer_thread_function(
 
 void InsertDataAction::consumer_thread_function(
     size_t consumer_id,
+    const ColumnConfigInstanceVector& col_instances,
     DataPipeline<FormatResult>& pipeline,
     std::atomic<bool>& running) 
 {
-    // 创建数据库连接器
-    std::unique_ptr<DatabaseConnector> connector;
+    // 创建写入器
+    std::unique_ptr<IWriter> writer = WriterFactory::create(config_);
+
+    // 连接/打开资源
     try {
-        connector = DatabaseConnector::create(config_.control.data_channel, 
-                                              config_.target.tdengine.connection_info);
-        connector->connect();
+        if (!writer->connect()) {
+            throw std::runtime_error("Failed to connect writer");
+        }
     } catch (const std::exception& e) {
-        std::cerr << "Consumer " << consumer_id << " failed to connect: " << e.what() << std::endl;
+        std::cerr << "Consumer " << consumer_id << " connection failed: " << e.what() << std::endl;
         return;
     }
     
+    // TODO: Prepare
+    if (config_.control.data_format.format_type == "stmt") {
+        if (config_.control.data_format.stmt_config.version == "v2") {
+            // 对于 v2 版本，使用 StmtV2InsertData
+            // 创建格式化器
+            auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(config_.control.data_format);
+            auto sql = formatter->prepare(config_, col_instances);
+
+            if (!writer->prepare(sql)) {
+                std::cerr << "Consumer " << consumer_id << " prepare failed with SQL: " << sql << std::endl;
+                writer->close();
+                return;
+            }
+        }
+    }
+
+
     // 失败重试逻辑
     const auto& failure_cfg = config_.control.insert_control.failure_handling;
     size_t retry_count = 0;
@@ -257,35 +278,38 @@ void InsertDataAction::consumer_thread_function(
         switch (result.status) {
         case DataPipeline<FormatResult>::Status::Success:
             try {
+                // 使用writer执行写入
                 std::visit([&](const auto& formatted_result) {
                     using T = std::decay_t<decltype(formatted_result)>;
-                    
-                    if constexpr (std::is_same_v<T, SqlInsertData>) {
-                        std::cout << "Consumer " << consumer_id 
-                                 << ": Executed SQL with " << formatted_result.total_rows 
-                                 << " rows" << std::endl;
-                        connector->execute(formatted_result.data.str());
-                    } else if constexpr (std::is_same_v<T, StmtV2InsertData>) {
-                        std::cout << "Consumer " << consumer_id 
-                                 << ": Executed STMT with " << formatted_result.total_rows 
-                                 << " rows" << std::endl;
-                        // connector->execute(formatted_result.data);
+                    if constexpr (std::is_base_of_v<BaseInsertData, std::decay_t<decltype(formatted_result)>>) {
+                        writer->write(formatted_result);
+                        retry_count = 0;
+
+                        if constexpr (std::is_same_v<T, SqlInsertData> || std::is_same_v<T, StmtV2InsertData>) {
+                            std::cout << "Consumer " << consumer_id 
+                                     << ": Executed SQL with " << formatted_result.total_rows 
+                                     << " rows" << std::endl;
+                        }
+
                     } else {
                         throw std::runtime_error("Unknown format result type: " + std::string(typeid(formatted_result).name()));
                     }
+
                 }, *result.data);
 
-                retry_count = 0;
+
             } catch (const std::exception& e) {
                 std::cerr << "Consumer " << consumer_id << " write failed: " << e.what() << std::endl;
                 
                 // 处理失败
                 if (retry_count < failure_cfg.max_retries) {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(failure_cfg.retry_interval_ms));
+                    std::this_thread::sleep_for(
+                        std::chrono::milliseconds(failure_cfg.retry_interval_ms));
                     retry_count++;
                 } else if (failure_cfg.on_failure == "exit") {
                     std::cerr << "Consumer " << consumer_id << " exiting after " 
-                         << retry_count << " retries" << std::endl;
+                              << retry_count << " retries" << std::endl;
+                    writer->close();
                     return;
                 }
             }
@@ -294,7 +318,7 @@ void InsertDataAction::consumer_thread_function(
         case DataPipeline<FormatResult>::Status::Terminated:
             // 管道已终止，退出线程
             std::cout << "Consumer " << consumer_id << " received termination signal" << std::endl;
-            connector->close();
+            writer->close();
             return;
             
         case DataPipeline<FormatResult>::Status::Timeout:
@@ -303,9 +327,9 @@ void InsertDataAction::consumer_thread_function(
             break;
         }
     }
-
+    
     // 关闭连接
-    connector->close();
+    writer->close();
 }
 
 ColumnConfigInstanceVector InsertDataAction::create_column_instances(const InsertDataConfig& config) const {

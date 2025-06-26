@@ -26,29 +26,42 @@ void test_sql_data() {
 }
 
 void test_base_insert_data() {
-    BaseInsertData data{
-        .start_time = 1500000000000,
-        .end_time = 1500000001000,
-        .total_rows = 100
-    };
+    BaseInsertData data(
+        BaseInsertData::DataType::SQL,
+        1500000000000,
+        1500000001000,
+        100
+    );
     
+    assert(data.type == BaseInsertData::DataType::SQL);
     assert(data.start_time == 1500000000000);
     assert(data.end_time == 1500000001000);
     assert(data.total_rows == 100);
+
+    // Test STMT_V2 type
+    BaseInsertData stmt_data(
+        BaseInsertData::DataType::STMT_V2,
+        1500000002000,
+        1500000003000,
+        200
+    );
+
+    assert(stmt_data.type == BaseInsertData::DataType::STMT_V2);
+    assert(stmt_data.start_time == 1500000002000);
+    assert(stmt_data.end_time == 1500000003000);
+    assert(stmt_data.total_rows == 200);
     
     std::cout << "test_base_insert_data passed!" << std::endl;
 }
 
 void test_sql_insert_data() {
-    SqlInsertData data{
-        BaseInsertData{
-            .start_time = 1500000000000,
-            .end_time = 1500000001000,
-            .total_rows = 100
-        },
-        .data = SqlData(std::string("INSERT INTO test_table VALUES(1,2,3);"))
-    };
-    
+    SqlInsertData data(
+        1500000000000,
+        1500000001000,
+        100,
+        "INSERT INTO test_table VALUES(1,2,3);"
+    );
+
     // Test base class members
     assert(data.start_time == 1500000000000);
     assert(data.end_time == 1500000001000);
@@ -68,8 +81,7 @@ void test_format_result_variant() {
     
     // Test SqlInsertData variant
     FormatResult result2 = SqlInsertData{
-        BaseInsertData{1500000000000, 1500000001000, 100},
-        SqlData(std::string("INSERT DATA"))
+        1500000000000, 1500000001000, 100, "INSERT DATA"
     };
     assert(std::holds_alternative<SqlInsertData>(result2));
     const auto& sql_data = std::get<SqlInsertData>(result2);
@@ -95,12 +107,11 @@ void test_stmt_v2_insert_data() {
     
     // Create StmtV2InsertData
     StmtV2InsertData data{
-        BaseInsertData{
-            .start_time = 1500000000000,
-            .end_time = 1500000001000,
-            .total_rows = 1
-        },
-        .data = StmtV2Data(col_instances, std::move(batch))
+        1500000000000,
+        1500000001000,
+        1,
+        col_instances,
+        std::move(batch)
     };
     
     // Test base class members

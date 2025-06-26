@@ -32,6 +32,7 @@ private:
 
     void consumer_thread_function(
         size_t consumer_id,
+        const ColumnConfigInstanceVector& col_instances,
         DataPipeline<FormatResult>& pipeline,
         std::atomic<bool>& running);
 

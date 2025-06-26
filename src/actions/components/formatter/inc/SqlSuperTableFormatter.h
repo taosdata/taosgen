@@ -37,7 +37,7 @@ public:
 
 
 private:
-    DataFormat format_;
+    const DataFormat& format_;
 
     template <typename T>
     void append_fields(std::ostringstream& result, const std::vector<T>& fields, const std::string& separator) const {

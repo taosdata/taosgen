@@ -49,6 +49,8 @@ public:
 
     size_t get_total_rows_generated() const;
 
+    const ColumnConfigInstanceVector& get_column_instances() const;
+
 private:
     const InsertDataConfig& config_;
     const ColumnConfigInstanceVector& col_instances_;

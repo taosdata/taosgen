@@ -8,11 +8,16 @@ public:
     ~NativeConnector() override;
 
     bool connect() override;
+    bool prepare(const std::string& sql) override;
     bool execute(const std::string& sql) override;
+    bool execute(const SqlInsertData& data) override;
+    bool execute(const StmtV2InsertData& data) override;
     void close() noexcept override;
 
 private:
     TAOS* conn_{nullptr};
+    TAOS_STMT* stmt_{nullptr}; 
     ConnectionInfo conn_info_;
     bool is_connected_{false};
+    std::string prepare_sql_; 
 };

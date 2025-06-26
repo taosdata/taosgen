@@ -8,7 +8,10 @@ public:
     ~WebsocketConnector() override;
 
     bool connect() override;
+    bool prepare(const std::string& sql) override;
     bool execute(const std::string& sql) override;
+    bool execute(const SqlInsertData& data) override;
+    bool execute(const StmtV2InsertData& data) override;
     void close() noexcept override;
 
 private:

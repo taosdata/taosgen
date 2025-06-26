@@ -147,12 +147,12 @@ public:
                         std::visit([&](const auto& value) {
                             using T = std::decay_t<decltype(value)>;
                             if constexpr (std::is_arithmetic_v<T> || std::is_same_v<T, bool>) {
-                                // 对于算术类型和bool类型
+                                // 对于算术类型和 bool 类型
                                 memcpy(col_buf + row_idx * element_size, &value, element_size);
                                 mem.lengths[row_idx] = 0;
                             }
                             else if constexpr (std::is_same_v<T, Decimal>) {
-                                // 特殊处理 Decimal 类型
+                                // 特殊处理 decimal 类型
                                 memcpy(col_buf + row_idx * element_size, &value, element_size);
                                 mem.lengths[row_idx] = 0;
                             }
@@ -255,17 +255,32 @@ private:
 };
 
 struct BaseInsertData {
+    enum class DataType { SQL, STMT_V2 };
+    const DataType type;
+
     int64_t start_time;
     int64_t end_time;
     size_t total_rows;
+
+    BaseInsertData(int64_t start, int64_t end, size_t rows) 
+        : type(DataType::SQL), start_time(start), end_time(end), total_rows(rows) {}
+
+    BaseInsertData(DataType t, int64_t start, int64_t end, size_t rows) 
+        : type(t), start_time(start), end_time(end), total_rows(rows) {}
+    virtual ~BaseInsertData() = default; 
 };
 
 struct SqlInsertData : public BaseInsertData {
     SqlData data;
+
+    SqlInsertData(int64_t start, int64_t end, size_t rows, std::string&& sql)
+        : BaseInsertData(DataType::SQL, start, end, rows), data(std::move(sql)) {}
 };
 
 struct StmtV2InsertData : public BaseInsertData {
     StmtV2Data data;
+    StmtV2InsertData(int64_t start, int64_t end, size_t rows, const ColumnConfigInstanceVector& col_instances, MultiBatch&& batch) 
+        : BaseInsertData(DataType::STMT_V2, start, end, rows), data(col_instances, std::move(batch)) {}
 };
 
 

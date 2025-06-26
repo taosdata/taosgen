@@ -51,7 +51,7 @@ public:
 
 
 private:
-    DataFormat format_;
+    const DataFormat& format_;
 
     inline static bool registered_ = []() {
         FormatterFactory::instance().register_formatter<CreateChildTableConfig>(
