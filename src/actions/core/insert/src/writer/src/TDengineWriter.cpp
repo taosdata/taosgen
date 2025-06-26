@@ -99,6 +99,11 @@ bool TDengineWriter::handle_insert(const T& data) {
                 current_retry_count_ = 0;
                 return true;
             }
+
+            if (config_.control.insert_control.failure_handling.on_failure == "exit") {
+                throw std::runtime_error(get_format_description() + " insert failed: " + 
+                    std::string(typeid(data).name()));
+            }
             return false;
             current_retry_count_++;
             // std::this_thread::sleep_for(std::chrono::milliseconds(100 * current_retry_count_));

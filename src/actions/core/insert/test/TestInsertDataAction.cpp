@@ -23,7 +23,7 @@ InsertDataConfig create_test_config() {
     auto& schema = config.source.columns.generator.schema;
     schema = {
         {"col1", "INT", "random", 1, 100},
-        {"col2", "FLOAT", "random", 0.0, 1.0}
+        {"col2", "DOUBLE", "random", 0.0, 1.0}
     };
     
     // Setup table name generation
@@ -35,15 +35,25 @@ InsertDataConfig create_test_config() {
     // Setup control parameters
     config.control.data_generation.per_table_rows = 100;
     config.control.data_generation.generate_threads = 2;
+    config.control.data_generation.queue_capacity = 1000;
+
     config.control.insert_control.insert_threads = 2;
     config.control.insert_control.per_request_rows = 10;
-    config.control.data_generation.queue_capacity = 1000;
+    config.control.insert_control.failure_handling.max_retries = 1;
+    config.control.insert_control.failure_handling.retry_interval_ms = 1000;
+    config.control.insert_control.failure_handling.on_failure = "exit";
     
+    // Data format settings
+    config.control.data_format.format_type = "stmt";
+    config.control.data_format.stmt_config.version = "v2";
+
     // Setup target
+    config.target.timestamp_precision = "ms";
     config.target.target_type = "tdengine";
     config.target.tdengine.connection_info.host = "localhost";
     config.target.tdengine.connection_info.port = 6030;
-    config.target.timestamp_precision = "ms";
+    config.target.tdengine.database_info.name = "test_action_db";
+    config.target.tdengine.super_table_info.name = "test_super_table";
     
     return config;
 }
@@ -57,7 +67,8 @@ void test_basic_initialization() {
         action.execute();
         assert(false && "Should throw exception for missing schema configuration");
     } catch (const std::exception& e) {
-        std::cout << "test_basic_initialization passed: caught expected exception\n";
+        assert(std::string(e.what()).find("Schema configuration is empty") != std::string::npos);
+        std::cout << "test_basic_initialization passed\n";
     }
 }
 
@@ -79,16 +90,18 @@ void test_table_name_generation() {
 
 void test_data_pipeline() {
     auto config = create_test_config();
-    DataPipeline<std::string> pipeline(2, 2, 1000);
+    DataPipeline<FormatResult> pipeline(2, 2, 1000);
     
     std::atomic<bool> producer_done{false};
     std::atomic<size_t> rows_generated{0};
     std::atomic<size_t> rows_consumed{0};
-    
+
     // Start producer thread
     std::thread producer([&]() {
         for(int i = 0; i < 5; i++) {
-            pipeline.push_data(0, "TEST DATA " + std::to_string(i));
+            SqlInsertData test_data(1700000000000, 1700000000100, 10, "INSERT INTO test_table VALUES (...)");
+            FormatResult result = FormatResult{std::move(test_data)};
+            pipeline.push_data(0, std::move(result));
             rows_generated++;
         }
         producer_done = true;
@@ -98,15 +111,19 @@ void test_data_pipeline() {
     std::thread consumer([&]() {
         while (!producer_done || pipeline.total_queued() > 0) {
             auto result = pipeline.fetch_data(0);
-            if (result.status == DataPipeline<std::string>::Status::Success) {
-                assert(result.data && "Data should not be null");
-                assert(result.data->substr(0, 9) == "TEST DATA");
-                rows_consumed++;
+            if (result.status == DataPipeline<FormatResult>::Status::Success) {
+                std::visit([&](const auto& data) {
+                    using T = std::decay_t<decltype(data)>;
+                    if constexpr (std::is_same_v<T, SqlInsertData>) {
+                        assert(data.total_rows == 10);
+                        rows_consumed++;
+                    }
+                }, *result.data);
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
     });
-    
+
     producer.join();
     consumer.join();
     

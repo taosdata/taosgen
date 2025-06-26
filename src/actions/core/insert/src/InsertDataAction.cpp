@@ -307,10 +307,15 @@ void InsertDataAction::consumer_thread_function(
                         std::chrono::milliseconds(failure_cfg.retry_interval_ms));
                     retry_count++;
                 } else if (failure_cfg.on_failure == "exit") {
-                    std::cerr << "Consumer " << consumer_id << " exiting after " 
-                              << retry_count << " retries" << std::endl;
+                    // std::cerr << "Consumer " << consumer_id << " exiting after " 
+                    //           << retry_count << " retries" << std::endl;
                     writer->close();
-                    return;
+                    throw std::runtime_error(
+                        "Consumer " + std::to_string(consumer_id) + 
+                        " failed after " + std::to_string(retry_count) + 
+                        " retries. Last error: " + e.what()
+                    );
+                    // return;
                 }
             }
             break;
