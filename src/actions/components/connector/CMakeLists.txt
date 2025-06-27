@@ -1,32 +1,14 @@
-cmake_minimum_required(VERSION 3.10)
-
-project(components_connector LANGUAGES CXX)
-
-# 设置 C++ 标准
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-# 启用测试支持
-enable_testing()
-
-# 添加调试符号信息
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g")
-
-# 添加第三方库
-
-include_directories(C:/TDengine/include)
-include_directories(/usr/include)
-
-# 添加主库
+# 创建库目标
 add_library(components_connector STATIC 
-    src/DatabaseConnector.cpp
-    src/NativeConnector.cpp
-    src/WebsocketConnector.cpp
-    src/RestfulConnector.cpp
+  src/DatabaseConnector.cpp
+  src/NativeConnector.cpp
+  src/WebsocketConnector.cpp
+  src/RestfulConnector.cpp
 )
 
-# 包含头文件目录
-target_include_directories(components_connector PUBLIC
+# 设置包含目录
+target_include_directories(components_connector
+  PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../utils/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../config/inc
@@ -34,18 +16,13 @@ target_include_directories(components_connector PUBLIC
 )
 
 # 链接依赖库
-link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../config/build)
-target_link_libraries(components_connector PUBLIC 
+target_link_libraries(components_connector
+  PUBLIC 
     actions_config
+    ${TAOS_LIBRARIES}
 )
 
-# 添加测试
-# test NativeConnector
-add_executable(TestNativeConnector
-    test/TestNativeConnector.cpp
-)
-target_link_libraries(TestNativeConnector PRIVATE 
-    components_connector
-    taos
-)
-add_test(NAME TestNativeConnector COMMAND TestNativeConnector)
+# 启用测试
+if(CMAKE_TESTING_ENABLED)
+  add_subdirectory(test)
+endif()

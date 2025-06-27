@@ -14,18 +14,22 @@ bool RestfulConnector::connect() {
 }
 
 bool RestfulConnector::prepare(const std::string& sql) {
+    (void)sql;
     throw std::runtime_error("RestfulConnector::prepare is not implemented.");
 }
 
 bool RestfulConnector::execute(const std::string& sql) {
+    (void)sql;
     throw std::runtime_error("RestfulConnector::execute is not implemented.");
 }
 
 bool RestfulConnector::execute(const SqlInsertData& data) {
+    (void)data;
     throw std::runtime_error("RestfulConnector::execute is not implemented.");
 }
 
 bool RestfulConnector::execute(const StmtV2InsertData& data) {
+    (void)data;
     throw std::runtime_error("RestfulConnector::execute is not implemented.");
 }
 

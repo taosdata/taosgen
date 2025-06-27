@@ -44,16 +44,19 @@ ColumnTypeTag ColumnConfig::get_type_tag(const std::string& type_str) {
 ColumnConfig::ColumnConfig(
     const std::string& name,
     const std::string& type
-) : name(name), type(type) {
-    type_tag = get_type_tag(type);
+) : name(name)
+  , type(type)
+  , type_tag(get_type_tag(type)) {
 }
 
 ColumnConfig::ColumnConfig(
     const std::string& name,
     const std::string& type,
     std::optional<std::string> gen_type
-) : name(name), type(type), gen_type(gen_type) {
-    type_tag = get_type_tag(type);
+) : name(name)
+  , type(type)
+  , type_tag(get_type_tag(type))
+  , gen_type(gen_type) {
 }
 
 ColumnConfig::ColumnConfig(
@@ -61,8 +64,11 @@ ColumnConfig::ColumnConfig(
     const std::string& type,
     std::optional<std::string> gen_type,
     std::optional<int> len
-) : name(name), type(type), gen_type(gen_type), len(len) {
-    type_tag = get_type_tag(type);
+) : name(name)
+  , type(type)
+  , type_tag(get_type_tag(type))
+  , len(len)
+  , gen_type(gen_type) {
 }
 
 ColumnConfig::ColumnConfig(
@@ -71,8 +77,12 @@ ColumnConfig::ColumnConfig(
     std::optional<std::string> gen_type,
     std::optional<double> min,
     std::optional<double> max
-) : name(name), type(type), gen_type(gen_type), min(min), max(max) {
-    type_tag = get_type_tag(type);
+) : name(name)
+  , type(type)
+  , type_tag(get_type_tag(type))
+  , gen_type(gen_type)
+  , min(min)
+  , max(max) {
 }
 
 void ColumnConfig::calc_type_tag() {

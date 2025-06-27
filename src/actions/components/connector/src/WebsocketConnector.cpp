@@ -14,18 +14,22 @@ bool WebsocketConnector::connect() {
 }
 
 bool WebsocketConnector::prepare(const std::string& sql) {
+    (void)sql;
     throw std::runtime_error("WebsocketConnector::prepare is not implemented.");
 }
 
 bool WebsocketConnector::execute(const std::string& sql) {
+    (void)sql;
     throw std::runtime_error("WebsocketConnector::execute is not implemented.");
 }
 
 bool WebsocketConnector::execute(const SqlInsertData& data) {
+    (void)data;
     throw std::runtime_error("WebsocketConnector::execute is not implemented.");
 }
 
 bool WebsocketConnector::execute(const StmtV2InsertData& data) {
+    (void)data;
     throw std::runtime_error("WebsocketConnector::execute is not implemented.");
 }
 

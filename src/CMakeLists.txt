@@ -1,14 +1,43 @@
-cmake_minimum_required(VERSION 3.10)
+# 包含目录设置
+include_directories(
+  ${CMAKE_SOURCE_DIR}/inc
+  ${YAML_CPP_INCLUDE_DIRS}
+  ${TAOS_INCLUDE_DIRS}
+)
 
-project(benchmark LANGUAGES CXX)
+# 添加子目录（按依赖顺序）
+add_subdirectory(utils)
+add_subdirectory(actions)
+# add_subdirectory(parameter)
+# add_subdirectory(workflow)
+# add_subdirectory(engine)
 
-# 设置 C++ 标准
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# 主可执行文件
+add_executable(taosbench benchmark.cpp)
 
-# 启用测试支持
-enable_testing()
+# 链接所有依赖库
+target_link_libraries(taosbench
+  PRIVATE
+    # actions_core_insert
+    # actions_core_create
+    # actions_core_query
+    # actions_core_subscribe
+    # actions_config
+    # actions_base
+    # components_connector
+    # components_formatter
+    # components_generator
+    # reader_csv
+    # engine
+    # workflow
+    # parameter
+    utils
+    ${YAML_CPP_LIBRARIES}
+    ${TAOS_LIBRARIES}
+    Threads::Threads
+)
 
-# 添加调试符号信息
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g")
-
+# 安装目标
+install(TARGETS taosbench 
+  RUNTIME DESTINATION bin
+)

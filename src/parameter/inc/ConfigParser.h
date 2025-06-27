@@ -77,7 +77,7 @@ namespace YAML {
             rhs.type = node["type"].as<std::string>();
             if (node["primary_key"]) rhs.primary_key = node["primary_key"].as<bool>();
             if (node["len"]) rhs.len = node["len"].as<int>();
-            if (node["count"]) rhs.count = node["count"].as<int>();
+            if (node["count"]) rhs.count = node["count"].as<size_t>();
             if (node["precision"]) rhs.precision = node["precision"].as<int>();
             if (node["scale"]) rhs.scale = node["scale"].as<int>();
             if (node["properties"]) rhs.properties = node["properties"].as<std::string>();

@@ -14,7 +14,7 @@ struct ColumnConfig {
     ColumnTypeTag type_tag;
     bool primary_key = false;
     std::optional<int> len;
-    int count = 1;
+    size_t count = 1;
     std::optional<int> precision;
     std::optional<int> scale;
     std::optional<std::string> properties;
