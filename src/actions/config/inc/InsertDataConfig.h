@@ -60,12 +60,12 @@ struct InsertDataConfig {
         struct DataGeneration {
             struct InterlaceMode {
                 bool enabled = false;
-                int rows = 1; // 行数
+                size_t rows = 1; // 行数
             } interlace_mode;
 
             struct DataCache {
                 bool enabled = false;
-                int64_t cache_size = 1000000; // 缓存大小
+                size_t cache_size = 1000000; // 缓存大小
             } data_cache;
 
             struct FlowControl {
@@ -73,13 +73,13 @@ struct InsertDataConfig {
                 int64_t rate_limit = 0;             // 每秒生成的行数
             } flow_control;
 
-            int generate_threads = 1;
+            size_t generate_threads = 1;
             int64_t per_table_rows = 10000;
             int queue_capacity = 1000;
         } data_generation;
 
         struct InsertControl {
-            int64_t per_request_rows = 30000;
+            size_t per_request_rows = 30000;
             bool auto_create_table = false;
             int insert_threads = 8;
             std::string thread_allocation = "index_range"; // index_range or vgroup_binding
@@ -88,7 +88,7 @@ struct InsertDataConfig {
             bool preload_table_meta = false;
 
             struct FailureHandling {
-                int max_retries = 0;
+                size_t max_retries = 0;
                 int retry_interval_ms = 1000;
                 std::string on_failure = "exit"; // exit or warn_and_continue
             } failure_handling;

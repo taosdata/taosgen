@@ -297,7 +297,6 @@ void InsertDataAction::consumer_thread_function(
 
                 }, *result.data);
 
-
             } catch (const std::exception& e) {
                 std::cerr << "Consumer " << consumer_id << " write failed: " << e.what() << std::endl;
                 

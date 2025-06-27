@@ -40,11 +40,11 @@ private:
 private:
     const InsertDataConfig& config_;
     // const ColumnConfigInstanceVector& col_instances_;
-    std::unique_ptr<DatabaseConnector> connector_;
+    std::string timestamp_precision_;
     TimeIntervalStrategy time_strategy_;
 
-    std::string timestamp_precision_;
-    
+    std::unique_ptr<DatabaseConnector> connector_;
+
     // State tracking
     bool first_write_ = true;
     int64_t last_start_time_ = 0;

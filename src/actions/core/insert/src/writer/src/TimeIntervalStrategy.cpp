@@ -60,6 +60,8 @@ void TimeIntervalStrategy::apply_wait_strategy(
     int64_t last_end_time,
     bool is_first_write) 
 {
+    (void)current_end_time;
+
     if (!config_.enabled || is_first_write) {
         last_write_time_ = std::chrono::steady_clock::now();
         return;

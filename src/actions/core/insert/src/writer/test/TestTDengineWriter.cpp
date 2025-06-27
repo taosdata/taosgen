@@ -12,7 +12,8 @@ InsertDataConfig create_test_config() {
         .host = "localhost",
         .port = 6030, 
         .user = "root",
-        .password = "taosdata"
+        .password = "taosdata",
+        .dsn = std::nullopt
     };
     config.target.tdengine.database_info.name = "test_action_db"; 
     config.target.tdengine.super_table_info.name = "test_super_table";

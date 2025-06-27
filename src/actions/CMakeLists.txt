@@ -12,13 +12,13 @@ add_subdirectory(config)
 add_subdirectory(components)
 
 # 添加核心功能模块
-# add_subdirectory(core)
+add_subdirectory(core)
 
 # 创建统一的 actions 库
 add_library(actions STATIC
   $<TARGET_OBJECTS:actions_config>
   $<TARGET_OBJECTS:actions_components>
-#   $<TARGET_OBJECTS:actions_core>
+  $<TARGET_OBJECTS:actions_core>
 )
 
 # 设置 actions 库的包含目录
@@ -35,5 +35,5 @@ target_link_libraries(actions
     actions_base
     actions_config
     actions_components
-    # actions_core
+    actions_core
 )

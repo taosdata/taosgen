@@ -63,7 +63,7 @@ public:
     // 消费者接口
     Result fetch_data(size_t consumer_id) {
         auto& state = consumer_states_.at(consumer_id);
-        const size_t start = state.current_index;
+        // const size_t start = state.current_index;
         size_t checked = 0;
         
         while (checked++ < state.active_queues.size()) {
@@ -154,10 +154,10 @@ private:
         }
     }
 
-    std::vector<std::unique_ptr<DataQueue<T>>> queues_;
-    std::vector<ConsumerState> consumer_states_;
-    
+private:
     size_t producer_count_;
     size_t consumer_count_;
     std::atomic<bool> terminated_{false};
+    std::vector<ConsumerState> consumer_states_;
+    std::vector<std::unique_ptr<DataQueue<T>>> queues_;
 };

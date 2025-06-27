@@ -69,7 +69,7 @@ private:
     void advance_to_next_table();
 
     // Get batch data respecting size limits
-    MultiBatch collect_batch_data(int64_t max_rows);
+    MultiBatch collect_batch_data(size_t max_rows);
 
     // Flow control
     std::unique_ptr<RateLimiter> rate_limiter_;

@@ -1,54 +1,35 @@
-cmake_minimum_required(VERSION 3.10)
+# 添加子模块
+add_subdirectory(src/generator)
+add_subdirectory(src/pipeline)
+add_subdirectory(src/writer)
 
-project(actions_insert LANGUAGES CXX)
-
-# 设置 C++ 标准
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-# 启用测试支持
-enable_testing()
-
-# 添加调试符号信息
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g")
-
-# 添加第三方库
-
-
-# 添加主库
-add_library(actions_insert STATIC 
-    src/InsertDataAction.cpp
+# 创建库目标
+add_library(core_insert STATIC 
+  src/InsertDataAction.cpp
+  $<TARGET_OBJECTS:insert_generator>
+  $<TARGET_OBJECTS:insert_pipeline>
+  $<TARGET_OBJECTS:insert_writer>
 )
 
-# 包含头文件目录
-target_include_directories(actions_insert PUBLIC 
+# 设置包含目录
+target_include_directories(core_insert
+  PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../utils/inc
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../../workflow/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../base
     ${CMAKE_CURRENT_SOURCE_DIR}/../../config/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../components/connector/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../components/formatter/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../components/generator/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../components/reader/csv/inc
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/generator/inc/
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/pipeline/inc/
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/writer/inc/
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/generator/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pipeline/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/writer/inc
 )
 
 # 链接依赖库
-link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../utils/build)
-link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../workflow/build)
-link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../config/build)
-link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../components/connector/build)
-link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../components/formatter/build)
-link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../components/generator/build)
-link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../components/reader/build)
-link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../components/reader/csv/build)
-link_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/generator/build)
-link_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/pipeline/build)
-link_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/writer/build)
-target_link_libraries(actions_insert PUBLIC
+target_link_libraries(core_insert
+  PUBLIC
     insert_generator
     insert_pipeline
     insert_writer
@@ -57,20 +38,10 @@ target_link_libraries(actions_insert PUBLIC
     components_formatter
     components_generator
     components_reader
-    reader_csv
     utils
-    workflow
 )
 
-
-# 添加测试
-#Test InsertDataAction
-add_executable(TestInsertDataAction
-    test/TestInsertDataAction.cpp
-)
-target_link_libraries(TestInsertDataAction PRIVATE 
-    actions_insert
-    taos
-)
-add_test(NAME TestInsertDataAction COMMAND TestInsertDataAction)
-
+# 启用测试
+if(CMAKE_ENABLE_TEST)
+  add_subdirectory(test)
+endif()

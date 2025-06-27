@@ -153,7 +153,7 @@ void test_data_generation() {
         // Verify timestamp progression
         for (const auto& [table_name, rows] : batch->table_batches) {
             for (size_t i = 0; i < rows.size(); i++) {
-                assert(rows[i].timestamp == 1700000000000 + (row_count - rows.size() + i) * 10);
+                assert(rows[i].timestamp == 1700000000000 + static_cast<int64_t>(row_count - rows.size() + i) * 10);
             }
         }
     }

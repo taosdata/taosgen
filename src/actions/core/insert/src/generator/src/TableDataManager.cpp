@@ -80,9 +80,9 @@ std::optional<MultiBatch> TableDataManager::next_multi_batch() {
     }
 
     // Get maximum rows per request from config
-    int64_t max_rows = config_.control.insert_control.per_request_rows;
-    if (max_rows <= 0) {
-        max_rows = std::numeric_limits<int64_t>::max();
+    size_t max_rows = config_.control.insert_control.per_request_rows;
+    if (max_rows == 0) {
+        max_rows = std::numeric_limits<size_t>::max();
     }
 
     MultiBatch batch = collect_batch_data(max_rows);
@@ -90,7 +90,7 @@ std::optional<MultiBatch> TableDataManager::next_multi_batch() {
     return batch;
 }
 
-MultiBatch TableDataManager::collect_batch_data(int64_t max_rows) {
+MultiBatch TableDataManager::collect_batch_data(size_t max_rows) {
     MultiBatch result;
     int64_t start_time{std::numeric_limits<int64_t>::max()};
     int64_t end_time{std::numeric_limits<int64_t>::min()};
@@ -177,7 +177,7 @@ TableDataManager::TableState* TableDataManager::get_next_active_table() {
     if (table_order_.empty()) return nullptr;
     
     // Loop through tables to find one with available data
-    size_t start_index = current_table_index_;
+    // size_t start_index = current_table_index_;
     size_t attempts = 0;
     
     do {

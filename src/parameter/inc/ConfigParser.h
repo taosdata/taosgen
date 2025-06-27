@@ -513,12 +513,12 @@ namespace YAML {
             if (node["interlace_mode"]) {
                 const auto& interlace = node["interlace_mode"];
                 rhs.interlace_mode.enabled = interlace["enabled"].as<bool>(false);
-                rhs.interlace_mode.rows  = interlace["rows"].as<int>(1);
+                rhs.interlace_mode.rows  = interlace["rows"].as<size_t>(1);
             }
             if (node["data_cache"]) {
                 const auto& data_cache = node["data_cache"];
                 rhs.data_cache.enabled = data_cache["enabled"].as<bool>(false);
-                rhs.data_cache.cache_size = data_cache["cache_size"].as<int>(1000000);
+                rhs.data_cache.cache_size = data_cache["cache_size"].as<size_t>(1000000);
             }
             if (node["flow_control"]) {
                 const auto& flow_control = node["flow_control"];
@@ -526,7 +526,7 @@ namespace YAML {
                 rhs.flow_control.rate_limit = flow_control["rate_limit"].as<int64_t>(0);
             }
             if (node["generate_threads"]) {
-                rhs.generate_threads = node["generate_threads"].as<int>(1);
+                rhs.generate_threads = node["generate_threads"].as<size_t>(1);
             }
             if (node["per_table_rows"]) {
                 rhs.per_table_rows = node["per_table_rows"].as<int64_t>(10000);
@@ -540,24 +540,10 @@ namespace YAML {
 
 
     template<>
-    struct convert<InsertDataConfig::Control::DataCache> {
-        static bool decode(const Node& node, InsertDataConfig::Control::DataCache& rhs) {
-            if (node["enabled"]) {
-                rhs.enabled = node["enabled"].as<bool>(false);
-            }
-            if (node["cache_size"]) {
-                rhs.cache_size = node["cache_size"].as<int>(1000000);
-            }
-            return true;
-        }
-    };
-
-
-    template<>
     struct convert<InsertDataConfig::Control::InsertControl> {
         static bool decode(const Node& node, InsertDataConfig::Control::InsertControl& rhs) {
             if (node["per_request_rows"]) {
-                rhs.per_request_rows = node["per_request_rows"].as<int>(30000);
+                rhs.per_request_rows = node["per_request_rows"].as<size_t>(30000);
             }
             if (node["auto_create_table"]) {
                 rhs.auto_create_table = node["auto_create_table"].as<bool>(false);
@@ -579,7 +565,7 @@ namespace YAML {
             }
             if (node["failure_handling"]) {
                 const auto& failure = node["failure_handling"];
-                rhs.failure_handling.max_retries = failure["max_retries"].as<int>(0);
+                rhs.failure_handling.max_retries = failure["max_retries"].as<size_t>(0);
                 rhs.failure_handling.retry_interval_ms = failure["retry_interval_ms"].as<int>(1000);
                 rhs.failure_handling.on_failure = failure["on_failure"].as<std::string>("exit");
             }

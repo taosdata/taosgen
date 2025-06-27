@@ -1,12 +1,12 @@
 #pragma once
-#include "ActionBase.h"
-#include "Step.h"
+
 #include <memory>
 #include <mutex>
 #include <string>
 #include <unordered_map>
 #include <functional>
-
+#include "ActionConfigVariant.h"
+#include "ActionBase.h"
 
 class ActionFactory {
 public:
