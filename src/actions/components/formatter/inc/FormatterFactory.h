@@ -49,7 +49,7 @@ public:
 
     template<typename ActionConfig>
     void register_formatter(const std::string& format_type, CreatorType<ActionConfig> creator) {
-        using Interface = typename FormatterTraits<ActionConfig>::Interface;
+        // using Interface = typename FormatterTraits<ActionConfig>::Interface;
     
         const std::string key = std::string(FormatterTraits<ActionConfig>::prefix) + "." + format_type;
     

@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.10)
 project(taosbenchmark LANGUAGES CXX)
 
+# 选项
+option(CMAKE_ENABLE_TEST "Enable testing" ON)
+option(CMAKE_ENABLE_COVERAGE "Enable code coverage" OFF)
+option(CMAKE_ENABLE_SANITIZER "Enable sanitizers" OFF)
+
 # 全局设置
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -38,9 +43,9 @@ find_package(Threads REQUIRED)
 find_package(YAML_CPP REQUIRED)
 find_package(Taos REQUIRED)
 
+# 测试支持
+enable_testing()
+
 # 添加主程序和测试目录
 add_subdirectory(src)
 # add_subdirectory(test)
-
-# 测试支持
-enable_testing()

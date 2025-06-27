@@ -43,6 +43,7 @@ public:
     FormatResult format(const InsertDataConfig& config, 
                         const ColumnConfigInstanceVector& col_instances, 
                         MultiBatch&& batch) const {
+        (void)config;
 
         if (batch.table_batches.empty()) {
             return FormatResult("");

@@ -11,6 +11,8 @@ public:
     explicit SqlInsertDataFormatter(const DataFormat& format) : format_(format) {}
 
     std::string prepare(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances) const {
+        (void)config;
+        (void)col_instances;
         return "";
     }
 

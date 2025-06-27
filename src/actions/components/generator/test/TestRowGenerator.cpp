@@ -90,7 +90,7 @@ void test_generate_multiple_rows() {
         assert(row.size() == col_configs.size() + 1);
 
         assert(std::holds_alternative<Timestamp>(row[0]));
-        assert(std::get<Timestamp>(row[0]) == 1000 + i * 10);
+        assert(std::get<Timestamp>(row[0]) == static_cast<Timestamp>(1000UL + i * 10));
 
         assert(std::holds_alternative<int>(row[1]));
         assert(std::get<int>(row[1]) >= 10 && std::get<int>(row[1]) < 20);

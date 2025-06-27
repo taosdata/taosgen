@@ -56,11 +56,6 @@ void ColumnsCSV::validate_config() {
     // 验证时间戳策略配置
     if (std::holds_alternative<TimestampOriginalConfig>(config_.timestamp_strategy.timestamp_config)) {
         const auto& ts_config = std::get<TimestampOriginalConfig>(config_.timestamp_strategy.timestamp_config);
-        
-        // 验证时间戳索引有效
-        if (ts_config.timestamp_index < 0) {
-            throw std::invalid_argument("Timestamp column index must be non-negative");
-        }
 
         if (ts_config.timestamp_index >= total_columns) {
             std::stringstream ss;

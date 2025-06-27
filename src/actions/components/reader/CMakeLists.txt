@@ -1,29 +1,20 @@
-cmake_minimum_required(VERSION 3.10)
-
-project(components_reader LANGUAGES CXX)
-
-# 设置 C++ 标准
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-# 启用测试支持
-enable_testing()
-
-# 添加调试符号信息
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g")
-
 # 添加子目录
 add_subdirectory(csv)
+# add_subdirectory(kafka)
 
-# 编译静态库
-add_library(components_reader STATIC reader.cpp)
-
-# 链接 csv 静态库到 components_reader
-target_link_libraries(components_reader PUBLIC
-    reader_csv
+# 创建库目标
+add_library(components_reader STATIC 
+  $<TARGET_OBJECTS:reader_csv>
 )
 
-# 包含头文件目录
-target_include_directories(components_reader PUBLIC
+# 设置包含目录
+target_include_directories(components_reader
+  PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/csv/inc
+)
+
+# 链接子模块
+target_link_libraries(components_reader
+  PUBLIC
+    reader_csv
 )

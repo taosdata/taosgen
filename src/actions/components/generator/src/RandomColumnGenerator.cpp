@@ -49,7 +49,7 @@ ColumnType RandomColumnGenerator::generate() const {
             
             std::string result;
             result.reserve(*instance_.config().len);
-            for (size_t i = 0; i < *instance_.config().len; ++i) {
+            for (int i = 0; i < *instance_.config().len; ++i) {
                 result.push_back(default_corpus[dist(random_engine)]);
             }
             return result;
