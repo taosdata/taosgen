@@ -12,7 +12,7 @@ public:
 
     std::string format(const CreateChildTableConfig& config, const std::string& table_name, RowType tags) const {
         std::ostringstream result;
-        result << "CREATE TABLE IF NOT EXISTS `" 
+        result << " IF NOT EXISTS `" 
                << config.database_info.name << "`.`"  << table_name << "` USING `"
                << config.database_info.name << "`.`"  << config.super_table_info.name << "` TAGS (";
 
@@ -30,7 +30,7 @@ public:
             }, tags[i]);
         }
     
-        result << ");";
+        result << ")";
 
         return result.str();
     }
@@ -40,12 +40,11 @@ public:
                         const std::vector<RowType>& tags) const override {
 
         std::ostringstream result;
+        result << "CREATE TABLE";
         for (size_t i = 0; i < table_names.size(); ++i) {
-            if (i > 0) {
-                result << "\n";
-            }
             result << format(config, table_names[i], tags[i]);
         }
+        result << ";";
         return result.str();
     }
 

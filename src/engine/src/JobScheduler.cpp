@@ -2,12 +2,10 @@
 #include <iostream>
 
 
-// 默认构造函数，使用生产环境策略
 JobScheduler::JobScheduler(const ConfigData& config)
     : JobScheduler(config, std::make_unique<ProductionStepStrategy>()) {
 }
 
-// 新的构造函数实现
 JobScheduler::JobScheduler(const ConfigData& config, std::unique_ptr<StepExecutionStrategy> strategy)
     : config_(config),
       dag_(std::make_unique<JobDAG>(config.jobs)),

@@ -1,5 +1,4 @@
-#ifndef JOB_SCHEDULER_H
-#define JOB_SCHEDULER_H
+#pragma once
 
 #include <vector>
 #include <thread>
@@ -45,5 +44,3 @@ private:
     std::condition_variable done_cv_;
     std::unique_ptr<StepExecutionStrategy> step_strategy_; // 步骤执行策略
 };
-
-#endif // JOB_SCHEDULER_H

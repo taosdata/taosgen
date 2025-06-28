@@ -1,5 +1,7 @@
 #include "ColumnConfig.h"
 #include <stdexcept>
+#include <cfloat>
+#include <limits>
 #include "taos.h"
 
 ColumnTypeTag ColumnConfig::get_type_tag(const std::string& type_str) {
@@ -39,6 +41,68 @@ ColumnTypeTag ColumnConfig::get_type_tag(const std::string& type_str) {
     if (lower_type == "geometry")
         return ColumnTypeTag::GEOMETRY;
     throw std::runtime_error("Unsupported type: " + lower_type);
+}
+
+double ColumnConfig::get_min_value() const noexcept {
+    switch (type_tag) {
+        case ColumnTypeTag::BOOL:
+            return 0.0;
+        case ColumnTypeTag::TINYINT:
+            return static_cast<double>(INT8_MIN);
+        case ColumnTypeTag::TINYINT_UNSIGNED:
+            return 0.0;
+        case ColumnTypeTag::SMALLINT:
+            return static_cast<double>(INT16_MIN);
+        case ColumnTypeTag::SMALLINT_UNSIGNED:
+            return 0.0;
+        case ColumnTypeTag::INT:
+            return static_cast<double>(INT32_MIN);
+        case ColumnTypeTag::INT_UNSIGNED:
+            return 0.0;
+        case ColumnTypeTag::BIGINT:
+            return static_cast<double>(INT64_MIN);
+        case ColumnTypeTag::BIGINT_UNSIGNED:
+            return 0.0;
+        case ColumnTypeTag::FLOAT:
+            return -FLT_MAX;
+        case ColumnTypeTag::DOUBLE:
+            return -DBL_MAX;
+        case ColumnTypeTag::DECIMAL:
+            return -DBL_MAX;
+        default:
+            return -1.0;
+    }
+}
+
+double ColumnConfig::get_max_value() const noexcept {
+    switch (type_tag) {
+        case ColumnTypeTag::BOOL:
+            return 1.0;
+        case ColumnTypeTag::TINYINT:
+            return static_cast<double>(INT8_MAX);
+        case ColumnTypeTag::TINYINT_UNSIGNED:
+            return static_cast<double>(UINT8_MAX);
+        case ColumnTypeTag::SMALLINT:
+            return static_cast<double>(INT16_MAX);
+        case ColumnTypeTag::SMALLINT_UNSIGNED:
+            return static_cast<double>(UINT16_MAX);
+        case ColumnTypeTag::INT:
+            return static_cast<double>(INT32_MAX);
+        case ColumnTypeTag::INT_UNSIGNED:
+            return static_cast<double>(UINT32_MAX);
+        case ColumnTypeTag::BIGINT:
+            return static_cast<double>(INT64_MAX);
+        case ColumnTypeTag::BIGINT_UNSIGNED:
+            return static_cast<double>(UINT64_MAX);
+        case ColumnTypeTag::FLOAT:
+            return FLT_MAX;
+        case ColumnTypeTag::DOUBLE:
+            return DBL_MAX;
+        case ColumnTypeTag::DECIMAL:
+            return DBL_MAX;
+        default:
+            return -1.0;
+    }
 }
 
 ColumnConfig::ColumnConfig(

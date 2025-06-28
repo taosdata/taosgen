@@ -1,5 +1,4 @@
-#ifndef PARAMETER_CONTEXT_H
-#define PARAMETER_CONTEXT_H
+#pragma once
 
 #include "ConfigParser.h"
 #include "ConfigData.h"
@@ -17,10 +16,17 @@ class ParameterContext {
 public:
     ParameterContext();
 
+    bool init(int argc, char* argv[]);
+    void show_help();
+
     // 合并参数来源
+    void parse_commandline(int argc, char* argv[]);
+    void merge_commandline();
     void merge_commandline(int argc, char* argv[]);
     void merge_environment_vars();
+    void merge_yaml();
     void merge_yaml(const YAML::Node& config); 
+    void merge_yaml(const std::string& file_path);
 
     // 获取参数
     // template <typename T>
@@ -58,6 +64,17 @@ private:
 
 
     // void validate();
-};
 
-#endif // PARAMETER_CONTEXT_H
+private:
+    // 定义命令选项结构
+    struct CommandOption {
+        std::string long_opt;    // 长命令选项 (e.g. "--host")
+        char short_opt;          // 短命令选项 (e.g. 'h')
+        std::string description; // 命令描述
+        bool requires_value;     // 是否需要值
+    };
+
+    // 定义有效的命令选项列表
+    static const std::vector<CommandOption> valid_options;
+
+};

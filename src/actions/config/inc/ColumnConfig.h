@@ -59,6 +59,10 @@ struct ColumnConfig {
 
     void calc_type_tag();
 
+    double get_min_value() const noexcept;
+    
+    double get_max_value() const noexcept;
+
     // Check if the column type is variable length
     bool is_var_length() const noexcept;
 

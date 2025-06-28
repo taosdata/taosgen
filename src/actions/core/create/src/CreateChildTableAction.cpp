@@ -36,14 +36,14 @@ void CreateChildTableAction::execute() {
         // Generate tags
         std::vector<RowType> tags;
         if (config_.child_table_info.tags.source_type == "generator") {
-            auto instances = ColumnConfigInstanceFactory::create(config_.child_table_info.tags.generator.schema); 
+            auto instances = ColumnConfigInstanceFactory::create(config_.child_table_info.tags.generator.schema);
             RowGenerator row_generator(instances);
             tags = row_generator.generate(table_names.size());
             for (const auto& tag : tags) {
                 std::cout << "Generated tag: " << tag << std::endl;
             }
         } else if (config_.child_table_info.tags.source_type == "csv") {
-            auto instances = ColumnConfigInstanceFactory::create(config_.child_table_info.tags.csv.schema); 
+            auto instances = ColumnConfigInstanceFactory::create(config_.child_table_info.tags.csv.schema);
             TagsCSV tags_csv(config_.child_table_info.tags.csv, instances);
             tags = tags_csv.generate();
             for (const auto& tag : tags) {

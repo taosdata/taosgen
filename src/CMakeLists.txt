@@ -15,6 +15,13 @@ add_subdirectory(engine)
 # 主可执行文件
 add_executable(taosbench benchmark.cpp)
 
+# 设置包含目录
+target_include_directories(parameter
+  PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/parameter/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/engine/inc
+)
+
 # 链接所有依赖库
 target_link_libraries(taosbench
   PRIVATE

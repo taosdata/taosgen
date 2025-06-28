@@ -1,0 +1,154 @@
+global:
+  confirm_prompt: false
+  log_dir: log/
+  cfg_dir: /etc/taos/
+
+  # 公共结构定义
+  connection_info: &db_conn
+    host: 127.0.0.1
+    port: 6030
+    user: root
+    password: taosdata
+
+    data_format: &data_format
+      format_type: sql
+    data_channel: &data_channel
+      channel_type: native
+
+  database_info: &db_info
+    name: benchdebug
+    drop_if_exists: true
+    precision: ms
+
+  super_table_info: &stb_info
+    name: points
+    columns: &columns_info
+      - name: latitude
+        type: float
+      - name: longitude
+        type: float
+      - name: quality
+        type: varchar
+        len: 8
+    tags: &tags_info
+      - name: type
+        type: varchar
+        len: 7
+      - name: name
+        type: varchar
+        len: 20
+      - name: department
+        type: varchar
+        len: 10
+
+
+concurrency: 4
+
+jobs:
+  # 创建数据库作业
+  create-database:
+    name: Create Database
+    needs: []
+    steps:
+      - name: Create Database
+        uses: actions/create-database
+        with:
+          connection_info: *db_conn
+          database_info: *db_info
+
+
+  # 创建超级表作业
+  create-super-table:
+    name: Create Super Table
+    needs: [create-database]
+    steps:
+      - name: Create Super Table
+        uses: actions/create-super-table
+        with:
+          connection_info: *db_conn
+          database_info: *db_info
+          super_table_info: *stb_info
+
+
+  # 创建子表作业
+  create-second-child-table:
+    name: Create Second Child Table
+    needs: [create-super-table]
+    steps:
+      - name: Create Second Child Table
+        uses: actions/create-child-table
+        with:
+          connection_info: *db_conn
+          database_info: *db_info
+          super_table_info: *stb_info
+          child_table_info:
+            table_name:
+              source_type: generator
+              generator:
+                prefix: d
+                count: 1000
+                from: 0
+            tags: 
+              source_type: generator
+              generator:
+                schema: *tags_info
+          batch:
+            size: 1000
+            concurrency: 10
+
+
+  # 写入数据作业
+  insert-second-data:
+    name: Insert Second-Level Data
+    needs: [create-second-child-table]
+    steps:
+      - name: Insert Second-Level Data
+        uses: actions/insert-data
+        with:
+          # source
+          source:
+            table_name:
+              source_type: generator
+              generator:
+                prefix: d
+                count: 1000
+                from: 0
+            columns:
+              source_type: generator
+              generator:
+                schema: *columns_info
+
+                timestamp_strategy:
+                  strategy_type: original
+                  generator:
+                    start_timestamp: 1700000000000
+                    timestamp_precision : ms
+                    timestamp_step: 1
+
+          # target
+          target:
+            target_type: tdengine
+            tdengine:
+              connection_info: *db_conn
+              database_info: *db_info
+              super_table_info: *stb_info
+
+          # control
+          control:
+            data_format:
+              format_type: stmt
+              stmt:
+                version: v2
+            data_channel:
+              channel_type: native
+            data_generation:
+              interlace_mode:
+                enabled: false
+                rows: 1
+              generate_threads: 8
+              per_table_rows: 10000
+            insert_control:
+              per_request_rows: 3000
+              auto_create_table: false
+              insert_threads: 8
+              thread_allocation: index_range

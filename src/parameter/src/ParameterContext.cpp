@@ -7,6 +7,61 @@
 
 ParameterContext::ParameterContext() {}
 
+// 定义静态成员变量
+const std::vector<ParameterContext::CommandOption> ParameterContext::valid_options = {
+    {"--host", 'h', "Specify FQDN to connect server", true},
+    {"--port", 'P', "The TCP/IP port number to use for the connection", true},
+    {"--user", 'u', "The user name to use when connecting to the server", true},
+    {"--password", 'p', "The password to use when connecting to the server", true},
+    {"--config-file", 'c', "Specify config file path", true},
+    {"--verbose", 'v', "Increase output verbosity", false},
+    {"--help", '?', "Display this help message", false}
+    // 在这里添加更多命令选项
+};
+
+void ParameterContext::show_help() {
+    std::cout << "Usage: taosbench [OPTIONS]...\n\n"
+              << "Options:\n";
+
+    // 计算最长的长选项和短选项组合的长度，用于对齐
+    size_t max_opt_len = 0;
+    for (const auto& opt : valid_options) {
+        size_t total_len = 4 + opt.long_opt.length(); // 4 = "-X, "的长度
+        max_opt_len = std::max(max_opt_len, total_len);
+    }
+
+    // 为VALUE预留固定空间
+    const size_t value_width = 8;
+    const size_t desc_offset = max_opt_len + value_width;
+
+    // 输出每个选项的帮助信息
+    for (const auto& opt : valid_options) {
+        // 输出短选项和长选项
+        std::cout << "  -" << opt.short_opt << ", " << opt.long_opt;
+        
+        // 计算当前行已输出的长度
+        size_t current_len = 4 + opt.long_opt.length();
+        
+        // 输出VALUE（如果需要）和空格
+        if (opt.requires_value) {
+            std::cout << "=VALUE";
+            current_len += 6;
+        }
+        
+        // 计算需要补充的空格数，确保描述对齐
+        size_t padding = desc_offset - current_len;
+        std::cout << std::string(padding, ' ');
+        
+        // 输出描述
+        std::cout << opt.description << "\n";
+    }
+
+    std::cout << "\nExamples:\n"
+              << "  taosbench --config-file=example.yaml\n"
+              << "  taosbench -h localhost -P 6030 -u root -p taosdata\n"
+              << "\nFor more information, visit: https://docs.taosdata.com/\n\n";
+}
+
 // 解析全局配置
 void ParameterContext::parse_global(const YAML::Node& global_yaml) {
     auto& global_config = config_data.global;
@@ -123,11 +178,11 @@ void ParameterContext::parse_create_database_action(Step& step) {
         throw std::runtime_error("Missing required 'database_info' for create-database action.");
     }
 
-    // 将解析结果保存到 Step 的 action_config 字段
-    step.action_config = std::move(create_db_config);
-
     // 打印解析结果
     std::cout << "Parsed create-database action: " << create_db_config.database_info.name << std::endl;
+
+    // 将解析结果保存到 Step 的 action_config 字段
+    step.action_config = std::move(create_db_config);
 }
 
 
@@ -177,11 +232,11 @@ void ParameterContext::parse_create_super_table_action(Step& step) {
         throw std::runtime_error("Missing required 'columns' in super_table_info.");    
     }
 
-    // 将解析结果保存到 Step 的 action_config 字段
-    step.action_config = std::move(create_stb_config);
-
     // 打印解析结果
     std::cout << "Parsed create-super-table action: " << create_stb_config.super_table_info.name << std::endl;
+
+    // 将解析结果保存到 Step 的 action_config 字段
+    step.action_config = std::move(create_stb_config);
 }
 
 
@@ -238,11 +293,11 @@ void ParameterContext::parse_create_child_table_action(Step& step) {
         create_child_config.batch = step.with["batch"].as<CreateChildTableConfig::BatchConfig>();
     }
 
-    // 将解析结果保存到 Step 的 action_config 字段
-    step.action_config = std::move(create_child_config);
-
     // 打印解析结果
     std::cout << "Parsed create-child-table action for super table: " << create_child_config.super_table_info.name << std::endl;
+
+    // 将解析结果保存到 Step 的 action_config 字段
+    step.action_config = std::move(create_child_config);
 }
 
 
@@ -259,11 +314,11 @@ void ParameterContext::parse_insert_data_action(Step& step) {
         insert_config.control = step.with["control"].as<InsertDataConfig::Control>();
     }
 
-    // 将解析结果保存到 Step 的 action_config 字段
-    step.action_config = std::move(insert_config);
-
     // 打印解析结果
     std::cout << "Parsed insert-data action." << std::endl;
+
+    // 将解析结果保存到 Step 的 action_config 字段
+    step.action_config = std::move(insert_config);
 }
 
 
@@ -284,11 +339,11 @@ void ParameterContext::parse_query_data_action(Step& step) {
         throw std::runtime_error("Missing required 'control' for query-data action.");
     }
 
-    // 将解析结果保存到 Step 的 action_config 字段
-    step.action_config = std::move(query_config);
-
     // 打印解析结果
     std::cout << "Parsed query-data action." << std::endl;
+
+    // 将解析结果保存到 Step 的 action_config 字段
+    step.action_config = std::move(query_config);
 }
 
 
@@ -309,11 +364,11 @@ void ParameterContext::parse_subscribe_data_action(Step& step) {
         throw std::runtime_error("Missing required 'control' for subscribe-data action.");
     }
 
-    // 将解析结果保存到 Step 的 action_config 字段
-    step.action_config = std::move(subscribe_config);
-
     // 打印解析结果
     std::cout << "Parsed subscribe-data action." << std::endl;
+
+    // 将解析结果保存到 Step 的 action_config 字段
+    step.action_config = std::move(subscribe_config);
 }
 
 
@@ -334,29 +389,109 @@ void ParameterContext::merge_yaml(const YAML::Node& config) {
     }
 }
 
+void ParameterContext::merge_yaml(const std::string& file_path) {
+    try {
+        // Load and parse the YAML file
+        YAML::Node config = YAML::LoadFile(file_path);
+        // Call the existing merge_yaml function with the parsed YAML node
+        merge_yaml(config);
+    } catch (const YAML::Exception& e) {
+        throw std::runtime_error("Failed to parse YAML file '" + file_path + "': " + e.what());
+    } catch (const std::exception& e) {
+        throw std::runtime_error("Error processing YAML file '" + file_path + "': " + e.what());
+    }
+}
 
+void ParameterContext::merge_yaml() {
+    if (!cli_params.count("--config-file")) {
+        throw std::runtime_error("Missing required parameter: --config-file or -c");
+    }
 
+    const std::string& config_file = cli_params["--config-file"];
+    merge_yaml(config_file);
+}
 
+void ParameterContext::parse_commandline(int argc, char* argv[]) {
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        std::string key, value;
 
+        // 处理长命令格式 (--key=value)
+        if (arg.substr(0, 2) == "--") {
+            size_t pos = arg.find('=');
+            if (pos != std::string::npos) {
+                // 处理带值的长命令 (--key=value)
+                key = arg.substr(0, pos);
+                value = arg.substr(pos + 1);
+            } else {
+                // 处理不带值的长命令 (--key)
+                key = arg;
+                value = "";
+            }
 
+            // 验证长命令是否合法
+            auto it = std::find_if(valid_options.begin(), valid_options.end(),
+                [&key](const CommandOption& opt) { return opt.long_opt == key; });
+            
+            if (it == valid_options.end()) {
+                throw std::runtime_error("Unknown option: " + key);
+            }
 
+            // 检查是否需要值
+            if (it->requires_value && pos == std::string::npos) {
+                throw std::runtime_error("Option requires a value: " + key);
+            }
+                
+            cli_params[key] = value;
+        }
+        // 处理短命令格式 (-k value)
+        else if (arg[0] == '-') {
+            // 检查短命令格式长度
+            if (arg.length() != 2) {
+                throw std::runtime_error("Invalid short option format '" + arg + "'. Must be single character after '-'");
+            }
+
+            char short_opt = arg[1];
+            auto it = std::find_if(valid_options.begin(), valid_options.end(),
+                [short_opt](const CommandOption& opt) { return opt.short_opt == short_opt; });
+            
+            if (it == valid_options.end()) {
+                throw std::runtime_error("Unknown option: " + arg);
+            }
+            
+            if (it->requires_value) {
+                if (i + 1 >= argc) {
+                    throw std::runtime_error("Option requires a value: " + key);
+                }
+                key = it->long_opt;
+                value = argv[++i];
+            } else {
+                key = it->long_opt;
+                value = "";
+            }   
+
+            cli_params[key] = value;
+        }
+    } 
+}
 
 
 void ParameterContext::merge_commandline(int argc, char* argv[]) {
-    for (int i = 1; i < argc; ++i) {
-        std::string arg = argv[i];
-        if (arg.find('=') != std::string::npos) {
-            auto pos = arg.find('=');
-            std::string key = arg.substr(0, pos);
-            std::string value = arg.substr(pos + 1);
-            cli_params[key] = value;
-        }
-    }
+    parse_commandline(argc, argv);
+    merge_commandline();
+}
 
+void ParameterContext::merge_commandline() {
     // 映射命令行参数到全局配置
     auto& conn_info = config_data.global.connection_info;
     if (cli_params.count("--host")) conn_info.host = cli_params["--host"];
-    if (cli_params.count("--port")) conn_info.port = std::stoi(cli_params["--port"]);
+    if (cli_params.count("--port")) {
+        try {
+            conn_info.port = std::stoi(cli_params["--port"]);
+        } catch (const std::exception& e) {
+            throw std::runtime_error("Invalid port number: " + cli_params["--port"]);
+        }
+    }
     if (cli_params.count("--user")) conn_info.user = cli_params["--user"];
     if (cli_params.count("--password")) conn_info.password = cli_params["--password"];
 }
@@ -384,6 +519,20 @@ void ParameterContext::merge_environment_vars() {
     }
 }
 
+bool ParameterContext::init(int argc, char* argv[]) {
+    parse_commandline(argc, argv);
+
+    if (cli_params.count("--help")) {
+        show_help();
+        return false;
+    }
+
+    // 根据参数优先级从低到高，依次合并
+    merge_yaml();
+    merge_environment_vars();
+    merge_commandline();
+    return true;
+}
 
 const ConfigData& ParameterContext::get_config_data() const {
     return config_data;

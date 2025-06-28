@@ -5,7 +5,7 @@ global:
 
   # 公共结构定义（可通过锚点复用）
   connection_info: &db_conn
-    host: 192.168.1.1
+    host: 127.0.0.1
     port: 6030
     user: root
     password: taosdata
@@ -159,7 +159,7 @@ jobs:
 
                 timestamp_strategy:
                   strategy_type: original
-                  original_config:
+                  original:
                     column_index: 0
                     precision: us
 
@@ -224,7 +224,7 @@ jobs:
 
                 timestamp_strategy:
                   strategy_type: original
-                  original_config:
+                  original:
                     column_index: 0
                     precision: ms
 

@@ -1,5 +1,4 @@
-#ifndef DATABASE_INFO_H
-#define DATABASE_INFO_H
+#pragma once
 
 #include <string>
 #include <optional>
@@ -10,5 +9,3 @@ struct DatabaseInfo {
     bool drop_if_exists = true;
     std::optional<std::string> properties;
 };
-
-#endif // DATABASE_INFO_H

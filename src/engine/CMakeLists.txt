@@ -13,12 +13,18 @@ target_include_directories(engine
     ${CMAKE_CURRENT_SOURCE_DIR}/../workflow/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../actions/config/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../actions/base
+    ${CMAKE_CURRENT_SOURCE_DIR}/../actions/core/create/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../actions/core/insert/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../actions/core/query/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../actions/core/subscribe/inc
 )
 
 # 链接依赖库
 target_link_libraries(engine
   PUBLIC
     parameter
+    actions
+    workflow
 )
 
 # 启用测试

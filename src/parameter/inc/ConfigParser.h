@@ -75,6 +75,8 @@ namespace YAML {
 
             rhs.name = node["name"].as<std::string>();
             rhs.type = node["type"].as<std::string>();
+            rhs.calc_type_tag();
+            
             if (node["primary_key"]) rhs.primary_key = node["primary_key"].as<bool>();
             if (node["len"]) rhs.len = node["len"].as<int>();
             if (node["count"]) rhs.count = node["count"].as<size_t>();
@@ -82,79 +84,90 @@ namespace YAML {
             if (node["scale"]) rhs.scale = node["scale"].as<int>();
             if (node["properties"]) rhs.properties = node["properties"].as<std::string>();
             if (node["null_ratio"]) rhs.null_ratio = node["null_ratio"].as<float>();
-            if (node["gen_type"]) {
+            if (!node["gen_type"]) {
+                rhs.gen_type = "random";
+            } else {
                 rhs.gen_type = node["gen_type"].as<std::string>();
-                if (*rhs.gen_type == "random") {
-                    if (node["min"]) rhs.min = node["min"].as<double>();
-                    if (node["max"]) rhs.max = node["max"].as<double>();
-                    if (node["dec_min"]) rhs.dec_min = node["dec_min"].as<std::string>();
-                    if (node["dec_max"]) rhs.dec_max = node["dec_max"].as<std::string>();
-                    if (node["corpus"]) rhs.corpus = node["corpus"].as<std::string>();
-                    if (node["chinese"]) rhs.chinese = node["chinese"].as<bool>();
-                    if (node["values"]) rhs.values = node["values"].as<std::vector<std::string>>();
-                } else if (*rhs.gen_type == "order") {
-                    if (node["min"]) rhs.order_min = node["min"].as<int64_t>();
-                    if (node["max"]) rhs.order_max = node["max"].as<int64_t>();
-                } else if (*rhs.gen_type == "function") {
-                    if (node["expression"]) {
-                        if (!rhs.function_config) {
-                            rhs.function_config = ColumnConfig::FunctionConfig();
-                        }
-                        rhs.function_config->expression = node["expression"].as<std::string>();
-                    }
-                    // ColumnConfig::FunctionConfig func_config;
-                    // if (node["function_config"]) {
-                    //     const auto& func_node = node["function_config"];
-                    //     if (func_node["expression"]) func_config.expression = func_node["expression"].as<std::string>();
-                    //     if (func_node["function"]) func_config.function = func_node["function"].as<std::string>();
-                    //     if (func_node["multiple"]) func_config.multiple = func_node["multiple"].as<double>();
-                    //     if (func_node["addend"]) func_config.addend = func_node["addend"].as<double>();
-                    //     if (func_node["random"]) func_config.random = func_node["random"].as<int>();
-                    //     if (func_node["base"]) func_config.base = func_node["base"].as<double>();
-                    //     if (func_node["min"]) func_config.min = func_node["min"].as<double>();
-                    //     if (func_node["max"]) func_config.max = func_node["max"].as<double>();
-                    //     if (func_node["period"]) func_config.period = func_node["period"].as<int>();
-                    //     if (func_node["offset"]) func_config.offset = func_node["offset"].as<int>();
-                    // }
-                    // rhs.function_config = func_config;
+            }
 
-                    // ColumnConfig::FunctionConfig func_config;
-                    // func_config.expression = item["function"].as<std::string>(); // 解析完整表达式
-                    // // 解析函数表达式的各部分
-                    // // 假设函数表达式格式为：<multiple> * <function>(<args>) + <addend> * random(<random>) + <base>
-                    // std::istringstream expr_stream(func_config.expression);
-                    // std::string token;
-                    // while (std::getline(expr_stream, token, '*')) {
-                    //     if (token.find("sinusoid") != std::string::npos ||
-                    //         token.find("counter") != std::string::npos ||
-                    //         token.find("sawtooth") != std::string::npos ||
-                    //         token.find("square") != std::string::npos ||
-                    //         token.find("triangle") != std::string::npos) {
-                    //         func_config.function = token.substr(0, token.find('('));
-                    //         // 解析函数参数
-                    //         auto args_start = token.find('(') + 1;
-                    //         auto args_end = token.find(')');
-                    //         auto args = token.substr(args_start, args_end - args_start);
-                    //         std::istringstream args_stream(args);
-                    //         std::string arg;
-                    //         while (std::getline(args_stream, arg, ',')) {
-                    //             if (arg.find("min") != std::string::npos) func_config.min = std::stod(arg.substr(arg.find('=') + 1));
-                    //             if (arg.find("max") != std::string::npos) func_config.max = std::stod(arg.substr(arg.find('=') + 1));
-                    //             if (arg.find("period") != std::string::npos) func_config.period = std::stoi(arg.substr(arg.find('=') + 1));
-                    //             if (arg.find("offset") != std::string::npos) func_config.offset = std::stoi(arg.substr(arg.find('=') + 1));
-                    //         }
-                    //     } else if (token.find("random") != std::string::npos) {
-                    //         func_config.random = std::stoi(token.substr(token.find('(') + 1, token.find(')') - token.find('(') - 1));
-                    //     } else if (token.find('+') != std::string::npos) {
-                    //         func_config.addend = std::stod(token.substr(0, token.find('+')));
-                    //         func_config.base = std::stod(token.substr(token.find('+') + 1));
-                    //     } else {
-                    //         func_config.multiple = std::stod(token);
-                    //     }
-                    // }
-                    // column.function_config = func_config;
-    
+            if (*rhs.gen_type == "random") {
+                if (node["min"]) {
+                    rhs.min = node["min"].as<double>();
+                } else {
+                    rhs.min = rhs.get_min_value();
                 }
+                if (node["max"]) {
+                    rhs.max = node["max"].as<double>();
+                } else {
+                    rhs.max = rhs.get_max_value();
+                }
+                if (node["dec_min"]) rhs.dec_min = node["dec_min"].as<std::string>();
+                if (node["dec_max"]) rhs.dec_max = node["dec_max"].as<std::string>();
+                if (node["corpus"]) rhs.corpus = node["corpus"].as<std::string>();
+                if (node["chinese"]) rhs.chinese = node["chinese"].as<bool>();
+                if (node["values"]) rhs.values = node["values"].as<std::vector<std::string>>();
+            } else if (*rhs.gen_type == "order") {
+                if (node["min"]) rhs.order_min = node["min"].as<int64_t>();
+                if (node["max"]) rhs.order_max = node["max"].as<int64_t>();
+            } else if (*rhs.gen_type == "function") {
+                if (node["expression"]) {
+                    if (!rhs.function_config) {
+                        rhs.function_config = ColumnConfig::FunctionConfig();
+                    }
+                    rhs.function_config->expression = node["expression"].as<std::string>();
+                }
+                // ColumnConfig::FunctionConfig func_config;
+                // if (node["function_config"]) {
+                //     const auto& func_node = node["function_config"];
+                //     if (func_node["expression"]) func_config.expression = func_node["expression"].as<std::string>();
+                //     if (func_node["function"]) func_config.function = func_node["function"].as<std::string>();
+                //     if (func_node["multiple"]) func_config.multiple = func_node["multiple"].as<double>();
+                //     if (func_node["addend"]) func_config.addend = func_node["addend"].as<double>();
+                //     if (func_node["random"]) func_config.random = func_node["random"].as<int>();
+                //     if (func_node["base"]) func_config.base = func_node["base"].as<double>();
+                //     if (func_node["min"]) func_config.min = func_node["min"].as<double>();
+                //     if (func_node["max"]) func_config.max = func_node["max"].as<double>();
+                //     if (func_node["period"]) func_config.period = func_node["period"].as<int>();
+                //     if (func_node["offset"]) func_config.offset = func_node["offset"].as<int>();
+                // }
+                // rhs.function_config = func_config;
+
+                // ColumnConfig::FunctionConfig func_config;
+                // func_config.expression = item["function"].as<std::string>(); // 解析完整表达式
+                // // 解析函数表达式的各部分
+                // // 假设函数表达式格式为：<multiple> * <function>(<args>) + <addend> * random(<random>) + <base>
+                // std::istringstream expr_stream(func_config.expression);
+                // std::string token;
+                // while (std::getline(expr_stream, token, '*')) {
+                //     if (token.find("sinusoid") != std::string::npos ||
+                //         token.find("counter") != std::string::npos ||
+                //         token.find("sawtooth") != std::string::npos ||
+                //         token.find("square") != std::string::npos ||
+                //         token.find("triangle") != std::string::npos) {
+                //         func_config.function = token.substr(0, token.find('('));
+                //         // 解析函数参数
+                //         auto args_start = token.find('(') + 1;
+                //         auto args_end = token.find(')');
+                //         auto args = token.substr(args_start, args_end - args_start);
+                //         std::istringstream args_stream(args);
+                //         std::string arg;
+                //         while (std::getline(args_stream, arg, ',')) {
+                //             if (arg.find("min") != std::string::npos) func_config.min = std::stod(arg.substr(arg.find('=') + 1));
+                //             if (arg.find("max") != std::string::npos) func_config.max = std::stod(arg.substr(arg.find('=') + 1));
+                //             if (arg.find("period") != std::string::npos) func_config.period = std::stoi(arg.substr(arg.find('=') + 1));
+                //             if (arg.find("offset") != std::string::npos) func_config.offset = std::stoi(arg.substr(arg.find('=') + 1));
+                //         }
+                //     } else if (token.find("random") != std::string::npos) {
+                //         func_config.random = std::stoi(token.substr(token.find('(') + 1, token.find(')') - token.find('(') - 1));
+                //     } else if (token.find('+') != std::string::npos) {
+                //         func_config.addend = std::stod(token.substr(0, token.find('+')));
+                //         func_config.base = std::stod(token.substr(token.find('+') + 1));
+                //     } else {
+                //         func_config.multiple = std::stod(token);
+                //     }
+                // }
+                // column.function_config = func_config;
+
             }
             return true;
         }
@@ -213,12 +226,12 @@ namespace YAML {
     struct convert<TagsConfig> {
         static bool decode(const Node& node, TagsConfig& rhs) {
             if (!node["source_type"]) {
-                throw std::runtime_error("Missing required field 'source_type' in TagsConfig.");
+                throw std::runtime_error("Missing required field 'source_type' in tags.");
             }
             rhs.source_type = node["source_type"].as<std::string>();
             if (rhs.source_type == "generator") {
                 if (!node["generator"]) {
-                    throw std::runtime_error("Missing required 'generator' configuration for source_type 'generator'.");
+                    throw std::runtime_error("Missing required 'generator' configuration for source_type 'generator' in tags.");
                 }
                 if (node["generator"]["schema"]) {
                     for (const auto& item : node["generator"]["schema"]) {
@@ -530,16 +543,16 @@ namespace YAML {
             if (node["format_type"]) {
                 rhs.format_type = node["format_type"].as<std::string>("sql");
             }
-            if (rhs.format_type == "stmt" && node["stmt_config"]) {
-                rhs.stmt_config.version = node["stmt_config"]["version"].as<std::string>("v2");
+            if (rhs.format_type == "stmt" && node["stmt"]) {
+                rhs.stmt_config.version = node["stmt"]["version"].as<std::string>("v2");
             }
-            if (rhs.format_type == "schemaless" && node["schemaless_config"]) {
-                rhs.schemaless_config.protocol = node["schemaless_config"]["protocol"].as<std::string>("line");
+            if (rhs.format_type == "schemaless" && node["schemaless"]) {
+                rhs.schemaless_config.protocol = node["schemaless"]["protocol"].as<std::string>("line");
             }
-            if (rhs.format_type == "csv" && node["csv_config"]) {
-                rhs.csv_config.delimiter = node["csv_config"]["delimiter"].as<std::string>(",");
-                rhs.csv_config.quote_character = node["csv_config"]["quote_character"].as<std::string>("\"");
-                rhs.csv_config.escape_character = node["csv_config"]["escape_character"].as<std::string>("\\");
+            if (rhs.format_type == "csv" && node["csv"]) {
+                rhs.csv_config.delimiter = node["csv"]["delimiter"].as<std::string>(",");
+                rhs.csv_config.quote_character = node["csv"]["quote_character"].as<std::string>("\"");
+                rhs.csv_config.escape_character = node["csv"]["escape_character"].as<std::string>("\\");
             }
             return true;
         }

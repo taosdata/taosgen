@@ -253,7 +253,6 @@ void test_job_scheduler_with_delay() {
 
 
 int main() {
-    // 测试调度框架
     test_job_scheduler_base();
     test_job_scheduler_with_order();
     test_job_scheduler_with_delay();
