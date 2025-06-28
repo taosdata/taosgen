@@ -66,7 +66,7 @@ void test_job_scheduler_base() {
     // 构建复杂的配置数据
     auto result = build_complex_config_with_dependencies();
     const ConfigData& config = result.config;
-    const auto& dependencies = result.dependencies;
+    // const auto& dependencies = result.dependencies;
 
     // 使用 create_for_testing 工厂方法创建调度器
     auto scheduler = JobScheduler::create_for_testing(config);

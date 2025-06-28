@@ -52,6 +52,7 @@ void test_connection() {
     
     // Test successful connection
     bool connected = writer.connect();
+    (void)connected;
     assert(connected);
     
     // Test reconnection (should return true if already connected)

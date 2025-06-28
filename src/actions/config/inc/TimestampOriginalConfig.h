@@ -27,6 +27,7 @@ struct TimestampOriginalConfig {
         int64_t absolute_value = 0;
         bool parsed = false;
 
+        OffsetConfig() = default; 
         OffsetConfig(const std::string& type, const std::variant<int64_t, std::string>& val, const std::string& precision) 
             : offset_type(type), value(val)
         {

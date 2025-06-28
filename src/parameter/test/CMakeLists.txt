@@ -4,7 +4,10 @@ add_executable(TestParseYAML
 )
 target_link_libraries(TestParseYAML 
   PRIVATE 
-    yaml-cpp
+    ${YAML_CPP_LIBRARIES}
+)
+target_compile_definitions(TestParseYAML PRIVATE 
+    CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../conf/config.yaml"
 )
 add_test(NAME TestParseYAML COMMAND TestParseYAML)
 
@@ -15,7 +18,6 @@ add_executable(TestParameterContext
 target_link_libraries(TestParameterContext 
   PRIVATE 
     parameter
-    nlohmann_json::nlohmann_json
-    yaml-cpp
+    ${YAML_CPP_LIBRARIES}
 )
 add_test(NAME TestParameterContext COMMAND TestParameterContext)

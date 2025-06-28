@@ -29,6 +29,7 @@ void test_stmt_format_insert_data_single_table() {
 
     assert(std::holds_alternative<StmtV2InsertData>(result));
     const auto& stmt_data = std::get<StmtV2InsertData>(result);
+    (void)stmt_data;
     assert(stmt_data.start_time == 1500000000000);
     assert(stmt_data.end_time == 1500000000001);
     assert(stmt_data.total_rows == 2);
@@ -69,6 +70,7 @@ void test_stmt_format_insert_data_multiple_tables() {
 
     assert(std::holds_alternative<StmtV2InsertData>(result));
     const auto& stmt_data = std::get<StmtV2InsertData>(result);
+    (void)stmt_data;
     assert(stmt_data.start_time == 1500000000000);
     assert(stmt_data.end_time == 1500000000003);
     assert(stmt_data.total_rows == 4);
@@ -166,6 +168,7 @@ void test_stmt_format_insert_data_with_empty_rows() {
     const auto& stmt_data = std::get<StmtV2InsertData>(result);
     
     // Verify the timing information excludes empty table
+    (void)stmt_data;
     assert(stmt_data.start_time == 1500000000000);
     assert(stmt_data.end_time == 1500000000002);
     

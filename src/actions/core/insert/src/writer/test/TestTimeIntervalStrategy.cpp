@@ -66,6 +66,7 @@ void test_wait_strategy() {
     strategy.apply_wait_strategy(1000, 2000, 0, 0, true);
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - start_time).count();
+    (void)elapsed;
     assert(elapsed < 50); // Should return immediately
     
     // Test 2: Disabled config (should not wait)

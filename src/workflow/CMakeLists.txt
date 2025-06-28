@@ -13,7 +13,7 @@ target_include_directories(workflow
 # 链接依赖库
 target_link_libraries(workflow
   PUBLIC
-    yaml-cpp
+    ${YAML_CPP_LIBRARIES}
 )
 
 # 启用测试

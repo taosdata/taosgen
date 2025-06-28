@@ -9,6 +9,7 @@ void test_sql_data() {
     SqlData sql_data(std::move(test_sql));
     
     // Test size
+    (void)sql_length;
     assert(sql_data.size() == sql_length);
     
     // Test string content
@@ -85,6 +86,7 @@ void test_format_result_variant() {
     };
     assert(std::holds_alternative<SqlInsertData>(result2));
     const auto& sql_data = std::get<SqlInsertData>(result2);
+    (void)sql_data;
     assert(sql_data.start_time == 1500000000000);
     assert(sql_data.data.str() == "INSERT DATA");
     

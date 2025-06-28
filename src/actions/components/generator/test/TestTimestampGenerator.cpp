@@ -12,6 +12,7 @@ void test_generate_single_timestamp() {
     TimestampGenerator generator(config);
 
     Timestamp ts = generator.generate();
+    (void)ts;
     assert(ts == 1000);
 
     ts = generator.generate();
@@ -67,6 +68,8 @@ void test_start_timestamp_now() {
         TimestampGenerator generator(config);
         Timestamp ts = generator.generate();
 
+        (void)ts;
+        (void)expected;
         assert(ts >= expected && ts <= expected + 1);
         std::cout << "test_start_timestamp_now (ms) passed.\n";
     }
@@ -84,6 +87,8 @@ void test_start_timestamp_now() {
         TimestampGenerator generator(config);
         Timestamp ts = generator.generate();
 
+        (void)ts;
+        (void)expected;
         assert(ts >= expected && ts < expected + 1'000);
         std::cout << "test_start_timestamp_now (us) passed.\n";
     }
@@ -101,6 +106,8 @@ void test_start_timestamp_now() {
         TimestampGenerator generator(config);
         Timestamp ts = generator.generate();
 
+        (void)ts;
+        (void)expected;
         assert(ts >= expected && ts < expected + 1'000'000);
         std::cout << "test_start_timestamp_now (ns) passed.\n";
     }

@@ -49,6 +49,7 @@ void test_init_with_valid_tables() {
     
     // Verify table states initialization
     const auto& states = manager.table_states();
+    (void)states;
     assert(states.size() == 2);
     assert(states.count("test_table_1") == 1);
     assert(states.count("test_table_2") == 1);
@@ -73,6 +74,7 @@ void test_has_more() {
     }
     
     const auto& states = manager.table_states();
+    (void)states;
     assert(states.at("test_table").rows_generated == 5);
     
     std::cout << "test_has_more passed.\n";
@@ -93,6 +95,7 @@ void test_table_completion() {
     
     const auto& states = manager.table_states();
     for (const auto& [_, state] : states) {
+        (void)state;
         assert(state.completed  || state.rows_generated >= config.control.data_generation.per_table_rows);
         assert(state.rows_generated == 2);
     }
@@ -126,6 +129,8 @@ void test_data_generation_basic() {
         }
     }
     
+    (void)row_count;
+    (void)last_timestamp;
     assert(row_count == 5);
     assert(last_timestamp == 1040);  // 1000 + (5-1)*10
     
@@ -211,6 +216,8 @@ void test_data_generation_with_flow_control() {
     
     while (auto batch = manager.next_multi_batch()) {
         for (const auto& [table_name, rows] : batch->table_batches) {
+            (void)table_name;
+            (void)rows;
             assert(table_name == "test_table_1");
             assert(!rows.empty());
         }
@@ -220,6 +227,7 @@ void test_data_generation_with_flow_control() {
     auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
     
     // With rate limit of 100 rows/s, 5 rows should take at least 50ms
+    (void)duration_ms;
     assert(duration_ms >= 50);
     
     std::cout << "test_data_generation_with_flow_control passed.\n";

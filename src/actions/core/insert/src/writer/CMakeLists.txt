@@ -24,6 +24,6 @@ target_link_libraries(insert_writer
 )
 
 # 启用测试
-if(CMAKE_TESTING_ENABLED)
+if(CMAKE_ENABLE_TEST)
   add_subdirectory(test)
 endif()

@@ -203,6 +203,7 @@ void test_concurrent_data_generation() {
     
     // TODO: Verify all data was generated
     size_t total_rows = 8000;
+    (void)total_rows;
     assert(total_rows == 8000 && "Total rows should match configuration");
     std::cout << "test_concurrent_data_generation passed (duration: " 
               << duration.count() << "ms)\n";

@@ -28,7 +28,7 @@ JobDAG::JobDAG(const std::vector<Job>& jobs) {
 bool JobDAG::has_cycle() const {
     std::queue<DAGNode*> q;
     std::unordered_map<DAGNode*, int> in_degree_copy;
-    int processed = 0;
+    size_t processed = 0;
 
     for (const auto& pair : key_to_node_) {
         in_degree_copy[pair.second] = pair.second->in_degree;

@@ -15,6 +15,7 @@ void test_generate_int_column() {
         ColumnType value = generator.generate();
         assert(std::holds_alternative<int>(value));
         int int_value = std::get<int>(value);
+        (void)int_value;
         assert(int_value >= 10 && int_value < 20);
     }
 
@@ -34,6 +35,7 @@ void test_generate_double_column() {
         ColumnType value = generator.generate();
         assert(std::holds_alternative<double>(value));
         double double_value = std::get<double>(value);
+        (void)double_value;
         assert(double_value >= 1.5 && double_value < 3.5);
     }
 
@@ -88,6 +90,7 @@ void test_generate_multiple_values() {
     for (const auto& value : values) {
         assert(std::holds_alternative<int>(value));
         int int_value = std::get<int>(value);
+        (void)int_value;
         assert(int_value >= 1 && int_value < 10);
     }
 

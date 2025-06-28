@@ -29,6 +29,7 @@ void test_column_instance_multiple() {
     assert(instances[2].name() == "col3");
 
     for (const auto& instance : instances) {
+        (void)instance;
         assert(instance.type() == "int");
         assert(instance.type_tag() == ColumnTypeTag::INT);
     }

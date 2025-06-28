@@ -13,6 +13,8 @@ void test_basic_operations() {
     auto result1 = pipeline.fetch_data(0);
     auto result2 = pipeline.fetch_data(1);
     
+    (void)result1;
+    (void)result2;
     assert(result1.status == DataPipeline<int>::Status::Success);
     assert(result2.status == DataPipeline<int>::Status::Success);
     assert(result1.data.has_value());
@@ -35,6 +37,8 @@ void test_producer_consumer_mapping() {
         auto result2 = pipeline1.fetch_data(1);
         
         // Verify status
+        (void)result1;
+        (void)result2;
         assert(result1.status == DataPipeline<int>::Status::Success);
         assert(result2.status == DataPipeline<int>::Status::Success);
         
@@ -54,6 +58,8 @@ void test_producer_consumer_mapping() {
         auto result2 = pipeline1.fetch_data(1);
         
         // Verify status
+        (void)result1;
+        (void)result2;
         assert(result1.status == DataPipeline<int>::Status::Success);
         assert(result2.status == DataPipeline<int>::Status::Success);
         
@@ -79,6 +85,7 @@ void test_producer_consumer_mapping() {
         if (result.status == DataPipeline<int>::Status::Success) {
             assert(result.data.has_value() && "Data should exist for Success status");
             int value = result.data.value();
+            (void)value;
             assert(((i == 0 && value == 100) || (i == 2 && value == 200)) && 
                    "Received value should be from either producer 0 or 2");
         } else {
@@ -102,6 +109,7 @@ void test_producer_consumer_mapping() {
         if (result.status == DataPipeline<int>::Status::Success) {
             assert(result.data.has_value() && "Data should exist for Success status");
             int value = result.data.value();
+            (void)value;
             assert(((i == 0 && value == 100) || (i == 2 && value == 200)
                  || (i == 1 && value == 300) || (i == 3 && value == 400)) && 
                    "Received value should be from either producer 0 or 2");
@@ -189,10 +197,13 @@ void test_queue_monitoring() {
     pipeline.push_data(0, 42);
     pipeline.push_data(1, 43);
     
+    (void)pipeline;
     assert(pipeline.total_queued() == 2);
     
     auto result = pipeline.fetch_data(0);
+    (void)result;
     assert(result.status == DataPipeline<int>::Status::Success);
+
     assert(pipeline.total_queued() == 1);
     
     std::cout << "test_queue_monitoring passed.\n";

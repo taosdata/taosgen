@@ -314,6 +314,66 @@ namespace YAML {
 
 
     template<>
+    struct convert<TimestampOriginalConfig::OffsetConfig> {
+        static bool decode(const Node& node, TimestampOriginalConfig::OffsetConfig& rhs) {
+            if (!node["offset_type"]) {
+                throw std::runtime_error("Missing required field 'offset_type' in OffsetConfig");
+            }
+            std::string offset_type = node["offset_type"].as<std::string>();
+            rhs.offset_type = offset_type;
+            
+            if (!node["value"]) {
+                throw std::runtime_error("Missing required field 'value' in OffsetConfig");
+            }
+    
+            std::variant<int64_t, std::string> value;
+            if (offset_type == "relative") {
+                value = node["value"].as<std::string>();
+            } else if (offset_type == "absolute") {
+                try {
+                    value = node["value"].as<std::string>();
+                } catch (const YAML::BadConversion&) {
+                    value = node["value"].as<int64_t>();
+                }
+            } else {
+                throw std::runtime_error("Invalid offset_type: " + offset_type);
+            }
+            rhs.value = value;
+
+            return true;
+        }
+    };
+    
+    template<>
+    struct convert<TimestampOriginalConfig> {
+        static bool decode(const Node& node, TimestampOriginalConfig& rhs) {
+            if (node["column_index"]) {
+                rhs.timestamp_index = node["column_index"].as<size_t>();
+            }
+            
+            if (node["precision"]) {
+                rhs.timestamp_precision = node["precision"].as<std::string>();
+                // Validate precision
+                if (rhs.timestamp_precision != "s" && 
+                    rhs.timestamp_precision != "ms" && 
+                    rhs.timestamp_precision != "us" && 
+                    rhs.timestamp_precision != "ns") {
+                    throw std::runtime_error("Invalid timestamp precision: " + rhs.timestamp_precision);
+                }
+            }
+    
+            if (node["offset_config"]) {
+                rhs.offset_config = node["offset_config"].as<TimestampOriginalConfig::OffsetConfig>();
+                if (rhs.offset_config) {
+                    rhs.offset_config->parse_offset(rhs.timestamp_precision);
+                }
+            }
+    
+            return true;
+        }
+    };
+
+    template<>
     struct convert<ColumnsConfig> {
         static bool decode(const Node& node, ColumnsConfig& rhs) {
             if (!node["source_type"]) {
@@ -330,7 +390,11 @@ namespace YAML {
                     rhs.generator.schema = generator["schema"].as<ColumnConfigVector>();
                 }
                 if (generator["timestamp_strategy"]) {
-                    rhs.generator.timestamp_strategy.timestamp_config = generator["timestamp_strategy"]["timestamp_config"].as<TimestampGeneratorConfig>();
+                    const auto& ts = generator["timestamp_strategy"];
+                    if (!ts["generator"]) {
+                        throw std::runtime_error("Missing required field 'generator' in timestamp_strategy");
+                    }
+                    rhs.generator.timestamp_strategy.timestamp_config = ts["generator"].as<TimestampGeneratorConfig>();
                 }
             } else if (rhs.source_type == "csv") {
                 if (!node["csv"]) {
@@ -348,17 +412,25 @@ namespace YAML {
                 }
                 if (csv["timestamp_strategy"]) {
                     const auto& ts = csv["timestamp_strategy"];
-                    rhs.csv.timestamp_strategy.strategy_type = ts["strategy_type"].as<std::string>("original");
-                    if (rhs.csv.timestamp_strategy.strategy_type == "original") {
-                        const auto& original = ts["original_config"];
-                        rhs.csv.timestamp_strategy.original_config.column_index = original["column_index"].as<int>(0);
-                        rhs.csv.timestamp_strategy.original_config.precision = original["precision"].as<std::string>("ms");
-                        if (original["offset_config"]) {
-                            rhs.csv.timestamp_strategy.original_config.offset_config = original["offset_config"].as<std::string>();
-                        }
+                    if (!ts["strategy_type"]) {
+                        throw std::runtime_error("Missing required field 'strategy_type' in timestamp_strategy");
                     }
-                    if (ts["timestamp_config"]) {
-                        rhs.csv.timestamp_strategy.timestamp_config = ts["timestamp_config"].as<TimestampGeneratorConfig>();
+
+                    rhs.csv.timestamp_strategy.strategy_type = ts["strategy_type"].as<std::string>("original");
+
+                    if (rhs.csv.timestamp_strategy.strategy_type == "original") {
+                        if (!ts["original"]) {
+                            throw std::runtime_error("Missing required field 'original' in timestamp_strategy");
+                        }
+                        rhs.csv.timestamp_strategy.timestamp_config = ts["original"].as<TimestampOriginalConfig>();
+                    } else if (rhs.csv.timestamp_strategy.strategy_type == "generator") {
+                        if (!ts["generator"]) {
+                            throw std::runtime_error("Missing required field 'generator' in timestamp_strategy");
+                        }
+                        rhs.csv.timestamp_strategy.timestamp_config = ts["generator"].as<TimestampGeneratorConfig>();
+                    } else {
+                        throw std::runtime_error("Invalid strategy_type in timestamp_strategy: " + 
+                            rhs.csv.timestamp_strategy.strategy_type);
                     }
                 }
             } else {

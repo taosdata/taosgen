@@ -5,7 +5,8 @@
 
 int main() {
     // 打开 YAML 文件
-    std::ifstream file("../conf/config.yaml");
+    std::cout << "Opening config.yaml: " << CONFIG_PATH << std::endl;
+    std::ifstream file(CONFIG_PATH);
     if (!file.is_open()) {
         std::cerr << "Failed to open config.yaml" << std::endl;
         return 1;
@@ -28,6 +29,8 @@ int main() {
     if (config["global"]["host"]) {
         std::cout << "Host: " << config["host"].as<std::string>() << std::endl;
     }
+
+    std::cout << "test_parse_yaml passed\n";
 
     return 0;
 }

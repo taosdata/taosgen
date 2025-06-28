@@ -8,9 +8,9 @@ include_directories(
 # 添加子目录（按依赖顺序）
 add_subdirectory(utils)
 add_subdirectory(actions)
-# add_subdirectory(parameter)
-# add_subdirectory(workflow)
-# add_subdirectory(engine)
+add_subdirectory(parameter)
+add_subdirectory(workflow)
+add_subdirectory(engine)
 
 # 主可执行文件
 add_executable(taosbench benchmark.cpp)
@@ -18,19 +18,10 @@ add_executable(taosbench benchmark.cpp)
 # 链接所有依赖库
 target_link_libraries(taosbench
   PRIVATE
-    # actions_core_insert
-    # actions_core_create
-    # actions_core_query
-    # actions_core_subscribe
-    # actions_config
-    # actions_base
-    # components_connector
-    # components_formatter
-    # components_generator
-    # reader_csv
-    # engine
-    # workflow
-    # parameter
+    actions
+    engine
+    workflow
+    parameter
     utils
     ${YAML_CPP_LIBRARIES}
     ${TAOS_LIBRARIES}

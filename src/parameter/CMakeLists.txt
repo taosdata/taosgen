@@ -14,9 +14,8 @@ target_include_directories(parameter
 # 链接依赖库
 target_link_libraries(parameter
   PUBLIC
-    nlohmann_json::nlohmann_json 
-    yaml-cpp
     actions_config
+    ${YAML_CPP_LIBRARIES}
 )
 
 # 启用测试

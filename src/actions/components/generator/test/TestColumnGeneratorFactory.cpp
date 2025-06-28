@@ -19,6 +19,7 @@ void test_factory_create_random_column_generator() {
         ColumnType value = generator->generate();
         assert(std::holds_alternative<int>(value));
         int int_value = std::get<int>(value);
+        (void)int_value;
         assert(int_value >= 5 && int_value < 15);
     }
 

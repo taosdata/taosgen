@@ -155,7 +155,7 @@ jobs:
 
                 timestamp_strategy:
                   strategy_type: original
-                  original_config:
+                  original:
                     column_index: 0
                     precision: us
 
@@ -350,9 +350,12 @@ jobs:
     assert(insert_config.source.columns.source_type == "csv");
     assert(insert_config.source.columns.csv.file_path == "/root/data/cnnc_csv_1s/");
     assert(insert_config.source.columns.csv.has_header == true);
+
     assert(insert_config.source.columns.csv.timestamp_strategy.strategy_type == "original");
-    assert(insert_config.source.columns.csv.timestamp_strategy.original_config.column_index == 0);
-    assert(insert_config.source.columns.csv.timestamp_strategy.original_config.precision == "us");
+    const auto& original_config = std::get<TimestampOriginalConfig>(
+        insert_config.source.columns.csv.timestamp_strategy.timestamp_config);
+    assert(original_config.timestamp_index == 0);
+    assert(original_config.timestamp_precision == "us");
 
     assert(insert_config.target.target_type == "tdengine");
     assert(insert_config.target.tdengine.connection_info.host == "10.0.0.1");

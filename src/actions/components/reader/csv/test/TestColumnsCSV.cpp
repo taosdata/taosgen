@@ -186,6 +186,8 @@ void test_generate_table_data_include_tbname() {
     }
 
     // 验证两个表都被找到
+    (void)table1_found;
+    (void)table2_found;
     assert(table1_found && "Expected table1 to be found");
     assert(table2_found && "Expected table2 to be found");
 

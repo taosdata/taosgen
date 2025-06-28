@@ -174,6 +174,7 @@ void test_generator_with_disorder() {
             break;
         }
     }
+    (void)found_disorder;
     assert(found_disorder);
 
     std::cout << "test_generator_with_disorder passed.\n";

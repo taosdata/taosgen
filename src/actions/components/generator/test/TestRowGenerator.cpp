@@ -87,6 +87,7 @@ void test_generate_multiple_rows() {
     for (size_t i = 0; i < rows.size(); ++i) {
         const RowType& row = rows[i];
 
+        (void)row;
         assert(row.size() == col_configs.size() + 1);
 
         assert(std::holds_alternative<Timestamp>(row[0]));
