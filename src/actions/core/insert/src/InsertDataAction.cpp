@@ -143,21 +143,11 @@ void InsertDataAction::execute() {
                      << "Queue: " << pipeline.total_queued() << " items\n";
         }
 
-        // 7. 等待生产者完成
-        for (auto& t : producer_threads) {
-            if (t.joinable()) t.join();
-        }
-        
-        // 终止管道（通知消费者）
-        pipeline.terminate();
-        
-        // 8. 等待消费者完成
-        // for (size_t i = 0; i < consumer_thread_count; i++) {
-        //     consumer_running[i] = false;
-        // }
-        
-        for (auto& t : consumer_threads) {
-            if (t.joinable()) t.join();
+        std::cout << "All producer threads have finished." << std::endl;
+        // 等待所有所有数据被发送
+        std::cout << "Waiting for all data to be processed..." << std::endl;
+        while (pipeline.total_queued() > 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
         }
 
         const auto end_time = std::chrono::steady_clock::now();
@@ -185,6 +175,23 @@ void InsertDataAction::execute() {
                   << avg_rows_per_sec << " rows/second\n"
                   << "========================\n\n";
 
+
+        // 7. 等待生产者完成
+        for (auto& t : producer_threads) {
+            if (t.joinable()) t.join();
+        }
+        
+        // 终止管道（通知消费者）
+        pipeline.terminate();
+        
+        // 8. 等待消费者完成
+        // for (size_t i = 0; i < consumer_thread_count; i++) {
+        //     consumer_running[i] = false;
+        // }
+        
+        for (auto& t : consumer_threads) {
+            if (t.joinable()) t.join();
+        }
 
         std::cout << "InsertDataAction completed successfully" << std::endl;
         
