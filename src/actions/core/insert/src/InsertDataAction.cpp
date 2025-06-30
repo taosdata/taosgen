@@ -77,6 +77,8 @@ void InsertDataAction::execute() {
             });
         }
 
+        const auto start_time = std::chrono::steady_clock::now();
+
         // 5. 启动生产者线程
         std::vector<std::shared_ptr<TableDataManager>> data_managers;
         data_managers.reserve(producer_thread_count);
@@ -107,7 +109,7 @@ void InsertDataAction::execute() {
         }
 
         // 6. 监控
-        const auto start_time = std::chrono::steady_clock::now();
+        // const auto start_time = std::chrono::steady_clock::now();
         size_t last_total_rows = 0;
         auto last_time = start_time;
         
