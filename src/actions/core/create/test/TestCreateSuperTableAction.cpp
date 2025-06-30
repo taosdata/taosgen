@@ -7,6 +7,8 @@
 
 
 void test_create_super_table_action() {
+    GlobalConfig global;
+
     ConnectionInfo conn_info;
     conn_info.host = "localhost";
     conn_info.port = 6030;
@@ -41,6 +43,7 @@ void test_create_super_table_action() {
     // 创建动作实例
     std::cout << "Creating action instance for super table..." << std::endl;
     auto action = ActionFactory::instance().create_action(
+        global,
         "actions/create-super-table",
         config
     );

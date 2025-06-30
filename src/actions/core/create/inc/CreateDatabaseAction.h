@@ -9,11 +9,12 @@
 
 class CreateDatabaseAction : public ActionBase {
 public:
-    explicit CreateDatabaseAction(const CreateDatabaseConfig& config) : config_(config) {}
+    explicit CreateDatabaseAction(const GlobalConfig& global, const CreateDatabaseConfig& config) : global_(global), config_(config) {}
 
     void execute() override;
 
 private:
+    const GlobalConfig& global_;
     CreateDatabaseConfig config_;
 
     std::unique_ptr<DatabaseConnector> connector_;
@@ -24,8 +25,8 @@ private:
     inline static bool registered_ = []() {
         ActionFactory::instance().register_action(
             "actions/create-database",
-            [](const ActionConfigVariant& config) {
-                return std::make_unique<CreateDatabaseAction>(std::get<CreateDatabaseConfig>(config));
+            [](const GlobalConfig& global, const ActionConfigVariant& config) {
+                return std::make_unique<CreateDatabaseAction>(global, std::get<CreateDatabaseConfig>(config));
             });
         return true;
     }();

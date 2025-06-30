@@ -185,49 +185,49 @@ void InsertDataAction::producer_thread_function(
 
     // 数据生成循环
     while (auto batch = data_manager->next_multi_batch()) {
-        size_t batch_size = batch->table_batches.size();
-        size_t total_rows = batch->total_rows;
+        // size_t batch_size = batch->table_batches.size();
+        // size_t total_rows = batch->total_rows;
 
         // 格式化数据
         FormatResult formatted_result = formatter->format(config_, col_instances, std::move(batch.value()));
 
         // Debug: 打印格式化结果信息
-        std::visit([producer_id](const auto& result) {
-            using T = std::decay_t<decltype(result)>;
+        // std::visit([producer_id](const auto& result) {
+        //     using T = std::decay_t<decltype(result)>;
             
-            if constexpr (std::is_same_v<T, SqlInsertData>) {
-                std::cout << "Producer " << producer_id 
-                          << ": sql data, rows: " << result.total_rows
-                          << ", time range: [" << result.start_time 
-                          << ", " << result.end_time << "]"
-                          << ", length: " << result.data.str().length() 
-                          << " bytes" << std::endl;
-            } else if constexpr (std::is_same_v<T, StmtV2InsertData>) {
-                std::cout << "Producer " << producer_id 
-                          << ": stmt v2 data, rows: " << result.total_rows
-                          << ", time range: [" << result.start_time 
-                          << ", " << result.end_time << "]"
-                        //   << ", length: " << result.data.length() 
-                          << " bytes" << std::endl;
-            } else if constexpr (std::is_same_v<T, std::string>) {
-                std::cout << "Producer " << producer_id 
-                          << ": unknown format result type: " 
-                          << typeid(result).name() << ", content: " 
-                          << result.substr(0, 100) 
-                          << (result.length() > 100 ? "..." : "") 
-                          << ", length: " << result.length() 
-                          << " bytes" << std::endl;
+        //     if constexpr (std::is_same_v<T, SqlInsertData>) {
+        //         std::cout << "Producer " << producer_id 
+        //                   << ": sql data, rows: " << result.total_rows
+        //                   << ", time range: [" << result.start_time 
+        //                   << ", " << result.end_time << "]"
+        //                   << ", length: " << result.data.str().length() 
+        //                   << " bytes" << std::endl;
+        //     } else if constexpr (std::is_same_v<T, StmtV2InsertData>) {
+        //         std::cout << "Producer " << producer_id 
+        //                   << ": stmt v2 data, rows: " << result.total_rows
+        //                   << ", time range: [" << result.start_time 
+        //                   << ", " << result.end_time << "]"
+        //                 //   << ", length: " << result.data.length() 
+        //                   << " bytes" << std::endl;
+        //     } else if constexpr (std::is_same_v<T, std::string>) {
+        //         std::cout << "Producer " << producer_id 
+        //                   << ": unknown format result type: " 
+        //                   << typeid(result).name() << ", content: " 
+        //                   << result.substr(0, 100) 
+        //                   << (result.length() > 100 ? "..." : "") 
+        //                   << ", length: " << result.length() 
+        //                   << " bytes" << std::endl;
 
-                throw std::runtime_error("Unknown format result type: " + std::string(typeid(result).name()));
-            }
-        }, formatted_result);
+        //         throw std::runtime_error("Unknown format result type: " + std::string(typeid(result).name()));
+        //     }
+        // }, formatted_result);
 
         // 将数据推送到管道
         pipeline.push_data(producer_id, std::move(formatted_result));
 
-        std::cout << "Producer " << producer_id << ": Pushed batch for table(s): "
-                  << batch_size << ", total rows: " << total_rows 
-                  << ", queue size: " << pipeline.total_queued() << std::endl;
+        // std::cout << "Producer " << producer_id << ": Pushed batch for table(s): "
+        //           << batch_size << ", total rows: " << total_rows 
+        //           << ", queue size: " << pipeline.total_queued() << std::endl;
     }
 }
 
@@ -280,16 +280,16 @@ void InsertDataAction::consumer_thread_function(
             try {
                 // 使用writer执行写入
                 std::visit([&](const auto& formatted_result) {
-                    using T = std::decay_t<decltype(formatted_result)>;
+                    // using T = std::decay_t<decltype(formatted_result)>;
                     if constexpr (std::is_base_of_v<BaseInsertData, std::decay_t<decltype(formatted_result)>>) {
                         writer->write(formatted_result);
                         retry_count = 0;
 
-                        if constexpr (std::is_same_v<T, SqlInsertData> || std::is_same_v<T, StmtV2InsertData>) {
-                            std::cout << "Consumer " << consumer_id 
-                                     << ": Executed SQL with " << formatted_result.total_rows 
-                                     << " rows" << std::endl;
-                        }
+                        // if constexpr (std::is_same_v<T, SqlInsertData> || std::is_same_v<T, StmtV2InsertData>) {
+                        //     std::cout << "Consumer " << consumer_id 
+                        //              << ": Executed SQL with " << formatted_result.total_rows 
+                        //              << " rows" << std::endl;
+                        // }
 
                     } else {
                         throw std::runtime_error("Unknown format result type: " + std::string(typeid(formatted_result).name()));

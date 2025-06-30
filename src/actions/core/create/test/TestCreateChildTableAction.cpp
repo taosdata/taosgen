@@ -8,6 +8,8 @@
 
 
 void test_create_child_table_action_from_generator() {
+    GlobalConfig global;
+
     ConnectionInfo conn_info;
     conn_info.host = "localhost";
     conn_info.port = 6030;
@@ -42,6 +44,7 @@ void test_create_child_table_action_from_generator() {
     // 创建动作实例
     std::cout << "Creating action instance for child table from generator..." << std::endl;
     auto action = ActionFactory::instance().create_action(
+        global,
         "actions/create-child-table",
         config
     );
@@ -55,6 +58,7 @@ void test_create_child_table_action_from_generator() {
 }
 
 void test_create_child_table_action_from_csv() {
+    GlobalConfig global;
     ConnectionInfo conn_info;
     conn_info.host = "localhost";
     conn_info.port = 6030;
@@ -99,6 +103,7 @@ void test_create_child_table_action_from_csv() {
     // 创建动作实例
     std::cout << "Creating action instance for child table from CSV..." << std::endl;
     auto action = ActionFactory::instance().create_action(
+        global,
         "actions/create-child-table",
         config
     );

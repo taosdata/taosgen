@@ -7,6 +7,8 @@
 
 
 void test_create_database_action() {
+    GlobalConfig global;
+
     ConnectionInfo conn_info;
     conn_info.host = "localhost";
     conn_info.port = 6030;
@@ -29,6 +31,7 @@ void test_create_database_action() {
     // 创建动作实例
     std::cout << "Creating action instance..." << std::endl;
     auto action = ActionFactory::instance().create_action(
+        global,
         "actions/create-database",
         config
     );

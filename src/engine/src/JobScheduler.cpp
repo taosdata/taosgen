@@ -3,7 +3,7 @@
 
 
 JobScheduler::JobScheduler(const ConfigData& config)
-    : JobScheduler(config, std::make_unique<ProductionStepStrategy>()) {
+    : JobScheduler(config, std::make_unique<ProductionStepStrategy>(config.global)) {
 }
 
 JobScheduler::JobScheduler(const ConfigData& config, std::unique_ptr<StepExecutionStrategy> strategy)

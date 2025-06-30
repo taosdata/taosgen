@@ -14,7 +14,7 @@ void ProductionStepStrategy::execute(const Step& step) {
     try {
         std::cout << "Executing step: " << step.name << " (" << step.uses << ")" << std::endl;
 
-        auto action = ActionFactory::instance().create_action(step.uses, step.action_config);
+        auto action = ActionFactory::instance().create_action(global_, step.uses, step.action_config);
         action->execute();
 
         std::cout << "Step completed: " << step.name << std::endl;

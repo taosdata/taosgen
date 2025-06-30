@@ -21,25 +21,20 @@ global:
     precision: ms
 
   super_table_info: &stb_info
-    name: points
+    name: meters
     columns: &columns_info
-      - name: latitude
+      - name: current
         type: float
-      - name: longitude
+      - name: voltage
+        type: int
+      - name: phase
         type: float
-      - name: quality
-        type: varchar
-        len: 8
     tags: &tags_info
-      - name: type
-        type: varchar
-        len: 7
-      - name: name
-        type: varchar
-        len: 20
-      - name: department
-        type: varchar
-        len: 10
+      - name: groupid
+        type: int
+      - name: location
+        type: binary
+        len: 24
 
 
 concurrency: 4
@@ -145,10 +140,10 @@ jobs:
               interlace_mode:
                 enabled: false
                 rows: 1
-              generate_threads: 8
+              generate_threads: 4
               per_table_rows: 10000
             insert_control:
-              per_request_rows: 3000
+              per_request_rows: 30000
               auto_create_table: false
-              insert_threads: 8
+              insert_threads: 1
               thread_allocation: index_range

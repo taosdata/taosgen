@@ -59,10 +59,11 @@ InsertDataConfig create_test_config() {
 }
 
 void test_basic_initialization() {
+    GlobalConfig global;
     auto config = create_test_config();
     config.source.columns.generator.schema.clear();  // Clear schema to test error handling
     
-    InsertDataAction action(config);
+    InsertDataAction action(global, config);
     try {
         action.execute();
         assert(false && "Should throw exception for missing schema configuration");
@@ -163,6 +164,7 @@ void test_data_generation() {
 }
 
 void test_end_to_end_data_generation() {
+    GlobalConfig global;
     auto config = create_test_config();
     config.control.data_generation.per_table_rows = 10;
     config.control.data_generation.generate_threads = 2;
@@ -172,7 +174,7 @@ void test_end_to_end_data_generation() {
     config.target.tdengine.database_info.name = "test_action_db";
     config.target.tdengine.super_table_info.name = "test_super_table";
 
-    InsertDataAction action(config);
+    InsertDataAction action(global, config);
 
     action.execute();
     
@@ -184,6 +186,7 @@ void test_end_to_end_data_generation() {
 }
 
 void test_concurrent_data_generation() {
+    GlobalConfig global;
     auto config = create_test_config();
     config.control.data_generation.per_table_rows = 1000;     // More rows to test concurrency
     config.control.data_generation.generate_threads = 4;      // More threads
@@ -193,7 +196,7 @@ void test_concurrent_data_generation() {
     config.target.tdengine.database_info.name = "test_action_db";
     config.target.tdengine.super_table_info.name = "test_super_table";
     
-    InsertDataAction action(config);
+    InsertDataAction action(global, config);
     
     // Measure execution time to verify concurrent operation
     auto start = std::chrono::steady_clock::now();
@@ -210,6 +213,7 @@ void test_concurrent_data_generation() {
 }
 
 void test_error_handling() {
+    GlobalConfig global;
     auto config = create_test_config();
     
     // Test case 1: Invalid target type
@@ -217,7 +221,7 @@ void test_error_handling() {
         auto invalid_config = config;
         invalid_config.target.target_type = "invalid_target";
         
-        InsertDataAction action(invalid_config);
+        InsertDataAction action(global, invalid_config);
         try {
             action.execute();
             assert(false && "Should throw for invalid target");
@@ -231,7 +235,7 @@ void test_error_handling() {
         auto invalid_config = config;
         invalid_config.source.table_name.generator.count = 0;
         
-        InsertDataAction action(invalid_config);
+        InsertDataAction action(global, invalid_config);
         try {
             action.execute();
             assert(false && "Should throw for invalid table count");
@@ -245,7 +249,7 @@ void test_error_handling() {
         auto invalid_config = config;
         invalid_config.control.data_generation.generate_threads = 0;
         
-        InsertDataAction action(invalid_config);
+        InsertDataAction action(global, invalid_config);
         try {
             action.execute();
             assert(false && "Should throw for invalid thread count");

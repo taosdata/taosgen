@@ -1,5 +1,4 @@
-#ifndef CONFIG_DATA_H
-#define CONFIG_DATA_H
+#pragma once
 
 #include <vector>
 #include "GlobalConfig.h"
@@ -11,5 +10,3 @@ struct ConfigData {
     int concurrency = 1;
     std::vector<Job> jobs; // 存储作业列表
 };
-
-#endif // CONFIG_DATA_H

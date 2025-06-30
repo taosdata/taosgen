@@ -6,7 +6,7 @@
 
 class QueryDataAction : public ActionBase {
 public:
-    explicit QueryDataAction(const QueryDataConfig& config) : config_(config) {}
+    explicit QueryDataAction(const GlobalConfig& global, const QueryDataConfig& config) : global_(global), config_(config) {}
 
     void execute() override {
         std::cout << "Querying data from database: " << config_.source.connection_info.host << std::endl;
@@ -14,14 +14,15 @@ public:
     }
 
 private:
+    const GlobalConfig& global_;
     QueryDataConfig config_;
 
     // 注册 QueryDataAction 到 ActionFactory
     inline static bool registered_ = []() {
         ActionFactory::instance().register_action(
             "actions/query-data",
-            [](const ActionConfigVariant& config) {
-                return std::make_unique<QueryDataAction>(std::get<QueryDataConfig>(config));
+            [](const GlobalConfig& global, const ActionConfigVariant& config) {
+                return std::make_unique<QueryDataAction>(global, std::get<QueryDataConfig>(config));
             });
         return true;
     }();

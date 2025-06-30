@@ -7,11 +7,12 @@
 
 class CreateSuperTableAction : public ActionBase {
 public:
-    explicit CreateSuperTableAction(const CreateSuperTableConfig& config) : config_(config) {}
+    explicit CreateSuperTableAction(const GlobalConfig& global, const CreateSuperTableConfig& config) : global_(global), config_(config) {}
 
     void execute() override;
 
 private:
+    const GlobalConfig& global_;
     CreateSuperTableConfig config_;
 
     std::unique_ptr<DatabaseConnector> connector_;
@@ -22,8 +23,8 @@ private:
     inline static bool registered_ = []() {
         ActionFactory::instance().register_action(
             "actions/create-super-table",
-            [](const ActionConfigVariant& config) {
-                return std::make_unique<CreateSuperTableAction>(std::get<CreateSuperTableConfig>(config));
+            [](const GlobalConfig& global, const ActionConfigVariant& config) {
+                return std::make_unique<CreateSuperTableAction>(global, std::get<CreateSuperTableConfig>(config));
             });
         return true;
     }();

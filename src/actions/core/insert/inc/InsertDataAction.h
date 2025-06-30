@@ -13,12 +13,13 @@
 
 class InsertDataAction : public ActionBase {
 public:
-    explicit InsertDataAction(const InsertDataConfig& config) : config_(config) {}
+    explicit InsertDataAction(const GlobalConfig& global, const InsertDataConfig& config) : global_(global), config_(config) {}
 
     void execute() override;
 
 
 private:
+    const GlobalConfig& global_;
     InsertDataConfig config_;
 
     ColumnConfigInstanceVector create_column_instances(const InsertDataConfig& config) const;
@@ -40,8 +41,8 @@ private:
     inline static bool registered_ = []() {
         ActionFactory::instance().register_action(
             "actions/insert-data",
-            [](const ActionConfigVariant& config) {
-                return std::make_unique<InsertDataAction>(std::get<InsertDataConfig>(config));
+            [](const GlobalConfig& global, const ActionConfigVariant& config) {
+                return std::make_unique<InsertDataAction>(global, std::get<InsertDataConfig>(config));
             });
         return true;
     }();

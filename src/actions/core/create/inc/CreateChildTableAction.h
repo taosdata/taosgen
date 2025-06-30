@@ -8,19 +8,20 @@
 
 class CreateChildTableAction : public ActionBase {
 public:
-    explicit CreateChildTableAction(const CreateChildTableConfig& config) : config_(config) {}
+    explicit CreateChildTableAction(const GlobalConfig& global, const CreateChildTableConfig& config) : global_(global), config_(config) {}
 
     void execute() override;
 
 private:
+    const GlobalConfig& global_;
     CreateChildTableConfig config_;
 
     // 注册 CreateChildTableAction 到 ActionFactory
     inline static bool registered_ = []() {
         ActionFactory::instance().register_action(
             "actions/create-child-table",
-            [](const ActionConfigVariant& config) {
-                return std::make_unique<CreateChildTableAction>(std::get<CreateChildTableConfig>(config));
+            [](const GlobalConfig& global, const ActionConfigVariant& config) {
+                return std::make_unique<CreateChildTableAction>(global, std::get<CreateChildTableConfig>(config));
             });
         return true;
     }();

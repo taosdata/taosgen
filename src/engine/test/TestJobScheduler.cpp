@@ -167,6 +167,8 @@ void test_job_scheduler_with_delay() {
     // 调试策略：打印作业和步骤的执行顺序
     class DelayStepStrategy : public StepExecutionStrategy {
     public:
+        DelayStepStrategy(const GlobalConfig& global) : StepExecutionStrategy(global) {}
+
         void execute(const Step& step) override {
             // 打印调试信息
             std::cout << "Executing step: " << step.name << " (" << step.uses << ")" << std::endl;
@@ -219,7 +221,7 @@ void test_job_scheduler_with_delay() {
 
 
     // 使用调试策略
-    auto delay_strategy = std::make_unique<DelayStepStrategy>();
+    auto delay_strategy = std::make_unique<DelayStepStrategy>(config.global);
 
     // 创建调度器
     JobScheduler scheduler(config, std::move(delay_strategy));

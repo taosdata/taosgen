@@ -63,14 +63,18 @@ global:
       - name: longitude
         type: float
       - name: quality
-        type: varchar(50)
+        type: varchar
+        len: 50
     tags: &tags_info
       - name: type
-        type: varchar(7)
+        type: varchar
+        len: 7
       - name: name
-        type: varchar(20)
+        type: varchar
+        len: 20
       - name: department
-        type: varchar(7)
+        type: varchar
+        len: 7
 
 concurrency: 4
 jobs:
