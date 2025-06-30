@@ -7,11 +7,60 @@
 static thread_local std::mt19937_64 random_engine(std::random_device{}());
 
 ColumnType RandomColumnGenerator::generate() const {
-    if (instance_.config().type_tag == ColumnTypeTag::INT) {
+    if (instance_.config().type_tag == ColumnTypeTag::TINYINT) {
         if (!instance_.config().min || !instance_.config().max) {
             throw std::runtime_error("Missing min/max for int column");
         }
-        std::uniform_int_distribution<int> dist(*instance_.config().min, *instance_.config().max - 1);
+        std::uniform_int_distribution<int8_t> dist(*instance_.config().min, *instance_.config().max - 1);
+        return dist(random_engine);
+    }
+    else if (instance_.config().type_tag == ColumnTypeTag::TINYINT_UNSIGNED) {
+        if (!instance_.config().min || !instance_.config().max) {
+            throw std::runtime_error("Missing min/max for int column");
+        }
+        std::uniform_int_distribution<uint8_t> dist(*instance_.config().min, *instance_.config().max - 1);
+        return dist(random_engine);
+    }
+    else if (instance_.config().type_tag == ColumnTypeTag::SMALLINT) {
+        if (!instance_.config().min || !instance_.config().max) {
+            throw std::runtime_error("Missing min/max for int column");
+        }
+        std::uniform_int_distribution<int16_t> dist(*instance_.config().min, *instance_.config().max - 1);
+        return dist(random_engine);
+    }
+    else if (instance_.config().type_tag == ColumnTypeTag::SMALLINT_UNSIGNED) {
+        if (!instance_.config().min || !instance_.config().max) {
+            throw std::runtime_error("Missing min/max for int column");
+        }
+        std::uniform_int_distribution<uint16_t> dist(*instance_.config().min, *instance_.config().max - 1);
+        return dist(random_engine);
+    }
+    else if (instance_.config().type_tag == ColumnTypeTag::INT) {
+        if (!instance_.config().min || !instance_.config().max) {
+            throw std::runtime_error("Missing min/max for int column");
+        }
+        std::uniform_int_distribution<int32_t> dist(*instance_.config().min, *instance_.config().max - 1);
+        return dist(random_engine);
+    }
+    else if (instance_.config().type_tag == ColumnTypeTag::INT_UNSIGNED) {
+        if (!instance_.config().min || !instance_.config().max) {
+            throw std::runtime_error("Missing min/max for int column");
+        }
+        std::uniform_int_distribution<uint32_t> dist(*instance_.config().min, *instance_.config().max - 1);
+        return dist(random_engine);
+    }
+    else if (instance_.config().type_tag == ColumnTypeTag::BIGINT) {
+        if (!instance_.config().min || !instance_.config().max) {
+            throw std::runtime_error("Missing min/max for int column");
+        }
+        std::uniform_int_distribution<int64_t> dist(*instance_.config().min, *instance_.config().max - 1);
+        return dist(random_engine);
+    }
+    else if (instance_.config().type_tag == ColumnTypeTag::BIGINT_UNSIGNED) {
+        if (!instance_.config().min || !instance_.config().max) {
+            throw std::runtime_error("Missing min/max for int column");
+        }
+        std::uniform_int_distribution<uint64_t> dist(*instance_.config().min, *instance_.config().max - 1);
         return dist(random_engine);
     }
     else if (instance_.config().type_tag == ColumnTypeTag::FLOAT) {

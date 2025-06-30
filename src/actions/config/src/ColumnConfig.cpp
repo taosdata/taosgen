@@ -56,19 +56,22 @@ double ColumnConfig::get_min_value() const noexcept {
         case ColumnTypeTag::SMALLINT_UNSIGNED:
             return 0.0;
         case ColumnTypeTag::INT:
-            return static_cast<double>(INT32_MIN);
+            return static_cast<double>(INT16_MIN);
         case ColumnTypeTag::INT_UNSIGNED:
             return 0.0;
         case ColumnTypeTag::BIGINT:
-            return static_cast<double>(INT64_MIN);
+            return static_cast<double>(INT16_MIN);
         case ColumnTypeTag::BIGINT_UNSIGNED:
             return 0.0;
         case ColumnTypeTag::FLOAT:
-            return -FLT_MAX;
+            // return -FLT_MAX;
+            return INT16_MIN;
         case ColumnTypeTag::DOUBLE:
-            return -DBL_MAX;
+            // return -DBL_MAX;
+            return INT16_MIN;
         case ColumnTypeTag::DECIMAL:
-            return -DBL_MAX;
+            // return -DBL_MAX;
+            return INT16_MIN;
         default:
             return -1.0;
     }
@@ -87,19 +90,22 @@ double ColumnConfig::get_max_value() const noexcept {
         case ColumnTypeTag::SMALLINT_UNSIGNED:
             return static_cast<double>(UINT16_MAX);
         case ColumnTypeTag::INT:
-            return static_cast<double>(INT32_MAX);
+            return static_cast<double>(INT16_MAX);
         case ColumnTypeTag::INT_UNSIGNED:
-            return static_cast<double>(UINT32_MAX);
+            return static_cast<double>(UINT16_MAX);
         case ColumnTypeTag::BIGINT:
-            return static_cast<double>(INT64_MAX);
+            return static_cast<double>(INT16_MAX);
         case ColumnTypeTag::BIGINT_UNSIGNED:
-            return static_cast<double>(UINT64_MAX);
+            return static_cast<double>(UINT16_MAX);
         case ColumnTypeTag::FLOAT:
-            return FLT_MAX;
+            // return FLT_MAX;
+            return INT16_MAX;
         case ColumnTypeTag::DOUBLE:
-            return DBL_MAX;
+            // return DBL_MAX;
+            return INT16_MAX;
         case ColumnTypeTag::DECIMAL:
-            return DBL_MAX;
+            // return DBL_MAX;
+            return INT16_MAX;
         default:
             return -1.0;
     }
