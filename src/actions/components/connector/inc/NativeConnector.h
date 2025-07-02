@@ -8,6 +8,7 @@ public:
     ~NativeConnector() override;
 
     bool connect() override;
+    bool select_db(const std::string& db_name) override;
     bool prepare(const std::string& sql) override;
     bool execute(const std::string& sql) override;
     bool execute(const SqlInsertData& data) override;

@@ -12,6 +12,9 @@ public:
     // 连接/打开资源
     virtual bool connect() = 0;
     
+    // 选择数据库
+    virtual bool select_db(const std::string& db_name) = 0;
+
     // Prepare for write operation
     virtual bool prepare(const std::string& sql) = 0;
 

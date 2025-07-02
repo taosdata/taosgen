@@ -13,6 +13,11 @@ bool RestfulConnector::connect() {
     throw std::runtime_error("RestfulConnector::connect is not implemented.");
 }
 
+bool RestfulConnector::select_db(const std::string& db_name) {
+    (void)db_name;
+    throw std::runtime_error("RestfulConnector::select_db is not implemented.");
+}
+
 bool RestfulConnector::prepare(const std::string& sql) {
     (void)sql;
     throw std::runtime_error("RestfulConnector::prepare is not implemented.");

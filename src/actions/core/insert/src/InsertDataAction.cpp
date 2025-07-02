@@ -70,7 +70,7 @@ void InsertDataAction::execute() {
 
         // 创建所有writer实例
         auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(config_.control.data_format);
-        auto sql = formatter->prepare(config_, col_instances);
+        auto sql = formatter->prepare(config_, col_instances, 1);
         for (size_t i = 0; i < consumer_thread_count; i++) {
             writers.push_back(WriterFactory::create(config_));
             
@@ -79,11 +79,19 @@ void InsertDataAction::execute() {
                 throw std::runtime_error("Failed to connect writer for thread " + std::to_string(i));
             }
 
+            if (config_.target.target_type == "tdengine") {
+                if (!writers[i]->select_db(config_.target.tdengine.database_info.name)) {
+                    throw std::runtime_error("Failed to select database for writer thread " + std::to_string(i) + \
+                        " with database name: " + config_.target.tdengine.database_info.name);  
+                }
+            }
+
             // 对于stmt v2格式，需要prepare
             if (config_.control.data_format.format_type == "stmt" && 
                 config_.control.data_format.stmt_config.version == "v2") {
                 if (!writers[i]->prepare(sql)) {
-                    throw std::runtime_error("Failed to prepare writer for thread " + std::to_string(i));
+                    throw std::runtime_error("Failed to prepare writer for thread " + std::to_string(i) + \
+                        " with SQL: " + sql);
                 }
             }
         }

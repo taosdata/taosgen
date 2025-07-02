@@ -10,9 +10,10 @@ class SqlInsertDataFormatter final : public IInsertDataFormatter {
 public:
     explicit SqlInsertDataFormatter(const DataFormat& format) : format_(format) {}
 
-    std::string prepare(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances) const {
+    std::string prepare(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances, int mode) const {
         (void)config;
         (void)col_instances;
+        (void)mode;
         return "";
     }
 

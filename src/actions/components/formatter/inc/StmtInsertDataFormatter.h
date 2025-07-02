@@ -10,7 +10,7 @@ class StmtInsertDataFormatter final : public IInsertDataFormatter {
 public:
     explicit StmtInsertDataFormatter(const DataFormat& format) : format_(format) {}
 
-    std::string prepare(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances) const {
+    std::string prepare(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances, int mode = 1) const {
         // TODO:
         // 1. native            : INSERT INTO ? VALUES(?,cols-qmark)
         // 2. websocket  -stb   : INSERT INTO `db_name`.`stb_name`(cols-name) VALUES(?,?,col-qmark)
@@ -19,23 +19,35 @@ public:
 
         std::ostringstream result;
 
-        result << "INSERT INTO `"
-               << config.target.tdengine.database_info.name << "`.`" 
-               << config.target.tdengine.super_table_info.name << "`(tbname,ts";
+        if (mode == 1) {
+            result << "INSERT INTO ? VALUES(?";
 
-        // Add column names
-        for (size_t i = 0; i < col_instances.size(); i++) {
-            result << "," << col_instances[i].name();
+            // Add question marks for each column
+            for (size_t i = 0; i < col_instances.size(); i++) {
+                result << ",?";
+            }
+            result << ")";
         }
+        else if (mode == 2)
+        {
+            result << "INSERT INTO `"
+                << config.target.tdengine.database_info.name << "`.`" 
+                << config.target.tdengine.super_table_info.name << "`(tbname,ts";
 
-        result << ") VALUES(?,?";
+            // Add column names
+            for (size_t i = 0; i < col_instances.size(); i++) {
+                result << "," << col_instances[i].name();
+            }
 
-        // Add question marks for each column
-        for (size_t i = 0; i < col_instances.size(); i++) {
-            result << ",?";
+            result << ") VALUES(?,?";
+
+            // Add question marks for each column
+            for (size_t i = 0; i < col_instances.size(); i++) {
+                result << ",?";
+            }
+            result << ")";
         }
-        result << ")";
-
+        
         return result.str();
     }
 

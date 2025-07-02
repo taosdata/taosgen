@@ -10,6 +10,7 @@ public:
     virtual ~DatabaseConnector() = default;
 
     virtual bool connect() = 0;
+    virtual bool select_db(const std::string& db_name) = 0;
     virtual bool prepare(const std::string& sql) = 0;
     virtual bool execute(const std::string& sql) = 0;
     virtual bool execute(const SqlInsertData& data) = 0;

@@ -45,6 +45,10 @@ bool TDengineWriter::connect() {
     }
 }
 
+bool TDengineWriter::select_db(const std::string& db_name) {
+    return connector_->select_db(db_name);
+}
+
 bool TDengineWriter::prepare(const std::string& sql) {
     return connector_->prepare(sql);
 }

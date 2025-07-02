@@ -26,6 +26,18 @@ bool NativeConnector::connect() {
     return true;
 }
 
+bool NativeConnector::select_db(const std::string& db_name) {
+    if (!is_connected_ && !connect()) return false;
+
+    int code = taos_select_db(conn_, db_name.c_str());
+    if (code != 0) {
+        std::cerr << "Select database failed: " << taos_errstr(conn_) << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
 bool NativeConnector::prepare(const std::string& sql) {
     if (stmt_) {
         taos_stmt2_close(stmt_);

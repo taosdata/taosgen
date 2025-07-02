@@ -17,6 +17,8 @@ public:
     // Connect to database
     bool connect() override;
     
+    bool select_db(const std::string& db_name) override;
+
     // Prepare for write operation
     bool prepare(const std::string& sql) override;
 
