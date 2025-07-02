@@ -109,6 +109,7 @@ void validate_execution_order(const std::vector<std::string>& actual_order,
         // 检查依赖是否已完成
         if (dependencies.find(job_key) != dependencies.end()) {
             for (const auto& dependency : dependencies.at(job_key)) {
+                (void)dependency;
                 assert(completed_jobs.find(dependency) != completed_jobs.end() && "Dependency not satisfied");
             }
         }

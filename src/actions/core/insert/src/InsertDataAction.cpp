@@ -191,7 +191,7 @@ void InsertDataAction::execute() {
             static_cast<double>(final_total_rows) / total_duration : 0.0;
 
         // 打印性能统计
-        std::cout << "\n============================== Performance Statistics ==============================\n"
+        std::cout << "\n============================== Performance Statistics ===================================\n"
                   << "Insert Threads: " << consumer_thread_count << "\n"
                   << "Total Rows: " << final_total_rows << "\n"
                   << "Total Duration: " << std::fixed << std::setprecision(2) 
@@ -233,7 +233,7 @@ void InsertDataAction::execute() {
         global_metrics.calculate();
 
         // 打印性能统计
-        std::cout << "\n============================== Insert Performance Metrics ==============================\n"
+        std::cout << "\n============================== Insert Performance Metrics ===============================\n"
                 << "Total operations: " << global_metrics.get_all_samples().size() << "\n"
                 << "Latency: " << global_metrics.get_summary() << "\n"
                 << "=========================================================================================\n\n";

@@ -94,6 +94,7 @@ MultiBatch TableDataManager::collect_batch_data(size_t max_rows) {
     MultiBatch result;
     int64_t start_time{std::numeric_limits<int64_t>::max()};
     int64_t end_time{std::numeric_limits<int64_t>::min()};
+    std::unordered_map<std::string, size_t> table_indices;
 
     while (result.total_rows < max_rows && has_more()) {
         TableState* table_state = get_next_active_table();
@@ -145,8 +146,22 @@ MultiBatch TableDataManager::collect_batch_data(size_t max_rows) {
             if (rate_limiter_) {
                 acquire_tokens(batch_size);
             }
+
+            // Add data
+            auto table_idx_it = table_indices.find(table_name);
+            if (table_idx_it != table_indices.end()) {
+                auto& existing_batch = result.table_batches[table_idx_it->second].second;
+                existing_batch.insert(
+                    existing_batch.end(),
+                    std::make_move_iterator(batch.begin()),
+                    std::make_move_iterator(batch.end())
+                );
+            } else {
+                table_indices[table_name] = result.table_batches.size();
+                result.table_batches.emplace_back(table_name, std::move(batch));
+            }
+            
             result.total_rows += batch_size;
-            result.table_batches.emplace_back(table_name, std::move(batch));
         }
     }
 

@@ -18,6 +18,7 @@ void test_commandline_merge() {
     ctx.merge_commandline(5, const_cast<char**>(argv));
 
     const auto& conn_info = ctx.get_connection_info();
+    (void)conn_info;
     assert(conn_info.host == "127.0.0.1");
     assert(conn_info.port == 6041);
     assert(conn_info.user == "admin");
@@ -33,6 +34,7 @@ void test_environment_merge() {
     ctx.merge_environment_vars();
 
     const auto& conn_info = ctx.get_connection_info();
+    (void)conn_info;
     assert(conn_info.host == "192.168.1.100");
     assert(conn_info.port == 6042);
     std::cout << "Environment merge test passed.\n";
@@ -291,6 +293,7 @@ jobs:
     assert(data.jobs[0].steps[0].uses == "actions/create-database");
     assert(std::holds_alternative<CreateDatabaseConfig>(data.jobs[0].steps[0].action_config));
     const auto& create_db_config = std::get<CreateDatabaseConfig>(data.jobs[0].steps[0].action_config);
+    (void)create_db_config;
     assert(create_db_config.connection_info.host == "10.0.0.1");
     assert(create_db_config.connection_info.port == 6043);
     assert(create_db_config.connection_info.user == "root");
@@ -309,6 +312,7 @@ jobs:
     assert(data.jobs[1].steps[0].uses == "actions/create-super-table");
     assert(std::holds_alternative<CreateSuperTableConfig>(data.jobs[1].steps[0].action_config));
     const auto& create_stb_config = std::get<CreateSuperTableConfig>(data.jobs[1].steps[0].action_config);
+    (void)create_stb_config;
     assert(create_stb_config.database_info.name == "testdb");
     assert(create_stb_config.super_table_info.name == "points");
     assert(create_stb_config.super_table_info.columns.size() > 0);
@@ -323,6 +327,7 @@ jobs:
     assert(data.jobs[2].steps[0].uses == "actions/create-child-table");
     assert(std::holds_alternative<CreateChildTableConfig>(data.jobs[2].steps[0].action_config));
     const auto& create_child_config = std::get<CreateChildTableConfig>(data.jobs[2].steps[0].action_config);
+    (void)create_child_config;
     assert(create_child_config.database_info.name == "testdb");
     assert(create_child_config.super_table_info.name == "points");
     assert(create_child_config.child_table_info.table_name.source_type == "generator");
@@ -358,6 +363,7 @@ jobs:
     assert(insert_config.source.columns.csv.timestamp_strategy.strategy_type == "original");
     const auto& original_config = std::get<TimestampOriginalConfig>(
         insert_config.source.columns.csv.timestamp_strategy.timestamp_config);
+    (void)original_config;
     assert(original_config.timestamp_index == 0);
     assert(original_config.timestamp_precision == "us");
 
@@ -418,6 +424,7 @@ jobs:
 
     assert(query_control.query_type == "super_table");
     const auto& super_table = query_control.super_table;
+    (void)super_table;
     assert(super_table.database_name == "testdb");
     assert(super_table.super_table_name == "points");
     assert(super_table.placeholder == "${child_table}");
@@ -448,6 +455,7 @@ jobs:
     assert(subscribe_config.control.data_channel.channel_type == "native");
 
     const auto& subscribe_control = subscribe_config.control.subscribe_control;
+    (void)subscribe_control;
     assert(subscribe_control.execution.consumer_concurrency == 5);
     assert(subscribe_control.execution.poll_timeout == 500);
     assert(subscribe_control.topics.size() == 1);
