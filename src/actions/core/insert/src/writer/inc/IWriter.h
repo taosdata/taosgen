@@ -3,6 +3,7 @@
 #include <chrono>
 #include "FormatResult.h"
 #include "InsertDataConfig.h"
+#include "ActionMetrics.h"
 
 class IWriter {
 public:
@@ -22,4 +23,6 @@ public:
     
     // 获取时间戳精度
     virtual std::string get_timestamp_precision() const = 0;
+
+    virtual const ActionMetrics& get_metrics() const = 0; 
 };

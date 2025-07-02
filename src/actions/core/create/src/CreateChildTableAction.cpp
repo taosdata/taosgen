@@ -17,9 +17,9 @@ void CreateChildTableAction::execute() {
         if (config_.child_table_info.table_name.source_type == "generator") {
             TableNameGenerator generator(config_.child_table_info.table_name.generator);
             table_names = generator.generate();
-            for (const auto& name : table_names) {
-                std::cout << "Generated table name: " << name << std::endl;
-            }
+            // for (const auto& name : table_names) {
+            //     std::cout << "Generated table name: " << name << std::endl;
+            // }
         } else if (config_.child_table_info.table_name.source_type == "csv") {
             TableNameCSV csv_reader(config_.child_table_info.table_name.csv);
             table_names = csv_reader.generate();
@@ -39,9 +39,9 @@ void CreateChildTableAction::execute() {
             auto instances = ColumnConfigInstanceFactory::create(config_.child_table_info.tags.generator.schema);
             RowGenerator row_generator(instances);
             tags = row_generator.generate(table_names.size());
-            for (const auto& tag : tags) {
-                std::cout << "Generated tag: " << tag << std::endl;
-            }
+            // for (const auto& tag : tags) {
+            //     std::cout << "Generated tag: " << tag << std::endl;
+            // }
         } else if (config_.child_table_info.tags.source_type == "csv") {
             auto instances = ColumnConfigInstanceFactory::create(config_.child_table_info.tags.csv.schema);
             TagsCSV tags_csv(config_.child_table_info.tags.csv, instances);
@@ -97,8 +97,8 @@ void CreateChildTableAction::execute() {
                         // Format the batch data
                         FormatResult formatted_result = formatter->format(config_, batch_table_names, batch_tags);
 
-                        std::cout << "Formatted result for batch " << group_idx << '#' << batch_idx << ": " 
-                                  << std::get<std::string>(formatted_result) << std::endl;
+                        // std::cout << "Formatted result for batch " << group_idx << '#' << batch_idx << ": " 
+                        //           << std::get<std::string>(formatted_result) << std::endl;
 
                         // Execute the formatted result
                         local_connector->execute(std::get<std::string>(formatted_result));

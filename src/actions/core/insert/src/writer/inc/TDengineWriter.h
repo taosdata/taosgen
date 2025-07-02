@@ -1,11 +1,13 @@
 #pragma once
+
+#include <atomic>
+#include <memory>
 #include "IWriter.h"
 #include "DatabaseConnector.h"
 #include "TimeIntervalStrategy.h"
 #include "FormatResult.h"
 #include "InsertDataConfig.h"
-#include <atomic>
-#include <memory>
+#include "ActionMetrics.h"
 
 class TDengineWriter : public IWriter {
 public:
@@ -26,6 +28,8 @@ public:
     
     // Get timestamp precision
     std::string get_timestamp_precision() const override { return timestamp_precision_; }
+
+    const ActionMetrics& get_metrics() const override { return metrics_; }
 
 private:
     // Handle data insertion
@@ -52,4 +56,7 @@ private:
     
     // Failure retry state
     size_t current_retry_count_ = 0;
+
+    // Performance statistics
+    ActionMetrics metrics_;
 };

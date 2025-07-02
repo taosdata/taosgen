@@ -10,6 +10,7 @@ target_include_directories(insert_writer
     ${CMAKE_CURRENT_SOURCE_DIR}/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../utils/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../../config/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../../components/metrics/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../../components/connector/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../../components/formatter/inc
 )
@@ -18,6 +19,7 @@ target_include_directories(insert_writer
 target_link_libraries(insert_writer
   PUBLIC
     actions_config
+    components_metrics
     components_connector
     utils
     ${TAOS_LIBRARIES}

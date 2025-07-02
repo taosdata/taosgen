@@ -2,6 +2,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <thread>
+#include "TimeRecorder.h"
 
 TDengineWriter::TDengineWriter(const InsertDataConfig& config)
         : config_(config),
@@ -58,6 +59,7 @@ void TDengineWriter::write(const BaseInsertData& data) {
 
     // 执行写入
     bool write_success = false;
+    TimeRecorder timer;
     switch(data.type) {
         case BaseInsertData::DataType::SQL:
             write_success = handle_insert(static_cast<const SqlInsertData&>(data));
@@ -68,7 +70,8 @@ void TDengineWriter::write(const BaseInsertData& data) {
         default:
             throw std::runtime_error("Unsupported data type");
     }
-            
+    metrics_.add_sample(timer.elapsed());
+
     // 更新状态
     if (write_success) {
         last_start_time_ = data.start_time;

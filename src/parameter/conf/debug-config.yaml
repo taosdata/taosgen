@@ -18,7 +18,7 @@ global:
   database_info: &db_info
     name: benchdebug
     drop_if_exists: true
-    precision: ms
+    properties: precision 'ms' vgroups 4
 
   super_table_info: &stb_info
     name: meters
@@ -44,6 +44,10 @@ global:
         type: binary
         len: 24
 
+    tbname_generator: &tbname_generator
+      prefix: d
+      count: 100000
+      from: 0
 
 concurrency: 4
 
@@ -87,10 +91,7 @@ jobs:
           child_table_info:
             table_name:
               source_type: generator
-              generator:
-                prefix: d
-                count: 1000
-                from: 0
+              generator: *tbname_generator
             tags: 
               source_type: generator
               generator:
@@ -112,10 +113,7 @@ jobs:
           source:
             table_name:
               source_type: generator
-              generator:
-                prefix: d
-                count: 1000
-                from: 0
+              generator: *tbname_generator
             columns:
               source_type: generator
               generator:
@@ -146,12 +144,12 @@ jobs:
               channel_type: native
             data_generation:
               interlace_mode:
-                enabled: false
+                enabled: true
                 rows: 1
               generate_threads: 2
-              per_table_rows: 10000
+              per_table_rows: 100
             insert_control:
-              per_request_rows: 30000
+              per_request_rows: 10000
               auto_create_table: false
               insert_threads: 1
               thread_allocation: index_range

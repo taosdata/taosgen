@@ -9,6 +9,7 @@
 #include "TableDataManager.h"
 #include "DataPipeline.h"
 #include "FormatResult.h"
+#include "IWriter.h"
 
 
 class InsertDataAction : public ActionBase {
@@ -33,9 +34,9 @@ private:
 
     void consumer_thread_function(
         size_t consumer_id,
-        const ColumnConfigInstanceVector& col_instances,
         DataPipeline<FormatResult>& pipeline,
-        std::atomic<bool>& running);
+        std::atomic<bool>& running,
+        IWriter* writer);
 
     // 注册 InsertDataAction 到 ActionFactory
     inline static bool registered_ = []() {

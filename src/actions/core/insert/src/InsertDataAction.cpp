@@ -12,7 +12,7 @@
 
 
 void InsertDataAction::execute() {
-    std::cout << "Inserting data into: " << config_.target.target_type << std::endl;
+    std::cout << "Inserting data into: " << config_.target.target_type;
     if (config_.target.target_type == "tdengine") {
         std::cout << " @ "
                   << config_.target.tdengine.connection_info.host << ":"
@@ -65,6 +65,29 @@ void InsertDataAction::execute() {
         std::vector<std::thread> consumer_threads;
         consumer_threads.reserve(consumer_thread_count);
 
+        std::vector<std::unique_ptr<IWriter>> writers;
+        writers.reserve(consumer_thread_count);
+
+        // 创建所有writer实例
+        auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(config_.control.data_format);
+        auto sql = formatter->prepare(config_, col_instances);
+        for (size_t i = 0; i < consumer_thread_count; i++) {
+            writers.push_back(WriterFactory::create(config_));
+            
+            // 连接数据库
+            if (!writers[i]->connect()) {
+                throw std::runtime_error("Failed to connect writer for thread " + std::to_string(i));
+            }
+
+            // 对于stmt v2格式，需要prepare
+            if (config_.control.data_format.format_type == "stmt" && 
+                config_.control.data_format.stmt_config.version == "v2") {
+                if (!writers[i]->prepare(sql)) {
+                    throw std::runtime_error("Failed to prepare writer for thread " + std::to_string(i));
+                }
+            }
+        }
+
         auto consumer_running = std::make_unique<std::atomic<bool>[]>(consumer_thread_count);
         for (size_t i = 0; i < consumer_thread_count; i++) {
             consumer_running[i].store(true);
@@ -73,7 +96,7 @@ void InsertDataAction::execute() {
         // Start consumer threads
         for (size_t i = 0; i < consumer_thread_count; i++) {
             consumer_threads.emplace_back([&, i] {
-                consumer_thread_function(i, col_instances, pipeline, consumer_running[i]);
+                consumer_thread_function(i, pipeline, consumer_running[i], writers[i].get());
             });
         }
 
@@ -168,14 +191,14 @@ void InsertDataAction::execute() {
             static_cast<double>(final_total_rows) / total_duration : 0.0;
 
         // 打印性能统计
-        std::cout << "\n=== Performance Statistics ===\n"
+        std::cout << "\n============================== Performance Statistics ==============================\n"
                   << "Insert Threads: " << consumer_thread_count << "\n"
                   << "Total Rows: " << final_total_rows << "\n"
                   << "Total Duration: " << std::fixed << std::setprecision(2) 
                   << total_duration << " seconds\n"
                   << "Average Rate: " << std::fixed << std::setprecision(2) 
                   << avg_rows_per_sec << " rows/second\n"
-                  << "========================\n\n";
+                  << "=========================================================================================\n\n";
 
 
         // 7. 等待生产者完成
@@ -193,6 +216,31 @@ void InsertDataAction::execute() {
         
         for (auto& t : consumer_threads) {
             if (t.joinable()) t.join();
+        }
+
+
+
+        // 收集性能指标
+        ActionMetrics global_metrics;
+        std::vector<ActionMetrics> all_metrics;
+
+        for (const auto& writer : writers) {
+            all_metrics.push_back(writer->get_metrics());
+        }
+
+        // 合并所有指标
+        global_metrics.merge_from(all_metrics);
+        global_metrics.calculate();
+
+        // 打印性能统计
+        std::cout << "\n============================== Insert Performance Metrics ==============================\n"
+                << "Total operations: " << global_metrics.get_all_samples().size() << "\n"
+                << "Latency: " << global_metrics.get_summary() << "\n"
+                << "=========================================================================================\n\n";
+
+        // 清理资源
+        for (auto& writer : writers) {
+            writer->close();
         }
 
         std::cout << "InsertDataAction completed successfully" << std::endl;
@@ -268,40 +316,10 @@ void InsertDataAction::producer_thread_function(
 
 void InsertDataAction::consumer_thread_function(
     size_t consumer_id,
-    const ColumnConfigInstanceVector& col_instances,
     DataPipeline<FormatResult>& pipeline,
-    std::atomic<bool>& running) 
+    std::atomic<bool>& running,
+    IWriter* writer)
 {
-    // 创建写入器
-    std::unique_ptr<IWriter> writer = WriterFactory::create(config_);
-
-    // 连接/打开资源
-    try {
-        if (!writer->connect()) {
-            throw std::runtime_error("Failed to connect writer");
-        }
-    } catch (const std::exception& e) {
-        std::cerr << "Consumer " << consumer_id << " connection failed: " << e.what() << std::endl;
-        return;
-    }
-    
-    // TODO: Prepare
-    if (config_.control.data_format.format_type == "stmt") {
-        if (config_.control.data_format.stmt_config.version == "v2") {
-            // 对于 v2 版本，使用 StmtV2InsertData
-            // 创建格式化器
-            auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(config_.control.data_format);
-            auto sql = formatter->prepare(config_, col_instances);
-
-            if (!writer->prepare(sql)) {
-                std::cerr << "Consumer " << consumer_id << " prepare failed with SQL: " << sql << std::endl;
-                writer->close();
-                return;
-            }
-        }
-    }
-
-
     // 失败重试逻辑
     const auto& failure_cfg = config_.control.insert_control.failure_handling;
     size_t retry_count = 0;
@@ -343,7 +361,6 @@ void InsertDataAction::consumer_thread_function(
                 } else if (failure_cfg.on_failure == "exit") {
                     // std::cerr << "Consumer " << consumer_id << " exiting after " 
                     //           << retry_count << " retries" << std::endl;
-                    writer->close();
                     throw std::runtime_error(
                         "Consumer " + std::to_string(consumer_id) + 
                         " failed after " + std::to_string(retry_count) + 
@@ -357,7 +374,6 @@ void InsertDataAction::consumer_thread_function(
         case DataPipeline<FormatResult>::Status::Terminated:
             // 管道已终止，退出线程
             std::cout << "Consumer " << consumer_id << " received termination signal" << std::endl;
-            writer->close();
             return;
             
         case DataPipeline<FormatResult>::Status::Timeout:
@@ -366,9 +382,6 @@ void InsertDataAction::consumer_thread_function(
             break;
         }
     }
-    
-    // 关闭连接
-    writer->close();
 }
 
 ColumnConfigInstanceVector InsertDataAction::create_column_instances(const InsertDataConfig& config) const {
