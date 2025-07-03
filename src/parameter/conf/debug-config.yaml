@@ -146,8 +146,8 @@ jobs:
               interlace_mode:
                 enabled: true
                 rows: 1
-              generate_threads: 2
-              per_table_rows: 100
+              generate_threads: 1
+              per_table_rows: 50
             insert_control:
               per_request_rows: 10000
               auto_create_table: false

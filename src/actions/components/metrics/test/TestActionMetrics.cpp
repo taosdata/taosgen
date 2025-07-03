@@ -22,7 +22,7 @@ void test_single_thread_metrics() {
     std::string summary = metrics.get_summary();
 
     // Verify metrics values
-    const auto& samples = metrics.get_samples_snapshot();
+    const auto& samples = metrics.get_samples();
     assert(samples.size() == 5);
     assert(std::abs(metrics.get_min() - 10.5) < 0.0001);
     assert(std::abs(metrics.get_max() - 20.9) < 0.0001);
@@ -58,7 +58,7 @@ void test_multi_thread_metrics() {
     combined_metrics.calculate();
 
     // Verify combined metrics
-    assert(combined_metrics.get_all_samples().size() == 15);
+    assert(combined_metrics.get_samples().size() == 15);
     assert(std::abs(combined_metrics.get_min() - 0.0) < 0.0001);
     assert(std::abs(combined_metrics.get_max() - 24.0) < 0.0001);
 
@@ -71,11 +71,11 @@ void test_metrics_reset() {
     metrics.add_sample(10.0);
     metrics.add_sample(20.0);
     
-    assert(metrics.get_samples_snapshot().size() == 2);
+    assert(metrics.get_samples().size() == 2);
     
     metrics.reset();
     
-    assert(metrics.get_samples_snapshot().empty());
+    assert(metrics.get_samples().empty());
     assert(std::abs(metrics.get_min()) < 0.0001);
     assert(std::abs(metrics.get_max()) < 0.0001);
     assert(std::abs(metrics.get_avg()) < 0.0001);
@@ -87,7 +87,7 @@ void test_empty_metrics() {
     ActionMetrics metrics;
     metrics.calculate();
     
-    assert(metrics.get_samples_snapshot().empty());
+    assert(metrics.get_samples().empty());
     assert(std::abs(metrics.get_min()) < 0.0001);
     assert(std::abs(metrics.get_max()) < 0.0001);
     assert(std::abs(metrics.get_avg()) < 0.0001);

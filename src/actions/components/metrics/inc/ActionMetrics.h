@@ -10,7 +10,7 @@ public:
 
     // Add a sample to the thread-local bucket
     void add_sample(double duration_ms);
-    
+
     // Merge data from other thread instances
     void merge_from(const std::vector<ActionMetrics>& others);
     
@@ -23,30 +23,27 @@ public:
     // Reset the statistical data
     void reset();
     
-    // Take a snapshot of the thread-local samples
-    std::vector<double> get_samples_snapshot() const;
-
-    std::vector<double> get_all_samples() const;
+    // Get samples
+    std::vector<double> get_samples() const;
 
     double get_min() const { return metrics_.min; }
     double get_max() const { return metrics_.max; }
     double get_avg() const { return metrics_.avg; }
+    double get_sum() const { return metrics_.sum; }
     double get_p90() const { return metrics_.p90; }
     double get_p95() const { return metrics_.p95; }
     double get_p99() const { return metrics_.p99; }
 
 private:
-    // Thread-local storage bucket
-    std::vector<double> thread_samples_;
-
-    // Merged global data
-    std::vector<double> all_samples_;
+    // Samples data
+    std::vector<double> samples_;
     
     // Final calculated results
     struct {
         double min = 0.0;
         double max = 0.0;
         double avg = 0.0;
+        double sum = 0.0;
         double p90 = 0.0;
         double p95 = 0.0;
         double p99 = 0.0;
