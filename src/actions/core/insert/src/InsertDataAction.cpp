@@ -400,34 +400,41 @@ void InsertDataAction::consumer_thread_function(
     // 失败重试逻辑
     const auto& failure_cfg = config_.control.insert_control.failure_handling;
     size_t retry_count = 0;
-    ActionMetrics metrics1_;
-    ActionMetrics metrics2_;
-    ActionMetrics metrics3_;
-    ActionMetrics metrics4_;
+
     ActionMetrics metrics5_;
     ActionMetrics metrics6_;
-    
+
+    // std::vector<std::chrono::_V2::system_clock::time_point> timestamps1;
+    // std::vector<std::chrono::_V2::system_clock::time_point> timestamps2;
+    // timestamps1.reserve(1000);
+    // timestamps2.reserve(1000);
+    std::vector<DataPipeline<FormatResult>::Result> rbs;
+    rbs.reserve(5000000);
+
     TimeRecorder timer6;
     // 数据处理循环
     (void)running;
-    while (true) {
-        TimeRecorder timer5;
-        TimeRecorder timer1;
-        auto result = pipeline.fetch_data(consumer_id);
-        metrics1_.add_sample(timer1.elapsed());
 
-        TimeRecorder timer4;
+    while (true) {
+        // {
+        //     // 获取并打印当前时间，精确到毫秒
+        //     auto now = std::chrono::system_clock::now();
+        //     timestamps1.emplace_back(now);
+        // }
+
+        TimeRecorder timer5;
+        auto result = pipeline.fetch_data(consumer_id);
+
         switch (result.status) {
         case DataPipeline<FormatResult>::Status::Success:
         {
-            TimeRecorder timer3;
             try {
-                TimeRecorder timer2;
                 // 使用writer执行写入
                 std::visit([&](const auto& formatted_result) {
                     // using T = std::decay_t<decltype(formatted_result)>;
                     if constexpr (std::is_base_of_v<BaseInsertData, std::decay_t<decltype(formatted_result)>>) {
                         writer->write(formatted_result);
+                        (void)writer;
                         retry_count = 0;
 
                         // if constexpr (std::is_same_v<T, SqlInsertData> || std::is_same_v<T, StmtV2InsertData>) {
@@ -441,7 +448,8 @@ void InsertDataAction::consumer_thread_function(
                     }
 
                 }, *result.data);
-                metrics2_.add_sample(timer2.elapsed());
+
+                rbs.emplace_back(std::move(result));
 
             } catch (const std::exception& e) {
                 std::cerr << "Consumer " << consumer_id << " write failed: " << e.what() << std::endl;
@@ -462,48 +470,18 @@ void InsertDataAction::consumer_thread_function(
                     // return;
                 }
             }
-            metrics3_.add_sample(timer3.elapsed());
             break;
         }
         case DataPipeline<FormatResult>::Status::Terminated:
             // 管道已终止，退出线程
-            metrics4_.add_sample(timer4.elapsed());
             metrics5_.add_sample(timer5.elapsed());
             metrics6_.add_sample(timer6.elapsed());
 
-            metrics1_.calculate();
-            metrics2_.calculate();
-            metrics3_.calculate();
-            metrics4_.calculate();
             metrics5_.calculate();
             metrics6_.calculate();
 
 
             // 打印性能统计
-            std::cout << "\n============================== Insert " << "Consumer " << consumer_id
-                    << " GetData Performance Metrics ===============================\n"
-                    << "Total operations: " << metrics1_.get_samples().size() << "\n"
-                    << "Latency: " << metrics1_.get_summary() << "\n"
-                    << "=========================================================================================\n\n";
-
-            std::cout << "\n============================== Insert " << "Consumer " << consumer_id
-                    << " Visit Performance Metrics ===============================\n"
-                    << "Total operations: " << metrics2_.get_samples().size() << "\n"
-                    << "Latency: " << metrics2_.get_summary() << "\n"
-                    << "=========================================================================================\n\n";
-
-            std::cout << "\n============================== Insert " << "Consumer " << consumer_id
-                    << " Pipeline Performance Metrics ===============================\n"
-                    << "Total operations: " << metrics3_.get_samples().size() << "\n"
-                    << "Latency: " << metrics3_.get_summary() << "\n"
-                    << "=========================================================================================\n\n";
-
-            std::cout << "\n============================== Insert " << "Consumer " << consumer_id
-                    << " Switch Performance Metrics ===============================\n"
-                    << "Total operations: " << metrics4_.get_samples().size() << "\n"
-                    << "Latency: " << metrics4_.get_summary() << "\n"
-                    << "=========================================================================================\n\n";
-
 
             std::cout << "\n============================== Insert " << "Consumer " << consumer_id
                     << " While Performance Metrics ===============================\n"
@@ -517,6 +495,51 @@ void InsertDataAction::consumer_thread_function(
                     << "Total operations: " << metrics6_.get_samples().size() << "\n"
                     << "Latency: " << metrics6_.get_summary() << "\n"
                     << "=========================================================================================\n\n";
+
+
+            // {
+            //     // 获取并打印当前时间，精确到毫秒
+            //     auto now = std::chrono::system_clock::now();
+            //     timestamps2.emplace_back(now);
+            // }
+
+            // 打印所有记录的时间戳和耗时
+            // if (timestamps1.size() == timestamps2.size()) {
+            //     std::cout << "\n========== Consumer " << consumer_id << " Timing Analysis ==========\n";
+            //     std::cout << std::setw(30) << "Loop Start" << std::setw(30) << "Loop End" 
+            //             << std::setw(15) << "Duration(ms)" << std::endl;
+                
+            //     for (size_t i = 0; i < timestamps1.size(); ++i) {
+            //         auto start_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            //             timestamps1[i].time_since_epoch());
+            //         auto end_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            //             timestamps2[i].time_since_epoch());
+                    
+            //         auto start_t = std::chrono::system_clock::to_time_t(timestamps1[i]);
+            //         auto end_t = std::chrono::system_clock::to_time_t(timestamps2[i]);
+                    
+            //         std::stringstream ss1, ss2;
+            //         ss1 << std::put_time(std::localtime(&start_t), "%Y-%m-%d %H:%M:%S")
+            //             << '.' << std::setfill('0') << std::setw(3) 
+            //             << start_ms.count() % 1000;
+                        
+            //         ss2 << std::put_time(std::localtime(&end_t), "%Y-%m-%d %H:%M:%S")
+            //             << '.' << std::setfill('0') << std::setw(3) 
+            //             << end_ms.count() % 1000;
+                        
+            //         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+            //             timestamps2[i] - timestamps1[i]);
+                        
+            //         std::cout << std::setw(30) << ss1.str() 
+            //                 << std::setw(30) << ss2.str()
+            //                 << std::setw(15) << duration.count() << std::endl;
+            //     }
+            //     std::cout << "================================================\n\n";
+            // } else {
+            //     std::cerr << "Warning: Timestamp arrays have different sizes: "
+            //             << "start=" << timestamps1.size() 
+            //             << ", end=" << timestamps2.size() << std::endl;
+            // }
 
 
             std::cout << "Consumer " << consumer_id << " received termination signal" << std::endl;
@@ -541,8 +564,12 @@ void InsertDataAction::consumer_thread_function(
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
         }
-        metrics4_.add_sample(timer4.elapsed());
         metrics5_.add_sample(timer5.elapsed());
+        // {
+        //     // 获取并打印当前时间，精确到毫秒
+        //     auto now = std::chrono::system_clock::now();
+        //     timestamps2.emplace_back(now);
+        // }
     }
 }
 
