@@ -204,9 +204,13 @@ public:
         , bindv_(other.bindv_) {
         // 更新 bindv_ 中的指针
         bindv_.tbnames = const_cast<char**>(table_names_.data());
-        bindv_.tags = bindv_.tags;
+        bindv_.tags = nullptr;
         bindv_.bind_cols = column_bind_ptrs_.data();
     }
+
+    StmtV2Data& operator=(StmtV2Data&& other) = delete;
+    StmtV2Data(const StmtV2Data&) = delete;
+    StmtV2Data& operator=(const StmtV2Data&) = delete;
 
     size_t row_count() const noexcept override {
         size_t total = 0;

@@ -21,4 +21,8 @@ struct MultiBatch {
     int64_t start_time{0};
     int64_t end_time{0};
     size_t total_rows{0};
+
+    void reserve(size_t table_count) {
+        table_batches.reserve(table_count);
+    }
 };

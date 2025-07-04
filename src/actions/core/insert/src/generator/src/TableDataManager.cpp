@@ -96,6 +96,7 @@ MultiBatch TableDataManager::collect_batch_data(size_t max_rows) {
     int64_t end_time{std::numeric_limits<int64_t>::min()};
     std::unordered_map<std::string, size_t> table_indices;
 
+    result.reserve(table_order_.size());
     while (result.total_rows < max_rows && has_more()) {
         TableState* table_state = get_next_active_table();
         if (!table_state) break;
@@ -114,6 +115,7 @@ MultiBatch TableDataManager::collect_batch_data(size_t max_rows) {
         );
     
         // Generate data
+        batch.reserve(rows_to_generate);
         for (int64_t i = 0; i < rows_to_generate; ++i) {
             if (auto row = table_state->generator->next_row()) {
                 if (row->timestamp < 0) {

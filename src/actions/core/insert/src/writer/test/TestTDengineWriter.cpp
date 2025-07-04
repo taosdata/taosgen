@@ -71,8 +71,10 @@ void test_connection() {
 void test_write_operations() {
     auto config = create_test_config();
     TDengineWriter writer(config);
-    assert(writer.connect());
-    
+    auto connected = writer.connect();
+    (void)connected;
+    assert(connected);
+
     // Test write without connection
     TDengineWriter no_conn_writer(config);
     try {
@@ -96,7 +98,9 @@ void test_write_operations() {
         + config.target.tdengine.database_info.name + "`.`" 
         + config.target.tdengine.super_table_info.name + "`(tbname,ts,col1,col2) VALUES(?,?,?,?)";
 
-    assert (writer.prepare(sql));
+    auto prepared = writer.prepare(sql);
+    (void)prepared;
+    assert(prepared);
 
     MultiBatch batch;
     std::vector<RowData> rows;
@@ -132,7 +136,9 @@ void test_write_operations() {
 void test_retry_mechanism() {
     auto config = create_test_config();
     TDengineWriter writer(config);
-    assert(writer.connect());
+    auto connected = writer.connect();
+    (void)connected;
+    assert(connected);
     
     // Test successful write after retry
     SqlInsertData data(1000, 2000, 1, "INSERT INTO `test_action_db`.`d5` VALUES (1700000000001, 105, 3.1415926)");

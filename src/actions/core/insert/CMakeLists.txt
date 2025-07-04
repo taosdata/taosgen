@@ -19,6 +19,7 @@ target_include_directories(core_insert
     ${CMAKE_CURRENT_SOURCE_DIR}/../../base
     ${CMAKE_CURRENT_SOURCE_DIR}/../../config/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../components/metrics/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../components/garbage_collector/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../components/connector/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../components/formatter/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../components/generator/inc
@@ -36,6 +37,7 @@ target_link_libraries(core_insert
     insert_writer
     actions_config
     components_metrics
+    components_gc
     components_connector
     components_formatter
     components_generator

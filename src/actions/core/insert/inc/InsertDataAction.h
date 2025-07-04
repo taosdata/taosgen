@@ -10,6 +10,7 @@
 #include "DataPipeline.h"
 #include "FormatResult.h"
 #include "IWriter.h"
+#include "GarbageCollector.h"
 
 
 class InsertDataAction : public ActionBase {
@@ -36,7 +37,8 @@ private:
         size_t consumer_id,
         DataPipeline<FormatResult>& pipeline,
         std::atomic<bool>& running,
-        IWriter* writer);
+        IWriter* writer,
+        GarbageCollector<DataPipeline<FormatResult>::Result>& gc);
 
     // 注册 InsertDataAction 到 ActionFactory
     inline static bool registered_ = []() {
