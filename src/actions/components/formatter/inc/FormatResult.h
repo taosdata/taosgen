@@ -200,13 +200,18 @@ public:
         , table_names_(std::move(other.table_names_))
         , column_binds_(std::move(other.column_binds_))
         , column_bind_ptrs_(std::move(other.column_bind_ptrs_))
-        , table_memories_(std::move(other.table_memories_))
-        , bindv_(other.bindv_) {
-        // 更新 bindv_ 中的指针
-        bindv_.tbnames = const_cast<char**>(table_names_.data());
-        bindv_.tags = nullptr;
-        bindv_.bind_cols = column_bind_ptrs_.data();
-    }
+        , table_memories_(std::move(other.table_memories_)) {
+
+            bindv_ = TAOS_STMT2_BINDV{};
+            if (!table_names_.empty()) {
+                bindv_.count = static_cast<int>(table_names_.size());
+                bindv_.tbnames = const_cast<char**>(table_names_.data());
+                bindv_.tags = nullptr;  // 暂不处理tag
+                bindv_.bind_cols = column_bind_ptrs_.data();
+            }
+
+            other.bindv_ = TAOS_STMT2_BINDV{};
+        }
 
     StmtV2Data& operator=(StmtV2Data&& other) = delete;
     StmtV2Data(const StmtV2Data&) = delete;
@@ -260,7 +265,7 @@ private:
 
 struct BaseInsertData {
     enum class DataType { SQL, STMT_V2 };
-    const DataType type;
+    DataType type;
 
     int64_t start_time;
     int64_t end_time;
@@ -285,6 +290,13 @@ struct StmtV2InsertData : public BaseInsertData {
     StmtV2Data data;
     StmtV2InsertData(int64_t start, int64_t end, size_t rows, const ColumnConfigInstanceVector& col_instances, MultiBatch&& batch) 
         : BaseInsertData(DataType::STMT_V2, start, end, rows), data(col_instances, std::move(batch)) {}
+
+    StmtV2InsertData(StmtV2InsertData&& other) noexcept 
+        : BaseInsertData(std::move(other))
+        , data(std::move(other.data))
+    {
+        this->type = DataType::STMT_V2;
+    }
 };
 
 

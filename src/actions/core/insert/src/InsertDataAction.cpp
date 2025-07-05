@@ -6,6 +6,7 @@
 #include <variant>
 #include <type_traits>
 #include <pthread.h>
+#include <barrier> 
 #include "FormatterRegistrar.h"
 #include "FormatterFactory.h"
 #include "TableNameManager.h"
@@ -102,6 +103,7 @@ void InsertDataAction::execute() {
         
         // 创建数据管道
         DataPipeline<FormatResult> pipeline(producer_thread_count, consumer_thread_count, queue_capacity);
+        std::barrier sync_barrier(consumer_thread_count + 1);
 
         // 4. 启动消费者线程
         std::vector<std::thread> consumer_threads;
@@ -145,19 +147,6 @@ void InsertDataAction::execute() {
             consumer_running[i].store(true);
         }
 
-        // Start consumer threads
-        for (size_t i = 0; i < consumer_thread_count; i++) {
-
-            consumer_threads.emplace_back([this, i, &pipeline, &consumer_running, &writers, &gc] {
-                set_thread_affinity(i);
-                set_realtime_priority();
-                consumer_thread_function(i, pipeline, consumer_running[i], writers[i].get(), gc);
-            });
-        }
-
-
-        const auto start_time = std::chrono::steady_clock::now();
-
         // 5. 启动生产者线程
         std::vector<std::shared_ptr<TableDataManager>> data_managers;
         data_managers.reserve(producer_thread_count);
@@ -176,7 +165,7 @@ void InsertDataAction::execute() {
             auto data_manager = std::make_shared<TableDataManager>(config_, col_instances);
             data_managers.push_back(data_manager);
 
-            producer_threads.emplace_back([=, &pipeline, &active_producers, &producer_finished] {
+            producer_threads.emplace_back([=, this, &pipeline, &active_producers, &producer_finished] {
                 try {
                     producer_thread_function(i, split_names[i], col_instances, pipeline, data_manager);
                     producer_finished[i].store(true);
@@ -186,6 +175,22 @@ void InsertDataAction::execute() {
                 active_producers--;
             });
         }
+
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+
+        // Start consumer threads
+        for (size_t i = 0; i < consumer_thread_count; i++) {
+
+            consumer_threads.emplace_back([this, i, &pipeline, &consumer_running, &writers, &gc, &sync_barrier] {
+                set_thread_affinity(i);
+                set_realtime_priority();
+                sync_barrier.arrive_and_wait();
+                consumer_thread_function(i, pipeline, consumer_running[i], writers[i].get(), gc);
+            });
+        }
+
+        sync_barrier.arrive_and_wait();
+        const auto start_time = std::chrono::steady_clock::now();
 
         // 6. 监控
         // const auto start_time = std::chrono::steady_clock::now();
