@@ -24,7 +24,7 @@ public:
 
     DataPipeline(size_t producer_count, 
                     size_t consumer_count,
-                    size_t queue_capacity = 1024)
+                    size_t queue_capacity = 100)
         : producer_count_(producer_count),
           consumer_count_(consumer_count),
           consumer_states_(consumer_count)

@@ -597,27 +597,27 @@ namespace YAML {
         static bool decode(const Node& node, InsertDataConfig::Control::DataGeneration& rhs) {
             if (node["interlace_mode"]) {
                 const auto& interlace = node["interlace_mode"];
-                rhs.interlace_mode.enabled = interlace["enabled"].as<bool>(false);
-                rhs.interlace_mode.rows  = interlace["rows"].as<size_t>(1);
+                rhs.interlace_mode.enabled = interlace["enabled"].as<bool>();
+                rhs.interlace_mode.rows  = interlace["rows"].as<size_t>();
             }
             if (node["data_cache"]) {
                 const auto& data_cache = node["data_cache"];
-                rhs.data_cache.enabled = data_cache["enabled"].as<bool>(false);
-                rhs.data_cache.cache_size = data_cache["cache_size"].as<size_t>(1000000);
+                rhs.data_cache.enabled = data_cache["enabled"].as<bool>();
+                rhs.data_cache.cache_size = data_cache["cache_size"].as<size_t>();
             }
             if (node["flow_control"]) {
                 const auto& flow_control = node["flow_control"];
-                rhs.flow_control.enabled = flow_control["enabled"].as<bool>(false);
-                rhs.flow_control.rate_limit = flow_control["rate_limit"].as<int64_t>(0);
+                rhs.flow_control.enabled = flow_control["enabled"].as<bool>();
+                rhs.flow_control.rate_limit = flow_control["rate_limit"].as<int64_t>();
             }
             if (node["generate_threads"]) {
-                rhs.generate_threads = node["generate_threads"].as<size_t>(1);
+                rhs.generate_threads = node["generate_threads"].as<size_t>();
             }
             if (node["per_table_rows"]) {
-                rhs.per_table_rows = node["per_table_rows"].as<int64_t>(10000);
+                rhs.per_table_rows = node["per_table_rows"].as<int64_t>();
             }
             if (node["queue_capacity"]) {
-                rhs.queue_capacity = node["queue_capacity"].as<int>(1000);
+                rhs.queue_capacity = node["queue_capacity"].as<int>();
             }
             return true;
         }

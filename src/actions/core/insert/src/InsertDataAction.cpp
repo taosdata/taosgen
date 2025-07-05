@@ -269,14 +269,14 @@ void InsertDataAction::execute() {
             static_cast<double>(final_total_rows) / total_duration : 0.0;
 
         // 打印性能统计
-        std::cout << "\n============================== Performance Statistics ===================================\n"
+        std::cout << "\n=================================================== Performance Statistics ===================================================\n"
                   << "Insert Threads: " << consumer_thread_count << "\n"
                   << "Total Rows: " << final_total_rows << "\n"
                   << "Total Duration: " << std::fixed << std::setprecision(2) 
                   << total_duration << " seconds\n"
                   << "Average Rate: " << std::fixed << std::setprecision(2) 
                   << avg_rows_per_sec << " rows/second\n"
-                  << "=========================================================================================\n\n";
+                  << "==============================================================================================================================\n\n";
 
 
         // 7. 等待生产者完成
@@ -313,14 +313,14 @@ void InsertDataAction::execute() {
         // 打印性能统计
         double thread_latency = global_metrics.get_sum() / consumer_thread_count / 1000;
         double effective_ratio = thread_latency / total_duration * 100.0;
-        std::cout << "\n============================== Insert Performance Metrics ===============================\n"
-                << "Total operations: " << global_metrics.get_samples().size() << "\n"
-                << "Total duration: " << std::fixed << std::setprecision(2) << total_duration << " seconds\n"
-                << "Pure insert latency: " << std::fixed << std::setprecision(2) << thread_latency << " seconds\n"
-                << "Effective time ratio: " << std::fixed << std::setprecision(2) << effective_ratio << "%\n"
-                << "Framework overhead: " << std::fixed << std::setprecision(2) << (100.0 - effective_ratio) << "%\n"
-                << "Latency distribution: " << global_metrics.get_summary() << "\n"
-                << "=========================================================================================\n\n";
+        std::cout << "\n=================================================== Insert Performance Metrics ===============================================\n"
+                << "Total Operations: " << global_metrics.get_samples().size() << "\n"
+                << "Total Duration: " << std::fixed << std::setprecision(2) << total_duration << " seconds\n"
+                << "Pure Insert Latency: " << std::fixed << std::setprecision(2) << thread_latency << " seconds\n"
+                << "Effective Time Ratio: " << std::fixed << std::setprecision(2) << effective_ratio << "%\n"
+                << "Framework Overhead: " << std::fixed << std::setprecision(2) << (100.0 - effective_ratio) << "%\n"
+                << "Latency Distribution: " << global_metrics.get_summary() << "\n"
+                << "==============================================================================================================================\n\n";
 
         // 清理资源
         for (auto& writer : writers) {
@@ -410,7 +410,8 @@ void InsertDataAction::consumer_thread_function(
     size_t retry_count = 0;
     
     // 数据处理循环
-    while (running) {
+    (void)running;
+    while (true) {
         auto result = pipeline.fetch_data(consumer_id);
 
         switch (result.status) {

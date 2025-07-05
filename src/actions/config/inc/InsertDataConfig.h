@@ -75,7 +75,7 @@ struct InsertDataConfig {
 
             size_t generate_threads = 1;
             int64_t per_table_rows = 10000;
-            int queue_capacity = 1000;
+            int queue_capacity = 100;
         } data_generation;
 
         struct InsertControl {
