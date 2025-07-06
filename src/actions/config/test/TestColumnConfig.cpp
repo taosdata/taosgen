@@ -42,9 +42,9 @@ void test_column_config_with_name_type_gen_type() {
 }
 
 void test_column_config_with_name_type_gen_type_len() {
-    ColumnConfig config("column2", "varchar", "random", 255);
+    ColumnConfig config("column2", "varchar(255)", "random");
     assert(config.name == "column2");
-    assert(config.type == "varchar");
+    assert(config.type == "varchar(255)");
     assert(config.gen_type == "random");
     assert(config.len.has_value());
     assert(config.len.value() == 255);
@@ -63,10 +63,9 @@ void test_column_config_with_name_type_gen_type_min_max() {
     assert(config.type_tag == ColumnTypeTag::DOUBLE);
 }
 
-void test_calc_type_tag() {
-    ColumnConfig config("column4", "int", "random");
-    config.type = "varchar";
-    config.calc_type_tag();
+void test_parse_tag() {
+    ColumnConfig config("column4", "varchar(10)", "random");
+    config.parse_type();
     assert(config.type_tag == ColumnTypeTag::VARCHAR);
 }
 
@@ -77,7 +76,7 @@ int main() {
     test_column_config_with_name_type_gen_type();
     test_column_config_with_name_type_gen_type_len();
     test_column_config_with_name_type_gen_type_min_max();
-    test_calc_type_tag();
+    test_parse_tag();
 
     std::cout << "All tests passed!" << std::endl;
     return 0;

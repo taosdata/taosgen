@@ -38,7 +38,7 @@ void test_create_child_table_action_from_generator() {
     config.child_table_info.tags.source_type = "generator";
     config.child_table_info.tags.generator.schema = {
         {"tag1", "float", "random", 1.5, 3.5},
-        {"tag2", "varchar", "random", 20}
+        {"tag2", "varchar(20)", "random"}
     };
 
     // 创建动作实例

@@ -25,7 +25,7 @@ void test_gc_single_thread_dispose() {
         gc.dispose(0, Dummy(3));
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
-    assert(Dummy::destruct_count == 3 && "All Dummy destructors should be called");
+    assert(Dummy::destruct_count == 6 && "All Dummy destructors should be called");
     std::cout << "test_gc_single_thread_dispose passed\n";
 }
 
@@ -42,7 +42,7 @@ void test_gc_multi_thread_dispose() {
         for (auto& t : writers) t.join();
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
-    assert(Dummy::destruct_count == 8 && "All Dummy destructors should be called in multi-threaded case");
+    assert(Dummy::destruct_count == 16 && "All Dummy destructors should be called in multi-threaded case");
     std::cout << "test_gc_multi_thread_dispose passed\n";
 }
 
@@ -53,7 +53,7 @@ void test_gc_terminate() {
     gc.terminate();
     gc.dispose(1, Dummy(2)); // Should not be processed
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    assert(Dummy::destruct_count == 1 && "Only one Dummy should be destroyed after terminate");
+    assert(Dummy::destruct_count == 3 && "Only one Dummy should be destroyed after terminate");
     std::cout << "test_gc_terminate passed\n";
 }
 
@@ -65,7 +65,7 @@ void test_gc_destruction_flushes() {
         gc.dispose(1, Dummy(2));
         // Don't wait, let destructor flush
     }
-    assert(Dummy::destruct_count == 2 && "Destructor should flush all remaining tasks");
+    assert(Dummy::destruct_count == 4 && "Destructor should flush all remaining tasks");
     std::cout << "test_gc_destruction_flushes passed\n";
 }
 

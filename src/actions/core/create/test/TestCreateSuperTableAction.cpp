@@ -37,7 +37,7 @@ void test_create_super_table_action() {
     // 添加标签
     config.super_table_info.tags = {
         {"tag1", "FLOAT", "random"},
-        {"tag2", "VARCHAR", "random", 20}
+        {"tag2", "VARCHAR(20)", "random"}
     };
 
     // 创建动作实例

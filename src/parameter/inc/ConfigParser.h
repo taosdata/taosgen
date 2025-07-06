@@ -75,13 +75,13 @@ namespace YAML {
 
             rhs.name = node["name"].as<std::string>();
             rhs.type = node["type"].as<std::string>();
-            rhs.calc_type_tag();
+            rhs.parse_type();
             
             if (node["primary_key"]) rhs.primary_key = node["primary_key"].as<bool>();
-            if (node["len"]) rhs.len = node["len"].as<int>();
+            // if (node["len"]) rhs.len = node["len"].as<int>();
             if (node["count"]) rhs.count = node["count"].as<size_t>();
-            if (node["precision"]) rhs.precision = node["precision"].as<int>();
-            if (node["scale"]) rhs.scale = node["scale"].as<int>();
+            // if (node["precision"]) rhs.precision = node["precision"].as<int>();
+            // if (node["scale"]) rhs.scale = node["scale"].as<int>();
             if (node["properties"]) rhs.properties = node["properties"].as<std::string>();
             if (node["null_ratio"]) rhs.null_ratio = node["null_ratio"].as<float>();
             if (!node["gen_type"]) {

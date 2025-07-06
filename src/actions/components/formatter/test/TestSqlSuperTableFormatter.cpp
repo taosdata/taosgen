@@ -14,13 +14,13 @@ void test_format_create_super_table_with_columns_and_tags() {
     // 添加列
     config.super_table_info.columns = {
         {"col1", "INT", "random", 1, 10},
-        {"col2", "BINARY", "random", 10}
+        {"col2", "BINARY(10)", "random"}
     };
 
     // 添加标签
     config.super_table_info.tags = {
         {"tag1", "FLOAT", "random", 0, 200},
-        {"tag2", "NCHAR", "random", 20},
+        {"tag2", "NCHAR(20)", "random"},
     };
 
     auto formatter = FormatterFactory::instance().create_formatter<CreateSuperTableConfig>(format);

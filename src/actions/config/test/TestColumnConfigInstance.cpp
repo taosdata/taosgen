@@ -40,11 +40,11 @@ void test_column_instance_multiple() {
 void test_column_instance_with_length() {
     std::cout << "Running test_column_instance_with_length..." << std::endl;
 
-    ColumnConfig config("col", "varchar", std::nullopt, 50);
+    ColumnConfig config("col", "varchar(50)", std::nullopt);
     ColumnConfigInstance instance(config);
 
     assert(instance.name() == "col");
-    assert(instance.type() == "varchar");
+    assert(instance.type() == "varchar(50)");
     assert(instance.type_tag() == ColumnTypeTag::VARCHAR);
 
     std::cout << "test_column_instance_with_length passed!" << std::endl;

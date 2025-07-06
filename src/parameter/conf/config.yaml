@@ -29,18 +29,14 @@ global:
       - name: longitude
         type: float
       - name: quality
-        type: varchar
-        len: 50
+        type: varchar(50)
     tags: &tags_info
       - name: type
-        type: varchar
-        len: 7
+        type: varchar(7)
       - name: name
-        type: varchar
-        len: 20
+        type: varchar(20)
       - name: department
-        type: varchar
-        len: 7
+        type: varchar(7)
 
 
 concurrency: 4

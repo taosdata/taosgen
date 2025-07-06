@@ -8,7 +8,7 @@
 class ColumnConfigInstance {
 public:
     ColumnConfigInstance(const ColumnConfig& config, size_t index = 1) : config_(config) {
-        config_.calc_type_tag();
+        config_.parse_type();
 
         if (config_.count > 1) {
             name_ = config_.name + std::to_string(index);

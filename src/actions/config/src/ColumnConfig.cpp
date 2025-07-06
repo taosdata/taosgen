@@ -2,7 +2,10 @@
 #include <stdexcept>
 #include <cfloat>
 #include <limits>
+#include <regex>
 #include "taos.h"
+#include "StringUtils.h"
+
 
 ColumnTypeTag ColumnConfig::get_type_tag(const std::string& type_str) {
     std::string lower_type = StringUtils::to_lower(type_str);
@@ -114,31 +117,17 @@ double ColumnConfig::get_max_value() const noexcept {
 ColumnConfig::ColumnConfig(
     const std::string& name,
     const std::string& type
-) : name(name)
-  , type(type)
-  , type_tag(get_type_tag(type)) {
+) : name(name), type(type) {
+    parse_type();
 }
 
 ColumnConfig::ColumnConfig(
     const std::string& name,
     const std::string& type,
     std::optional<std::string> gen_type
-) : name(name)
-  , type(type)
-  , type_tag(get_type_tag(type))
-  , gen_type(gen_type) {
-}
-
-ColumnConfig::ColumnConfig(
-    const std::string& name,
-    const std::string& type,
-    std::optional<std::string> gen_type,
-    std::optional<int> len
-) : name(name)
-  , type(type)
-  , type_tag(get_type_tag(type))
-  , len(len)
-  , gen_type(gen_type) {
+) : name(name), type(type) {
+    parse_type();
+    this->gen_type = gen_type;
 }
 
 ColumnConfig::ColumnConfig(
@@ -147,16 +136,57 @@ ColumnConfig::ColumnConfig(
     std::optional<std::string> gen_type,
     std::optional<double> min,
     std::optional<double> max
-) : name(name)
-  , type(type)
-  , type_tag(get_type_tag(type))
-  , gen_type(gen_type)
-  , min(min)
-  , max(max) {
+) : name(name), type(type) {
+    parse_type();
+    this->gen_type = gen_type;
+    this->min = min;
+    this->max = max;
 }
 
-void ColumnConfig::calc_type_tag() {
-    type_tag = get_type_tag(type);
+void ColumnConfig::parse_type() {
+    StringUtils::trim(type);
+    std::string lower_type = StringUtils::to_lower(type);
+
+    std::smatch match;
+    // varchar/binary/nchar/geometry(len)
+    static const std::regex varlen_regex(R"((varchar|binary|nchar|geometry)\s*\(\s*(\d+)\s*\))", std::regex::icase);
+    // decimal(precision, scale)
+    static const std::regex decimal_regex(R"(decimal\s*\(\s*(\d+)\s*,\s*(\d+)\s*\))", std::regex::icase);
+
+    if (std::regex_match(lower_type, match, varlen_regex)) {
+        // 变长类型
+        std::string base = match[1].str();
+        int len_val = std::stoi(match[2].str());
+        type_tag = get_type_tag(base);
+        len = len_val;
+        precision.reset();
+        scale.reset();
+        return;
+    }
+    if (std::regex_match(lower_type, match, decimal_regex)) {
+        // decimal(precision, scale)
+        type_tag = ColumnTypeTag::DECIMAL;
+        precision = std::stoi(match[1].str());
+        scale = std::stoi(match[2].str());
+        len.reset();
+        return;
+    }
+
+    // 兼容 decimal(precision)
+    static const std::regex decimal1_regex(R"(decimal\s*\(\s*(\d+)\s*\))", std::regex::icase);
+    if (std::regex_match(lower_type, match, decimal1_regex)) {
+        type_tag = ColumnTypeTag::DECIMAL;
+        precision = std::stoi(match[1].str());
+        scale.reset();
+        len.reset();
+        return;
+    }
+
+    // 其它类型（无参数）
+    type_tag = get_type_tag(lower_type);
+    len.reset();
+    precision.reset();
+    scale.reset();
 }
 
 bool ColumnConfig::is_var_length() const noexcept {
