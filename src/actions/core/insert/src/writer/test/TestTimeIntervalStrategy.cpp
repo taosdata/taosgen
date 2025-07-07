@@ -82,14 +82,14 @@ void test_wait_strategy() {
     config.enabled = true;
     config.interval_strategy = "fixed";
     config.wait_strategy = "sleep";
-    config.fixed_interval.base_interval = 500; // 使用较小的间隔以加快测试
+    config.fixed_interval.base_interval = 500; // Use a smaller interval to speed up the test
     TimeIntervalStrategy sleep_strategy(config, "ms");
     
     start_time = std::chrono::steady_clock::now();
     sleep_strategy.apply_wait_strategy(2000, 3000, 1000, 1500, false);
     elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - start_time).count();
-    assert(elapsed >= 450 && elapsed <= 550); // 允许50ms误差
+    assert(elapsed >= 450 && elapsed <= 550); // Allow 50ms error
 
     // Test 4: Fixed interval with busy wait strategy
     config.wait_strategy = "busy_wait";
@@ -99,7 +99,7 @@ void test_wait_strategy() {
     busy_wait_strategy.apply_wait_strategy(2000, 3000, 1000, 1500, false);
     elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - start_time).count();
-    assert(elapsed >= 450 && elapsed <= 550); // 允许50ms误差
+    assert(elapsed >= 450 && elapsed <= 550); // Allow 50ms error
 
     // Test 5: First-to-first strategy
     config.interval_strategy = "first_to_first";
@@ -110,7 +110,7 @@ void test_wait_strategy() {
     first_to_first_strategy.apply_wait_strategy(2000, 3000, 1500, 2500, false);
     elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - start_time).count();
-    assert(elapsed >= 450 && elapsed <= 550); // 应等待500ms (2000-1500)
+    assert(elapsed >= 450 && elapsed <= 550); // Should wait 500ms (2000-1500)
 
     // Test 6: Last-to-first strategy
     config.interval_strategy = "last_to_first";
@@ -120,7 +120,7 @@ void test_wait_strategy() {
     last_to_first_strategy.apply_wait_strategy(3000, 4000, 1000, 2000, false);
     elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - start_time).count();
-    assert(elapsed >= 950 && elapsed <= 1050); // 应等待1000ms (3000-2000)
+    assert(elapsed >= 950 && elapsed <= 1050); // Should wait 1000ms (3000-2000)
     
     std::cout << "test_wait_strategy passed." << std::endl;
 }

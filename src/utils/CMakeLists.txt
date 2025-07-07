@@ -1,22 +1,22 @@
-# 创建库目标
+# Create library target
 add_library(utils STATIC
   src/StringUtils.cpp
   src/TimestampUtils.cpp
 )
 
-# 设置包含目录
+# Set include directories
 target_include_directories(utils
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/inc
 )
 
-# 链接依赖库
+# Link dependent libraries
 target_link_libraries(utils
   PUBLIC
     Threads::Threads
 )
 
-# 启用测试
+# Enable tests
 # if(CMAKE_ENABLE_TEST)
 #   add_subdirectory(test)
 # endif()

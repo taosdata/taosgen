@@ -17,27 +17,27 @@ JobScheduler::JobScheduler(const ConfigData& config, std::unique_ptr<StepExecuti
         throw std::runtime_error("DAG contains cycles");
     }
 
-    // 初始化队列
+    // Initialize queue
     for (auto* node : dag_->get_initial_nodes()) {
         queue_->enqueue(node);
     }
 }
 
 void JobScheduler::run() {
-    // 创建线程池
+    // Create thread pool
     const size_t concurrency = config_.concurrency;
     std::vector<std::thread> workers;
     for (size_t i = 0; i < concurrency; ++i) {
         workers.emplace_back([this] { worker_loop(); });
     }
 
-    // 等待所有作业完成
+    // Wait for all jobs to complete
     {
         std::unique_lock<std::mutex> lock(done_mutex_);
         done_cv_.wait(lock, [this] { return remaining_jobs_ == 0; });
     }
 
-    // 停止队列并等待线程
+    // Stop queue and wait for threads
     queue_->stop();
     for (auto& worker : workers) {
         if (worker.joinable()) worker.join();
@@ -49,15 +49,15 @@ void JobScheduler::worker_loop() {
         DAGNode* node = queue_->dequeue();
         if (!node) return;
 
-        // 执行作业步骤
+        // Execute job steps
         for (const auto& step : node->job.steps) {
             step_strategy_->execute(step);
         }
 
-        // 更新后继节点
+        // Update successor nodes
         for (auto* successor : node->successors) {
             int prev = successor->in_degree.fetch_sub(1);
-            if (prev == 1) { // 现在入度为0
+            if (prev == 1) { // Now in-degree is 0
                 queue_->enqueue(successor);
             }
         }

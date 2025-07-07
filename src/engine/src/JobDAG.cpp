@@ -2,7 +2,7 @@
 #include <queue>
 
 JobDAG::JobDAG(const std::vector<Job>& jobs) {
-    // 构建节点
+    // Build nodes
     for (const auto& job : jobs) {
         auto node = std::make_unique<DAGNode>();
         node->job = job;
@@ -10,7 +10,7 @@ JobDAG::JobDAG(const std::vector<Job>& jobs) {
         nodes_.push_back(std::move(node));
     }
 
-    // 构建边
+    // Build edges
     for (const auto& job : jobs) {
         DAGNode* current = key_to_node_[job.key];
         for (const auto& dep_key : job.needs) {
@@ -61,4 +61,3 @@ std::vector<DAGNode*> JobDAG::get_initial_nodes() const {
     }
     return initial;
 }
-

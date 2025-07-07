@@ -14,15 +14,15 @@ struct Decimal {
 };
 
 
-// JSON 类型（可替换为 nlohmann::json）
+// JSON type (can be replaced with nlohmann::json)
 struct JsonValue {
     std::string raw_json;
 };
 
 
-// 几何类型（示例：WKT格式）
+// Geometry type (example: WKT format)
 struct Geometry {
-    std::string wkt; // 如 "POINT(10 20)"
+    std::string wkt; // e.g. "POINT(10 20)"
 };
 
 enum class ColumnTypeTag {

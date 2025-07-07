@@ -84,12 +84,12 @@ ColumnType RandomColumnGenerator::generate() const {
     else if (instance_.config().type_tag == ColumnTypeTag::VARCHAR || 
              instance_.config().type_tag == ColumnTypeTag::BINARY) {    
         if (instance_.config().corpus) {
-            // 使用指定的字符集
+            // Use specified character set
             const auto& corpus = *instance_.config().corpus;
             std::uniform_int_distribution<size_t> dist(0, corpus.size() - 1);
             return std::string(1, corpus[dist(random_engine)]);
         } else {
-            // 使用默认的小写英文字母
+            // Use default lowercase alphabet
             if (!instance_.config().len) {
                 throw std::runtime_error("Missing length for string column");
             }

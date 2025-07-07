@@ -19,7 +19,7 @@ private:
 
     void prepare_connector();
 
-    // 注册 CreateSuperTableAction 到 ActionFactory
+    // Register CreateSuperTableAction to ActionFactory
     inline static bool registered_ = []() {
         ActionFactory::instance().register_action(
             "actions/create-super-table",

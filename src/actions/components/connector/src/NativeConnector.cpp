@@ -44,8 +44,7 @@ bool NativeConnector::prepare(const std::string& sql) {
         stmt_ = nullptr;
     }
 
-
-    // 创建stmt选项
+    // Create stmt option
     TAOS_STMT2_OPTION option = {};
     option.singleStbInsert = true;
     option.singleTableBindOnce = true;
@@ -105,7 +104,7 @@ bool NativeConnector::execute(const StmtV2InsertData& data) {
         return false;
     }
 
-    // 绑定数据
+    // Bind data
     try {
         data.data.bind_to_stmt(stmt_);
     } catch (const std::exception& e) {
@@ -113,7 +112,7 @@ bool NativeConnector::execute(const StmtV2InsertData& data) {
         return false;
     }
     
-    // 执行
+    // Execute
     int affected_rows = 0;
     int code = taos_stmt2_exec(stmt_, &affected_rows);
     if (code != 0) {

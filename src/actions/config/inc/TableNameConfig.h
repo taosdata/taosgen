@@ -3,12 +3,12 @@
 #include <string>
 
 struct TableNameConfig {
-    std::string source_type; // 数据来源类型：generator 或 csv
+    std::string source_type; // Data source type: generator or csv
 
     struct Generator {
         std::string prefix;
         int count;
-        int from = 0; // 默认起始下标为 0
+        int from = 0; // Default start index is 0
     } generator;
 
     struct CSV {

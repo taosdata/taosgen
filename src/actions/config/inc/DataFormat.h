@@ -1,5 +1,4 @@
-#ifndef DATA_FORMAT_H
-#define DATA_FORMAT_H
+#pragma once
 
 #include <string>
 
@@ -20,5 +19,3 @@ struct DataFormat {
         std::string escape_character = "\\"; // Default escape character
     } csv_config;
 };
-
-#endif // DATA_FORMAT_H

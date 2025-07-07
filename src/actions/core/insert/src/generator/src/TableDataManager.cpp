@@ -14,7 +14,7 @@ TableDataManager::TableDataManager(const InsertDataConfig& config, const ColumnC
         interlace_rows_ = std::numeric_limits<int64_t>::max();
     }
 
-    // 初始化流控
+    // Initialize flow control
     if (config_.control.data_generation.flow_control.enabled) {
         rate_limiter_ = std::make_unique<RateLimiter>(
             config_.control.data_generation.flow_control.rate_limit

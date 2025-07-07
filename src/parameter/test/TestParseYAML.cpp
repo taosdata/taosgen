@@ -4,7 +4,7 @@
 
 
 int main() {
-    // 打开 YAML 文件
+    // Open YAML file
     std::cout << "Opening config.yaml: " << CONFIG_PATH << std::endl;
     std::ifstream file(CONFIG_PATH);
     if (!file.is_open()) {
@@ -12,7 +12,7 @@ int main() {
         return 1;
     }
 
-    // 解析 YAML 文件
+    // Parse YAML file
     YAML::Node config;
     try {
         config = YAML::Load(file);
@@ -21,11 +21,11 @@ int main() {
         return 1;
     }
 
-    // 输出解析结果
+    // Output parsed result
     std::cout << "Parsed YAML content:" << std::endl;
     std::cout << config << std::endl;
 
-    // 示例：访问 YAML 数据
+    // Example: access YAML data
     if (config["global"]["host"]) {
         std::cout << "Host: " << config["host"].as<std::string>() << std::endl;
     }

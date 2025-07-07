@@ -9,7 +9,7 @@ TDengineWriter::TDengineWriter(const InsertDataConfig& config)
           timestamp_precision_(config.target.timestamp_precision),
           time_strategy_(config.control.time_interval, config.target.timestamp_precision) {
     
-    // 验证时间戳精度
+    // Validate timestamp precision
     if (timestamp_precision_.empty()) {
         timestamp_precision_ = "ms";
     } else if (timestamp_precision_ != "ms" && 
@@ -25,18 +25,18 @@ TDengineWriter::~TDengineWriter() {
 
 bool TDengineWriter::connect() {
     if (connector_) {
-        // 已连接
+        // Already connected
         return true;
     }
     
     try {
-        // 创建连接器
+        // Create connector
         connector_ = DatabaseConnector::create(
             config_.control.data_channel, 
             config_.target.tdengine.connection_info
         );
         
-        // 建立连接
+        // Establish connection
         return connector_->connect();
     } catch (const std::exception& e) {
         std::cerr << "TDengineWriter connection failed: " << e.what() << std::endl;
@@ -58,10 +58,10 @@ void TDengineWriter::write(const BaseInsertData& data) {
         throw std::runtime_error("TDengineWriter is not connected");
     }
     
-    // 应用时间间隔策略
+    // Apply time interval strategy
     apply_time_interval_strategy(data.start_time, data.end_time);
 
-    // 执行写入
+    // Execute write
     bool write_success = false;
     // TimeRecorder timer;
     switch(data.type) {
@@ -76,7 +76,7 @@ void TDengineWriter::write(const BaseInsertData& data) {
     }
     // metrics_.add_sample(timer.elapsed());
 
-    // 更新状态
+    // Update state
     if (write_success) {
         last_start_time_ = data.start_time;
         last_end_time_ = data.end_time;
@@ -90,7 +90,7 @@ void TDengineWriter::close() noexcept {
         try {
             connector_->close();
         } catch (const std::exception& e) {
-            // 忽略关闭时的异常
+            // Ignore exception on close
         }
         connector_.reset();
     }

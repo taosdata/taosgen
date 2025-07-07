@@ -40,7 +40,7 @@ private:
         IWriter* writer,
         GarbageCollector<DataPipeline<FormatResult>::Result>& gc);
 
-    // 注册 InsertDataAction 到 ActionFactory
+    // Register InsertDataAction to ActionFactory
     inline static bool registered_ = []() {
         ActionFactory::instance().register_action(
             "actions/insert-data",

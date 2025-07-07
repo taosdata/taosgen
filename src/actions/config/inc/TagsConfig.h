@@ -7,7 +7,7 @@
 #include "ColumnConfig.h"
 
 struct TagsConfig {
-    std::string source_type; // 数据来源类型：generator 或 csv
+    std::string source_type; // Data source type: generator or csv
 
     struct Generator {
         ColumnConfigVector schema;

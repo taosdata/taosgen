@@ -1,11 +1,11 @@
-# 创建库目标
+# Create library target
 add_library(core_create STATIC 
   src/CreateDatabaseAction.cpp
   src/CreateSuperTableAction.cpp
   src/CreateChildTableAction.cpp
 )
 
-# 设置包含目录
+# Set include directories
 target_include_directories(core_create
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/inc
@@ -18,7 +18,7 @@ target_include_directories(core_create
     ${CMAKE_CURRENT_SOURCE_DIR}/../../components/reader/csv/inc
 )
 
-# 链接依赖库
+# Link dependencies
 target_link_libraries(core_create
   PUBLIC
     actions_config
@@ -30,7 +30,7 @@ target_link_libraries(core_create
     utils
 )
 
-# 启用测试
+# Enable tests
 if(CMAKE_ENABLE_TEST)
   add_subdirectory(test)
 endif()

@@ -10,14 +10,14 @@ public:
 
     void execute() override {
         std::cout << "Querying data from database: " << config_.source.connection_info.host << std::endl;
-        // 在此处实现具体的数据查询逻辑
+        // Implement the specific data query logic here
     }
 
 private:
     const GlobalConfig& global_;
     QueryDataConfig config_;
 
-    // 注册 QueryDataAction 到 ActionFactory
+    // Register QueryDataAction to ActionFactory
     inline static bool registered_ = []() {
         ActionFactory::instance().register_action(
             "actions/query-data",

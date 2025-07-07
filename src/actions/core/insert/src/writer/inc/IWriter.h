@@ -9,22 +9,22 @@ class IWriter {
 public:
     virtual ~IWriter() = default;
     
-    // 连接/打开资源
+    // Connect/open resource
     virtual bool connect() = 0;
     
-    // 选择数据库
+    // Select database
     virtual bool select_db(const std::string& db_name) = 0;
 
     // Prepare for write operation
     virtual bool prepare(const std::string& sql) = 0;
 
-    // 执行写入操作
+    // Execute write operation
     virtual void write(const BaseInsertData& data) = 0;
     
-    // 关闭/释放资源
+    // Close/release resource
     virtual void close() noexcept = 0;
     
-    // 获取时间戳精度
+    // Get timestamp precision
     virtual std::string get_timestamp_precision() const = 0;
 
     virtual const ActionMetrics& get_metrics() const = 0; 

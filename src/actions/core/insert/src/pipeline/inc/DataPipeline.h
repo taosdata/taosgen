@@ -49,7 +49,7 @@ public:
     DataPipeline(DataPipeline&&) = default;
     DataPipeline& operator=(DataPipeline&&) = default;
 
-    // 生产者接口
+    // Producer interface
     void push_data(size_t producer_id, T formatted_data) {
         if (terminated_.load())
             throw std::runtime_error("Pipeline has been terminated");
@@ -60,7 +60,7 @@ public:
         queues_[producer_id]->push(std::move(formatted_data));
     }
 
-    // 消费者接口
+    // Consumer interface
     Result fetch_data(size_t consumer_id) {
         auto& state = consumer_states_.at(consumer_id);
         // const size_t start = state.current_index;
@@ -87,7 +87,7 @@ public:
             Status::Terminated : Status::Timeout};
     }
 
-    // 终止信号
+    // Termination signal
     void terminate() {
         terminated_.store(true);
         for (auto& queue : queues_) {
@@ -95,7 +95,7 @@ public:
         }
     }
     
-    // 状态监控
+    // Status monitoring
     size_t total_queued() const {
         size_t total = 0;
         for (const auto& queue : queues_) {
@@ -114,7 +114,7 @@ private:
         consumer_states_.resize(consumer_count_);
     
         if (consumer_count_ > producer_count_) {
-            // 消费者数量大于队列数量
+            // More consumers than queues
             size_t consumers_per_queue = consumer_count_ / producer_count_;
             size_t remainder = consumer_count_ % producer_count_;
             
@@ -126,7 +126,7 @@ private:
                 }
             }
         } else {
-            // 消费者数量小于等于队列数量
+            // Consumers less than or equal to queues
             size_t queues_per_consumer = producer_count_ / consumer_count_;
             size_t remainder = producer_count_ % consumer_count_;
 

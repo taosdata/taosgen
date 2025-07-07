@@ -1,10 +1,10 @@
-# 添加子组件目录
+# Add subcomponent directories
 add_subdirectory(create)
 add_subdirectory(insert)
 # add_subdirectory(query)
 # add_subdirectory(subscribe)
 
-# 创建统一的组件库
+# Create unified component library
 add_library(actions_core STATIC
   $<TARGET_OBJECTS:core_create>
   $<TARGET_OBJECTS:core_insert>
@@ -12,7 +12,7 @@ add_library(actions_core STATIC
 #   $<TARGET_OBJECTS:core_subscribe>
 )
 
-# 设置包含目录
+# Set include directories
 target_include_directories(actions_core
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/create/inc
@@ -21,7 +21,7 @@ target_include_directories(actions_core
     # ${CMAKE_CURRENT_SOURCE_DIR}/subscribe/inc
 )
 
-# 链接子模块
+# Link submodules
 target_link_libraries(actions_core
   PUBLIC
     core_create

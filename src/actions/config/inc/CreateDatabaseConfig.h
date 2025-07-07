@@ -1,5 +1,4 @@
-#ifndef CREATE_DATABASE_CONFIG_H
-#define CREATE_DATABASE_CONFIG_H
+#pragma once
 
 #include "ConnectionInfo.h"
 #include "DataFormat.h"
@@ -12,5 +11,3 @@ struct CreateDatabaseConfig {
     DataChannel data_channel;
     DatabaseInfo database_info;
 };
-
-#endif // CREATE_DATABASE_CONFIG_H

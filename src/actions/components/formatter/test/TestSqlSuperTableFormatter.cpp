@@ -11,13 +11,13 @@ void test_format_create_super_table_with_columns_and_tags() {
     config.database_info.name = "test_db";
     config.super_table_info.name = "test_table";
 
-    // 添加列
+    // Add columns
     config.super_table_info.columns = {
         {"col1", "INT", "random", 1, 10},
         {"col2", "BINARY(10)", "random"}
     };
 
-    // 添加标签
+    // Add tags
     config.super_table_info.tags = {
         {"tag1", "FLOAT", "random", 0, 200},
         {"tag2", "NCHAR(20)", "random"},
@@ -40,10 +40,10 @@ void test_format_create_super_table_without_columns() {
     config.database_info.name = "test_db";
     config.super_table_info.name = "test_table";
 
-    // 没有列
+    // No columns
     config.super_table_info.columns = {};
 
-    // 添加标签
+    // Add tags
     config.super_table_info.tags = {
         {"tag1", "FLOAT", "random", 0, 200}
     };
@@ -65,12 +65,12 @@ void test_format_create_super_table_without_tags() {
     config.database_info.name = "test_db";
     config.super_table_info.name = "test_table";
 
-    // 添加列
+    // Add columns
     config.super_table_info.columns = {
         {"col1", "INT", "random", 1, 10},
     };
 
-    // 没有标签
+    // No tags
     config.super_table_info.tags = {};
 
     auto formatter = FormatterFactory::instance().create_formatter<CreateSuperTableConfig>(format);
@@ -90,7 +90,7 @@ void test_format_create_super_table_with_empty_config() {
     config.database_info.name = "test_db";
     config.super_table_info.name = "test_table";
 
-    // 没有列和标签
+    // No columns and tags
     config.super_table_info.columns = {};
     config.super_table_info.tags = {};
 

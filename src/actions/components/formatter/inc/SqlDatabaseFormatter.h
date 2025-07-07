@@ -23,7 +23,7 @@ public:
 private:
     const DataFormat& format_;
 
-    // 注册 SqlDatabaseFormatter 到 FormatterFactory
+    // Register SqlDatabaseFormatter to FormatterFactory
     inline static bool registered_ = []() {
         FormatterFactory::instance().register_formatter<CreateDatabaseConfig>(
             "sql",

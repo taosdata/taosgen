@@ -4,21 +4,21 @@
 #include "GlobalConfig.h"
 
 
-// 抽象基类：步骤执行策略
+// Abstract base class: step execution strategy
 class StepExecutionStrategy {
 public:
     StepExecutionStrategy(const GlobalConfig& global) : global_(global) {}
 
     virtual ~StepExecutionStrategy() = default;
 
-    // 执行步骤的接口
+    // Interface for executing a step
     virtual void execute(const Step& step) = 0;
 
 protected:
     const GlobalConfig& global_;
 };
 
-// 生产环境策略
+// Production environment strategy
 class ProductionStepStrategy : public StepExecutionStrategy {
 public:
     ProductionStepStrategy(const GlobalConfig& global) : StepExecutionStrategy(global) {}
@@ -26,7 +26,7 @@ public:
     void execute(const Step& step) override;
 };
 
-// 调试环境策略
+// Debug environment strategy
 class DebugStepStrategy : public StepExecutionStrategy {
 public:
     DebugStepStrategy(const GlobalConfig& global) : StepExecutionStrategy(global) {}

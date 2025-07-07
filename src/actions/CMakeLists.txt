@@ -1,27 +1,27 @@
-# 添加接口库
+# Add interface library
 add_library(actions_base INTERFACE)
 target_include_directories(actions_base 
   INTERFACE 
     ${CMAKE_CURRENT_SOURCE_DIR}/base
 )
 
-# 添加配置模块
+# Add config module
 add_subdirectory(config)
 
-# 添加基础组件目录
+# Add components directory
 add_subdirectory(components)
 
-# 添加核心功能模块
+# Add core module
 add_subdirectory(core)
 
-# 创建统一的 actions 库
+# Create unified actions library
 add_library(actions STATIC
   $<TARGET_OBJECTS:actions_config>
   $<TARGET_OBJECTS:actions_components>
   $<TARGET_OBJECTS:actions_core>
 )
 
-# 设置 actions 库的包含目录
+# Set include directories for actions library
 target_include_directories(actions
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -29,7 +29,7 @@ target_include_directories(actions
     ${CMAKE_CURRENT_SOURCE_DIR}/config/inc
 )
 
-# 链接子模块
+# Link submodules
 target_link_libraries(actions
   PUBLIC
     actions_base

@@ -1,28 +1,28 @@
-# 包含目录设置
+# Include directories
 include_directories(
   ${CMAKE_SOURCE_DIR}/inc
   ${YAML_CPP_INCLUDE_DIRS}
   ${TAOS_INCLUDE_DIRS}
 )
 
-# 添加子目录（按依赖顺序）
+# Add subdirectories (in dependency order)
 add_subdirectory(utils)
 add_subdirectory(actions)
 add_subdirectory(parameter)
 add_subdirectory(workflow)
 add_subdirectory(engine)
 
-# 主可执行文件
+# Main executable
 add_executable(taosbench benchmark.cpp)
 
-# 设置包含目录
+# Set include directories
 target_include_directories(parameter
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/parameter/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/engine/inc
 )
 
-# 链接所有依赖库
+# Link all dependent libraries
 target_link_libraries(taosbench
   PRIVATE
     actions
@@ -35,7 +35,7 @@ target_link_libraries(taosbench
     Threads::Threads
 )
 
-# 安装目标
+# Install target
 install(TARGETS taosbench 
   RUNTIME DESTINATION bin
 )

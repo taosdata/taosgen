@@ -13,14 +13,14 @@
 
 struct InsertDataConfig {
     struct Source {
-        TableNameConfig table_name; // 子表名称配置
-        TagsConfig tags;            // 标签列配置
-        ColumnsConfig columns;      // 普通列配置
+        TableNameConfig table_name; // Child table name config
+        TagsConfig tags;            // Tag column config
+        ColumnsConfig columns;      // Normal column config
     } source;
 
     struct Target {
-        std::string timestamp_precision; // 时间戳精度：ms、us、ns
-        std::string target_type;         // 数据目标类型：tdengine 或 file_system
+        std::string timestamp_precision; // Timestamp precision: ms, us, ns
+        std::string target_type;         // Data target type: tdengine or file_system
 
         struct TDengine {
             ConnectionInfo connection_info;
@@ -50,27 +50,27 @@ struct InsertDataConfig {
                 struct Interval {
                     std::variant<int64_t, std::string> time_start;
                     std::variant<int64_t, std::string> time_end;
-                    double ratio = 0.0;       // 比例
-                    int latency_range = 0;    // 延迟范围
+                    double ratio = 0.0;       // Ratio
+                    int latency_range = 0;    // Latency range
                 };
-                std::vector<Interval> intervals; // 乱序时间区间
+                std::vector<Interval> intervals; // Out-of-order time intervals
             } data_disorder;
         } data_quality;
 
         struct DataGeneration {
             struct InterlaceMode {
                 bool enabled = false;
-                size_t rows = 1; // 行数
+                size_t rows = 1; // Number of rows
             } interlace_mode;
 
             struct DataCache {
                 bool enabled = false;
-                size_t cache_size = 1000000; // 缓存大小
+                size_t cache_size = 1000000; // Cache size
             } data_cache;
 
             struct FlowControl {
                 bool enabled = false;
-                int64_t rate_limit = 0;             // 每秒生成的行数
+                int64_t rate_limit = 0;             // Rows generated per second
             } flow_control;
 
             size_t generate_threads = 1;
@@ -95,18 +95,18 @@ struct InsertDataConfig {
         } insert_control;
 
         struct TimeInterval {
-            bool enabled = false;                    // 是否启用间隔控制
-            std::string interval_strategy = "fixed"; // 时间间隔策略类型
-            std::string wait_strategy = "sleep";     // 时间间隔等待策略类型，sleep or busy_wait
+            bool enabled = false;                    // Enable interval control
+            std::string interval_strategy = "fixed"; // Time interval strategy type
+            std::string wait_strategy = "sleep";     // Wait strategy type: sleep or busy_wait
 
             struct FixedInterval {
-                int base_interval = 1000; // 固定间隔数值，单位毫秒
-                int random_deviation = 0; // 随机偏移量
+                int base_interval = 1000; // Fixed interval value in milliseconds
+                int random_deviation = 0; // Random deviation
             } fixed_interval;
 
             struct DynamicInterval {
-                int min_interval = -1; // 最小时间间隔阈值
-                int max_interval = -1; // 最大时间间隔阈值
+                int min_interval = -1; // Minimum interval threshold
+                int max_interval = -1; // Maximum interval threshold
             } dynamic_interval;
         } time_interval;
     } control;

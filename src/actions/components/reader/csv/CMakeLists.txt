@@ -1,4 +1,4 @@
-# 创建库目标
+# Create library target
 add_library(reader_csv STATIC
   src/CSVUtils.cpp
   src/CSVReader.cpp
@@ -7,7 +7,7 @@ add_library(reader_csv STATIC
   src/ColumnsCSV.cpp
 )
 
-# 设置包含目录
+# Set include directories
 target_include_directories(reader_csv
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/inc
@@ -16,7 +16,7 @@ target_include_directories(reader_csv
     ${CMAKE_CURRENT_SOURCE_DIR}/../../generator/inc
 )
 
-# 链接依赖库
+# Link dependencies
 target_link_libraries(reader_csv
   PUBLIC
     actions_config
@@ -24,7 +24,7 @@ target_link_libraries(reader_csv
     utils
 )
 
-# 启用测试
+# Enable tests
 if(CMAKE_ENABLE_TEST)
   add_subdirectory(test)
 endif()

@@ -1,5 +1,4 @@
-#ifndef GLOBAL_CONFIG_H
-#define GLOBAL_CONFIG_H
+#pragma once
 
 #include <string>
 #include "ConnectionInfo.h"
@@ -18,5 +17,3 @@ struct GlobalConfig {
     DatabaseInfo database_info;
     SuperTableInfo super_table_info;
 };
-
-#endif // GLOBAL_CONFIG_H

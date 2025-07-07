@@ -1,5 +1,4 @@
-#ifndef CREATE_SUPER_TABLE_CONFIG_H
-#define CREATE_SUPER_TABLE_CONFIG_H
+#pragma once
 
 #include "ConnectionInfo.h"
 #include "DataFormat.h"
@@ -14,5 +13,3 @@ struct CreateSuperTableConfig {
     DatabaseInfo database_info;
     SuperTableInfo super_table_info;
 };
-
-#endif // CREATE_SUPER_TABLE_CONFIG_H

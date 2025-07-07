@@ -162,10 +162,10 @@ void test_generate_table_data_include_tbname() {
     ColumnsCSV columns_csv(config, instances);
     auto table_data = columns_csv.generate();
 
-    // 验证表数量
+    // Verify table count
     assert(table_data.size() == 2 && "Expected 2 tables");
 
-    // 使用循环查找表名并验证数据
+    // Check table names and data
     bool table1_found = false;
     bool table2_found = false;
 
@@ -185,7 +185,7 @@ void test_generate_table_data_include_tbname() {
         }
     }
 
-    // 验证两个表都被找到
+    // Verify both tables are found
     (void)table1_found;
     (void)table2_found;
     assert(table1_found && "Expected table1 to be found");

@@ -30,7 +30,7 @@ namespace YAML {
             }
             if (node["dsn"]) {
                 rhs.dsn = node["dsn"].as<std::string>();
-                rhs.parse_dsn(*rhs.dsn); // 解析 DSN 字符串
+                rhs.parse_dsn(*rhs.dsn); // Parse DSN string
             }
             return true;
         }
@@ -49,7 +49,7 @@ namespace YAML {
             }
             if (node["precision"]) {
                 rhs.precision = node["precision"].as<std::string>();
-                // 验证时间精度是否为合法值
+                // Validate time precision value
                 if (rhs.precision != "ms" && rhs.precision != "us" && rhs.precision != "ns") {
                     throw std::runtime_error("Invalid precision value: " + rhs.precision);
                 }
@@ -133,9 +133,9 @@ namespace YAML {
                 // rhs.function_config = func_config;
 
                 // ColumnConfig::FunctionConfig func_config;
-                // func_config.expression = item["function"].as<std::string>(); // 解析完整表达式
-                // // 解析函数表达式的各部分
-                // // 假设函数表达式格式为：<multiple> * <function>(<args>) + <addend> * random(<random>) + <base>
+                // func_config.expression = item["function"].as<std::string>(); // Parse full expression
+                // // Parse each part of the function expression
+                // // Assume function expression format: <multiple> * <function>(<args>) + <addend> * random(<random>) + <base>
                 // std::istringstream expr_stream(func_config.expression);
                 // std::string token;
                 // while (std::getline(expr_stream, token, '*')) {
@@ -145,7 +145,7 @@ namespace YAML {
                 //         token.find("square") != std::string::npos ||
                 //         token.find("triangle") != std::string::npos) {
                 //         func_config.function = token.substr(0, token.find('('));
-                //         // 解析函数参数
+                //         // Parse function arguments
                 //         auto args_start = token.find('(') + 1;
                 //         auto args_end = token.find(')');
                 //         auto args = token.substr(args_start, args_end - args_start);

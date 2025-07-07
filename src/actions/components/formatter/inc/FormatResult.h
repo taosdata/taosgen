@@ -55,32 +55,32 @@ public:
         table_names_.reserve(table_count);
         column_bind_ptrs_.reserve(table_count);
         
-        // 预计算总列数（包括时间戳）
+        // Pre-calculate total column count (including timestamp)
         size_t total_col_count = col_instances_.size() + 1;
         
-        // 处理每个子表
+        // Process each sub-table
         for (auto& [table_name, rows] : batch_.table_batches) {
             if (rows.empty()) continue;
             
             table_names_.push_back(table_name.c_str());
             size_t row_count = rows.size();
             
-            // 为当前子表创建列绑定结构
+            // Create column binding structure for current sub-table
             std::vector<TAOS_STMT2_BIND> col_binds;
             col_binds.reserve(total_col_count);
             
-            // 为当前子表分配内存块
+            // Allocate memory block for current sub-table
             TableMemory table_mem;
             table_mem.column_data.resize(total_col_count);
             
-            // 处理时间戳列 (第一列)
+            // Process timestamp column (first column)
             {
                 auto& mem = table_mem.column_data[0];
                 mem.buffer.resize(row_count * sizeof(int64_t));
                 mem.lengths.resize(row_count);
-                mem.is_nulls.resize(row_count, 0); // 全部初始化为非NULL
+                mem.is_nulls.resize(row_count, 0); // All initialized as non-NULL
                 
-                // 复制时间戳数据
+                // Copy timestamp data
                 int64_t* ts_buf = reinterpret_cast<int64_t*>(mem.buffer.data());
                 for (size_t i = 0; i < row_count; i++) {
                     ts_buf[i] = rows[i].timestamp;
@@ -96,29 +96,29 @@ public:
                 });
             }
             
-            // 处理数据列
+            // Process data columns
             for (size_t col_idx = 0; col_idx < col_instances_.size(); col_idx++) {
                 const auto& col_config = col_instances_[col_idx];
                 auto& mem = table_mem.column_data[col_idx + 1];
                 
-                // 获取列类型和属性
+                // Get column type and attributes
                 int taos_type = col_config.config().get_taos_type();
                 bool is_var_len = col_config.config().is_var_length();
                 size_t element_size = is_var_len ? col_config.config().len.value()
                                                  : col_config.config().get_fixed_type_size();
                 
-                // 分配内存
+                // Allocate memory
                 mem.buffer.resize(row_count * element_size);
                 mem.lengths.resize(row_count);
-                mem.is_nulls.resize(row_count, 0); // 暂时全部非NULL
+                mem.is_nulls.resize(row_count, 0); // All non-NULL for now
                 
-                // 复制列数据
+                // Copy column data
                 size_t current_offset = 0;
                 char* col_buf = mem.buffer.data();
                 for (size_t row_idx = 0; row_idx < row_count; row_idx++) {
                     const auto& col_data = rows[row_idx].columns[col_idx];
                     
-                    // 处理变长类型
+                    // Handle variable-length types
                     if (is_var_len) {
                         std::visit([&](const auto& value) {
                             using T = std::decay_t<decltype(value)>;
@@ -142,17 +142,17 @@ public:
                             }
                         }, col_data);
                     } 
-                    // 处理固定长度类型
+                    // Handle fixed-length types
                     else {
                         std::visit([&](const auto& value) {
                             using T = std::decay_t<decltype(value)>;
                             if constexpr (std::is_arithmetic_v<T> || std::is_same_v<T, bool>) {
-                                // 对于算术类型和 bool 类型
+                                // For arithmetic and bool types
                                 memcpy(col_buf + row_idx * element_size, &value, element_size);
                                 mem.lengths[row_idx] = 0;
                             }
                             else if constexpr (std::is_same_v<T, Decimal>) {
-                                // 特殊处理 decimal 类型
+                                // Special handling for decimal type
                                 memcpy(col_buf + row_idx * element_size, &value, element_size);
                                 mem.lengths[row_idx] = 0;
                             }
@@ -162,7 +162,7 @@ public:
                         }, col_data);
                     }
                     
-                    // TODO: 空值处理 (需要RowData支持)
+                    // TODO: NULL value handling (requires RowData support)
                 }
 
                 if (is_var_len) {
@@ -178,19 +178,19 @@ public:
                 });
             }
             
-            // 保存当前子表的数据
+            // Save current sub-table data
             column_binds_.push_back(std::move(col_binds));
             table_memories_.push_back(std::move(table_mem));
         }
         
-        // 设置指针数组
+        // Set pointer arrays
         for (auto& binds : column_binds_) {
             column_bind_ptrs_.push_back(binds.data());
         }
         
-        // 设置BINDV结构
+        // Set BINDV structure
         bindv_.tbnames = const_cast<char**>(table_names_.data());
-        bindv_.tags = nullptr;  // 暂不处理tag
+        bindv_.tags = nullptr;  // Tags not handled for now
         bindv_.bind_cols = column_bind_ptrs_.data();
     }
     
@@ -206,7 +206,7 @@ public:
             if (!table_names_.empty()) {
                 bindv_.count = static_cast<int>(table_names_.size());
                 bindv_.tbnames = const_cast<char**>(table_names_.data());
-                bindv_.tags = nullptr;  // 暂不处理tag
+                bindv_.tags = nullptr;  // Tags not handled for now
                 bindv_.bind_cols = column_bind_ptrs_.data();
             }
 
@@ -243,11 +243,11 @@ public:
     }
     
 private:
-    // 内存管理辅助结构
+    // Memory management helper structure
     struct ColumnMemory {
-        std::vector<char> buffer;      // 列数据存储
-        std::vector<int32_t> lengths;  // 每行数据长度
-        std::vector<char> is_nulls;    // 空值指示器
+        std::vector<char> buffer;      // Column data storage
+        std::vector<int32_t> lengths;  // Row data length
+        std::vector<char> is_nulls;    // NULL value indicator
     };
     
     struct TableMemory {
@@ -300,5 +300,5 @@ struct StmtV2InsertData : public BaseInsertData {
 };
 
 
-// 通用格式化结果类型
+// General format result type
 using FormatResult = std::variant<std::string, SqlInsertData, StmtV2InsertData>;

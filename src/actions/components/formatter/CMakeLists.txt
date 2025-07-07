@@ -1,9 +1,9 @@
-# 创建库目标
+# Create library target
 add_library(components_formatter STATIC 
   src/FormatterFactory.cpp
 )
 
-# 设置包含目录
+# Set include directories
 target_include_directories(components_formatter
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/inc
@@ -11,7 +11,7 @@ target_include_directories(components_formatter
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../utils/inc
 )
 
-# 链接依赖库
+# Link dependencies
 target_link_libraries(components_formatter
   PUBLIC
     actions_config
@@ -19,7 +19,7 @@ target_link_libraries(components_formatter
     ${TAOS_LIBRARIES}
 )
 
-# 启用测试
+# Enable tests
 if(CMAKE_ENABLE_TEST)
   add_subdirectory(test)
 endif()

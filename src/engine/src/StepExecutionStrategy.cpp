@@ -9,7 +9,7 @@
 #include "SubscribeDataAction.h"
 
 
-// 生产环境策略的实现
+// Implementation of production environment strategy
 void ProductionStepStrategy::execute(const Step& step) {
     try {
         std::cout << "Executing step: " << step.name << " (" << step.uses << ")" << std::endl;
@@ -27,7 +27,7 @@ void ProductionStepStrategy::execute(const Step& step) {
 }
 
 
-// 调试环境策略的实现
+// Implementation of debug environment strategy
 void DebugStepStrategy::execute(const Step& step) {
     std::cout << "Executing step: " << step.name << " (" << step.uses << ")" << std::endl;
 

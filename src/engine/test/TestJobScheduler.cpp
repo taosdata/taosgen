@@ -14,12 +14,12 @@ struct ConfigWithDependencies {
     std::unordered_map<std::string, std::unordered_set<std::string>> dependencies;
 };
 
-// 构建复杂的配置数据和依赖关系图
+// Build complex config data and dependency graph
 ConfigWithDependencies build_complex_config_with_dependencies() {
     ConfigData config;
     config.concurrency = 3;
 
-    // 定义步骤
+    // Define steps
     Step create_database_step{"Create Database", "actions/create-database", YAML::Node(), {}};
     Step create_super_table_step{"Create Super Table", "actions/create-super-table", YAML::Node(), {}};
     Step create_second_child_table_step{"Create Second Child Table", "actions/create-child-table", YAML::Node(), {}};
@@ -29,7 +29,7 @@ ConfigWithDependencies build_complex_config_with_dependencies() {
     Step query_super_table_step{"Query Super Table", "actions/query-data", YAML::Node(), {}};
     Step subscribe_data_step{"Subscribe Data", "actions/subscribe-data", YAML::Node(), {}};
 
-    // 定义作业
+    // Define jobs
     Job create_database_job{"create-database", "Create Database", {}, {create_database_step}};
     Job create_super_table_job{"create-super-table", "Create Super Table", {"create-database"}, {create_super_table_step}};
     Job create_second_child_table_job{"create-second-child-table", "Create Second Child Table", {"create-super-table"}, {create_second_child_table_step}};
@@ -39,7 +39,7 @@ ConfigWithDependencies build_complex_config_with_dependencies() {
     Job query_super_table_job{"query-super-table", "Query Super Table", {"create-second-child-table", "create-minute-child-table"}, {query_super_table_step}};
     Job subscribe_data_job{"subscribe-data", "Subscribe Data", {"create-second-child-table", "create-minute-child-table"}, {subscribe_data_step}};
 
-    // 添加作业到配置
+    // Add jobs to config
     config.jobs = {
         create_database_job,
         create_super_table_job,
@@ -51,7 +51,7 @@ ConfigWithDependencies build_complex_config_with_dependencies() {
         subscribe_data_job
     };
 
-    // 构建依赖关系图
+    // Build dependency graph
     std::unordered_map<std::string, std::unordered_set<std::string>> dependencies;
     for (const auto& job : config.jobs) {
         dependencies[job.key] = std::unordered_set<std::string>(job.needs.begin(), job.needs.end());
@@ -60,33 +60,30 @@ ConfigWithDependencies build_complex_config_with_dependencies() {
     return {config, dependencies};
 }
 
-
-
 void test_job_scheduler_base() {
-    // 构建复杂的配置数据
+    // Build complex config data
     auto result = build_complex_config_with_dependencies();
     const ConfigData& config = result.config;
     // const auto& dependencies = result.dependencies;
 
-    // 使用 create_for_testing 工厂方法创建调度器
+    // Create scheduler using create_for_testing factory method
     auto scheduler = JobScheduler::create_for_testing(config);
 
-    // 运行调度器
+    // Run scheduler
     scheduler->run();
 
-    // 打印测试通过信息
+    // Print test passed info
     std::cout << "test_job_scheduler_base passed!" << std::endl;
 }
 
-
 void validate_execution_order(const std::vector<std::string>& actual_order, 
                               const std::unordered_map<std::string, std::unordered_set<std::string>>& dependencies) {
-    // 已完成的作业集合
+    // Set of completed jobs
     std::unordered_set<std::string> completed_jobs;
 
-    // 验证步骤顺序是否符合依赖关系
+    // Validate step order according to dependencies
     for (const auto& step : actual_order) {
-        // 提取作业 key
+        // Extract job key
         std::string job_key;
         if (step.find("Create Database") != std::string::npos) {
             job_key = "create-database";
@@ -106,7 +103,7 @@ void validate_execution_order(const std::vector<std::string>& actual_order,
             job_key = "subscribe-data";
         }
 
-        // 检查依赖是否已完成
+        // Check if dependencies are completed
         if (dependencies.find(job_key) != dependencies.end()) {
             for (const auto& dependency : dependencies.at(job_key)) {
                 (void)dependency;
@@ -114,37 +111,35 @@ void validate_execution_order(const std::vector<std::string>& actual_order,
             }
         }
 
-        // 将当前作业标记为已完成
+        // Mark current job as completed
         completed_jobs.insert(job_key);
     }
 }
 
-
-
 void test_job_scheduler_with_order() {
-    // 构建复杂的配置数据
+    // Build complex config data
     auto result = build_complex_config_with_dependencies();
     const ConfigData& config = result.config;
     const auto& dependencies = result.dependencies;
 
-    // 捕获输出
+    // Capture output
     std::ostringstream output_buffer;
-    std::streambuf* original_cout = std::cout.rdbuf(); // 保存原始缓冲区
-    std::cout.rdbuf(output_buffer.rdbuf());            // 重定向 std::cout
+    std::streambuf* original_cout = std::cout.rdbuf(); // Save original buffer
+    std::cout.rdbuf(output_buffer.rdbuf());            // Redirect std::cout
 
-    // 使用 create_for_testing 工厂方法创建调度器
+    // Create scheduler using create_for_testing factory method
     auto scheduler = JobScheduler::create_for_testing(config);
 
-    // 运行调度器
+    // Run scheduler
     scheduler->run();
 
-    // 恢复 std::cout
+    // Restore std::cout
     std::cout.rdbuf(original_cout);
 
-    // 获取输出内容
+    // Get output content
     std::string output = output_buffer.str();
 
-    // 解析输出的步骤顺序
+    // Parse step order from output
     std::vector<std::string> actual_order;
     std::istringstream output_stream(output);
     std::string line;
@@ -154,24 +149,22 @@ void test_job_scheduler_with_order() {
         }
     }
 
-    // 验证步骤顺序是否符合依赖关系
+    // Validate step order according to dependencies
     validate_execution_order(actual_order, dependencies);
 
-    // 打印测试通过信息
+    // Print test passed info
     std::cout << "test_job_scheduler_with_order passed!" << std::endl;
 }
 
-
-
 void test_job_scheduler_with_delay() {
 
-    // 调试策略：打印作业和步骤的执行顺序
+    // Debug strategy: print job and step execution order
     class DelayStepStrategy : public StepExecutionStrategy {
     public:
         DelayStepStrategy(const GlobalConfig& global) : StepExecutionStrategy(global) {}
 
         void execute(const Step& step) override {
-            // 打印调试信息
+            // Print debug info
             std::cout << "Executing step: " << step.name << " (" << step.uses << ")" << std::endl;
         
             if (step.uses == "actions/create-database") {
@@ -209,35 +202,34 @@ void test_job_scheduler_with_delay() {
             std::cout << "Step completed: " << step.name << std::endl;        }
     };
 
-
-    // 构建复杂的配置数据
+    // Build complex config data
     auto result = build_complex_config_with_dependencies();
     const ConfigData& config = result.config;
     const auto& dependencies = result.dependencies;
 
-    // 捕获输出
+    // Capture output
     std::ostringstream output_buffer;
-    std::streambuf* original_cout = std::cout.rdbuf(); // 保存原始缓冲区
-    std::cout.rdbuf(output_buffer.rdbuf());            // 重定向 std::cout
+    std::streambuf* original_cout = std::cout.rdbuf(); // Save original buffer
+    std::cout.rdbuf(output_buffer.rdbuf());            // Redirect std::cout
 
 
-    // 使用调试策略
+    // Use debug strategy
     auto delay_strategy = std::make_unique<DelayStepStrategy>(config.global);
 
-    // 创建调度器
+    // Create scheduler
     JobScheduler scheduler(config, std::move(delay_strategy));
 
-    // 运行调度器
+    // Run scheduler
     scheduler.run();
 
-    // 恢复 std::cout
+    // Restore std::cout
     std::cout.rdbuf(original_cout);
 
-    // 获取输出内容
+    // Get output content
     std::string output = output_buffer.str();
     std::cout << output << std::endl;
 
-    // 解析输出的步骤顺序
+    // Parse step order from output
     std::vector<std::string> actual_order;
     std::istringstream output_stream(output);
     std::string line;
@@ -247,13 +239,12 @@ void test_job_scheduler_with_delay() {
         }
     }
 
-    // 验证步骤顺序是否符合依赖关系
+    // Validate step order according to dependencies
     validate_execution_order(actual_order, dependencies);
 
-    // 打印测试通过信息
+    // Print test passed info
     std::cout << "test_job_scheduler_with_delay passed!" << std::endl;
 }
-
 
 int main() {
     test_job_scheduler_base();

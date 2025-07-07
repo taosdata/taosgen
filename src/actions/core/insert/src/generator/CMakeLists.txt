@@ -1,4 +1,4 @@
-# 创建库目标
+# Create library target
 add_library(insert_generator STATIC 
   src/RowDataGenerator.cpp
   src/RateLimiter.cpp
@@ -6,7 +6,7 @@ add_library(insert_generator STATIC
   src/TableNameManager.cpp
 )
 
-# 设置包含目录
+# Set include directories
 target_include_directories(insert_generator
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/inc
@@ -16,7 +16,7 @@ target_include_directories(insert_generator
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../../components/reader/csv/inc
 )
 
-# 链接依赖库
+# Link dependent libraries
 target_link_libraries(insert_generator
   PUBLIC
     actions_config
@@ -25,7 +25,7 @@ target_link_libraries(insert_generator
     utils
 )
 
-# 启用测试
+# Enable tests
 if(CMAKE_ENABLE_TEST)
   add_subdirectory(test)
 endif()

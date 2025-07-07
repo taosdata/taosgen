@@ -30,12 +30,12 @@ public:
         if (writer_threads == 0) throw std::invalid_argument("writer_threads cannot be zero");
         if (group_size == 0) throw std::invalid_argument("group_size cannot be zero");
         
-        // 计算回收线程组数
+        // Calculate number of collector thread groups
         size_t groups = (writer_threads + group_size - 1) / group_size;
         queues_.resize(groups);
         threads_.reserve(groups);
 
-        // 启动回收线程
+        // Start collector threads
         for (size_t i = 0; i < groups; ++i) {
             threads_.emplace_back([this, i] { worker_thread(i); });
         }
@@ -48,18 +48,18 @@ public:
         }
     }
 
-    // 添加待销毁的数据对象
+    // Add object to be destroyed
     void dispose(size_t writer_id, T&& data) {
         if (terminated_) return;
         
-        // 计算该写入线程对应的回收队列索引
+        // Calculate the index of the collector queue for the writer thread
         size_t gc_index = writer_id % queues_.size();
         auto& queue = queues_[gc_index];
         
         {
             std::lock_guard<std::mutex> lock(queue.mutex);
             
-            // 创建销毁任务
+            // Create destruction task
             Task task;
             task.destructor = [ptr = std::make_shared<std::decay_t<T>>(std::move(data))]() {
 
@@ -98,13 +98,13 @@ private:
                 }
             }
             
-            // 执行析构任务
+            // Execute destructor task
             if (task.destructor) {
                 task.destructor();
             }
         }
         
-        // 清空剩余任务
+        // Clear remaining tasks
         std::queue<Task> remaining;
         {
             std::lock_guard<std::mutex> lock(queue.mutex);
@@ -124,7 +124,7 @@ private:
         mutable std::mutex mutex;
         std::condition_variable cv;
         
-        // 支持移动语义
+        // Support move semantics
         GCQueue() = default;
         GCQueue(GCQueue&& other) noexcept 
             : tasks(std::move(other.tasks)) 

@@ -154,7 +154,7 @@ void ColumnConfig::parse_type() {
     static const std::regex decimal_regex(R"(decimal\s*\(\s*(\d+)\s*,\s*(\d+)\s*\))", std::regex::icase);
 
     if (std::regex_match(lower_type, match, varlen_regex)) {
-        // 变长类型
+        // Variable length type
         std::string base = match[1].str();
         int len_val = std::stoi(match[2].str());
         type_tag = get_type_tag(base);
@@ -172,7 +172,7 @@ void ColumnConfig::parse_type() {
         return;
     }
 
-    // 兼容 decimal(precision)
+    // Compatible with decimal(precision)
     static const std::regex decimal1_regex(R"(decimal\s*\(\s*(\d+)\s*\))", std::regex::icase);
     if (std::regex_match(lower_type, match, decimal1_regex)) {
         type_tag = ColumnTypeTag::DECIMAL;
@@ -182,7 +182,7 @@ void ColumnConfig::parse_type() {
         return;
     }
 
-    // 其它类型（无参数）
+    // Other types (no parameters)
     type_tag = get_type_tag(lower_type);
     len.reset();
     precision.reset();

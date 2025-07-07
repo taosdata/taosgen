@@ -1,4 +1,4 @@
-# 添加子组件目录
+# Add subcomponent directories
 add_subdirectory(metrics)
 add_subdirectory(garbage_collector)
 add_subdirectory(connector)
@@ -6,7 +6,7 @@ add_subdirectory(formatter)
 add_subdirectory(generator)
 add_subdirectory(reader)
 
-# 创建统一的组件库
+# Create unified components library
 add_library(actions_components STATIC
   $<TARGET_OBJECTS:components_metrics>
   $<TARGET_OBJECTS:components_gc>
@@ -16,7 +16,7 @@ add_library(actions_components STATIC
   $<TARGET_OBJECTS:components_reader>
 )
 
-# 设置包含目录
+# Set include directories
 target_include_directories(actions_components
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/metrics/inc
@@ -27,7 +27,7 @@ target_include_directories(actions_components
     ${CMAKE_CURRENT_SOURCE_DIR}/reader/inc
 )
 
-# 链接子模块
+# Link submodules
 target_link_libraries(actions_components
   PUBLIC
     components_metrics

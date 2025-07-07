@@ -1,5 +1,4 @@
-#ifndef SUBSCRIBE_DATA_CONFIG_H
-#define SUBSCRIBE_DATA_CONFIG_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -11,46 +10,44 @@
 
 struct SubscribeDataConfig {
     struct Source {
-        ConnectionInfo connection_info; // 数据库连接信息
+        ConnectionInfo connection_info; // Database connection info
     } source;
 
     struct Control {
-        DataFormat data_format;   // 数据格式化配置
-        DataChannel data_channel; // 数据通道配置
+        DataFormat data_format;   // Data format config
+        DataChannel data_channel; // Data channel config
 
         struct SubscribeControl {
-            std::string log_path = "result.txt"; // 日志文件路径
-            bool enable_dryrun = false;         // 是否启用模拟执行
+            std::string log_path = "result.txt"; // Log file path
+            bool enable_dryrun = false;         // Enable dry run
 
             struct Execution {
-                int consumer_concurrency = 1; // 并发消费者数量
-                int poll_timeout = 1000;      // 轮询超时时间（毫秒）
+                int consumer_concurrency = 1; // Number of concurrent consumers
+                int poll_timeout = 1000;      // Poll timeout (ms)
             } execution;
 
             struct Topic {
-                std::string name; // 主题名称
-                std::string sql;  // 创建主题的 SQL 语句
+                std::string name; // Topic name
+                std::string sql;  // SQL to create topic
             };
-            std::vector<Topic> topics; // 订阅主题列表
+            std::vector<Topic> topics; // Subscribed topics list
 
             struct Commit {
-                std::string mode = "auto"; // 提交模式（auto 或 manual）
+                std::string mode = "auto"; // Commit mode (auto or manual)
             } commit;
 
             struct GroupID {
-                std::string strategy;       // Group ID 生成策略（shared、independent、custom）
-                std::optional<std::string> custom_id; // 自定义 Group ID（当 strategy 为 custom 时必需）
+                std::string strategy;       // Group ID strategy (shared, independent, custom)
+                std::optional<std::string> custom_id; // Custom Group ID (required if strategy is custom)
             } group_id;
 
             struct Output {
-                std::string path;         // 数据文件保存路径
-                std::string file_prefix;  // 数据文件前缀
-                std::optional<int> expected_rows; // 每个消费者期望消费的行数
+                std::string path;         // Output file path
+                std::string file_prefix;  // Output file prefix
+                std::optional<int> expected_rows; // Expected rows per consumer
             } output;
 
-            std::map<std::string, std::string> advanced; // 高级参数配置，键值对映射
+            std::map<std::string, std::string> advanced; // Advanced config (key-value map)
         } subscribe_control;
     } control;
 };
-
-#endif // SUBSCRIBE_DATA_CONFIG_H

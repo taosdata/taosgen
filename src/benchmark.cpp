@@ -5,23 +5,23 @@
 
 int main(int argc, char* argv[]) {
     try {
-        // 1. 创建参数上下文并初始化
+        // 1. Create parameter context and initialize
         ParameterContext context;
 
-        // 初始化参数上下文
+        // Initialize parameter context
         if (!context.init(argc, argv)) {
             return 1;
         }
 
-        // 2. 获取解析后的配置数据
+        // 2. Get parsed configuration data
         const ConfigData& config = context.get_config_data();
 
-        // 3. 创建并运行作业调度器
+        // 3. Create and run job scheduler
         try {
-            // 创建作业调度器实例
+            // Create job scheduler instance
             JobScheduler scheduler(config);
             
-            // 运行调度器
+            // Run scheduler
             scheduler.run();
 
             std::cout << "All jobs completed successfully!" << std::endl;

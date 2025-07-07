@@ -28,19 +28,19 @@ void test_create_super_table_action() {
     config.database_info.name = "test_action_db";
     config.super_table_info.name = "test_super_table";
 
-    // 添加列
+    // Add columns
     config.super_table_info.columns = {
         {"col1", "INT", "random"},
         {"col2", "DOUBLE", "random", 0, 100}
     };
 
-    // 添加标签
+    // Add tags
     config.super_table_info.tags = {
         {"tag1", "FLOAT", "random"},
         {"tag2", "VARCHAR(20)", "random"}
     };
 
-    // 创建动作实例
+    // Create action instance
     std::cout << "Creating action instance for super table..." << std::endl;
     auto action = ActionFactory::instance().create_action(
         global,
@@ -48,19 +48,19 @@ void test_create_super_table_action() {
         config
     );
 
-    // 执行超级表创建动作
+    // Execute super table creation action
     std::cout << "Executing super table creation..." << std::endl;
     action->execute();
 
-    // // 验证超级表是否创建成功
+    // // Verify super table creation
     // std::cout << "Verifying super table creation..." << std::endl;
     // auto connector = DatabaseConnector::create(channel, conn_info);
     // if (!connector->connect()) {
-    //     std::cerr << "验证失败：无法连接数据库" << std::endl;
+    //     std::cerr << "Verification failed: cannot connect to database" << std::endl;
     //     return;
     // }
 
-    // // 检查超级表是否存在
+    // // Check if super table exists
     // bool table_exists = false;
     // connector->query("SHOW TABLES", [&](const QueryResult& result) {
     //     for (const auto& row : result.rows) {
@@ -74,13 +74,13 @@ void test_create_super_table_action() {
     // connector->close();
 
     // if (table_exists) {
-    //     std::cout << "验证成功：超级表 '" << config.super_table_info.name 
-    //               << "' 已创建" << std::endl;
+    //     std::cout << "Verification succeeded: super table '" << config.super_table_info.name 
+    //               << "' created" << std::endl;
     // } else {
-    //     std::cerr << "验证失败：超级表未创建" << std::endl;
+    //     std::cerr << "Verification failed: super table not created" << std::endl;
     // }
 
-    // 清理测试超级表
+    // Clean up test super table
     // std::cout << "Cleaning up test super table..." << std::endl;
     // auto cleanup_connector = DatabaseConnector::create(channel, conn_info);
     // if (cleanup_connector->connect()) {
@@ -97,7 +97,7 @@ int main() {
     try {
         test_create_super_table_action();
     } catch (const std::exception& e) {
-        std::cerr << "测试异常: " << e.what() << std::endl;
+        std::cerr << "Test exception: " << e.what() << std::endl;
         return 1;
     }
 

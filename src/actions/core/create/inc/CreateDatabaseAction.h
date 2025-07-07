@@ -21,7 +21,7 @@ private:
 
     void prepare_connector();
 
-    // 注册 CreateDatabaseAction 到 ActionFactory
+    // Register CreateDatabaseAction to ActionFactory
     inline static bool registered_ = []() {
         ActionFactory::instance().register_action(
             "actions/create-database",

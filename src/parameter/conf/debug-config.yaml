@@ -3,7 +3,7 @@ global:
   log_dir: log/
   cfg_dir: /etc/taos/
 
-  # 公共结构定义
+  # Common structure definition
   connection_info: &db_conn
     host: 127.0.0.1
     port: 6030
@@ -51,7 +51,7 @@ global:
 concurrency: 4
 
 jobs:
-  # 创建数据库作业
+  # Create database job
   create-database:
     name: Create Database
     needs: []
@@ -63,7 +63,7 @@ jobs:
           database_info: *db_info
 
 
-  # 创建超级表作业
+  # Create super table job
   create-super-table:
     name: Create Super Table
     needs: [create-database]
@@ -76,7 +76,7 @@ jobs:
           super_table_info: *stb_info
 
 
-  # 创建子表作业
+  # Create child table job
   create-second-child-table:
     name: Create Second Child Table
     needs: [create-super-table]
@@ -100,7 +100,7 @@ jobs:
             concurrency: 10
 
 
-  # 写入数据作业
+  # Insert data job
   insert-second-data:
     name: Insert Second-Level Data
     needs: [create-second-child-table]

@@ -7,7 +7,7 @@
 
 ParameterContext::ParameterContext() {}
 
-// 定义静态成员变量
+// Define static member variable
 const std::vector<ParameterContext::CommandOption> ParameterContext::valid_options = {
     {"--host", 'h', "Specify FQDN to connect server", true},
     {"--port", 'P', "The TCP/IP port number to use for the connection", true},
@@ -16,43 +16,43 @@ const std::vector<ParameterContext::CommandOption> ParameterContext::valid_optio
     {"--config-file", 'c', "Specify config file path", true},
     {"--verbose", 'v', "Increase output verbosity", false},
     {"--help", '?', "Display this help message", false}
-    // 在这里添加更多命令选项
+    // Add more command options here
 };
 
 void ParameterContext::show_help() {
     std::cout << "Usage: taosbench [OPTIONS]...\n\n"
               << "Options:\n";
 
-    // 计算最长的长选项和短选项组合的长度，用于对齐
+    // Calculate the longest option length for alignment
     size_t max_opt_len = 0;
     for (const auto& opt : valid_options) {
-        size_t total_len = 4 + opt.long_opt.length(); // 4 = "-X, "的长度
+        size_t total_len = 4 + opt.long_opt.length(); // 4 = length of "-X, "
         max_opt_len = std::max(max_opt_len, total_len);
     }
 
-    // 为VALUE预留固定空间
+    // Reserve fixed space for VALUE
     const size_t value_width = 8;
     const size_t desc_offset = max_opt_len + value_width;
 
-    // 输出每个选项的帮助信息
+    // Output help info for each option
     for (const auto& opt : valid_options) {
-        // 输出短选项和长选项
+        // Output short and long option
         std::cout << "  -" << opt.short_opt << ", " << opt.long_opt;
         
-        // 计算当前行已输出的长度
+        // Calculate current output length
         size_t current_len = 4 + opt.long_opt.length();
         
-        // 输出VALUE（如果需要）和空格
+        // Output VALUE (if needed) and spaces
         if (opt.requires_value) {
             std::cout << "=VALUE";
             current_len += 6;
         }
         
-        // 计算需要补充的空格数，确保描述对齐
+        // Calculate padding for alignment
         size_t padding = desc_offset - current_len;
         std::cout << std::string(padding, ' ');
         
-        // 输出描述
+        // Output description
         std::cout << opt.description << "\n";
     }
 
@@ -62,7 +62,7 @@ void ParameterContext::show_help() {
               << "\nFor more information, visit: https://docs.taosdata.com/\n\n";
 }
 
-// 解析全局配置
+// Parse global config
 void ParameterContext::parse_global(const YAML::Node& global_yaml) {
     auto& global_config = config_data.global;
     if (global_yaml["confirm_prompt"]) {
@@ -95,7 +95,7 @@ void ParameterContext::parse_global(const YAML::Node& global_yaml) {
 void ParameterContext::parse_jobs(const YAML::Node& jobs_yaml) {
     for (const auto& job_node : jobs_yaml) {
         Job job;
-        job.key = job_node.first.as<std::string>(); // 获取作业标识符
+        job.key = job_node.first.as<std::string>(); // Get job identifier
         const auto& job_content = job_node.second;
 
         if (job_content["name"]) {
@@ -119,9 +119,9 @@ void ParameterContext::parse_steps(const YAML::Node& steps_yaml, std::vector<Ste
         step.name = step_node["name"].as<std::string>();
         step.uses = step_node["uses"].as<std::string>();
         if (step_node["with"]) {
-            step.with = step_node["with"]; // 保留原始 YAML 节点
+            step.with = step_node["with"]; // Keep original YAML node
 
-            // 根据 uses 字段解析具体行动
+            // Parse action by uses field
             if (step.uses == "actions/create-database") {
                 parse_create_database_action(step);
             } else if (step.uses == "actions/create-super-table") {
@@ -137,7 +137,7 @@ void ParameterContext::parse_steps(const YAML::Node& steps_yaml, std::vector<Ste
             } else {
                 throw std::runtime_error("Unknown action type: " + step.uses);
             }
-            // 其他行动解析逻辑可以在此扩展
+            // Other action parsing logic can be extended here
         }
         steps.push_back(step);
     }
@@ -147,41 +147,41 @@ void ParameterContext::parse_steps(const YAML::Node& steps_yaml, std::vector<Ste
 void ParameterContext::parse_create_database_action(Step& step) {
     CreateDatabaseConfig create_db_config;
 
-    // 解析 connection_info（可选）
+    // Parse connection_info (optional)
     if (step.with["connection_info"]) {
         create_db_config.connection_info = step.with["connection_info"].as<ConnectionInfo>();
     } else {
-        // 如果未指定 connection_info，则使用全局配置
+        // Use global config if not specified
         create_db_config.connection_info = config_data.global.connection_info;
     }
 
-    // 解析 data_format（可选）
+    // Parse data_format (optional)
     if (step.with["data_format"]) {
         create_db_config.data_format = step.with["data_format"].as<DataFormat>();
     } else {
-        // 如果未指定 data_format，则使用全局配置
+        // Use global config if not specified
         create_db_config.data_format = config_data.global.data_format;
     }
 
-    // 解析 data_channel（可选）
+    // Parse data_channel (optional)
     if (step.with["data_channel"]) {
         create_db_config.data_channel = step.with["data_channel"].as<DataChannel>();
     } else {
-        // 如果未指定 data_channel，则使用全局配置
+        // Use global config if not specified
         create_db_config.data_channel = config_data.global.data_channel;
     }
 
-    // 解析 database_info（必需）
+    // Parse database_info (required)
     if (step.with["database_info"]) {
         create_db_config.database_info = step.with["database_info"].as<DatabaseInfo>();
     } else {
         throw std::runtime_error("Missing required 'database_info' for create-database action.");
     }
 
-    // 打印解析结果
+    // Print parse result
     std::cout << "Parsed create-database action: " << create_db_config.database_info.name << std::endl;
 
-    // 将解析结果保存到 Step 的 action_config 字段
+    // Save result to Step's action_config field
     step.action_config = std::move(create_db_config);
 }
 
@@ -189,53 +189,53 @@ void ParameterContext::parse_create_database_action(Step& step) {
 void ParameterContext::parse_create_super_table_action(Step& step) {
     CreateSuperTableConfig create_stb_config;
 
-    // 解析 connection_info（可选）
+    // Parse connection_info (optional)
     if (step.with["connection_info"]) {
         create_stb_config.connection_info = step.with["connection_info"].as<ConnectionInfo>();
     } else {
-        // 如果未指定 connection_info，则使用全局配置
+        // Use global config if not specified
         create_stb_config.connection_info = config_data.global.connection_info;
     }
 
-    // 解析 data_format（可选）
+    // Parse data_format (optional)
     if (step.with["data_format"]) {
         create_stb_config.data_format = step.with["data_format"].as<DataFormat>();
     } else {
-        // 如果未指定 data_format，则使用全局配置
+        // Use global config if not specified
         create_stb_config.data_format = config_data.global.data_format;
     }
 
-    // 解析 data_channel（可选）
+    // Parse data_channel (optional)
     if (step.with["data_channel"]) {
         create_stb_config.data_channel = step.with["data_channel"].as<DataChannel>();
     } else {
-        // 如果未指定 data_channel，则使用全局配置
+        // Use global config if not specified
         create_stb_config.data_channel = config_data.global.data_channel;
     }
 
-    // 解析 database_info（必需）
+    // Parse database_info (required)
     if (step.with["database_info"]) {
         create_stb_config.database_info = step.with["database_info"].as<DatabaseInfo>();
     } else {
         throw std::runtime_error("Missing required 'database_info' for create-super-table action.");
     }
 
-    // 解析 super_table_info（必需）
+    // Parse super_table_info (required)
     if (step.with["super_table_info"]) {
         create_stb_config.super_table_info = step.with["super_table_info"].as<SuperTableInfo>();
     } else {
         throw std::runtime_error("Missing required 'super_table_info' for create-super-table action.");
     }
 
-    // 校验 super_table_info 中的 columns 和 tags
+    // Validate columns and tags in super_table_info
     if (create_stb_config.super_table_info.columns.empty()) {
         throw std::runtime_error("Missing required 'columns' in super_table_info.");    
     }
 
-    // 打印解析结果
+    // Print parse result
     std::cout << "Parsed create-super-table action: " << create_stb_config.super_table_info.name << std::endl;
 
-    // 将解析结果保存到 Step 的 action_config 字段
+    // Save result to Step's action_config field
     step.action_config = std::move(create_stb_config);
 }
 
@@ -243,60 +243,60 @@ void ParameterContext::parse_create_super_table_action(Step& step) {
 void ParameterContext::parse_create_child_table_action(Step& step) {
     CreateChildTableConfig create_child_config;
 
-    // 解析 connection_info（可选）
+    // Parse connection_info (optional)
     if (step.with["connection_info"]) {
         create_child_config.connection_info = step.with["connection_info"].as<ConnectionInfo>();
     } else {
-        // 如果未指定 connection_info，则使用全局配置
+        // Use global config if not specified
         create_child_config.connection_info = config_data.global.connection_info;
     }
 
-    // 解析 data_format（可选）
+    // Parse data_format (optional)
     if (step.with["data_format"]) {
         create_child_config.data_format = step.with["data_format"].as<DataFormat>();
     } else {
-        // 如果未指定 data_format，则使用全局配置
+        // Use global config if not specified
         create_child_config.data_format = config_data.global.data_format;
     }
 
-    // 解析 data_channel（可选）
+    // Parse data_channel (optional)
     if (step.with["data_channel"]) {
         create_child_config.data_channel = step.with["data_channel"].as<DataChannel>();
     } else {
-        // 如果未指定 data_channel，则使用全局配置
+        // Use global config if not specified
         create_child_config.data_channel = config_data.global.data_channel;
     }
 
-    // 解析 database_info（必需）
+    // Parse database_info (required)
     if (step.with["database_info"]) {
         create_child_config.database_info = step.with["database_info"].as<DatabaseInfo>();
     } else {
         throw std::runtime_error("Missing required 'database_info' for create-child-table action.");
     }
 
-    // 解析 super_table_info（必需）
+    // Parse super_table_info (required)
     if (step.with["super_table_info"]) {
         create_child_config.super_table_info = step.with["super_table_info"].as<SuperTableInfo>();
     } else {
         throw std::runtime_error("Missing required 'super_table_info' for create-child-table action.");
     }
 
-    // 解析 child_table_info（必需）
+    // Parse child_table_info (required)
     if (step.with["child_table_info"]) {
         create_child_config.child_table_info = step.with["child_table_info"].as<ChildTableInfo>();
     } else {
         throw std::runtime_error("Missing required 'child_table_info' for create-child-table action.");
     }
 
-    // 解析 batch（可选）
+    // Parse batch (optional)
     if (step.with["batch"]) {
         create_child_config.batch = step.with["batch"].as<CreateChildTableConfig::BatchConfig>();
     }
 
-    // 打印解析结果
+    // Print parse result
     std::cout << "Parsed create-child-table action for super table: " << create_child_config.super_table_info.name << std::endl;
 
-    // 将解析结果保存到 Step 的 action_config 字段
+    // Save result to Step's action_config field
     step.action_config = std::move(create_child_config);
 }
 
@@ -314,10 +314,10 @@ void ParameterContext::parse_insert_data_action(Step& step) {
         insert_config.control = step.with["control"].as<InsertDataConfig::Control>();
     }
 
-    // 打印解析结果
+    // Print parse result
     std::cout << "Parsed insert-data action." << std::endl;
 
-    // 将解析结果保存到 Step 的 action_config 字段
+    // Save result to Step's action_config field
     step.action_config = std::move(insert_config);
 }
 
@@ -325,24 +325,24 @@ void ParameterContext::parse_insert_data_action(Step& step) {
 void ParameterContext::parse_query_data_action(Step& step) {
     QueryDataConfig query_config;
 
-    // 解析 source（必需）
+    // Parse source (required)
     if (step.with["source"]) {
         query_config.source = step.with["source"].as<QueryDataConfig::Source>();
     } else {
         throw std::runtime_error("Missing required 'source' for query-data action.");
     }
 
-    // 解析 control（必需）
+    // Parse control (required)
     if (step.with["control"]) {
         query_config.control = step.with["control"].as<QueryDataConfig::Control>();
     } else {
         throw std::runtime_error("Missing required 'control' for query-data action.");
     }
 
-    // 打印解析结果
+    // Print parse result
     std::cout << "Parsed query-data action." << std::endl;
 
-    // 将解析结果保存到 Step 的 action_config 字段
+    // Save result to Step's action_config field
     step.action_config = std::move(query_config);
 }
 
@@ -350,40 +350,40 @@ void ParameterContext::parse_query_data_action(Step& step) {
 void ParameterContext::parse_subscribe_data_action(Step& step) {
     SubscribeDataConfig subscribe_config;
 
-    // 解析 source（必需）
+    // Parse source (required)
     if (step.with["source"]) {
         subscribe_config.source = step.with["source"].as<SubscribeDataConfig::Source>();
     } else {
         throw std::runtime_error("Missing required 'source' for subscribe-data action.");
     }
 
-    // 解析 control（必需）
+    // Parse control (required)
     if (step.with["control"]) {
         subscribe_config.control = step.with["control"].as<SubscribeDataConfig::Control>();
     } else {
         throw std::runtime_error("Missing required 'control' for subscribe-data action.");
     }
 
-    // 打印解析结果
+    // Print parse result
     std::cout << "Parsed subscribe-data action." << std::endl;
 
-    // 将解析结果保存到 Step 的 action_config 字段
+    // Save result to Step's action_config field
     step.action_config = std::move(subscribe_config);
 }
 
 
 void ParameterContext::merge_yaml(const YAML::Node& config) {
-    // 解析全局配置
+    // Parse global config
     if (config["global"]) {
         parse_global(config["global"]);
     }
 
-    // 解析作业并发数
+    // Parse job concurrency
     if (config["concurrency"]) {
         config_data.concurrency = config["concurrency"].as<int>();
     }
 
-    // 解析作业列表
+    // Parse job list
     if (config["jobs"]) {
         parse_jobs(config["jobs"]);
     }
@@ -416,20 +416,20 @@ void ParameterContext::parse_commandline(int argc, char* argv[]) {
         std::string arg = argv[i];
         std::string key, value;
 
-        // 处理长命令格式 (--key=value)
+        // Handle long option format (--key=value)
         if (arg.substr(0, 2) == "--") {
             size_t pos = arg.find('=');
             if (pos != std::string::npos) {
-                // 处理带值的长命令 (--key=value)
+                // Handle long option with value (--key=value)
                 key = arg.substr(0, pos);
                 value = arg.substr(pos + 1);
             } else {
-                // 处理不带值的长命令 (--key)
+                // Handle long option without value (--key)
                 key = arg;
                 value = "";
             }
 
-            // 验证长命令是否合法
+            // Validate long option
             auto it = std::find_if(valid_options.begin(), valid_options.end(),
                 [&key](const CommandOption& opt) { return opt.long_opt == key; });
             
@@ -437,16 +437,16 @@ void ParameterContext::parse_commandline(int argc, char* argv[]) {
                 throw std::runtime_error("Unknown option: " + key);
             }
 
-            // 检查是否需要值
+            // Check if value is required
             if (it->requires_value && pos == std::string::npos) {
                 throw std::runtime_error("Option requires a value: " + key);
             }
                 
             cli_params[key] = value;
         }
-        // 处理短命令格式 (-k value)
+        // Handle short option format (-k value)
         else if (arg[0] == '-') {
-            // 检查短命令格式长度
+            // Check short option format length
             if (arg.length() != 2) {
                 throw std::runtime_error("Invalid short option format '" + arg + "'. Must be single character after '-'");
             }
@@ -482,7 +482,7 @@ void ParameterContext::merge_commandline(int argc, char* argv[]) {
 }
 
 void ParameterContext::merge_commandline() {
-    // 映射命令行参数到全局配置
+    // Map command line parameters to global config
     auto& conn_info = config_data.global.connection_info;
     if (cli_params.count("--host")) conn_info.host = cli_params["--host"];
     if (cli_params.count("--port")) {
@@ -498,7 +498,7 @@ void ParameterContext::merge_commandline() {
 
 
 void ParameterContext::merge_environment_vars() {
-    // 定义需要读取的环境变量
+    // Define environment variables to read
     std::vector<std::pair<std::string, std::string>> env_mappings = {
         {"TAOS_HOST", "host"},
         {"TAOS_PORT", "port"},
@@ -507,7 +507,7 @@ void ParameterContext::merge_environment_vars() {
     };
 
     auto& conn_info = config_data.global.connection_info;
-    // 遍历环境变量并更新连接信息
+    // Iterate environment variables and update connection info
     for (const auto& [env_var, key] : env_mappings) {
         const char* env_value = std::getenv(env_var.c_str());
         if (env_value) {
@@ -527,7 +527,7 @@ bool ParameterContext::init(int argc, char* argv[]) {
         return false;
     }
 
-    // 根据参数优先级从低到高，依次合并
+    // Merge by priority from low to high
     merge_yaml();
     merge_environment_vars();
     merge_commandline();
@@ -556,7 +556,7 @@ const SuperTableInfo& ParameterContext::get_super_table_info() const {
 
 // template <typename T>
 // T ParameterContext::get(const std::string& path) const {
-//     // 根据优先级获取参数值
+//     // Get parameter value by priority
 //     if (cli_params.count(path)) {
 //         return cli_params.at(path);
 //     }
@@ -571,18 +571,18 @@ const SuperTableInfo& ParameterContext::get_super_table_info() const {
 
 
 // void validate() {
-//     // 层级维度校验
+//     // Scope validation
 //     validate_scope_constraints();
-    
-//     // 类型维度校验
+//     
+//     // Type validation
 //     validate_type_compatibility();
-    
-//     // 依赖维度校验
+//     
+//     // Dependency validation
 //     validate_dependencies();
-    
-//     // 冲突维度校验
+//     
+//     // Conflict validation
 //     validate_conflicts();
-    
-//     // 自定义业务规则
+//     
+//     // Custom business rules
 //     validate_business_rules();
 //   }

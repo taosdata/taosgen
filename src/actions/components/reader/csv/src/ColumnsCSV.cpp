@@ -27,7 +27,7 @@ ColumnsCSV::ColumnsCSV(const ColumnsConfig::CSV& config, std::optional<ColumnCon
 }
 
 void ColumnsCSV::validate_config() {
-    // 验证文件路径非空
+    // Validate file path is not empty
     if (config_.file_path.empty()) {
         throw std::invalid_argument("CSV file path is empty for columns data");
     }
@@ -41,7 +41,7 @@ void ColumnsCSV::validate_config() {
 
     const size_t total_columns = reader.column_count();
 
-    // 验证 tbname_index
+    // Validate tbname_index
     const int tbname_index = config_.tbname_index;
     if (tbname_index >= 0 && static_cast<size_t>(tbname_index) >= total_columns) {
         std::stringstream ss;
@@ -53,7 +53,7 @@ void ColumnsCSV::validate_config() {
     size_t actual_columns = total_columns;
     if (tbname_index >= 0) actual_columns--;
 
-    // 验证时间戳策略配置
+    // Validate timestamp strategy config
     if (std::holds_alternative<TimestampOriginalConfig>(config_.timestamp_strategy.timestamp_config)) {
         const auto& ts_config = std::get<TimestampOriginalConfig>(config_.timestamp_strategy.timestamp_config);
 
@@ -71,7 +71,7 @@ void ColumnsCSV::validate_config() {
     total_columns_ = total_columns;
     actual_columns_ = actual_columns;
 
-    // 验证列类型大小
+    // Validate column type size
     if (instances_ && instances_->size() != actual_columns) {
         std::stringstream ss;
         ss << "Column types size (" << instances_->size()
@@ -92,17 +92,17 @@ ColumnType ColumnsCSV::convert_to_type(const std::string& value, ColumnTypeTag t
 
 std::vector<TableData> ColumnsCSV::generate() const {
     try {
-        // 创建 CSV 读取器
+        // Create CSV reader
         CSVReader reader(
             config_.file_path, 
             config_.has_header, 
             config_.delimiter.empty() ? ',' : config_.delimiter[0]
         );
 
-        // 读取所有行
+        // Read all rows
         auto rows = reader.read_all();
 
-        // 时间戳策略相关变量
+        // Timestamp strategy related variables
         std::optional<size_t> timestamp_index;
         const int tbname_index = config_.tbname_index;
         bool is_generator_mode = false;
@@ -120,15 +120,15 @@ std::vector<TableData> ColumnsCSV::generate() const {
             is_generator_mode = true;
         }
 
-        // 准备结果容器
+        // Prepare result container
         std::vector<TableData> table_data;
         std::unordered_map<std::string, TableData> table_map;
 
-        // 处理每一行
+        // Process each row
         for (size_t row_idx = 0; row_idx < rows.size(); ++row_idx) {
             const auto& row = rows[row_idx];
             
-            // 验证行有足够列
+            // Validate row has enough columns
             if (row.size() < total_columns_) {
                 std::stringstream ss;
                 ss << "Row " << (row_idx + 1) << " has only " << row.size() 
@@ -137,52 +137,52 @@ std::vector<TableData> ColumnsCSV::generate() const {
                 throw std::out_of_range(ss.str());
             }
             
-            // 获取表名
+            // Get table name
             std::string table_name = "default_table";
             if (tbname_index >= 0) {
                 table_name = row[static_cast<size_t>(tbname_index)];
                 StringUtils::trim(table_name);
             }
             
-            // 获取或创建 TableData
+            // Get or create TableData
             auto& data = table_map[table_name];
             if (data.table_name.empty()) {
                 data.table_name = table_name;
             }
 
-            // 处理时间戳
+            // Handle timestamp
             int64_t timestamp = 0;
             
             if (timestamp_index) {
-                // original模式
+                // original mode
                 const auto& raw_value = row[*timestamp_index];
                 int64_t raw_ts = TimestampUtils::parse_timestamp(raw_value, ts_config.timestamp_precision);
 
                 if (ts_config.offset_config) {
                     const auto& offset = *ts_config.offset_config;
                     if (offset.offset_type == "absolute") {
-                        // 绝对模式
+                        // absolute mode
                         int64_t& first_raw_ts = table_first_raw_ts[table_name];
                         if (first_raw_ts == 0) {
                             first_raw_ts = raw_ts;
                         }
                         timestamp = offset.absolute_value + (raw_ts - first_raw_ts);
                     } else if (offset.offset_type == "relative") {
-                        // 相对模式
+                        // relative mode
                         int64_t multiplier = TimestampUtils::get_precision_multiplier(ts_config.timestamp_precision);
                         auto [years, months, days, hours, seconds] = offset.relative_offset;
     
-                        // 将时间戳转换为秒
+                        // Convert timestamp to seconds
                         std::time_t raw_time = raw_ts / multiplier;
                         int64_t fraction = raw_ts % multiplier;
                         
-                        // 处理时间偏移
+                        // Handle time offset
                         std::tm* timeinfo = std::localtime(&raw_time);
                         if (!timeinfo) {
                             throw std::runtime_error("Failed to convert timestamp to local time, raw_ts: " + std::to_string(raw_ts));
                         }
                         
-                        // 应用年月日的偏移
+                        // Apply year/month/day offset
                         timeinfo->tm_year += years;
                         timeinfo->tm_mon  += months;
                         timeinfo->tm_mday += days;
@@ -199,11 +199,11 @@ std::vector<TableData> ColumnsCSV::generate() const {
                         throw std::runtime_error("Unsupported offset type: " + offset.offset_type);
                     }
                 } else {
-                    // 无offset
+                    // No offset
                     timestamp = raw_ts;
                 }
             } else if (is_generator_mode) {
-                // generator模式
+                // generator mode
                 auto& gen_ptr = table_ts_generators[table_name];
                 if (!gen_ptr) {
                     gen_ptr = TimestampGenerator::create(gen_config);
@@ -214,25 +214,25 @@ std::vector<TableData> ColumnsCSV::generate() const {
             data.timestamps.push_back(timestamp);
 
 
-            // 处理普通列
+            // Handle normal columns
             RowType data_row;
             data_row.reserve(actual_columns_);
 
             size_t index = 0;
 
             for (size_t col_idx = 0; col_idx < total_columns_; ++col_idx) {
-                // 跳过表名列和时间戳列
+                // Skip table name and timestamp columns
                 if (static_cast<int>(col_idx) == tbname_index) continue;
                 if (timestamp_index && col_idx == *timestamp_index) continue;
                 
-                // 转换值类型
+                // Convert value type
                 if (instances_) {
-                    // 使用提供的列类型
+                    // Use provided column types
                     const ColumnConfigInstance& instance = (*instances_)[index];
                     data_row.push_back(convert_to_type(row[col_idx], instance.config().type_tag));
                     index++;
                 } else {
-                    // 默认作为字符串处理
+                    // Default as string
                     std::string val = row[col_idx];
                     StringUtils::trim(val);
                     data_row.push_back(val);
@@ -242,7 +242,7 @@ std::vector<TableData> ColumnsCSV::generate() const {
             data.rows.push_back(std::move(data_row));
         }
 
-        // 转换为 std::vector
+        // Convert to std::vector
         table_data.reserve(table_map.size());
         for (auto& [_, data] : table_map) {
             table_data.push_back(std::move(data));

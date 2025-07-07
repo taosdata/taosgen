@@ -73,12 +73,12 @@ int64_t TimestampUtils::parse_timestamp(const std::variant<int64_t, std::string>
     std::string trimmed = time_str;
     StringUtils::trim(trimmed);
 
-    // 支持 "now" 或 "now()" 字符串语义
+    // Support "now" or "now()" string semantics
     if (trimmed == "now" || trimmed == "now()") {
         return convert_to_timestamp(precision);
     }
 
-    // 尝试将字符串转换为整型时间戳
+    // Try to convert string to integer timestamp
     try {
         return std::stoll(trimmed);
     } catch (const std::invalid_argument&) {
@@ -87,7 +87,7 @@ int64_t TimestampUtils::parse_timestamp(const std::variant<int64_t, std::string>
         throw std::runtime_error("Timestamp value out of range: " + trimmed);
     }
 
-    // 解析 ISO 时间格式
+    // Parse ISO time format
     tm time_struct = {};
     std::istringstream ss(trimmed);
     ss >> std::get_time(&time_struct, "%Y-%m-%d %H:%M:%S");
@@ -98,7 +98,7 @@ int64_t TimestampUtils::parse_timestamp(const std::variant<int64_t, std::string>
     time_t time_val = mktime(&time_struct);
     int64_t ms_val = static_cast<int64_t>(time_val) * 1000;
 
-    // 根据精度返回时间戳
+    // Return timestamp according to precision
     if (precision == "s")  return ms_val / 1000;
     if (precision == "ms") return ms_val;
     if (precision == "us") return ms_val * 1000;

@@ -1,4 +1,4 @@
-# 创建库目标
+# Create library target
 add_library(components_generator STATIC 
   src/TableNameGenerator.cpp
   src/TimestampGenerator.cpp
@@ -9,7 +9,7 @@ add_library(components_generator STATIC
   src/RowGenerator.cpp
 )
 
-# 设置包含目录
+# Set include directories
 target_include_directories(components_generator
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/inc
@@ -17,14 +17,14 @@ target_include_directories(components_generator
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../utils/inc
 )
 
-# 链接依赖库
+# Link dependencies
 target_link_libraries(components_generator
   PUBLIC
     actions_config
     utils
 )
 
-# 启用测试
+# Enable tests
 if(CMAKE_ENABLE_TEST)
   add_subdirectory(test)
 endif()

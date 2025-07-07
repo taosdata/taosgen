@@ -1,5 +1,4 @@
-#ifndef PARAM_DESCRIPTOR_H
-#define PARAM_DESCRIPTOR_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -7,8 +6,7 @@
 #include <functional>
 #include <variant>
 
-
-// 参数值类型定义
+// Parameter value type definition
 using ParamValue = std::variant<
     int, 
     double, 
@@ -19,63 +17,52 @@ using ParamValue = std::variant<
     TagMeta
 >;
 
-
-
-// 封装参数值和来源的结构体
+// Structure encapsulating parameter value and source
 struct ParamEntry {
     ParamValue value;
     SourceType source;
 };
 
-
-// 配置作用域类型
+// Config scope type
 enum class ConfigScopeType {
-    GLOBAL,        // 全局参数
-    DATABASE,      // 数据库层级
-    SUPER_TABLE,   // 超级表层级 
-    CHILD_TABLE,   // 子表层级
-    COLUMN,        // 列定义层级
-    TAG            // 标签定义层级
+    GLOBAL,        // Global parameter
+    DATABASE,      // Database level
+    SUPER_TABLE,   // Super table level
+    CHILD_TABLE,   // Child table level
+    COLUMN,        // Column level
+    TAG            // Tag level
 };
 
-// 配置作用域结构体
+// Config scope structure
 struct ConfigScope {
     ConfigScopeType type;
-    int index;  // 层级中的位置索引
+    int index;  // Index in the hierarchy
 
     bool operator==(const ConfigScope& other) const {
         return type == other.type && index == other.index;
     }
 };
 
-
 using json = nlohmann::json;
 namespace nlohmann {
   template <>
   struct adl_serializer<CustomStruct> {
       static void from_json(const json& j, CustomStruct& cs) {
-          // 自定义解析逻辑
+          // Custom parsing logic
       }
   };
 }
 
-
-
-// 参数描述符
+// Parameter descriptor
 struct ParamDescriptor {
-    std::vector<std::string> cli_flags;  // 支持多个标识
-    std::string env_var; // 新增环境变量字段
-    std::string json_path;     // JSON中的路径（支持点分表示法）
+    std::vector<std::string> cli_flags;  // Multiple supported flags
+    std::string env_var; // Environment variable field
+    std::string json_path;     // Path in JSON (dot notation supported)
     ParamValue default_value;
-    std::set<std::string> allowed_scopes;   // 允许出现的配置域
-    std::function<bool(const ParamValue&)> validator;   // 自定义校验逻辑
-    std::set<std::string> dependencies;     // 依赖参数
-    std::set<std::string> conflict_with;    // 冲突参数
-    std::string description;   // 参数描述
-    ConfigScopeType scope_type; // 作用域类型
+    std::set<std::string> allowed_scopes;   // Allowed config scopes
+    std::function<bool(const ParamValue&)> validator;   // Custom validation logic
+    std::set<std::string> dependencies;     // Dependent parameters
+    std::set<std::string> conflict_with;    // Conflicting parameters
+    std::string description;   // Parameter description
+    ConfigScopeType scope_type; // Scope type
 };
-
-#endif // PARAM_DESCRIPTOR_H
-
-
-

@@ -31,7 +31,7 @@ RowDataGenerator::RowDataGenerator(const std::string& table_name,
 }
 
 void RowDataGenerator::init_cache() {
-    // 预生成数据填充缓存
+    // Pre-generate data to fill cache
     cache_.clear();
     cache_.reserve(control_.data_generation.data_cache.cache_size);
     while (cache_.size() < control_.data_generation.data_cache.cache_size && has_more()) {
@@ -44,7 +44,7 @@ void RowDataGenerator::init_cache() {
 }
 
 void RowDataGenerator::init_disorder() {
-    // 初始化乱序区间
+    // Initialize disorder intervals
     disorder_intervals_.clear();
     for (const auto& interval : control_.data_quality.data_disorder.intervals) {
         DisorderInterval disorder_interval;
@@ -67,7 +67,7 @@ void RowDataGenerator::init_raw_source() {
         throw std::invalid_argument("Unsupported source_type: " + columns_config_.source_type);
     }
     
-    // 初始化时间戳生成器
+    // Initialize timestamp generator
     if (columns_config_.source_type == "generator") {
         timestamp_generator_ = std::make_unique<TimestampGenerator>(
             columns_config_.generator.timestamp_strategy.timestamp_config
@@ -82,7 +82,7 @@ void RowDataGenerator::init_raw_source() {
 void RowDataGenerator::init_generator() {
     use_generator_ = true;
     
-    // 创建行生成器  
+    // Create row generator  
     row_generator_ = std::make_unique<RowGenerator>(instances_);
 }
 
@@ -91,14 +91,14 @@ void RowDataGenerator::init_csv_reader() {
 
     csv_precision_ = columns_config_.csv.timestamp_strategy.get_precision();
 
-    // 创建ColumnsCSV读取器
+    // Create ColumnsCSV reader
     columns_csv_ = std::make_unique<ColumnsCSV>(columns_config_.csv, instances_);
 
-    // TODO: ColumnsCSV 需要支持表名索引接口
-    // 获取所有表数据
+    // TODO: ColumnsCSV needs to support table name index interface
+    // Get all table data
     std::vector<TableData> all_tables = columns_csv_->generate();
     
-    // 查找当前表的数据
+    // Find current table data
     bool found = false;
     for (const auto& table_data : all_tables) {
         if (table_data.table_name == table_name_) {
@@ -126,10 +126,10 @@ std::optional<RowData> RowDataGenerator::next_row() {
         return std::nullopt;
     }
 
-    // 处理延迟队列
+    // Process delay queue
     process_delay_queue();
     
-    // 优先从缓存中取数据
+    // Prefer to get data from cache
     if (!cache_.empty()) {
         auto row = cache_.back();
         cache_.pop_back();
@@ -137,16 +137,16 @@ std::optional<RowData> RowDataGenerator::next_row() {
         return row;
     }
     
-    // 从原始源获取数据
+    // Get data from raw source
     auto row_opt = fetch_raw_row();
     if (!row_opt) {
         return std::nullopt;
     }
     
-    // 更新当前时间轴
+    // Update current timeline
     current_timestamp_ = row_opt->timestamp;
     
-    // 应用乱序策略
+    // Apply disorder strategy
     auto delay = apply_disorder(*row_opt);
     if (!delay) {
         generated_rows_++;
@@ -160,15 +160,15 @@ bool RowDataGenerator::apply_disorder(RowData& row) {
         return false;
     }
     
-    // 检查数据时间戳是否在乱序区间
+    // Check if data timestamp is in disorder interval
     for (const auto& interval : disorder_intervals_) {
         if (row.timestamp >= interval.start_time && row.timestamp < interval.end_time) {
-            // 按概率决定是否延迟
+            // Decide whether to delay by probability
             if (static_cast<double>(rand()) / RAND_MAX < interval.ratio) {
                 int latency = rand() % interval.latency_range;
                 int64_t deliver_time = row.timestamp + latency;
                 
-                // 放入延迟队列
+                // Put into delay queue
                 delay_queue_.push(DelayedRow{deliver_time, row});
                 row.timestamp = -1;
                 return true;
@@ -224,10 +224,10 @@ RowData RowDataGenerator::generate_from_generator() {
     RowData row_data;
     // row_data.table_name = table_name_;
     
-    // 生成时间戳
+    // Generate timestamp
     row_data.timestamp = timestamp_generator_->generate();
     
-    // 生成列数据
+    // Generate column data
     row_data.columns = row_generator_->generate();
     
     return row_data;

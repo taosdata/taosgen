@@ -1,9 +1,9 @@
-# 添加子模块
+# Add submodules
 add_subdirectory(src/generator)
 add_subdirectory(src/pipeline)
 add_subdirectory(src/writer)
 
-# 创建库目标
+# Create library target
 add_library(core_insert STATIC 
   src/InsertDataAction.cpp
   $<TARGET_OBJECTS:insert_generator>
@@ -11,7 +11,7 @@ add_library(core_insert STATIC
   $<TARGET_OBJECTS:insert_writer>
 )
 
-# 设置包含目录
+# Set include directories
 target_include_directories(core_insert
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/inc
@@ -29,7 +29,7 @@ target_include_directories(core_insert
     ${CMAKE_CURRENT_SOURCE_DIR}/src/writer/inc
 )
 
-# 链接依赖库
+# Link dependent libraries
 target_link_libraries(core_insert
   PUBLIC
     insert_generator
@@ -45,7 +45,7 @@ target_link_libraries(core_insert
     utils
 )
 
-# 启用测试
+# Enable tests
 if(CMAKE_ENABLE_TEST)
   add_subdirectory(test)
 endif()

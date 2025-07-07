@@ -20,20 +20,20 @@ public:
                     const InsertDataConfig::Control& control,
                     const std::string& target_precision);
     
-    // 获取下一行数据
+    // Get next row data
     std::optional<RowData> next_row();
     
-    // 检查是否还有更多数据
+    // Check if there is more data
     bool has_more() const;
     
-    // 获取已生成行数
+    // Get the number of generated rows
     int generated_rows() const { return generated_rows_; }
     
-    // 重置生成器状态
+    // Reset generator state
     void reset();
 
 private:
-    // 延迟队列元素
+    // Delayed queue element
     struct DelayedRow {
         int64_t deliver_timestamp;
         RowData row;
@@ -50,34 +50,34 @@ private:
     };
 
 
-    // 初始化缓存
+    // Initialize cache
     void init_cache();
     
-    // 初始化乱序
+    // Initialize disorder
     void init_disorder();
 
-    // 初始化原始数据源
+    // Initialize raw data source
     void init_raw_source();
 
-    // 应用乱序策略
+    // Apply disorder strategy
     bool apply_disorder(RowData& row);
     
-    // 处理延迟队列
+    // Process delay queue
     void process_delay_queue();
     
-    // 从原始源获取一行数据
+    // Fetch a row from raw source
     std::optional<RowData> fetch_raw_row();
 
-    // 初始化生成器组件
+    // Initialize generator components
     void init_generator();
     
-    // 初始化CSV读取器
+    // Initialize CSV reader
     void init_csv_reader();
     
-    // 从生成器获取数据
+    // Get data from generator
     RowData generate_from_generator();
     
-    // 从CSV获取数据
+    // Get data from CSV
     std::optional<RowData> generate_from_csv();
     
     const std::string& table_name_;
@@ -86,28 +86,28 @@ private:
     const InsertDataConfig::Control& control_;
     const std::string& target_precision_;
 
-    // 数据源组件
+    // Data source components
     std::unique_ptr<RowGenerator> row_generator_;
     std::unique_ptr<ColumnsCSV> columns_csv_;
     std::unique_ptr<TimestampGenerator> timestamp_generator_;
     
-    // CSV数据
+    // CSV data
     std::vector<RowData> csv_rows_;
     size_t csv_row_index_ = 0;
     std::string csv_precision_;
     
-    // 状态管理
+    // State management
     int generated_rows_ = 0;
     int total_rows_ = 0;
     bool use_generator_ = false;
 
-    // 乱序管理
+    // Disorder management
     std::priority_queue<DelayedRow> delay_queue_;
     std::vector<RowData> cache_;
 
     std::vector<DisorderInterval> disorder_intervals_;
     
-    // 时间戳状态
+    // Timestamp state
     int64_t current_timestamp_ = 0;
     // int64_t last_timestamp_ = 0;
     // int64_t timestamp_step_ = 1;

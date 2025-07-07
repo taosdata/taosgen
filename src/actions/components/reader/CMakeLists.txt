@@ -1,19 +1,19 @@
-# 添加子目录
+# Add subdirectories
 add_subdirectory(csv)
 # add_subdirectory(kafka)
 
-# 创建库目标
+# Create library target
 add_library(components_reader STATIC 
   $<TARGET_OBJECTS:reader_csv>
 )
 
-# 设置包含目录
+# Set include directories
 target_include_directories(components_reader
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/csv/inc
 )
 
-# 链接子模块
+# Link submodules
 target_link_libraries(components_reader
   PUBLIC
     reader_csv

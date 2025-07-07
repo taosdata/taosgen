@@ -1,5 +1,4 @@
-#ifndef QUERY_DATA_CONFIG_H
-#define QUERY_DATA_CONFIG_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -51,5 +50,3 @@ struct QueryDataConfig {
         } query_control;
     } control;
 };
-
-#endif // QUERY_DATA_CONFIG_H

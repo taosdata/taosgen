@@ -22,7 +22,7 @@ struct TimestampOriginalConfig {
         std::string offset_type;                    // Timestamp offset type: "relative" or "absolute"
         std::variant<int64_t, std::string> value;   // Offset value or starting timestamp
 
-        // 解析结果缓存
+        // Parse result cache
         std::tuple<int, int, int, int, int> relative_offset = {0, 0, 0, 0, 0}; // (years, months, days, hours, seconds)
         int64_t absolute_value = 0;
         bool parsed = false;
@@ -47,7 +47,7 @@ struct TimestampOriginalConfig {
             }
         }
 
-        // 解析relative偏移字符串
+        // Parse relative offset string
         static std::tuple<int, int, int, int, int> parse_time_offset(const std::string& offset_str) {
             if (offset_str.empty()) {
                 throw std::runtime_error("Empty offset string");

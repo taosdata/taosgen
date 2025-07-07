@@ -5,10 +5,9 @@
 #include <yaml-cpp/yaml.h>
 #include "ActionConfigVariant.h"
 
-
 struct Step {
-    std::string name; // 步骤名称
-    std::string uses; // 使用的操作类型
-    YAML::Node with;  // 原始参数配置
-    ActionConfigVariant action_config; // 泛化字段，用于存储不同类型的 Action 配置
+    std::string name; // Step name
+    std::string uses; // Action type used
+    YAML::Node with;  // Original parameter config
+    ActionConfigVariant action_config; // Generalized field for different Action config types
 };

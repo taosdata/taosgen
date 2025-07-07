@@ -28,7 +28,7 @@ void test_create_database_action() {
     config.database_info.name = "test_action_db";
     config.database_info.drop_if_exists = true;
 
-    // 创建动作实例
+    // Create action instance
     std::cout << "Creating action instance..." << std::endl;
     auto action = ActionFactory::instance().create_action(
         global,
@@ -36,19 +36,19 @@ void test_create_database_action() {
         config
     );
 
-    // 执行数据库创建动作
+    // Execute database creation action
     std::cout << "Executing database creation..." << std::endl;
     action->execute();
 
-    // // 验证结果
+    // // Verify result
     // std::cout << "Verifying database creation..." << std::endl;
     // auto connector = DatabaseConnector::create(channel, conn_info);
     // if (!connector->connect()) {
-    //     std::cerr << "验证失败：无法连接数据库" << std::endl;
+    //     std::cerr << "Verification failed: cannot connect to database" << std::endl;
     //     return;
     // }
 
-    // // 检查数据库是否存在
+    // // Check if database exists
     // bool db_exists = false;
     // connector->query("SHOW DATABASES", [&](const QueryResult& result) {
     //     for (const auto& row : result.rows) {
@@ -62,13 +62,13 @@ void test_create_database_action() {
     // connector->close();
 
     // if (db_exists) {
-    //     std::cout << "验证成功：数据库 '" << config.database_info.name 
-    //               << "' 已创建" << std::endl;
+    //     std::cout << "Verification succeeded: database '" << config.database_info.name 
+    //               << "' created" << std::endl;
     // } else {
-    //     std::cerr << "验证失败：数据库未创建" << std::endl;
+    //     std::cerr << "Verification failed: database not created" << std::endl;
     // }
 
-    // 清理测试数据库
+    // Clean up test database
     // std::cout << "Cleaning up test database..." << std::endl;
     // auto cleanup_connector = DatabaseConnector::create(channel, conn_info);
     // if (cleanup_connector->connect()) {
@@ -85,11 +85,10 @@ int main() {
     try {
         test_create_database_action();
     } catch (const std::exception& e) {
-        std::cerr << "测试异常: " << e.what() << std::endl;
+        std::cerr << "Test exception: " << e.what() << std::endl;
         return 1;
     }
 
     std::cout << "All action tests completed." << std::endl;
     return 0;
 }
-

@@ -7,10 +7,10 @@
 #include "TimestampGeneratorConfig.h"
 
 struct ColumnsConfig {
-    std::string source_type; // 数据来源类型：generator 或 csv
+    std::string source_type; // Data source type: generator or csv
 
     struct Generator {
-        ColumnConfigVector schema; // 普通列的 Schema 定义
+        ColumnConfigVector schema; // Schema definition for normal columns
 
         struct TimestampStrategy {
             TimestampGeneratorConfig timestamp_config;
@@ -18,7 +18,7 @@ struct ColumnsConfig {
     } generator;
 
     struct CSV {
-        ColumnConfigVector schema; // 普通列的 Schema 定义
+        ColumnConfigVector schema; // Schema definition for normal columns
 
         std::string file_path;
         bool has_header = true;
@@ -26,7 +26,7 @@ struct ColumnsConfig {
         int tbname_index = -1;
 
         struct TimestampStrategy {
-            std::string strategy_type = "original"; // 时间戳策略类型：original 或 generator
+            std::string strategy_type = "original"; // Timestamp strategy type: original or generator
             std::variant<TimestampOriginalConfig, TimestampGeneratorConfig> timestamp_config;
 
             std::string get_precision() const {

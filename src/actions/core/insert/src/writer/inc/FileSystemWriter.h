@@ -19,22 +19,22 @@ public:
     std::string get_timestamp_precision() const override;
 
 private:
-    // 获取当前文件路径
+    // Get current file path
     std::filesystem::path get_current_file_path(int64_t timestamp);
     
-    // 写入CSV内容
+    // Write CSV content
     void write_csv(const std::string& data, int64_t timestamp);
     
-    // 时间间隔策略执行器
+    // Time interval strategy executor
     TimeIntervalStrategy time_strategy_;
     
-    // 文件输出流
+    // File output stream
     std::ofstream output_file_;
     
-    // 配置信息
+    // Configuration info
     InsertDataConfig::Target target_config_;
     
-    // 当前文件信息
+    // Current file info
     std::string current_file_path_;
     int64_t current_file_end_time_ = 0;
 };

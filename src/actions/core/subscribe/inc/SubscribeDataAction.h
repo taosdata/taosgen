@@ -14,14 +14,14 @@ public:
             std::cout << topic.name << " ";
         }
         std::cout << std::endl;
-        // 在此处实现具体的数据订阅逻辑
+        // Implement the specific data subscription logic here
     }
 
 private:
     const GlobalConfig& global_;
     SubscribeDataConfig config_;
 
-    // 注册 SubscribeDataAction 到 ActionFactory
+    // Register SubscribeDataAction to ActionFactory
     inline static bool registered_ = []() {
         ActionFactory::instance().register_action(
             "actions/subscribe-data",

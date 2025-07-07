@@ -16,7 +16,7 @@ private:
     const GlobalConfig& global_;
     CreateChildTableConfig config_;
 
-    // 注册 CreateChildTableAction 到 ActionFactory
+    // Register CreateChildTableAction to ActionFactory
     inline static bool registered_ = []() {
         ActionFactory::instance().register_action(
             "actions/create-child-table",

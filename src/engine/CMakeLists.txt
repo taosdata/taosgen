@@ -1,4 +1,4 @@
-# 创建库目标
+# Create library target
 add_library(engine STATIC 
   src/JobDAG.cpp
   src/ThreadSafeQueue.cpp
@@ -6,7 +6,7 @@ add_library(engine STATIC
   src/JobScheduler.cpp
 )
 
-# 设置包含目录
+# Set include directories
 target_include_directories(engine
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/inc
@@ -19,7 +19,7 @@ target_include_directories(engine
     ${CMAKE_CURRENT_SOURCE_DIR}/../actions/core/subscribe/inc
 )
 
-# 链接依赖库
+# Link dependent libraries
 target_link_libraries(engine
   PUBLIC
     parameter
@@ -27,8 +27,7 @@ target_link_libraries(engine
     workflow
 )
 
-# 启用测试
+# Enable tests
 if(CMAKE_ENABLE_TEST)
   add_subdirectory(test)
 endif()
-

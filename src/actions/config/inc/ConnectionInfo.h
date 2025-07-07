@@ -1,5 +1,4 @@
-#ifndef CONNECTION_H
-#define CONNECTION_H
+#pragma once
 
 #include <string>
 #include <optional>
@@ -13,12 +12,9 @@ struct ConnectionInfo {
     std::optional<std::string> dsn;
 
     /**
-     * 解析 DSN 字符串并填充 host/port/user/password 字段
-     * @param input_dsn 输入 DSN 字符串
-     * @throws std::runtime_error 如果解析失败
+     * Parse DSN string and fill host/port/user/password fields
+     * @param input_dsn Input DSN string
+     * @throws std::runtime_error If parsing fails
      */
     void parse_dsn(const std::string& input_dsn);
 };
-
-
-#endif // CONNECTION_H

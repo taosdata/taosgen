@@ -5,7 +5,7 @@
 #include <vector>
 
 
-// 测试命令行参数解析
+// Test command line parameter parsing
 void test_commandline_merge() {
     ParameterContext ctx;
     const char* argv[] = {
@@ -26,7 +26,7 @@ void test_commandline_merge() {
     std::cout << "Commandline merge test passed.\n";
 }
 
-// 测试环境变量合并
+// Test environment variable merge
 void test_environment_merge() {
     ParameterContext ctx;
     setenv("TAOS_HOST", "192.168.1.100", 1);
@@ -40,11 +40,11 @@ void test_environment_merge() {
     std::cout << "Environment merge test passed.\n";
 }
 
-// 测试 YAML 配置合并
+// Test YAML config merge
 void test_yaml_merge() {
     ParameterContext ctx;
 
-    // 模拟 YAML 配置
+    // Simulate YAML config
     YAML::Node config = YAML::Load(R"(
 global:
   connection_info: &db_conn
@@ -277,12 +277,12 @@ jobs:
     ctx.merge_yaml(config);
     const auto& data = ctx.get_config_data();
 
-    // 验证全局配置
+    // Validate global config
     assert(data.global.connection_info.host == "10.0.0.1");
     assert(data.global.connection_info.port == 6043);
     assert(data.concurrency == 4);
 
-    // 验证作业解析
+    // Validate job parsing
     // job: create-database
     assert(data.jobs.size() == 6);
     assert(data.jobs[0].key == "create-database");
@@ -475,25 +475,25 @@ jobs:
     std::cout << "YAML merge test passed.\n";
 }
 
-// 测试参数优先级（命令行 > 环境变量 > YAML）
+// Test parameter priority (command line > environment variable > YAML)
 void test_priority() {
     ParameterContext ctx;
 
-    // 设置环境变量
+    // Set environment variable
     setenv("TAOS_HOST", "env.host", 1);
 
-    // 合并 YAML
+    // Merge YAML
     YAML::Node config = YAML::Load(R"(
 global:
   host: yaml.host
 )");
     ctx.merge_yaml(config);
 
-    // 合并命令行参数
+    // Merge command line parameters
     const char* argv[] = {"dummy", "--host=cli.host"};
     ctx.merge_commandline(2, const_cast<char**>(argv));
 
-    // 验证优先级
+    // Validate priority
     assert(ctx.get_config_data().global.connection_info.host == "cli.host");
     std::cout << "Priority test passed.\n";
 }

@@ -36,16 +36,16 @@ struct ColumnConfig {
 
     // Attributes for gen_type=function
     struct FunctionConfig {
-        std::string expression; // 完整的函数表达式
-        std::string function;   // 函数名，例如 sinusoid、counter 等
-        double multiple = 1.0;  // 倍率
-        double addend = 0.0;    // 加数
-        int random = 0;         // 随机部分的范围
-        double base = 0.0;      // 基值
-        std::optional<double> min; // 函数参数：最小值
-        std::optional<double> max; // 函数参数：最大值
-        std::optional<int> period; // 函数参数：周期
-        std::optional<int> offset; // 函数参数：偏移量
+        std::string expression; // Full function expression
+        std::string function;   // Function name, e.g. sinusoid, counter, etc.
+        double multiple = 1.0;  // Multiplier
+        double addend = 0.0;    // Addend
+        int random = 0;         // Random range
+        double base = 0.0;      // Base value
+        std::optional<double> min; // Function parameter: min value
+        std::optional<double> max; // Function parameter: max value
+        std::optional<int> period; // Function parameter: period
+        std::optional<int> offset; // Function parameter: offset
     };
     std::optional<FunctionConfig> function_config;
 

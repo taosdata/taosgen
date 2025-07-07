@@ -61,22 +61,22 @@ void test_generator_reset() {
     auto instances = ColumnConfigInstanceFactory::create(schema); 
     RowDataGenerator generator("test_table", columns_config, instances, control, "ms");
     
-    // 第一轮生成
+    // First round generation
     std::vector<int32_t> first_round;
     while (auto row = generator.next_row()) {
         first_round.push_back(row->timestamp);
     }
     
-    // 重置生成器
+    // Reset generator
     generator.reset();
     
-    // 第二轮生成
+    // Second round generation
     std::vector<int32_t> second_round;
     while (auto row = generator.next_row()) {
         second_round.push_back(row->timestamp);
     }
     
-    // 验证两轮生成的时间戳相同
+    // Verify timestamps are the same in both rounds
     assert(first_round.size() == second_round.size());
     for (size_t i = 0; i < first_round.size(); i++) {
         assert(first_round[i] == second_round[i]);
@@ -199,13 +199,13 @@ void test_csv_mode_basic() {
     ColumnsConfig columns_config;
     columns_config.source_type = "csv";
 
-    // 配置CSV数据源
+    // Configure CSV data source
     columns_config.csv.file_path = "test_data.csv";
     columns_config.csv.has_header = true;
     columns_config.csv.delimiter = ",";
     columns_config.csv.tbname_index = 0;
 
-    // 配置时间戳策略
+    // Configure timestamp strategy
     TimestampOriginalConfig ts_config;
     ts_config.timestamp_index = 1;
     ts_config.timestamp_precision = "ms";
@@ -213,7 +213,7 @@ void test_csv_mode_basic() {
     columns_config.csv.timestamp_strategy.strategy_type = "original";
     columns_config.csv.timestamp_strategy.timestamp_config = ts_config;
     
-    // 配置数据列
+    // Configure data columns
     auto& schema = columns_config.csv.schema;
     schema.emplace_back(ColumnConfig{"age", "INT"});
     schema.emplace_back(ColumnConfig{"city", "VARCHAR"});
@@ -221,11 +221,11 @@ void test_csv_mode_basic() {
     
     InsertDataConfig::Control control;
     
-    // 验证table1的数据
+    // Verify data for table1
     {
         RowDataGenerator generator("table1", columns_config, instances, control, "ms");
         
-        // 验证第一行
+        // Verify first row
         auto row1 = generator.next_row();
         assert(row1);
         assert(row1->timestamp == 1622505600000);
@@ -233,7 +233,7 @@ void test_csv_mode_basic() {
         assert(std::get<int32_t>(row1->columns[0]) == 12);
         assert(std::get<std::string>(row1->columns[1]) == "New York");
         
-        // 验证第二行
+        // Verify second row
         auto row2 = generator.next_row();
         assert(row2);
         assert(row2->timestamp == 1622505601000);
@@ -241,12 +241,12 @@ void test_csv_mode_basic() {
         assert(std::get<int32_t>(row2->columns[0]) == 25);
         assert(std::get<std::string>(row2->columns[1]) == "Boston");
         
-        // 验证没有更多数据
+        // Verify no more data
         assert(!generator.next_row());
         assert(!generator.has_more());
     }
     
-    // 验证table2的数据
+    // Verify data for table2
     {
         RowDataGenerator generator("table2", columns_config, instances, control, "ms");
         
@@ -261,7 +261,7 @@ void test_csv_mode_basic() {
         assert(!generator.has_more());
     }
     
-    // 验证不存在的表
+    // Verify non-existent table
     try {
         RowDataGenerator generator("table3", columns_config, instances, control, "ms");
         assert(false && "Should throw exception for non-existent table");
@@ -297,7 +297,7 @@ void test_csv_precision_conversion() {
 
     InsertDataConfig::Control control;
 
-    // 测试转换到不同精度
+    // Test conversion to different precisions
     {
         RowDataGenerator generator("table1", columns_config, instances, control, "us");
         auto row = generator.next_row();

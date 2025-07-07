@@ -3,7 +3,7 @@ global:
   log_dir: log/
   cfg_dir: /etc/taos/
 
-  # 公共结构定义（可通过锚点复用）
+  # Common structure definition (can be reused by anchor)
   connection_info: &db_conn
     host: 127.0.0.1
     port: 6030
@@ -42,7 +42,7 @@ global:
 concurrency: 4
 
 jobs:
-  # 创建数据库作业
+  # Create database job
   create-database:
     name: Create Database
     needs: []
@@ -50,7 +50,7 @@ jobs:
       - name: Create Database
         uses: actions/create-database
         with:
-          connection_info: *db_conn             # 继承全局连接信息，默认属性，可省略
+          connection_info: *db_conn             # Inherit global connection info, default property, can be omitted
           database_info:
             name: testdb
             drop_if_exists: true
@@ -58,24 +58,24 @@ jobs:
             properties: vgroups 20 replica 3 keep 3650
 
 
-  # 创建超级表作业
-  create-super-table:                           # 可与作业 create-database 合并，将步骤追加即可
+  # Create super table job
+  create-super-table:                           # Can be merged with create-database job, just append steps
     name: Create Super Table
     needs: [create-database]
     steps:
       - name: Create Super Table
         uses: actions/create-super-table
         with:
-          connection_info: *db_conn             # 继承全局连接信息，默认属性，可省略
+          connection_info: *db_conn             # Inherit global connection info, default property, can be omitted
           database_info:
             name: testdb
           super_table_info:
             name: points
-            columns: *columns_info            # 锚点引用普通列
-            tags: *tags_info                  # 锚点引用标签列
+            columns: *columns_info            # Anchor reference to normal columns
+            tags: *tags_info                  # Anchor reference to tag columns
 
 
-  # 创建秒级子表作业
+  # Create second-level child table job
   create-second-child-table:
     name: Create Second Child Table
     needs: [create-super-table]
@@ -83,20 +83,20 @@ jobs:
       - name: Create Second Child Table
         uses: actions/create-child-table
         with:
-          connection_info: *db_conn             # 继承全局连接信息，默认属性，可省略
+          connection_info: *db_conn             # Inherit global connection info, default property, can be omitted
           database_info:
             name: testdb
           super_table_info:
             name: points
           child_table_info:
             table_name:
-              source_type: generator            # 子表名称数据来源有两种：generator、csv
+              source_type: generator            # Child table name data source: generator or csv
               generator:
                 prefix: s
                 count: 10000
                 from: 200
             tags: 
-              source_type: csv                  # 标签列数据来源有两种：generator、csv
+              source_type: csv                  # Tag column data source: generator or csv
               csv:
                 file_path: /root/meta/cnnc_csv_1s.csv
                 has_header: true
@@ -105,7 +105,7 @@ jobs:
             concurrency: 10
 
 
-  # 创建分钟级子表作业
+  # Create minute-level child table job
   create-minute-child-table:
     name: Create Minute Child Table
     needs: [create-super-table]
@@ -113,20 +113,20 @@ jobs:
       - name: Create Minute Child Table
         uses: actions/create-child-table
         with:
-          connection_info: *db_conn             # 继承全局连接信息，默认属性，可省略
+          connection_info: *db_conn             # Inherit global connection info, default property, can be omitted
           database_info:
             name: testdb
           super_table_info:
             name: points
           child_table_info:
             table_name:
-              source_type: generator            # 子表名称数据来源有两种：generator、csv
+              source_type: generator            # Child table name data source: generator or csv
               generator:
                 prefix: m
                 count: 10000
                 from: 200
             tags: 
-              source_type: csv                  # 标签列数据来源有两种：generator、csv
+              source_type: csv                  # Tag column data source: generator or csv
               csv:
                 file_path: /root/meta/cnnc_csv_1m.csv
                 has_header: true
@@ -135,7 +135,7 @@ jobs:
             concurrency: 10
 
 
-  # 写入秒级数据作业
+  # Insert second-level data job
   insert-second-data:
     name: Insert Second-Level Data
     needs: [create-second-child-table]
@@ -146,12 +146,12 @@ jobs:
           # source
           source:
             table_name:
-              source_type: generator              # 子表名称数据来源有两种：generator、csv
+              source_type: generator              # Child table name data source: generator or csv
               generator:
                 prefix: s
                 count: 10000
                 from: 200
-            columns:                              # 普通列数据来源有两种：generator、csv
+            columns:                              # Normal column data source: generator or csv
               source_type: csv
               csv:
                 file_path: /root/data/cnnc_csv_1s/
@@ -167,15 +167,15 @@ jobs:
           target:
             target_type: tdengine
             tdengine:
-              connection_info: *db_conn           # 继承全局连接信息，默认属性，可省略
+              connection_info: *db_conn           # Inherit global connection info, default property, can be omitted
               database_info:
                 name: testdb
                 precision: us
             
               super_table_info:
                 name: points
-                columns: *columns_info            # 锚点引用普通列
-                tags: *tags_info                  # 锚点引用标签列
+                columns: *columns_info            # Anchor reference to normal columns
+                tags: *tags_info                  # Anchor reference to tag columns
 
           # control
           control: &insert_second_control
@@ -200,7 +200,7 @@ jobs:
 
 
 
-  # 写入分钟级数据作业
+  # Insert minute-level data job
   insert-minute-data:
     name: Insert Minute-Level Data
     needs: [create-minute-child-table]
@@ -211,12 +211,12 @@ jobs:
           # source
           source:
             table_name:
-              source_type: generator              # 子表名称数据来源有两种：generator、csv
+              source_type: generator              # Child table name data source: generator or csv
               generator:
                 prefix: m
                 count: 10000
                 from: 200
-            columns:                              # 普通列数据来源有两种：generator、csv
+            columns:                              # Normal column data source: generator or csv
               source_type: csv
               csv:
                 file_path: /root/data/cnnc_csv_1m/
@@ -232,21 +232,21 @@ jobs:
           target:
             target_type: tdengine
             tdengine:
-              connection_info: *db_conn           # 继承全局连接信息，默认属性，可省略
+              connection_info: *db_conn           # Inherit global connection info, default property, can be omitted
               database_info:
                 name: testdb
                 precision: us
             
               super_table_info:
                 name: points
-                columns: *columns_info          # 锚点引用普通列
-                tags: *tags_info                # 锚点引用标签列
+                columns: *columns_info          # Anchor reference to normal columns
+                tags: *tags_info                # Anchor reference to tag columns
 
           # control
-          control: *insert_second_control         # 复用配置
+          control: *insert_second_control         # Reuse configuration
 
 
-  # 超级表查询作业
+  # Super table query job
   query-super-table:
     name: Query Super Table
     needs:
@@ -258,7 +258,7 @@ jobs:
         with:
           # source
           source:
-            connection_info: *db_conn             # 继承全局连接信息，默认属性，可省略
+            connection_info: *db_conn             # Inherit global connection info, default property, can be omitted
           
           # control
           control:
@@ -283,7 +283,7 @@ jobs:
 
 
 
-  # 数据订阅作业
+  # Data subscription job
   subscribe-data:
     name: Subscribe Data
     needs:
@@ -295,7 +295,7 @@ jobs:
         with:
           # source
           source:
-            connection_info: *db_conn             # 继承全局连接信息，默认属性，可省略
+            connection_info: *db_conn             # Inherit global connection info, default property, can be omitted
           
           # control
           control:
@@ -323,4 +323,3 @@ jobs:
                 client.id: benchmark_client
                 auto.offset.reset: earliest
                 msg.with.table.name: true
-
