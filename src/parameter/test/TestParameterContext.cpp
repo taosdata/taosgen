@@ -65,18 +65,14 @@ global:
       - name: longitude
         type: float
       - name: quality
-        type: varchar
-        len: 50
+        type: varchar(50)
     tags: &tags_info
       - name: type
-        type: varchar
-        len: 7
+        type: varchar(7)
       - name: name
-        type: varchar
-        len: 20
+        type: varchar(20)
       - name: department
-        type: varchar
-        len: 7
+        type: varchar(7)
 
 concurrency: 4
 jobs:
@@ -498,11 +494,110 @@ global:
     std::cout << "Priority test passed.\n";
 }
 
+void test_unknown_key_detection() {
+  YAML::Node config = YAML::Load(R"(
+global:
+  connection_info:
+    host: 127.0.0.1
+    port: 6030
+    user: root
+    password: taosdata
+    unknown_key: should_fail
+)");
+  ParameterContext ctx;
+  try {
+      ctx.merge_yaml(config);
+      assert(false && "Should throw on unknown key in connection_info");
+  } catch (const std::runtime_error& e) {
+      std::string msg = e.what();
+      assert(msg.find("Unknown configuration key in connection_info") != std::string::npos);
+      std::cout << "Unknown key detection test passed.\n";
+  }
+}
+
+void test_missing_required_key_detection() {
+  YAML::Node config = YAML::Load(R"(
+global:
+  database_info:
+    drop_if_exists: true
+    precision: ms
+)");
+  ParameterContext ctx;
+  try {
+      ctx.merge_yaml(config);
+      assert(false && "Should throw on missing required field 'name' in database_info");
+  } catch (const std::runtime_error& e) {
+      std::string msg = e.what();
+      assert(msg.find("Missing required field 'name' in database_info") != std::string::npos);
+      std::cout << "Missing required key detection test passed.\n";
+  }
+}
+
+void test_nested_unknown_key_detection() {
+  YAML::Node config = YAML::Load(R"(
+global:
+  connection_info:
+    host: 127.0.0.1
+    port: 6030
+    user: root
+    password: taosdata
+  database_info:
+    name: testdb
+    drop_if_exists: true
+    precision: ms
+    properties: vgroups 20
+    unknown_nested: fail
+)");
+  ParameterContext ctx;
+  try {
+      ctx.merge_yaml(config);
+      assert(false && "Should throw on unknown key in database_info");
+  } catch (const std::runtime_error& e) {
+      std::string msg = e.what();
+      assert(msg.find("Unknown configuration key in database_info") != std::string::npos);
+      std::cout << "Nested unknown key detection test passed.\n";
+  }
+}
+
+void test_nested_missing_required_key_detection() {
+  YAML::Node config = YAML::Load(R"(
+jobs:
+  create-database:
+    name: Create Database
+    needs: []
+    steps:
+      - name: Create Database
+        uses: actions/create-database
+        with:
+          connection_info:
+            host: 127.0.0.1
+            port: 6030
+            user: root
+            password: taosdata
+          database_info:
+            drop_if_exists: true
+            precision: ms
+)");
+  ParameterContext ctx;
+  try {
+      ctx.merge_yaml(config);
+      assert(false && "Should throw on missing required field 'name' in database_info");
+  } catch (const std::runtime_error& e) {
+      std::string msg = e.what();
+      assert(msg.find("Missing required field 'name' in database_info") != std::string::npos);
+      std::cout << "Nested missing required key detection test passed.\n";
+  }
+}
+
 int main() {
     test_commandline_merge();
     test_environment_merge();
     test_yaml_merge();
     test_priority();
+    test_unknown_key_detection();
+    test_missing_required_key_detection();
+    test_nested_unknown_key_detection();
+    test_nested_missing_required_key_detection();
     std::cout << "All tests passed!\n";
     return 0;
 }

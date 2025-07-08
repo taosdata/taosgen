@@ -306,12 +306,20 @@ void ParameterContext::parse_insert_data_action(Step& step) {
 
     if (step.with["source"]) {
         insert_config.source = step.with["source"].as<InsertDataConfig::Source>();
+    } else {
+        throw std::runtime_error("Missing required 'source' for insert-data action.");
     }
+
     if (step.with["target"]) {
         insert_config.target = step.with["target"].as<InsertDataConfig::Target>();
+    } else {
+        throw std::runtime_error("Missing required 'target' for insert-data action.");
     }
+
     if (step.with["control"]) {
         insert_config.control = step.with["control"].as<InsertDataConfig::Control>();
+    } else {
+        throw std::runtime_error("Missing required 'control' for insert-data action.");
     }
 
     // Print parse result

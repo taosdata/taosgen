@@ -6,8 +6,8 @@ struct TableNameConfig {
     std::string source_type; // Data source type: generator or csv
 
     struct Generator {
-        std::string prefix;
-        int count;
+        std::string prefix = "d";
+        int count = 10000;
         int from = 0; // Default start index is 0
     } generator;
 

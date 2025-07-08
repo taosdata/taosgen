@@ -19,8 +19,8 @@ struct InsertDataConfig {
     } source;
 
     struct Target {
-        std::string timestamp_precision; // Timestamp precision: ms, us, ns
-        std::string target_type;         // Data target type: tdengine or file_system
+        std::string timestamp_precision = "ms";     // Timestamp precision: ms, us, ns
+        std::string target_type = "tdengine";       // Data target type: tdengine or file_system
 
         struct TDengine {
             ConnectionInfo connection_info;

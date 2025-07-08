@@ -35,8 +35,10 @@ ColumnTypeTag ColumnConfig::get_type_tag(const std::string& type_str) {
         return ColumnTypeTag::DECIMAL;
     if (lower_type == "nchar")
         return ColumnTypeTag::NCHAR;
-    if (lower_type == "varchar" || lower_type == "binary") 
-        return ColumnTypeTag::VARCHAR; // std::string
+    if (lower_type == "varchar") 
+        return ColumnTypeTag::VARCHAR;
+    if (lower_type == "binary")
+        return ColumnTypeTag::BINARY;
     if (lower_type == "json") 
         return ColumnTypeTag::JSON; // std::string (json)
     if (lower_type == "varbinary")

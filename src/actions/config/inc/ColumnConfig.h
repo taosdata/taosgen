@@ -20,8 +20,10 @@ struct ColumnConfig {
     std::optional<std::string> properties;
     std::optional<std::string> gen_type;
     std::optional<float> null_ratio;
+    std::optional<float> none_ratio;
 
     // Attributes for gen_type=random
+    std::optional<std::string> distribution;
     std::optional<double> min;
     std::optional<double> max;
     std::optional<std::string> dec_min;

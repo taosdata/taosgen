@@ -11,6 +11,17 @@ target_compile_definitions(TestParseYAML PRIVATE
 )
 add_test(NAME TestParseYAML COMMAND TestParseYAML)
 
+# test ConfigParser
+add_executable(TestConfigParser 
+  TestConfigParser.cpp
+)
+target_link_libraries(TestConfigParser 
+  PRIVATE 
+    parameter
+    ${YAML_CPP_LIBRARIES}
+)
+add_test(NAME TestConfigParser COMMAND TestConfigParser)
+
 # test ParameterContext
 add_executable(TestParameterContext 
   TestParameterContext.cpp
