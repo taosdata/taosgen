@@ -152,26 +152,29 @@ void test_data_generation_with_interlace() {
     auto batch = manager.next_multi_batch();
     assert(batch);
     assert(batch->table_batches.size() == 2);
-    assert(batch->table_batches[0].second.size() == 4);
-    assert(batch->table_batches[1].second.size() == 4);
+    assert(batch->table_batches[0].second.size() == 2);
+    assert(batch->table_batches[1].second.size() == 2);
     
     // Verify timestamps of first batch
     assert(batch->table_batches[0].second[0].timestamp == 1000);
     assert(batch->table_batches[0].second[1].timestamp == 1010);
-    assert(batch->table_batches[0].second[2].timestamp == 1020);
-    assert(batch->table_batches[0].second[3].timestamp == 1030);
-
     assert(batch->table_batches[1].second[0].timestamp == 1000);
     assert(batch->table_batches[1].second[1].timestamp == 1010);
-    assert(batch->table_batches[1].second[2].timestamp == 1020);
-    assert(batch->table_batches[1].second[3].timestamp == 1030);
-
 
     // Verify no more data available
     auto batch2 = manager.next_multi_batch();
-    assert(!batch2);
+    assert(batch2);
     assert(!manager.has_more());
     
+    assert(batch2->table_batches.size() == 2);
+    assert(batch2->table_batches[0].second.size() == 2);
+    assert(batch2->table_batches[1].second.size() == 2);
+
+    assert(batch2->table_batches[0].second[0].timestamp == 1020);
+    assert(batch2->table_batches[0].second[1].timestamp == 1030);
+    assert(batch2->table_batches[1].second[0].timestamp == 1020);
+    assert(batch2->table_batches[1].second[1].timestamp == 1030);
+
     std::cout << "test_data_generation_with_interlace passed.\n";
 }
 
