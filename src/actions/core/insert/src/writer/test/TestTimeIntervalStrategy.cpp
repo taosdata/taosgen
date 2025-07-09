@@ -125,12 +125,41 @@ void test_wait_strategy() {
     std::cout << "test_wait_strategy passed." << std::endl;
 }
 
+void test_literal_strategy() {
+    InsertDataConfig::Control::TimeInterval config;
+    config.enabled = true;
+    config.interval_strategy = "literal";
+    config.wait_strategy = "sleep";
+
+    TimeIntervalStrategy strategy(config, "ms");
+
+    // Set current_start to "current time + 200ms"
+    auto now = std::chrono::system_clock::now();
+    auto now_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now);
+    auto epoch = now_ms.time_since_epoch();
+    int64_t now_timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(epoch).count();
+
+    int64_t current_start = now_timestamp + 200;
+
+    auto start_time = std::chrono::steady_clock::now();
+    strategy.apply_wait_strategy(current_start, 0, 0, 0, false);
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - start_time).count();
+
+    // The elapsed time should be approximately between 200 and 230 milliseconds
+    std::cout << "in func test_literal_strategy elapsed: " << elapsed << " ms" << std::endl;
+    assert(elapsed >= 200 && elapsed <= 230);
+
+    std::cout << "test_literal_strategy passed." << std::endl;
+}
+
 int main() {
     test_timestamp_conversion();
     test_fixed_interval();
     test_clamp_interval();
     test_wait_strategy();
-    
+    test_literal_strategy();
+
     std::cout << "All TimeIntervalStrategy tests passed." << std::endl;
     return 0;
 }

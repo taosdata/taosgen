@@ -11,4 +11,5 @@ public:
     static std::string to_lower(const std::string& str);
     static std::string to_upper(const std::string& str);
     static void trim(std::string& str);
+    static void remove_all_spaces(std::string& str);
 };

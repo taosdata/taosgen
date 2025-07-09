@@ -225,7 +225,8 @@ RowData RowDataGenerator::generate_from_generator() {
     // row_data.table_name = table_name_;
     
     // Generate timestamp
-    row_data.timestamp = timestamp_generator_->generate();
+    row_data.timestamp = TimestampUtils::convert_timestamp_precision(timestamp_generator_->generate(),
+        timestamp_generator_->timestamp_precision(), target_precision_);
     
     // Generate column data
     row_data.columns = row_generator_->generate();

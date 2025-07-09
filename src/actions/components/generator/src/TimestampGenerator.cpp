@@ -37,3 +37,7 @@ std::vector<Timestamp> TimestampGenerator::generate(size_t count) const {
 
     return timestamps;
 }
+
+const std::string& TimestampGenerator::timestamp_precision() const {
+    return config_.timestamp_precision;
+}

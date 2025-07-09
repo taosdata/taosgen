@@ -17,6 +17,6 @@ target_link_libraries(utils
 )
 
 # Enable tests
-# if(CMAKE_ENABLE_TEST)
-#   add_subdirectory(test)
-# endif()
+if(CMAKE_ENABLE_TEST)
+  add_subdirectory(test)
+endif()

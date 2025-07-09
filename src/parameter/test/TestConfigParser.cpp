@@ -209,6 +209,7 @@ concurrency: 4
 )";
     YAML::Node node = YAML::Load(yaml);
     CreateChildTableConfig::BatchConfig bc = node.as<CreateChildTableConfig::BatchConfig>();
+    (void)bc;
     assert(bc.size == 100);
     assert(bc.concurrency == 4);
 }
@@ -424,6 +425,7 @@ queue_capacity: 128
 )";
   YAML::Node node = YAML::Load(yaml);
   InsertDataConfig::Control::DataGeneration dg = node.as<InsertDataConfig::Control::DataGeneration>();
+  (void)dg;
   assert(dg.interlace_mode.enabled == true);
   assert(dg.interlace_mode.rows == 10);
   assert(dg.data_cache.enabled == true);
@@ -722,6 +724,7 @@ poll_timeout: 2000
 )";
   YAML::Node node = YAML::Load(yaml);
   SubscribeDataConfig::Control::SubscribeControl::Execution exec = node.as<SubscribeDataConfig::Control::SubscribeControl::Execution>();
+  (void)exec;
   assert(exec.consumer_concurrency == 3);
   assert(exec.poll_timeout == 2000);
 }

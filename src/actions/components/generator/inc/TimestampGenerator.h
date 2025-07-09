@@ -15,6 +15,8 @@ public:
     
     std::vector<Timestamp> generate(size_t count) const;
 
+    const std::string& timestamp_precision() const;
+
     static std::unique_ptr<TimestampGenerator> create(const TimestampGeneratorConfig& config) {
         return std::make_unique<TimestampGenerator>(config);
     }

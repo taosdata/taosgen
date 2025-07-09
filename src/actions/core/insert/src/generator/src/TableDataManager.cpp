@@ -29,6 +29,7 @@ bool TableDataManager::init(const std::vector<std::string>& table_names) {
     }
     
     table_order_ = table_names;
+    active_table_count_ = table_names.size();
     
     try {        
         // Create RowDataGenerator for each table
@@ -94,10 +95,12 @@ MultiBatch TableDataManager::collect_batch_data(size_t max_rows) {
     MultiBatch result;
     int64_t start_time{std::numeric_limits<int64_t>::max()};
     int64_t end_time{std::numeric_limits<int64_t>::min()};
-    std::unordered_map<std::string, size_t> table_indices;
 
     result.reserve(table_order_.size());
-    while (result.total_rows < max_rows && has_more()) {
+    size_t table_loops = 0;
+    size_t max_loops = table_order_.size();
+
+    while (result.total_rows < max_rows && has_more() && table_loops < max_loops) {
         TableState* table_state = get_next_active_table();
         if (!table_state) break;
         
@@ -129,15 +132,23 @@ MultiBatch TableDataManager::collect_batch_data(size_t max_rows) {
                 table_state->interlace_counter++;
                 actual_generated++;
             } else {
-                table_state->completed = true;
+                if (!table_state->completed) {
+                    table_state->completed = true;
+                    if (active_table_count_ > 0) --active_table_count_;
+                }
                 break;
             }
         }
         
         // Update state
-        if (table_state->interlace_counter >= interlace_rows_ || 
-            table_state->completed || 
+        if (!table_state->completed &&
             table_state->rows_generated >= config_.control.data_generation.per_table_rows) {
+            table_state->completed = true;
+            if (active_table_count_ > 0) --active_table_count_;
+        }
+
+        if (table_state->completed ||
+            table_state->interlace_counter >= interlace_rows_) {
             advance_to_next_table();
         }
 
@@ -150,21 +161,11 @@ MultiBatch TableDataManager::collect_batch_data(size_t max_rows) {
             }
 
             // Add data
-            auto table_idx_it = table_indices.find(table_name);
-            if (table_idx_it != table_indices.end()) {
-                auto& existing_batch = result.table_batches[table_idx_it->second].second;
-                existing_batch.insert(
-                    existing_batch.end(),
-                    std::make_move_iterator(batch.begin()),
-                    std::make_move_iterator(batch.end())
-                );
-            } else {
-                table_indices[table_name] = result.table_batches.size();
-                result.table_batches.emplace_back(table_name, std::move(batch));
-            }
-            
             result.total_rows += batch_size;
+            result.table_batches.emplace_back(table_name, std::move(batch));
         }
+
+        ++table_loops;
     }
 
     result.start_time = start_time;
@@ -173,12 +174,7 @@ MultiBatch TableDataManager::collect_batch_data(size_t max_rows) {
 }
 
 bool TableDataManager::has_more() const {
-    for (const auto& [_, state] : table_states_) {
-        if (!state.completed && state.rows_generated < config_.control.data_generation.per_table_rows) {
-            return true;
-        }
-    }
-    return false;
+    return active_table_count_ > 0;
 }
 
 std::string TableDataManager::current_table() const {

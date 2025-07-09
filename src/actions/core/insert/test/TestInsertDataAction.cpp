@@ -100,9 +100,9 @@ void test_data_pipeline() {
     // Start producer thread
     std::thread producer([&]() {
         for(int i = 0; i < 5; i++) {
-            SqlInsertData test_data(1700000000000, 1700000000100, 10, "INSERT INTO test_table VALUES (...)");
-            FormatResult result = FormatResult{std::move(test_data)};
-            pipeline.push_data(0, std::move(result));
+            pipeline.push_data(0, FormatResult{
+                SqlInsertData(1700000000000, 1700000000100, 10, "INSERT INTO test_table VALUES (...)")
+            });
             rows_generated++;
         }
         producer_done = true;

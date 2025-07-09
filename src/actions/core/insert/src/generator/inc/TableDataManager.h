@@ -57,6 +57,7 @@ private:
     std::unordered_map<std::string, TableState> table_states_;
     std::vector<std::string> table_order_;      // Order of table names
     size_t current_table_index_ = 0;            // Current table index
+    size_t active_table_count_ = 0;             // Count of active tables with data available
     int64_t interlace_rows_ = 1;                // Number of rows to generate per table in interlace mode
     
     // Get the next table with available data

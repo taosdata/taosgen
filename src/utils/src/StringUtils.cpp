@@ -28,3 +28,9 @@ void StringUtils::trim(std::string& str) {
         return !std::isspace(ch);
     }).base(), str.end());
 }
+
+void StringUtils::remove_all_spaces(std::string& str) {
+    str.erase(std::remove_if(str.begin(), str.end(),
+        [](unsigned char ch) { return std::isspace(ch); }),
+        str.end());
+}

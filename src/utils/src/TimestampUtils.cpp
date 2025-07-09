@@ -71,21 +71,85 @@ int64_t TimestampUtils::parse_timestamp(const std::variant<int64_t, std::string>
 
     const std::string& time_str = std::get<std::string>(timestamp);
     std::string trimmed = time_str;
-    StringUtils::trim(trimmed);
+    StringUtils::remove_all_spaces(trimmed);
 
-    // Support "now" or "now()" string semantics
-    if (trimmed == "now" || trimmed == "now()") {
-        return convert_to_timestamp(precision);
+
+    // Support "now" or "now()" and "now()+10s" etc.
+    if (trimmed.rfind("now", 0) == 0) {
+        int64_t base = convert_to_timestamp(precision);
+        size_t pos = trimmed.find_first_of("+-", 3); // after "now"
+        if (pos != std::string::npos) {
+            char op = trimmed[pos];
+            std::string offset_str = trimmed.substr(pos + 1);
+            StringUtils::trim(offset_str);
+
+            // Find unit (if any)
+            size_t unit_pos = offset_str.find_first_not_of("0123456789");
+            std::string number_part = offset_str.substr(0, unit_pos);
+            std::string unit_part;
+            if (unit_pos != std::string::npos)
+                unit_part = offset_str.substr(unit_pos);
+
+            int64_t offset = 0;
+            try {
+                offset = std::stoll(number_part);
+            } catch (...) {
+                throw std::runtime_error("Invalid offset in now() expression: " + trimmed);
+            }
+
+            // Unit conversion
+            int64_t multiplier = 1;
+            if (unit_part == "ns") multiplier = 1LL;
+            else if (unit_part == "us") multiplier = 1000LL;
+            else if (unit_part == "ms") multiplier = 1000LL * 1000LL;
+            else if (unit_part == "s")  multiplier = 1000LL * 1000LL * 1000LL;
+            else if (unit_part == "m")  multiplier = 60LL * 1000LL * 1000LL * 1000LL;
+            else if (unit_part == "h")  multiplier = 60LL * 60LL * 1000LL * 1000LL * 1000LL;
+            else if (unit_part == "d")  multiplier = 24LL * 60LL * 60LL * 1000LL * 1000LL * 1000LL;
+            else if (unit_part.empty()) {
+                // Use precision
+                if (precision == "ns") multiplier = 1LL;
+                else if (precision == "us") multiplier = 1000LL;
+                else if (precision == "ms") multiplier = 1000LL * 1000LL;
+                else if (precision == "s")  multiplier = 1000LL * 1000LL * 1000LL;
+                else if (precision == "m")  multiplier = 60LL * 1000LL * 1000LL * 1000LL;
+                else if (precision == "h")  multiplier = 60LL * 60LL * 1000LL * 1000LL * 1000LL;
+                else if (precision == "d")  multiplier = 24LL * 60LL * 60LL * 1000LL * 1000LL * 1000LL;
+                else throw std::runtime_error("Unknown precision: " + precision);
+            } else {
+                throw std::runtime_error("Unknown time unit: " + unit_part);
+            }
+
+            int64_t delta = offset * multiplier;
+            int64_t delta_in_precision = delta;
+            if (precision == "ns") {
+                // do nothing
+            } else if (precision == "us") {
+                delta_in_precision /= 1000LL;
+            } else if (precision == "ms") {
+                delta_in_precision /= 1000000LL;
+            } else if (precision == "s") {
+                delta_in_precision /= 1000000000LL;
+            } else {
+                throw std::runtime_error("Unknown precision: " + precision);
+            }
+
+            if (op == '+') return base + delta_in_precision;
+            else return base - delta_in_precision;
+        }
+        return base;
     }
+
 
     // Try to convert string to integer timestamp
-    try {
-        return std::stoll(trimmed);
-    } catch (const std::invalid_argument&) {
-
-    } catch (const std::out_of_range&) {
-        throw std::runtime_error("Timestamp value out of range: " + trimmed);
+    if (!trimmed.empty() && std::all_of(trimmed.begin(), trimmed.end(), ::isdigit)) {
+        try {
+            return std::stoll(trimmed);
+        } catch (const std::out_of_range&) {
+            throw std::runtime_error("Timestamp value out of range: " + trimmed);
+        }
     }
+
 
     // Parse ISO time format
     tm time_struct = {};
