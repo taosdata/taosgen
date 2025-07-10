@@ -314,4 +314,4 @@ struct StmtV2InsertData : public BaseInsertData {
 
 
 // General format result type
-using FormatResult = std::variant<std::string, SqlInsertData, StmtV2InsertData>;
+using FormatResult = std::variant<std::string, std::vector<std::string>, SqlInsertData, StmtV2InsertData>;

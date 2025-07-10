@@ -14,7 +14,7 @@ public:
 
 class IDatabaseFormatter : public IFormatter {
 public:
-    virtual FormatResult format(const CreateDatabaseConfig&, bool is_drop) const = 0;
+    virtual FormatResult format(const CreateDatabaseConfig&) const = 0;
 };
 
 
