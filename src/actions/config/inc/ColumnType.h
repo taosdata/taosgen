@@ -44,7 +44,8 @@ enum class ColumnTypeTag {
     BINARY,      // std::string (varchar/binary)
     JSON,        // std::string (json)
     VARBINARY,   // std::vector<uint8_t>
-    GEOMETRY     // Geometry
+    GEOMETRY,    // Geometry
+    MAX
 };
 
 using ColumnType = std::variant<

@@ -67,7 +67,7 @@ struct ColumnConfig {
     // Check if the column type is variable length
     bool is_var_length() const noexcept;
 
-    size_t get_fixed_type_size() const;
+    size_t get_fixed_type_size() const noexcept;
 
     // Convert to TDengine internal type
     int get_taos_type() const noexcept;
