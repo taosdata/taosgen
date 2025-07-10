@@ -105,21 +105,25 @@ bool NativeConnector::execute(const StmtV2InsertData& data) {
     }
 
     // Bind data
-    try {
-        data.data.bind_to_stmt(stmt_);
-    } catch (const std::exception& e) {
-        std::cerr << "Bind failed: " << e.what() << std::endl;
+    int code = taos_stmt2_bind_param(
+        static_cast<TAOS_STMT*>(stmt_),
+        const_cast<TAOS_STMT2_BINDV*>(data.data.bindv_ptr()),
+        -1
+    );
+    if (code != 0) {
+        std::cerr << "Failed to bind parameters: " 
+                  << taos_stmt2_error(static_cast<TAOS_STMT*>(stmt_)) << std::endl;
         return false;
     }
     
     // Execute
     int affected_rows = 0;
-    int code = taos_stmt2_exec(stmt_, &affected_rows);
+    code = taos_stmt2_exec(stmt_, &affected_rows);
     if (code != 0) {
         std::cerr << "Execute failed: " << taos_stmt2_error(stmt_) << std::endl;
         return false;
     }
-    
+
     return true;
 }
 

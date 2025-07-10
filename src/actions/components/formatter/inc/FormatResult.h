@@ -40,7 +40,7 @@ public:
     virtual ~IStmtData() = default;
     virtual size_t row_count() const noexcept = 0;
     virtual size_t column_count() const noexcept = 0;
-    virtual void bind_to_stmt(void* stmt) const = 0;
+    virtual const TAOS_STMT2_BINDV* bindv_ptr() const = 0;
 };
 
 class StmtV2Data : public IStmtData {
@@ -232,14 +232,8 @@ public:
         return first_table.front().columns.size();
     }
     
-    void bind_to_stmt(void* stmt) const override {
-        if (bindv_.count == 0) return;
-        
-        int code = taos_stmt2_bind_param(static_cast<TAOS_STMT*>(stmt), const_cast<TAOS_STMT2_BINDV*>(&bindv_), -1);
-        if (code != 0) {
-            throw std::runtime_error(std::string("Failed to bind parameters: ") + 
-                                   taos_stmt2_error(static_cast<TAOS_STMT*>(stmt)));
-        }
+    const TAOS_STMT2_BINDV* bindv_ptr() const noexcept override {
+        return &bindv_;
     }
     
 private:
