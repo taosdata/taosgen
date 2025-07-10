@@ -22,8 +22,8 @@ private:
     // Get current file path
     std::filesystem::path get_current_file_path(int64_t timestamp);
     
-    // Write CSV content
-    void write_csv(const std::string& data, int64_t timestamp);
+    // Write content
+    void write(const std::string& data, int64_t timestamp);
     
     // Time interval strategy executor
     TimeIntervalStrategy time_strategy_;
