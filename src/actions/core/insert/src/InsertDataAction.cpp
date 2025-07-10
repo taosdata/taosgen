@@ -298,27 +298,33 @@ void InsertDataAction::execute() {
 
 
         // Collect performance metrics
-        ActionMetrics global_metrics;
-        std::vector<ActionMetrics> all_metrics;
-
+        ActionMetrics global_play_metrics;
+        ActionMetrics global_write_metrics;
+        
         for (const auto& writer : writers) {
-            all_metrics.push_back(writer->get_metrics());
+            global_play_metrics.merge_from(writer->get_play_metrics());
+            global_write_metrics.merge_from(writer->get_write_metrics());
         }
-
-        // Merge all metrics
-        global_metrics.merge_from(all_metrics);
-        global_metrics.calculate();
+        
+        global_play_metrics.calculate();
+        global_write_metrics.calculate();
 
         // Print performance statistics
-        double thread_latency = global_metrics.get_sum() / consumer_thread_count / 1000;
+        double thread_latency = global_write_metrics.get_sum() / consumer_thread_count / 1000;
         double effective_ratio = thread_latency / total_duration * 100.0;
+        TimeIntervalStrategy time_strategy(config_.control.time_interval, config_.target.timestamp_precision);
         std::cout << "\n=================================================== Insert Performance Metrics ===============================================\n"
-                << "Total Operations: " << global_metrics.get_samples().size() << "\n"
+                << "Total Operations: " << global_write_metrics.get_samples().size() << "\n"
                 << "Total Duration: " << std::fixed << std::setprecision(2) << total_duration << " seconds\n"
                 << "Pure Insert Latency: " << std::fixed << std::setprecision(2) << thread_latency << " seconds\n"
                 << "Effective Time Ratio: " << std::fixed << std::setprecision(2) << effective_ratio << "%\n"
-                << "Framework Overhead: " << std::fixed << std::setprecision(2) << (100.0 - effective_ratio) << "%\n"
-                << "Latency Distribution: " << global_metrics.get_summary() << "\n"
+                << "Framework Overhead: " << std::fixed << std::setprecision(2) << (100.0 - effective_ratio) << "%\n";
+
+        if (time_strategy.strategy_type() == IntervalStrategyType::Literal) {
+            std::cout << "Play Latency Distribution: " << global_play_metrics.get_summary() << "\n";
+        }
+
+        std::cout << "Write Latency Distribution: " << global_write_metrics.get_summary() << "\n"
                 << "==============================================================================================================================\n\n";
 
         // Clean up resources

@@ -12,6 +12,7 @@ public:
     void add_sample(double duration_ms);
 
     // Merge data from other thread instances
+    void merge_from(const ActionMetrics& other);
     void merge_from(const std::vector<ActionMetrics>& others);
     
     // Calculate final metrics

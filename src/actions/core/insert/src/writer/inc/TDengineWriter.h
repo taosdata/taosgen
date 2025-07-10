@@ -31,7 +31,12 @@ public:
     // Get timestamp precision
     std::string get_timestamp_precision() const override { return timestamp_precision_; }
 
-    const ActionMetrics& get_metrics() const override { return metrics_; }
+    const ActionMetrics& get_play_metrics() const override { return play_metrics_; }
+    const ActionMetrics& get_write_metrics() const override { return write_metrics_; }
+
+    bool is_literal_strategy() const override {
+        return time_strategy_.strategy_type() == IntervalStrategyType::Literal;
+    }
 
 private:
     // Handle data insertion
@@ -60,5 +65,6 @@ private:
     size_t current_retry_count_ = 0;
 
     // Performance statistics
-    ActionMetrics metrics_;
+    ActionMetrics play_metrics_;
+    ActionMetrics write_metrics_;
 };

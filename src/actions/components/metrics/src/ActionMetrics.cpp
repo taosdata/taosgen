@@ -15,6 +15,13 @@ std::vector<double> ActionMetrics::get_samples() const {
     return samples_;
 }
 
+void ActionMetrics::merge_from(const ActionMetrics& other) {
+    const auto& samples = other.get_samples();
+    if (!samples.empty()) {
+        samples_.insert(samples_.end(), samples.begin(), samples.end());
+    }
+}
+
 void ActionMetrics::merge_from(const std::vector<ActionMetrics>& others) {
     // samples_.clear();
 

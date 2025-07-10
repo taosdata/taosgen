@@ -123,7 +123,7 @@ jobs:
                   generator:
                     start_timestamp: now() + 10s
                     timestamp_precision : s
-                    timestamp_step: 3
+                    timestamp_step: 1
 
           # target
           target:
@@ -145,7 +145,7 @@ jobs:
               interlace_mode:
                 enabled: true
                 rows: 1
-              generate_threads: 2
+              generate_threads: 1
               per_table_rows: 100
             insert_control:
               per_request_rows: 10000
@@ -155,3 +155,4 @@ jobs:
             time_interval:
               enabled: true
               interval_strategy: literal
+              wait_strategy: sleep

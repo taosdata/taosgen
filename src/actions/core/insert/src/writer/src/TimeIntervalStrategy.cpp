@@ -3,12 +3,22 @@
 #include <thread>
 
 
+IntervalStrategyType parse_strategy(const std::string& s) {
+    if (s == "fixed") return IntervalStrategyType::Fixed;
+    if (s == "first_to_first") return IntervalStrategyType::FirstToFirst;
+    if (s == "last_to_first") return IntervalStrategyType::LastToFirst;
+    if (s == "literal") return IntervalStrategyType::Literal;
+    return IntervalStrategyType::Unknown;
+}
+
 TimeIntervalStrategy::TimeIntervalStrategy(
     const InsertDataConfig::Control::TimeInterval& config,
     const std::string& timestamp_precision)
     : config_(config)
     , timestamp_precision_(timestamp_precision)
-    , last_write_time_(std::chrono::steady_clock::now()) {}
+    , last_write_time_(std::chrono::steady_clock::now())
+    , strategy_type_(parse_strategy(config.interval_strategy))
+    {}
 
 int64_t TimeIntervalStrategy::to_milliseconds(int64_t ts) const {
     if (timestamp_precision_ == "ms") return ts;
@@ -62,7 +72,7 @@ void TimeIntervalStrategy::apply_wait_strategy(
 {
     (void)current_end_time;
 
-    if (!config_.enabled || is_first_write) {
+    if (!config_.enabled || (is_first_write && strategy_type_ != IntervalStrategyType::Literal)) {
         last_write_time_ = std::chrono::steady_clock::now();
         return;
     }
@@ -70,18 +80,26 @@ void TimeIntervalStrategy::apply_wait_strategy(
     int64_t wait_time_ms = 0;
     
     // Calculate wait time
-    if (config_.interval_strategy == "fixed") {
-        wait_time_ms = fixed_interval_strategy();
-    } else if (config_.interval_strategy == "first_to_first") {
-        wait_time_ms = first_to_first_strategy(current_start_time, last_start_time);
-        wait_time_ms = clamp_interval(wait_time_ms);
-    } else if (config_.interval_strategy == "last_to_first") {
-        wait_time_ms = last_to_first_strategy(current_start_time, last_end_time);
-        wait_time_ms = clamp_interval(wait_time_ms);
-    } else if (config_.interval_strategy == "literal") {
-        wait_time_ms = literal_strategy(current_start_time);
+    switch (strategy_type_) {
+        case IntervalStrategyType::Fixed:
+            wait_time_ms = fixed_interval_strategy();
+            break;
+        case IntervalStrategyType::FirstToFirst:
+            wait_time_ms = first_to_first_strategy(current_start_time, last_start_time);
+            wait_time_ms = clamp_interval(wait_time_ms);
+            break;
+        case IntervalStrategyType::LastToFirst:
+            wait_time_ms = last_to_first_strategy(current_start_time, last_end_time);
+            wait_time_ms = clamp_interval(wait_time_ms);
+            break;
+        case IntervalStrategyType::Literal:
+            wait_time_ms = literal_strategy(current_start_time);
+            break;
+        default:
+            wait_time_ms = 0;
+            break;
     }
-    
+
     // Execute wait strategy
     if (wait_time_ms > 0) {
         if (config_.wait_strategy == "sleep") {
