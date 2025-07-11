@@ -13,6 +13,7 @@
 #include "TableDataManager.h"
 #include "WriterFactory.h"
 #include "TimeRecorder.h"
+#include "ProcessUtils.h"
 
 
 void set_realtime_priority() {
@@ -176,6 +177,7 @@ void InsertDataAction::execute() {
             });
         }
 
+        (void)ProcessUtils::get_cpu_usage_percent();
         std::this_thread::sleep_for(std::chrono::seconds(2));
 
         // Start consumer threads
@@ -221,11 +223,22 @@ void InsertDataAction::execute() {
             
             // Calculate total runtime
             const auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - start_time);
-            
+            double mem_mb = ProcessUtils::get_memory_usage_mb();
+            std::ostringstream mem_usage_ss;
+            mem_usage_ss << std::fixed << std::setprecision(2);
+            if (mem_mb < 1024.0) {
+                mem_usage_ss << mem_mb << " MB";
+            } else {
+                mem_usage_ss << (mem_mb / 1024.0) << " GB";
+            }
+
             std::cout << "Runtime: " << duration.count() << "s | "
-                     << "Rate: " << std::fixed << std::setprecision(1) << rows_per_sec << " rows/s | "
-                     << "Total: " << total_rows << " rows | "
-                     << "Queue: " << pipeline.total_queued() << " items\n";
+                    << "Rate: " << std::fixed << std::setprecision(1) << rows_per_sec << " rows/s | "
+                    << "Total: " << total_rows << " rows | "
+                    << "Queue: " << pipeline.total_queued() << " items | "
+                    << "CPU Usage: " << std::fixed << std::setprecision(2) << ProcessUtils::get_cpu_usage_percent() << "% | "
+                    << "Memory Usage: " << mem_usage_ss.str() << " | "
+                    << "Thread Count: " << ProcessUtils::get_thread_count() << "\n";
         }
 
         std::cout << "All producer threads have finished." << std::endl;
