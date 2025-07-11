@@ -253,30 +253,7 @@ void InsertDataAction::execute() {
         }
 
         const auto end_time = std::chrono::steady_clock::now();
-
-        // Calculate final total rows
-        size_t final_total_rows = 0;
-        for (const auto& manager : data_managers) {
-            final_total_rows += manager->get_total_rows_generated();
-        }
-        
-        // Calculate total duration (seconds)
-        const auto total_duration = std::chrono::duration<double>(end_time - start_time).count();
-        
-        // Calculate average insert rate
-        const double avg_rows_per_sec = total_duration > 0 ? 
-            static_cast<double>(final_total_rows) / total_duration : 0.0;
-
-        // Print performance statistics
-        std::cout << "\n=================================================== Performance Statistics ===================================================\n"
-                  << "Insert Threads: " << consumer_thread_count << "\n"
-                  << "Total Rows: " << final_total_rows << "\n"
-                  << "Total Duration: " << std::fixed << std::setprecision(2) 
-                  << total_duration << " seconds\n"
-                  << "Average Rate: " << std::fixed << std::setprecision(2) 
-                  << avg_rows_per_sec << " rows/second\n"
-                  << "==============================================================================================================================\n\n";
-
+        (void)end_time;
 
         // 7. Wait for producers to finish
         for (auto& t : producer_threads) {
@@ -295,7 +272,46 @@ void InsertDataAction::execute() {
             if (t.joinable()) t.join();
         }
 
+        // Calculate final total rows
+        size_t final_total_rows = 0;
+        for (const auto& manager : data_managers) {
+            final_total_rows += manager->get_total_rows_generated();
+        }
 
+        // Obtain the minimum value of the start_write_time() for all writers
+        auto min_start_write_time = std::chrono::steady_clock::time_point::max();
+        for (const auto& writer : writers) {
+            auto t = writer->start_write_time();
+            if (t < min_start_write_time) {
+                min_start_write_time = t;
+            }
+        }
+
+        // Obtain the maximum value of the end_write_time() for all writers
+        auto max_end_write_time = std::chrono::steady_clock::time_point::min();
+        for (const auto& writer : writers) {
+            auto t = writer->end_write_time();
+            if (t > max_end_write_time) {
+                max_end_write_time = t;
+            }
+        }
+
+        // Calculate total duration (seconds)
+        const auto total_duration = std::chrono::duration<double>(max_end_write_time - min_start_write_time).count();
+        
+        // Calculate average insert rate
+        const double avg_rows_per_sec = total_duration > 0 ? 
+            static_cast<double>(final_total_rows) / total_duration : 0.0;
+
+        // Print performance statistics
+        std::cout << "\n=============================================== Insert Summary Statistics ====================================================\n"
+                  << "Insert Threads: " << consumer_thread_count << "\n"
+                  << "Total Rows: " << final_total_rows << "\n"
+                  << "Total Duration: " << std::fixed << std::setprecision(2) 
+                  << total_duration << " seconds\n"
+                  << "Average Rate: " << std::fixed << std::setprecision(2) 
+                  << avg_rows_per_sec << " rows/second\n"
+                  << "==============================================================================================================================\n\n";
 
         // Collect performance metrics
         ActionMetrics global_play_metrics;
@@ -313,7 +329,7 @@ void InsertDataAction::execute() {
         double thread_latency = global_write_metrics.get_sum() / consumer_thread_count / 1000;
         double effective_ratio = thread_latency / total_duration * 100.0;
         TimeIntervalStrategy time_strategy(config_.control.time_interval, config_.target.timestamp_precision);
-        std::cout << "\n=================================================== Insert Performance Metrics ===============================================\n"
+        std::cout << "\n=============================================== Insert Latency & Efficiency Metrics ==========================================\n"
                 << "Total Operations: " << global_write_metrics.get_samples().size() << "\n"
                 << "Total Duration: " << std::fixed << std::setprecision(2) << total_duration << " seconds\n"
                 << "Pure Insert Latency: " << std::fixed << std::setprecision(2) << thread_latency << " seconds\n"

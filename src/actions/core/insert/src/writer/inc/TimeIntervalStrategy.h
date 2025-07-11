@@ -29,7 +29,11 @@ public:
 
     // Dynamic interval clamping
     int64_t clamp_interval(int64_t interval) const;
-    
+
+    std::chrono::steady_clock::time_point last_write_time() const noexcept {
+        return last_write_time_;
+    }
+
     IntervalStrategyType strategy_type() const noexcept {
         return strategy_type_;
     }

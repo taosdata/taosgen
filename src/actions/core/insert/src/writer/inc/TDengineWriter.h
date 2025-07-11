@@ -34,6 +34,14 @@ public:
     const ActionMetrics& get_play_metrics() const override { return play_metrics_; }
     const ActionMetrics& get_write_metrics() const override { return write_metrics_; }
 
+    std::chrono::steady_clock::time_point start_write_time() const noexcept override {
+        return start_write_time_;
+    }
+
+    std::chrono::steady_clock::time_point end_write_time() const noexcept override {
+        return end_write_time_;
+    }
+
     bool is_literal_strategy() const override {
         return time_strategy_.strategy_type() == IntervalStrategyType::Literal;
     }
@@ -53,6 +61,8 @@ private:
     // const ColumnConfigInstanceVector& col_instances_;
     std::string timestamp_precision_;
     TimeIntervalStrategy time_strategy_;
+    std::chrono::steady_clock::time_point start_write_time_;
+    std::chrono::steady_clock::time_point end_write_time_;
 
     std::unique_ptr<DatabaseConnector> connector_;
 

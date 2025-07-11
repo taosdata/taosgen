@@ -7,7 +7,9 @@
 TDengineWriter::TDengineWriter(const InsertDataConfig& config)
         : config_(config),
           timestamp_precision_(config.target.timestamp_precision),
-          time_strategy_(config.control.time_interval, config.target.timestamp_precision) {
+          time_strategy_(config.control.time_interval, config.target.timestamp_precision),
+          start_write_time_(std::chrono::steady_clock::now()),
+          end_write_time_(std::chrono::steady_clock::now()) {
     
     // Validate timestamp precision
     if (timestamp_precision_.empty()) {
@@ -78,6 +80,7 @@ void TDengineWriter::write(const BaseInsertData& data) {
 
     // Update state
     if (write_success) {
+        end_write_time_ = std::chrono::steady_clock::now();
         last_start_time_ = data.start_time;
         last_end_time_ = data.end_time;
         current_retry_count_ = 0;
@@ -147,4 +150,7 @@ void TDengineWriter::apply_time_interval_strategy(int64_t current_start, int64_t
         last_start_time_, last_end_time_,
         first_write_
     );
+    if (first_write_ == true) {
+        start_write_time_ = time_strategy_.last_write_time();
+    }
 }
