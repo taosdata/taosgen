@@ -1,0 +1,31 @@
+#pragma once
+#include <variant>
+#include <chrono>
+#include "FormatResult.h"
+#include "InsertDataConfig.h"
+#include "ActionMetrics.h"
+
+class IWriter {
+public:
+    virtual ~IWriter() = default;
+    
+    // Connect/open resource
+    virtual bool connect() = 0;
+    
+    // Select database
+    virtual bool select_db(const std::string& db_name) = 0;
+
+    // Prepare for write operation
+    virtual bool prepare(const std::string& sql) = 0;
+
+    // Execute write operation
+    virtual void write(const BaseInsertData& data) = 0;
+    
+    // Close/release resource
+    virtual void close() noexcept = 0;
+    
+    // Get timestamp precision
+    virtual std::string get_timestamp_precision() const = 0;
+
+    virtual const ActionMetrics& get_metrics() const = 0; 
+};
