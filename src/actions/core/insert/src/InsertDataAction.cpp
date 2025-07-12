@@ -77,7 +77,7 @@ void InsertDataAction::execute() {
             throw std::runtime_error("No table names were generated");
         }
         
-        auto split_names = name_manager.split_for_threads();
+        const auto split_names = name_manager.split_for_threads();
         
         // Check split result
         if (split_names.size() != config_.control.data_generation.generate_threads) {
@@ -166,7 +166,7 @@ void InsertDataAction::execute() {
             auto data_manager = std::make_shared<TableDataManager>(config_, col_instances);
             data_managers.push_back(data_manager);
 
-            producer_threads.emplace_back([=, this, &pipeline, &active_producers, &producer_finished] {
+            producer_threads.emplace_back([this, i, &split_names, &col_instances, &pipeline, data_manager, &active_producers, &producer_finished] {
                 try {
                     producer_thread_function(i, split_names[i], col_instances, pipeline, data_manager);
                     producer_finished[i].store(true);
@@ -223,21 +223,13 @@ void InsertDataAction::execute() {
             
             // Calculate total runtime
             const auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - start_time);
-            double mem_mb = ProcessUtils::get_memory_usage_mb();
-            std::ostringstream mem_usage_ss;
-            mem_usage_ss << std::fixed << std::setprecision(2);
-            if (mem_mb < 1024.0) {
-                mem_usage_ss << mem_mb << " MB";
-            } else {
-                mem_usage_ss << (mem_mb / 1024.0) << " GB";
-            }
 
             std::cout << "Runtime: " << duration.count() << "s | "
                     << "Rate: " << std::fixed << std::setprecision(1) << rows_per_sec << " rows/s | "
                     << "Total: " << total_rows << " rows | "
                     << "Queue: " << pipeline.total_queued() << " items | "
                     << "CPU Usage: " << std::fixed << std::setprecision(2) << ProcessUtils::get_cpu_usage_percent() << "% | "
-                    << "Memory Usage: " << mem_usage_ss.str() << " | "
+                    << "Memory Usage: " << ProcessUtils::get_memory_usage_human_readable() << " | "
                     << "Thread Count: " << ProcessUtils::get_thread_count() << "\n";
         }
 
@@ -255,10 +247,13 @@ void InsertDataAction::execute() {
             if (interval >= 1.0) {
                 size_t current_queue_size = pipeline.total_queued();
                 double process_rate = (last_queue_size - current_queue_size) / interval;
-                
+        
                 std::cout << "Remaining queue items: " << current_queue_size 
                           << " | Processing rate: " << std::fixed << std::setprecision(1) 
-                          << process_rate << " items/s" << std::endl;
+                          << process_rate << " items/s | "
+                          << "CPU Usage: " << std::fixed << std::setprecision(2) << ProcessUtils::get_cpu_usage_percent() << "% | "
+                          << "Memory Usage: " << ProcessUtils::get_memory_usage_human_readable() << " | "
+                          << "Thread Count: " << ProcessUtils::get_thread_count() << "\n";
                 
                 last_queue_size = current_queue_size;
                 last_check_time = current_time;

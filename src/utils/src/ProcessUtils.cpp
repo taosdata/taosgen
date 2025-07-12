@@ -2,6 +2,7 @@
 #include <fstream>
 #include <string>
 #include <sstream>
+#include <iomanip>
 #include <atomic>
 #include <mutex>
 #include <vector>
@@ -25,6 +26,19 @@ double get_memory_usage_mb() {
         }
     }
     return -1.0;
+}
+
+std::string get_memory_usage_human_readable() {
+    double mem_mb = get_memory_usage_mb();
+    if (mem_mb < 0) return "Unknown";
+    std::ostringstream mem_usage_ss;
+    mem_usage_ss << std::fixed << std::setprecision(2);
+    if (mem_mb < 1024.0) {
+        mem_usage_ss << mem_mb << " MB";
+    } else {
+        mem_usage_ss << (mem_mb / 1024.0) << " GB";
+    }
+    return mem_usage_ss.str();
 }
 
 int get_thread_count() {
