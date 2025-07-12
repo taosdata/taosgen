@@ -6,7 +6,7 @@
 #include <variant>
 #include <type_traits>
 #include <pthread.h>
-#include <barrier> 
+#include "Barrier.h"
 #include "FormatterRegistrar.h"
 #include "FormatterFactory.h"
 #include "TableNameManager.h"
@@ -104,7 +104,7 @@ void InsertDataAction::execute() {
         
         // Create data pipeline
         DataPipeline<FormatResult> pipeline(producer_thread_count, consumer_thread_count, queue_capacity);
-        std::barrier sync_barrier(consumer_thread_count + 1);
+        Barrier sync_barrier(consumer_thread_count + 1);
 
         // 4. Start consumer threads
         std::vector<std::thread> consumer_threads;
