@@ -48,7 +48,7 @@ public:
     explicit StmtV2Data(const ColumnConfigInstanceVector& col_instances, MultiBatch&& batch) 
         : batch_(std::move(batch)), col_instances_(col_instances) {
         
-        size_t table_count = batch_.table_batches.size();
+        const size_t table_count = batch_.table_batches.size();
         if (table_count == 0) return;
 
         bindv_.count = static_cast<int>(table_count);
@@ -56,14 +56,17 @@ public:
         column_bind_ptrs_.reserve(table_count);
         
         // Pre-calculate total column count (including timestamp)
-        size_t total_col_count = col_instances_.size() + 1;
-        
+        const size_t total_col_count = col_instances_.size() + 1;
+
+        table_memories_.reserve(table_count);
+        column_binds_.reserve(table_count);
+
         // Process each sub-table
         for (auto& [table_name, rows] : batch_.table_batches) {
             if (rows.empty()) continue;
             
             table_names_.push_back(table_name.c_str());
-            size_t row_count = rows.size();
+            const size_t row_count = rows.size();
             
             // Create column binding structure for current sub-table
             std::vector<TAOS_STMT2_BIND> col_binds;
@@ -77,14 +80,12 @@ public:
             {
                 auto& mem = table_mem.column_data[0];
                 mem.buffer.resize(row_count * sizeof(int64_t));
-                mem.lengths.resize(row_count);
-                mem.is_nulls.resize(row_count, 0); // All initialized as non-NULL
-                
-                // Copy timestamp data
+                mem.lengths.assign(row_count, sizeof(int64_t));
+                mem.is_nulls.assign(row_count, 0);
+
                 int64_t* ts_buf = reinterpret_cast<int64_t*>(mem.buffer.data());
-                for (size_t i = 0; i < row_count; i++) {
+                for (size_t i = 0; i < row_count; ++i) {
                     ts_buf[i] = rows[i].timestamp;
-                    mem.lengths[i] = sizeof(int64_t);
                 }
                 
                 col_binds.push_back(TAOS_STMT2_BIND{
@@ -102,76 +103,94 @@ public:
                 auto& mem = table_mem.column_data[col_idx + 1];
                 
                 // Get column type and attributes
-                int taos_type = col_config.config().get_taos_type();
-                bool is_var_len = col_config.config().is_var_length();
-                size_t element_size = is_var_len ? col_config.config().len.value()
-                                                 : col_config.config().get_fixed_type_size();
+                const int taos_type = col_config.config().get_taos_type();
+                const bool is_var_len = col_config.config().is_var_length();
+                const size_t element_size = is_var_len ? col_config.config().len.value()
+                                                       : col_config.config().get_fixed_type_size();
+
+                mem.is_nulls.assign(row_count, 0);
                 
-                // Allocate memory
-                mem.buffer.resize(row_count * element_size);
-                mem.lengths.resize(row_count);
-                mem.is_nulls.resize(row_count, 0); // All non-NULL for now
-                
-                // Copy column data
-                size_t current_offset = 0;
-                char* col_buf = mem.buffer.data();
-                for (size_t row_idx = 0; row_idx < row_count; row_idx++) {
-                    const auto& col_data = rows[row_idx].columns[col_idx];
+                if (!is_var_len) {
+                    mem.buffer.resize(row_count * element_size);
+                    mem.lengths.assign(row_count, 0);
                     
-                    // Handle variable-length types
-                    if (is_var_len) {
+                    char* col_buf = mem.buffer.data();
+                    const size_t stride = element_size;
+                    
+                    for (size_t row_idx = 0; row_idx < row_count; ++row_idx) {
+                        const auto& col_data = rows[row_idx].columns[col_idx];
+                        
                         std::visit([&](const auto& value) {
                             using T = std::decay_t<decltype(value)>;
-                            if constexpr (std::is_same_v<T, std::string>) {
-                                size_t data_len = std::min(value.length(), element_size);
-                                memcpy(col_buf + current_offset, value.data(), data_len);
-                                mem.lengths[row_idx] = static_cast<int32_t>(data_len);
-                                current_offset += data_len;
-                            }
-                            else if constexpr (std::is_same_v<T, std::u16string>) {
-                                size_t data_len = std::min(value.length() * sizeof(char16_t), element_size);
-                                memcpy(col_buf + current_offset, value.data(), data_len);
-                                mem.lengths[row_idx] = static_cast<int32_t>(data_len);
-                                current_offset += data_len;
-                            }
-                            else if constexpr (std::is_same_v<T, std::vector<uint8_t>>) {
-                                size_t data_len = std::min(value.size(), element_size);
-                                memcpy(col_buf + current_offset, value.data(), data_len);
-                                mem.lengths[row_idx] = static_cast<int32_t>(data_len);
-                                current_offset += data_len;
-                            }
-                        }, col_data);
-                    } 
-                    // Handle fixed-length types
-                    else {
-                        std::visit([&](const auto& value) {
-                            using T = std::decay_t<decltype(value)>;
-                            if constexpr (std::is_arithmetic_v<T> || std::is_same_v<T, bool>) {
-                                // For arithmetic and bool types
-                                memcpy(col_buf + row_idx * element_size, &value, element_size);
-                                mem.lengths[row_idx] = 0;
-                            }
-                            else if constexpr (std::is_same_v<T, Decimal>) {
-                                // Special handling for decimal type
-                                memcpy(col_buf + row_idx * element_size, &value, element_size);
-                                mem.lengths[row_idx] = 0;
+                            if constexpr (std::is_arithmetic_v<T> || 
+                                         std::is_same_v<T, bool> || 
+                                         std::is_same_v<T, Decimal>) 
+                            {
+                                memcpy(col_buf + row_idx * stride, &value, stride);
                             }
                             else {
-                                throw std::runtime_error("Unsupported data type for fixed-length column");
+                                throw std::runtime_error("Unsupported fixed-length type");
                             }
                         }, col_data);
                     }
+                } else {
+                    // Calculate the total memory requirement in advance
+                    size_t total_bytes = 0;
+                    std::vector<size_t> data_lengths(row_count);
                     
-                    // TODO: NULL value handling (requires RowData support)
-                }
-
-                if (is_var_len) {
-                    mem.buffer.resize(current_offset);
+                    for (size_t row_idx = 0; row_idx < row_count; ++row_idx) {
+                        const auto& col_data = rows[row_idx].columns[col_idx];
+                        
+                        std::visit([&](const auto& value) {
+                            using T = std::decay_t<decltype(value)>;
+                            if constexpr (std::is_same_v<T, std::string>) {
+                                data_lengths[row_idx] = std::min(value.size(), element_size);
+                            }
+                            else if constexpr (std::is_same_v<T, std::u16string>) {
+                                data_lengths[row_idx] = std::min(value.size() * sizeof(char16_t), element_size);
+                            }
+                            else if constexpr (std::is_same_v<T, std::vector<uint8_t>>) {
+                                data_lengths[row_idx] = std::min(value.size(), element_size);
+                            }
+                            else {
+                                throw std::runtime_error("Unsupported var-length type");
+                            }
+                            total_bytes += data_lengths[row_idx];
+                        }, col_data);
+                    }
+                    
+                    // Allocate memory at one time
+                    mem.buffer.resize(total_bytes);
+                    mem.lengths.resize(row_count);
+                    
+                    char* col_buf = mem.buffer.data();
+                    size_t offset = 0;
+                    
+                    for (size_t row_idx = 0; row_idx < row_count; ++row_idx) {
+                        const auto& col_data = rows[row_idx].columns[col_idx];
+                        const size_t data_len = data_lengths[row_idx];
+                        
+                        std::visit([&](const auto& value) {
+                            using T = std::decay_t<decltype(value)>;
+                            if constexpr (std::is_same_v<T, std::string>) {
+                                memcpy(col_buf + offset, value.data(), data_len);
+                            }
+                            else if constexpr (std::is_same_v<T, std::u16string>) {
+                                memcpy(col_buf + offset, value.data(), data_len);
+                            }
+                            else if constexpr (std::is_same_v<T, std::vector<uint8_t>>) {
+                                memcpy(col_buf + offset, value.data(), data_len);
+                            }
+                        }, col_data);
+                        
+                        mem.lengths[row_idx] = static_cast<int32_t>(data_len);
+                        offset += data_len;
+                    }
                 }
 
                 col_binds.push_back(TAOS_STMT2_BIND{
                     taos_type,
-                    col_buf,
+                    mem.buffer.data(),
                     mem.lengths.data(),
                     mem.is_nulls.data(),
                     static_cast<int>(row_count)
@@ -184,6 +203,7 @@ public:
         }
         
         // Set pointer arrays
+        column_bind_ptrs_.reserve(column_binds_.size());
         for (auto& binds : column_binds_) {
             column_bind_ptrs_.push_back(binds.data());
         }
