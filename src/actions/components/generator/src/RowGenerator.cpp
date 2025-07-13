@@ -35,34 +35,36 @@ RowType RowGenerator::generate() const {
 }
 
 std::vector<RowType> RowGenerator::generate(size_t count) const {
+    const bool has_timestamp = (timestamp_gen_ != nullptr);
+    const size_t num_columns = column_gens_.size() + (has_timestamp ? 1 : 0);
+    
     std::vector<RowType> rows;
-    rows.reserve(count);
-
+    rows.resize(count);
+    
+    // timestamp
     std::vector<Timestamp> timestamps;
-    if (timestamp_gen_) {
+    if (has_timestamp) {
         timestamps = timestamp_gen_->generate(count);
     }
 
+    // data columns
     std::vector<ColumnTypeVector> columns;
     columns.reserve(column_gens_.size());
-
     for (const auto& gen : column_gens_) {
         columns.push_back(gen->generate(count));
     }
 
     for (size_t i = 0; i < count; ++i) {
-        RowType row;
-        row.reserve(columns.size() + (timestamp_gen_ ? 1 : 0));
-
-        if (timestamp_gen_) {
-            row.push_back(timestamps[i]);
+        auto& row = rows[i];
+        row.reserve(num_columns);
+        
+        if (has_timestamp) {
+            row.emplace_back(timestamps[i]);
         }
         
-        for (const auto& column : columns) {
-            row.push_back(column[i]);
+        for (size_t col_idx = 0; col_idx < columns.size(); ++col_idx) {
+            row.emplace_back(columns[col_idx][i]);
         }
-
-        rows.push_back(std::move(row));
     }
     
     return rows;

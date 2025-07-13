@@ -147,6 +147,7 @@ jobs:
                 rows: 1
               generate_threads: 1
               per_table_rows: 100
+              queue_capacity: 100
             insert_control:
               per_request_rows: 10000
               auto_create_table: false

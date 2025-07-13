@@ -13,6 +13,5 @@ public:
     
     virtual ColumnTypeVector generate(size_t count) const = 0;
 
-protected:
     ColumnConfigInstance instance_;
 };
