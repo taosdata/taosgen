@@ -113,7 +113,8 @@ void InsertDataAction::execute() {
         std::vector<std::unique_ptr<IWriter>> writers;
         writers.reserve(consumer_thread_count);
 
-        GarbageCollector<DataPipeline<FormatResult>::Result> gc(consumer_thread_count, 10);
+        const size_t group_size = 10;
+        GarbageCollector<DataPipeline<FormatResult>::Result> gc((consumer_thread_count + group_size - 1) / group_size);
 
         // Create all writer instances
         auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(config_.control.data_format);
@@ -465,7 +466,7 @@ void InsertDataAction::consumer_thread_function(
 
                 }, *result.data);
 
-                gc.dispose(consumer_id, std::move(result));
+                gc.dispose(std::move(result));
 
             } catch (const std::exception& e) {
                 std::cerr << "Consumer " << consumer_id << " write failed: " << e.what() << std::endl;

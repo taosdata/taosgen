@@ -20,38 +20,38 @@ void test_gc_single_thread_dispose() {
     Dummy::destruct_count = 0;
     {
         GarbageCollector<Dummy> gc(1);
-        gc.dispose(0, Dummy(1));
-        gc.dispose(0, Dummy(2));
-        gc.dispose(0, Dummy(3));
+        gc.dispose(Dummy(1));
+        gc.dispose(Dummy(2));
+        gc.dispose(Dummy(3));
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
-    assert(Dummy::destruct_count == 6 && "All Dummy destructors should be called");
+    assert(Dummy::destruct_count == 3*2 && "All Dummy destructors should be called");
     std::cout << "test_gc_single_thread_dispose passed\n";
 }
 
 void test_gc_multi_thread_dispose() {
     Dummy::destruct_count = 0;
     {
-        GarbageCollector<Dummy> gc(4, 2);
+        GarbageCollector<Dummy> gc(4);
         std::vector<std::thread> writers;
         for (int i = 0; i < 8; ++i) {
             writers.emplace_back([&gc, i] {
-                gc.dispose(i, Dummy(i));
+                gc.dispose(Dummy(i));
             });
         }
         for (auto& t : writers) t.join();
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
-    assert(Dummy::destruct_count == 16 && "All Dummy destructors should be called in multi-threaded case");
+    assert(Dummy::destruct_count == 8*2 && "All Dummy destructors should be called in multi-threaded case");
     std::cout << "test_gc_multi_thread_dispose passed\n";
 }
 
 void test_gc_terminate() {
     Dummy::destruct_count = 0;
     GarbageCollector<Dummy> gc(2);
-    gc.dispose(0, Dummy(1));
+    gc.dispose(Dummy(1));
     gc.terminate();
-    gc.dispose(1, Dummy(2)); // Should not be processed
+    gc.dispose(Dummy(2)); // Should not be processed
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     assert(Dummy::destruct_count == 3 && "Only one Dummy should be destroyed after terminate");
     std::cout << "test_gc_terminate passed\n";
@@ -61,11 +61,11 @@ void test_gc_destruction_flushes() {
     Dummy::destruct_count = 0;
     {
         GarbageCollector<Dummy> gc(2);
-        gc.dispose(0, Dummy(1));
-        gc.dispose(1, Dummy(2));
+        gc.dispose(Dummy(1));
+        gc.dispose(Dummy(2));
         // Don't wait, let destructor flush
     }
-    assert(Dummy::destruct_count == 4 && "Destructor should flush all remaining tasks");
+    assert(Dummy::destruct_count == 2*2 && "Destructor should flush all remaining tasks");
     std::cout << "test_gc_destruction_flushes passed\n";
 }
 
