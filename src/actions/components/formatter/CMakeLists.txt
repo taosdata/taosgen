@@ -1,6 +1,7 @@
 # Create library target
 add_library(components_formatter STATIC 
   src/FormatterFactory.cpp
+  src/StmtV2Data.cpp
 )
 
 # Set include directories

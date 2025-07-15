@@ -18,6 +18,7 @@ target_include_directories(components_connector
 # Link dependencies
 target_link_libraries(components_connector
   PUBLIC 
+    components_formatter
     actions_config
     ${TAOS_LIBRARIES}
 )

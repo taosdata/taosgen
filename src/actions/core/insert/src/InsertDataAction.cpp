@@ -1,5 +1,6 @@
 #include "InsertDataAction.h"
 #include <sched.h>
+#include <cstring>
 #include <iostream>
 #include <chrono>
 #include <thread>
