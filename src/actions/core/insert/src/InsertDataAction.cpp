@@ -7,7 +7,6 @@
 #include <variant>
 #include <type_traits>
 #include <pthread.h>
-#include "Barrier.h"
 #include "FormatterRegistrar.h"
 #include "FormatterFactory.h"
 #include "TableNameManager.h"
@@ -105,6 +104,7 @@ void InsertDataAction::execute() {
         const size_t producer_thread_count = config_.control.data_generation.generate_threads;
         const size_t consumer_thread_count = config_.control.insert_control.insert_threads;
         const size_t queue_capacity = config_.control.data_generation.queue_capacity;
+        const double queue_warmup_ratio = config_.control.data_generation.queue_warmup_ratio;
         
         size_t block_count = (queue_capacity + 2) * producer_thread_count;
         size_t max_tables_per_block = std::min(name_manager.chunk_size(), config_.control.insert_control.per_request_rows);
@@ -196,14 +196,24 @@ void InsertDataAction::execute() {
         (void)ProcessUtils::get_cpu_usage_percent();
         std::this_thread::sleep_for(std::chrono::seconds(2));
 
+        while (true) {
+            size_t total_queued = pipeline.total_queued();
+            double queue_ratio = static_cast<double>(total_queued) / (producer_thread_count * queue_capacity);
+
+            std::cout << "[Warmup] Queue fill ratio: " << std::fixed << std::setprecision(2)
+                      << (queue_ratio * 100) << "%, target: " << (queue_warmup_ratio * 100) << "%" << std::endl;
+        
+            if (queue_ratio >= queue_warmup_ratio) break;
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        }
+
         // Start consumer threads
         for (size_t i = 0; i < consumer_thread_count; i++) {
 
             consumer_threads.emplace_back([this, i, &pipeline, &consumer_running, &writers, &gc, &sync_barrier] {
                 set_thread_affinity(i, true, "Consumer");
                 set_realtime_priority();
-                sync_barrier.arrive_and_wait();
-                consumer_thread_function(i, pipeline, consumer_running[i], writers[i].get(), gc);
+                consumer_thread_function(i, pipeline, consumer_running[i], writers[i].get(), gc, sync_barrier);
             });
         }
 
@@ -450,12 +460,16 @@ void InsertDataAction::consumer_thread_function(
     DataPipeline<FormatResult>& pipeline,
     std::atomic<bool>& running,
     IWriter* writer,
-    GarbageCollector<FormatResult>& gc)
+    GarbageCollector<FormatResult>& gc,
+    Barrier& sync_barrier)
 {
     // Failure retry logic
     const auto& failure_cfg = config_.control.insert_control.failure_handling;
     size_t retry_count = 0;
     
+
+    sync_barrier.arrive_and_wait();
+
     // Data processing loop
     (void)running;
     while (true) {

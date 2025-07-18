@@ -856,7 +856,7 @@ namespace YAML {
         static bool decode(const Node& node, InsertDataConfig::Control::DataGeneration& rhs) {
             // Detect unknown configuration keys at the top level
             static const std::set<std::string> valid_keys = {
-                "interlace_mode", "data_cache", "flow_control", "generate_threads", "per_table_rows", "queue_capacity"
+                "interlace_mode", "data_cache", "flow_control", "generate_threads", "per_table_rows", "queue_capacity", "queue_warmup_ratio"
             };
             check_unknown_keys(node, valid_keys, "insert-data::control::data_generation");
 
@@ -913,6 +913,9 @@ namespace YAML {
             }
             if (node["queue_capacity"]) {
                 rhs.queue_capacity = node["queue_capacity"].as<int>();
+            }
+            if (node["queue_warmup_ratio"]) {
+                rhs.queue_warmup_ratio = node["queue_warmup_ratio"].as<double>();
             }
             return true;
         }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include "Barrier.h"
 #include "ActionBase.h"
 #include "ActionFactory.h"
 #include "InsertDataConfig.h"
@@ -38,7 +39,8 @@ private:
         DataPipeline<FormatResult>& pipeline,
         std::atomic<bool>& running,
         IWriter* writer,
-        GarbageCollector<FormatResult>& gc);
+        GarbageCollector<FormatResult>& gc,
+        Barrier& sync_barrier);
 
     // Register InsertDataAction to ActionFactory
     inline static bool registered_ = []() {
