@@ -29,30 +29,33 @@ void set_realtime_priority() {
 #endif
 }
 
-void set_thread_affinity(size_t thread_id) {
+void set_thread_affinity(size_t thread_id, bool reverse = false, const std::string& purpose = "") {
 #if defined(__linux__) || defined(__APPLE__)
     // Get available CPU cores
     unsigned int num_cores = std::thread::hardware_concurrency();
     if (num_cores == 0) num_cores = 1;
-    
-    // Calculate core ID, ensuring it's within valid range
-    size_t core_id = thread_id % num_cores;
-    
+
+    // Calculate core ID, supporting forward or reverse binding
+    size_t core_id = reverse
+        ? (num_cores - 1 - (thread_id % num_cores))
+        : (thread_id % num_cores);
+
     // Set affinity
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
     CPU_SET(core_id, &cpuset);
-    
+
     int rc = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
     if (rc != 0) {
-        std::cerr << "Warning: Failed to set thread affinity for thread " 
-                  << thread_id << " to core " << core_id 
-                  << " (error code: " << rc << ", " 
+        std::cerr << "Warning: Failed to set thread affinity for thread "
+                  << thread_id << " to core " << core_id
+                  << " (error code: " << rc << ", "
                   << strerror(rc) << ")" << std::endl;
         return;
     }
-    
-    std::cout << "Thread " << thread_id << " bound to core " << core_id << std::endl;
+
+    std::cout << (purpose.empty() ? "" : (purpose + " ")) << "Thread " << thread_id << " bound to core " << core_id
+              << (reverse ? " (reverse binding)" : " (forward binding)") << std::endl;
 #endif
 }
 
@@ -179,6 +182,8 @@ void InsertDataAction::execute() {
 
             producer_threads.emplace_back([this, i, &split_names, &col_instances, &pipeline, data_manager, &active_producers, &producer_finished] {
                 try {
+                    set_thread_affinity(i, false, "Producer");
+                    set_realtime_priority();
                     producer_thread_function(i, split_names[i], col_instances, pipeline, data_manager);
                     producer_finished[i].store(true);
                 } catch (const std::exception& e) {
@@ -195,7 +200,7 @@ void InsertDataAction::execute() {
         for (size_t i = 0; i < consumer_thread_count; i++) {
 
             consumer_threads.emplace_back([this, i, &pipeline, &consumer_running, &writers, &gc, &sync_barrier] {
-                set_thread_affinity(i);
+                set_thread_affinity(i, true, "Consumer");
                 set_realtime_priority();
                 sync_barrier.arrive_and_wait();
                 consumer_thread_function(i, pipeline, consumer_running[i], writers[i].get(), gc);
