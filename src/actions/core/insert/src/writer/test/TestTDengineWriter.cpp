@@ -111,13 +111,10 @@ void test_write_operations() {
     batch.end_time = 1500000010001;
     batch.total_rows = 2;
 
-    StmtV2InsertData stmt_data(
-        batch.start_time,
-        batch.end_time,
-        batch.total_rows,
-        col_instances,
-        std::move(batch)
-    );
+    MemoryPool pool(1, 1, 2, col_instances);
+    auto* block = pool.convert_to_memory_block(std::move(batch));
+
+    StmtV2InsertData stmt_data(block, col_instances);
     writer.write(stmt_data);
 
     // Test unsupported data type

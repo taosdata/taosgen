@@ -3,7 +3,7 @@
 #include <iostream>
 
 TableNameManager::TableNameManager(const InsertDataConfig& config)
-    : config_(config) {}
+    : config_(config), chunk_size_(1) {}
 
 std::vector<std::string> TableNameManager::generate_table_names() {
     if (!table_names_.empty()) {
@@ -75,7 +75,8 @@ std::vector<std::vector<std::string>> TableNameManager::split_equally(size_t thr
     for (size_t i = 0; i < thread_count; i++) {
         // Calculate chunk size for this thread
         size_t chunk_size = base_size + (i < remainder ? 1 : 0);
-        
+        chunk_size_ = std::max(chunk_size, chunk_size_);
+
         // Extract chunk for this thread
         auto start = table_names_.begin() + current_pos;
         auto end = start + chunk_size;

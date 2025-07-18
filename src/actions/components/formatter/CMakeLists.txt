@@ -10,11 +10,13 @@ target_include_directories(components_formatter
     ${CMAKE_CURRENT_SOURCE_DIR}/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../config/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../utils/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../memory_pool/inc
 )
 
 # Link dependencies
 target_link_libraries(components_formatter
   PUBLIC
+    components_memory_pool
     actions_config
     utils
     ${TAOS_LIBRARIES}

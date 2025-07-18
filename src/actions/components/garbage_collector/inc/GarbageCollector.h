@@ -7,7 +7,15 @@
 #include <memory>
 #include <stdexcept>
 #include "blockingconcurrentqueue.h"
+#include "MemoryPool.h"
+#include "StmtV2InsertData.h"
 
+
+template<typename>
+struct is_variant : std::false_type {};
+
+template<typename... Ts>
+struct is_variant<std::variant<Ts...>> : std::true_type {};
 
 template <typename T>
 class GarbageCollector {
@@ -21,8 +29,8 @@ public:
     };
 
     // Constructor: specify the number of consumer threads
-    explicit GarbageCollector(size_t num_consumer_threads = 4)
-        : terminated_(false) {
+    explicit GarbageCollector(MemoryPool& pool, size_t num_consumer_threads = 4)
+        : pool_(pool), terminated_(false) {
 
         if (num_consumer_threads == 0)
             throw std::invalid_argument("Number of consumer threads must be at least 1");
@@ -45,10 +53,25 @@ public:
     void dispose(T&& data) {
         if (terminated_.load(std::memory_order_relaxed)) return;
 
+        using DataType = std::decay_t<T>;
+        auto ptr = std::make_shared<DataType>(std::move(data));
+    
         Task task;
-        task.destructor = [ptr = std::make_shared<std::decay_t<T>>(std::move(data))]() {
-
+        task.destructor = [ptr, this]() {
+            if constexpr (is_variant<DataType>::value) {
+                // DataType is a std::variant
+                std::visit([this](auto& obj) {
+                    using U = std::decay_t<decltype(obj)>;
+                    if constexpr (std::is_same_v<U, StmtV2InsertData>) {
+                        pool_.release_block(obj.block);
+                    }
+                }, *ptr);
+            } else {
+                // Other types do not require special handling
+            }
         };
+
+
         queue_.enqueue(std::move(task));
     }
 
@@ -79,5 +102,6 @@ private:
 private:
     moodycamel::BlockingConcurrentQueue<Task> queue_;
     std::vector<std::thread> threads_;
+    MemoryPool& pool_;
     std::atomic<bool> terminated_;
 };

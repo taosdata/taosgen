@@ -38,7 +38,7 @@ private:
         DataPipeline<FormatResult>& pipeline,
         std::atomic<bool>& running,
         IWriter* writer,
-        GarbageCollector<DataPipeline<FormatResult>::Result>& gc);
+        GarbageCollector<FormatResult>& gc);
 
     // Register InsertDataAction to ActionFactory
     inline static bool registered_ = []() {

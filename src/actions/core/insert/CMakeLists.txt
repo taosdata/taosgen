@@ -37,6 +37,7 @@ target_link_libraries(core_insert
     insert_writer
     actions_config
     components_metrics
+    components_memory_pool
     components_gc
     components_connector
     components_formatter

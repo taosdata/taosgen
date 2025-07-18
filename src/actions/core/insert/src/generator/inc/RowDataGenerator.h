@@ -10,7 +10,7 @@
 #include "TimestampGenerator.h"
 #include "ColumnsCSV.h"
 #include "TableNameCSV.h"
-
+#include "MemoryPool.h"
 
 class RowDataGenerator {
 public:
@@ -22,7 +22,8 @@ public:
     
     // Get next row data
     std::optional<RowData> next_row();
-    
+    int next_row(MemoryPool::TableBlock& table_block);
+
     // Check if there is more data
     bool has_more() const;
     
@@ -33,6 +34,16 @@ public:
     void reset();
 
 private:
+    // Type handler function type definitions
+    using FixedHandler = void(*)(const ColumnType&, void*, size_t);
+    using VarHandler = size_t(*)(const ColumnType&, char*, size_t);
+
+    // Column handler structure
+    struct ColumnHandler {
+        FixedHandler fixed_handler = nullptr;
+        VarHandler var_handler = nullptr;
+    };
+
     // Delayed queue element
     struct DelayedRow {
         int64_t deliver_timestamp;
@@ -49,6 +60,8 @@ private:
         int latency_range;
     };
 
+    // Initialize column handlers
+    void init_column_handlers();
 
     // Initialize cache
     void init_cache();
@@ -79,7 +92,8 @@ private:
     
     // Get data from CSV
     std::optional<RowData> generate_from_csv();
-    
+
+private:
     const std::string& table_name_;
     const ColumnsConfig& columns_config_;
     const ColumnConfigInstanceVector& instances_;
@@ -109,8 +123,6 @@ private:
     
     // Timestamp state
     int64_t current_timestamp_ = 0;
-    // int64_t last_timestamp_ = 0;
-    // int64_t timestamp_step_ = 1;
-    // int64_t precision_factor_ = 1;
-    // std::unordered_map<std::string, int64_t> last_timestamps_;
+
+    std::vector<ColumnHandler> column_handlers_;
 };

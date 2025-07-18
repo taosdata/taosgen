@@ -141,20 +141,22 @@ void test_data_generation() {
     config.control.data_generation.interlace_mode.enabled = false;
     
     auto col_instances = ColumnConfigInstanceFactory::create(config.source.columns.generator.schema);
-    TableDataManager manager(config, col_instances);
+    MemoryPool pool(1, 1, 5, col_instances);
+    TableDataManager manager(pool, config, col_instances);
     
     std::vector<std::string> table_names = {"d0"};
     assert(manager.init(table_names));
     
     int row_count = 0;
-    while (auto batch = manager.next_multi_batch()) {
-        assert(batch->table_batches.size() == 1);
+    while (auto block = manager.next_multi_batch()) {
+        const auto* batch = block.value();
+        assert(batch->used_tables == 1);
         row_count += batch->total_rows;
         
         // Verify timestamp progression
-        for (const auto& [table_name, rows] : batch->table_batches) {
-            for (size_t i = 0; i < rows.size(); i++) {
-                assert(rows[i].timestamp == 1700000000000 + static_cast<int64_t>(row_count - rows.size() + i) * 10);
+        for (const auto& table : batch->tables) {
+            for (size_t i = 0; i < table.used_rows; i++) {
+                assert(table.timestamps[i] == 1700000000000 + static_cast<int64_t>(row_count - table.used_rows + i) * 10);
             }
         }
     }

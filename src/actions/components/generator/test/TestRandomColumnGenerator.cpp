@@ -59,7 +59,7 @@ void test_generate_bool_column() {
 
 void test_generate_string_column_with_corpus() {
     ColumnConfig config;
-    config.type = "varchar";
+    config.type = "varchar(10)";
     config.corpus = std::string("abc");
     ColumnConfigInstance instance(config);
 

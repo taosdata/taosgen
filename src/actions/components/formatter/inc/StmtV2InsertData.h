@@ -3,17 +3,32 @@
 #include "StmtV2Data.h"
 #include "ColumnConfigInstance.h"
 #include "TableData.h"
-
+#include "BlockStmtV2Data.h"
 
 struct StmtV2InsertData : public BaseInsertData {
-    StmtV2Data data;
-    StmtV2InsertData(int64_t start, int64_t end, size_t rows, const ColumnConfigInstanceVector& col_instances, MultiBatch&& batch) 
-        : BaseInsertData(DataType::STMT_V2, start, end, rows), data(col_instances, std::move(batch)) {}
+    BlockStmtV2Data data;
+    MemoryPool::MemoryBlock* block;
+    
+    StmtV2InsertData(MemoryPool::MemoryBlock* block, const ColumnConfigInstanceVector& col_instances)
+        : BaseInsertData(DataType::STMT_V2, 
+                         block->start_time,
+                         block->end_time,
+                         block->total_rows),
+          data(block, col_instances),
+          block(block) {}
 
+    // Move constructor
     StmtV2InsertData(StmtV2InsertData&& other) noexcept 
-        : BaseInsertData(std::move(other))
-        , data(std::move(other.data))
+        : BaseInsertData(std::move(other)),
+          data(std::move(other.data)),
+          block(other.block) 
     {
-        this->type = DataType::STMT_V2;
+        other.block = nullptr;
     }
+    
+    // Disable copy
+    StmtV2InsertData(const StmtV2InsertData&) = delete;
+    StmtV2InsertData& operator=(const StmtV2InsertData&) = delete;
+    
+    ~StmtV2InsertData() = default;
 };

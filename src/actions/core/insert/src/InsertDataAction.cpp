@@ -103,6 +103,15 @@ void InsertDataAction::execute() {
         const size_t consumer_thread_count = config_.control.insert_control.insert_threads;
         const size_t queue_capacity = config_.control.data_generation.queue_capacity;
         
+        size_t block_count = (queue_capacity + 2) * producer_thread_count;
+        size_t max_tables_per_block = std::min(name_manager.chunk_size(), config_.control.insert_control.per_request_rows);
+        size_t max_rows_per_table = config_.control.data_generation.per_table_rows;
+        if (config_.control.data_generation.interlace_mode.enabled) {
+            max_rows_per_table = std::min(max_rows_per_table, config_.control.data_generation.interlace_mode.rows);
+        }
+
+        MemoryPool pool(block_count, max_tables_per_block, max_rows_per_table, col_instances);
+
         // Create data pipeline
         DataPipeline<FormatResult> pipeline(producer_thread_count, consumer_thread_count, queue_capacity);
         Barrier sync_barrier(consumer_thread_count + 1);
@@ -115,7 +124,7 @@ void InsertDataAction::execute() {
         writers.reserve(consumer_thread_count);
 
         const size_t group_size = 10;
-        GarbageCollector<DataPipeline<FormatResult>::Result> gc((consumer_thread_count + group_size - 1) / group_size);
+        GarbageCollector<FormatResult> gc(pool, (consumer_thread_count + group_size - 1) / group_size);
 
         // Create all writer instances
         auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(config_.control.data_format);
@@ -165,7 +174,7 @@ void InsertDataAction::execute() {
         std::atomic<size_t> active_producers(producer_thread_count);
 
         for (size_t i = 0; i < producer_thread_count; i++) {
-            auto data_manager = std::make_shared<TableDataManager>(config_, col_instances);
+            auto data_manager = std::make_shared<TableDataManager>(pool, config_, col_instances);
             data_managers.push_back(data_manager);
 
             producer_threads.emplace_back([this, i, &split_names, &col_instances, &pipeline, data_manager, &active_producers, &producer_finished] {
@@ -434,7 +443,7 @@ void InsertDataAction::consumer_thread_function(
     DataPipeline<FormatResult>& pipeline,
     std::atomic<bool>& running,
     IWriter* writer,
-    GarbageCollector<DataPipeline<FormatResult>::Result>& gc)
+    GarbageCollector<FormatResult>& gc)
 {
     // Failure retry logic
     const auto& failure_cfg = config_.control.insert_control.failure_handling;
@@ -467,7 +476,7 @@ void InsertDataAction::consumer_thread_function(
 
                 }, *result.data);
 
-                gc.dispose(std::move(result));
+                gc.dispose(std::move(*result.data));
 
             } catch (const std::exception& e) {
                 std::cerr << "Consumer " << consumer_id << " write failed: " << e.what() << std::endl;

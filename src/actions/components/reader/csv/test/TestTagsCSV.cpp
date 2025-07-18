@@ -28,8 +28,8 @@ void test_validate_config_mismatched_tag_types() {
     test_file.close();
 
     ColumnConfigVector tag_configs = {
-        {"name", "varchar", std::nullopt},
-        {"age", "int", std::nullopt}
+        {"name", "varchar(20)"},
+        {"age", "int"}
     };
     auto instances = ColumnConfigInstanceFactory::create(tag_configs);    
 
@@ -53,9 +53,9 @@ void test_generate_tags_valid_csv() {
     test_file.close();
 
     ColumnConfigVector tag_configs = {
-        {"name", "varchar", std::nullopt},
-        {"age", "int", std::nullopt},
-        {"city", "varchar", std::nullopt}
+        {"name", "varchar(20)"},
+        {"age", "int"},
+        {"city", "varchar(20)"}
     };
     auto instances = ColumnConfigInstanceFactory::create(tag_configs);
 
@@ -82,8 +82,8 @@ void test_generate_tags_excluded_columns() {
     test_file.close();
 
     ColumnConfigVector tag_configs = {
-        {"name", "varchar", std::nullopt},
-        {"city", "varchar", std::nullopt}
+        {"name", "varchar(20)"},
+        {"city", "varchar(20)"}
     };
     auto instances = ColumnConfigInstanceFactory::create(tag_configs);
 

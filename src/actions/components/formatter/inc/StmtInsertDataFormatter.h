@@ -10,7 +10,9 @@ class StmtInsertDataFormatter final : public IInsertDataFormatter {
 public:
     explicit StmtInsertDataFormatter(const DataFormat& format) : format_(format) {}
 
-    std::string prepare(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances, int mode = 1) const {
+    std::string prepare(const InsertDataConfig& config,
+                        const ColumnConfigInstanceVector& col_instances,
+                        int mode = 1) const override {
         // TODO:
         // 1. native            : INSERT INTO ? VALUES(?,cols-qmark)
         // 2. websocket  -stb   : INSERT INTO `db_name`.`stb_name`(cols-name) VALUES(?,?,col-qmark)
@@ -51,27 +53,16 @@ public:
         return result.str();
     }
 
-
     FormatResult format(const InsertDataConfig& config, 
                         const ColumnConfigInstanceVector& col_instances, 
-                        MultiBatch&& batch) const {
+                        MemoryPool::MemoryBlock* batch) const override {
         (void)config;
 
-        if (batch.table_batches.empty()) {
-            return FormatResult("");
-        } else {
-            if (format_.stmt_config.version != "v2") {
-                throw std::invalid_argument("Unsupported stmt version: " + format_.stmt_config.version);
-            }
-
-            return StmtV2InsertData(
-                    batch.start_time,
-                    batch.end_time,
-                    batch.total_rows,
-                    col_instances,
-                    std::move(batch)
-                );
+        if (format_.stmt_config.version != "v2") {
+            throw std::invalid_argument("Unsupported stmt version: " + format_.stmt_config.version);
         }
+
+        return StmtV2InsertData(batch, col_instances);
     }
 
 private:

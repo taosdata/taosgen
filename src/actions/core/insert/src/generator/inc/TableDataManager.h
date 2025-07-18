@@ -9,6 +9,7 @@
 #include "RowDataGenerator.h"
 #include "InsertDataConfig.h"
 #include "RateLimiter.h"
+#include "MemoryPool.h"
 
 class TableDataManager {
 public:
@@ -27,13 +28,13 @@ public:
         TableState() = default;
     };
     
-    explicit TableDataManager(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances);
+    explicit TableDataManager(MemoryPool& pool, const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances);
     
     // Initialize the table data manager
     bool init(const std::vector<std::string>& table_names);
     
     // Get the next batch of data
-    std::optional<MultiBatch> next_multi_batch();
+    std::optional<MemoryPool::MemoryBlock*> next_multi_batch();
     
     // Check if there is more data available
     bool has_more() const;
@@ -52,6 +53,7 @@ public:
     const ColumnConfigInstanceVector& get_column_instances() const;
 
 private:
+    MemoryPool& pool_;
     const InsertDataConfig& config_;
     const ColumnConfigInstanceVector& col_instances_;
     std::unordered_map<std::string, TableState> table_states_;
@@ -64,13 +66,13 @@ private:
     TableState* get_next_active_table();
     
     // Calculate number of rows to generate for current table
-    int64_t calculate_rows_to_generate(TableState& state) const;
+    size_t calculate_rows_to_generate(TableState& state) const;
     
     // Switch to the next table
     void advance_to_next_table();
 
     // Get batch data respecting size limits
-    MultiBatch collect_batch_data(size_t max_rows);
+    MemoryPool::MemoryBlock* collect_batch_data(size_t max_rows);
 
     // Flow control
     std::unique_ptr<RateLimiter> rate_limiter_;

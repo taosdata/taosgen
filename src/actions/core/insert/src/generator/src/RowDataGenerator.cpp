@@ -147,12 +147,53 @@ std::optional<RowData> RowDataGenerator::next_row() {
     current_timestamp_ = row_opt->timestamp;
     
     // Apply disorder strategy
-    auto delay = apply_disorder(*row_opt);
-    if (!delay) {
+    auto delayed = apply_disorder(*row_opt);
+    if (!delayed) {
         generated_rows_++;
     }
     
     return row_opt;
+}
+
+int RowDataGenerator::next_row(MemoryPool::TableBlock& table_block) {
+    if (generated_rows_ >= total_rows_) {
+        return 0;
+    }
+
+    // Process delay queue
+    process_delay_queue();
+    
+    // Prefer to get data from cache
+    if (!cache_.empty()) {
+        auto row = cache_.back();
+        cache_.pop_back();
+
+        // Add row to memory pool
+        table_block.add_row(row);
+        generated_rows_++;
+        return 1;
+    }
+    
+    // Get data from raw source
+    auto row_opt = fetch_raw_row();
+    if (!row_opt) {
+        return 0;
+    }
+    
+    // Update timeline
+    current_timestamp_ = row_opt->timestamp;
+    
+    // Apply disorder strategy
+    bool delayed = apply_disorder(*row_opt);
+    if (delayed) {
+        return -1;
+    }
+
+    // Write directly to memory pool
+    generated_rows_++;
+    table_block.add_row(*row_opt);
+
+    return 1;
 }
 
 bool RowDataGenerator::apply_disorder(RowData& row) {
