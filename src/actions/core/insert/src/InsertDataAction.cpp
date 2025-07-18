@@ -105,12 +105,21 @@ void InsertDataAction::execute() {
         const size_t consumer_thread_count = config_.control.insert_control.insert_threads;
         const size_t queue_capacity = config_.control.data_generation.queue_capacity;
         const double queue_warmup_ratio = config_.control.data_generation.queue_warmup_ratio;
+        const size_t per_request_rows = config_.control.insert_control.per_request_rows;
+        const size_t interlace_rows = config_.control.data_generation.interlace_mode.rows;
+        const int64_t per_table_rows = config_.control.data_generation.per_table_rows;
         
         size_t block_count = (queue_capacity + 2) * producer_thread_count;
-        size_t max_tables_per_block = std::min(name_manager.chunk_size(), config_.control.insert_control.per_request_rows);
-        size_t max_rows_per_table = config_.control.data_generation.per_table_rows;
+        size_t max_tables_per_block = std::min(name_manager.chunk_size(), per_request_rows);
+        size_t max_rows_per_table = per_table_rows;
+
         if (config_.control.data_generation.interlace_mode.enabled) {
-            max_rows_per_table = std::min(max_rows_per_table, config_.control.data_generation.interlace_mode.rows);
+            max_tables_per_block = (per_request_rows + interlace_rows - 1) / interlace_rows;
+            max_rows_per_table = std::min(max_rows_per_table, interlace_rows);
+
+        } else {
+            max_tables_per_block = (per_request_rows + per_table_rows - 1) / per_table_rows;
+            max_rows_per_table = per_table_rows;
         }
 
         MemoryPool pool(block_count, max_tables_per_block, max_rows_per_table, col_instances);
