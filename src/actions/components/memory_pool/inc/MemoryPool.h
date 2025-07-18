@@ -172,9 +172,9 @@ public:
                 for (auto& col : table.columns) {
                     col.current_offset = 0;
                     // No need to clear data, will be overwritten later
-                    if (col.is_nulls) { // Is this reset necessary?
-                        memset(col.is_nulls, 0, table.max_rows * sizeof(char));
-                    }
+                    // if (col.is_nulls) { // Is this reset necessary?
+                    //     memset(col.is_nulls, 0, table.max_rows * sizeof(char));
+                    // }
                 }
             }
         }

@@ -60,8 +60,7 @@ private:
         int latency_range;
     };
 
-    // Initialize column handlers
-    void init_column_handlers();
+    void init_cached_row();
 
     // Initialize cache
     void init_cache();
@@ -79,7 +78,7 @@ private:
     void process_delay_queue();
     
     // Fetch a row from raw source
-    std::optional<RowData> fetch_raw_row();
+    std::optional<std::reference_wrapper<RowData>> fetch_raw_row();
 
     // Initialize generator components
     void init_generator();
@@ -88,10 +87,10 @@ private:
     void init_csv_reader();
     
     // Get data from generator
-    RowData generate_from_generator();
+    void generate_from_generator();
     
     // Get data from CSV
-    std::optional<RowData> generate_from_csv();
+    bool generate_from_csv();
 
 private:
     const std::string& table_name_;
@@ -99,6 +98,9 @@ private:
     const ColumnConfigInstanceVector& instances_;
     const InsertDataConfig::Control& control_;
     const std::string& target_precision_;
+
+    // Initialize cache line memory
+    RowData cached_row_;
 
     // Data source components
     std::unique_ptr<RowGenerator> row_generator_;
@@ -123,6 +125,4 @@ private:
     
     // Timestamp state
     int64_t current_timestamp_ = 0;
-
-    std::vector<ColumnHandler> column_handlers_;
 };

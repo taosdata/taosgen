@@ -330,7 +330,7 @@ void InsertDataAction::execute() {
                   << total_duration << " seconds\n"
                   << "Average Rate: " << std::fixed << std::setprecision(2) 
                   << avg_rows_per_sec << " rows/second\n"
-                  << "==============================================================================================================================\n\n";
+                  << "==============================================================================================================================\n";
 
         // Collect performance metrics
         ActionMetrics global_play_metrics;
@@ -360,7 +360,9 @@ void InsertDataAction::execute() {
         }
 
         std::cout << "Write Latency Distribution: " << global_write_metrics.get_summary() << "\n"
-                << "==============================================================================================================================\n\n";
+                << "==============================================================================================================================\n";
+
+        std::cout << std::endl;
 
         // Clean up resources
         for (auto& writer : writers) {

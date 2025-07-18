@@ -34,6 +34,14 @@ RowType RowGenerator::generate() const {
     return row;
 }
 
+void RowGenerator::generate(RowType& columns) const {
+    auto columns_size = columns.size();
+    for (size_t i = 0; i < columns_size; ++i) {
+        columns[i] = column_gens_[i]->generate();
+    }
+    return;
+}
+
 std::vector<RowType> RowGenerator::generate(size_t count) const {
     const bool has_timestamp = (timestamp_gen_ != nullptr);
     const size_t num_columns = column_gens_.size() + (has_timestamp ? 1 : 0);

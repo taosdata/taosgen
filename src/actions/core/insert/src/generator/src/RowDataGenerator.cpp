@@ -19,6 +19,7 @@ RowDataGenerator::RowDataGenerator(const std::string& table_name,
       control_(control),
       target_precision_(target_precision) {
 
+    init_cached_row();
     init_raw_source();
 
     if (control_.data_generation.data_cache.enabled) {
@@ -27,6 +28,39 @@ RowDataGenerator::RowDataGenerator(const std::string& table_name,
 
     if (control_.data_quality.data_disorder.enabled) {
         init_disorder();
+    }
+}
+
+// Initialize cached row memory
+void RowDataGenerator::init_cached_row() {
+    cached_row_.columns.resize(instances_.size());
+    
+    for (size_t i = 0; i < instances_.size(); ++i) {
+        const auto& config = instances_[i].config();
+        
+        // Pre-allocate memory for variable-length types
+        switch (config.type_tag) {
+            case ColumnTypeTag::VARCHAR:
+            case ColumnTypeTag::BINARY:
+            case ColumnTypeTag::JSON:
+                cached_row_.columns[i] = std::string();
+                std::get<std::string>(cached_row_.columns[i]).reserve(config.len.value());
+                break;
+                
+            case ColumnTypeTag::NCHAR:
+                cached_row_.columns[i] = std::u16string();
+                std::get<std::u16string>(cached_row_.columns[i]).reserve(config.len.value());
+                break;
+                
+            case ColumnTypeTag::VARBINARY:
+                cached_row_.columns[i] = std::vector<uint8_t>();
+                std::get<std::vector<uint8_t>>(cached_row_.columns[i]).reserve(config.len.value());
+                break;
+                
+            default:
+                // No special handling required for fixed-length types
+                break;
+        }
     }
 }
 
@@ -144,7 +178,7 @@ std::optional<RowData> RowDataGenerator::next_row() {
     }
     
     // Update current timeline
-    current_timestamp_ = row_opt->timestamp;
+    current_timestamp_ = row_opt->get().timestamp;
     
     // Apply disorder strategy
     auto delayed = apply_disorder(*row_opt);
@@ -181,7 +215,7 @@ int RowDataGenerator::next_row(MemoryPool::TableBlock& table_block) {
     }
     
     // Update timeline
-    current_timestamp_ = row_opt->timestamp;
+    current_timestamp_ = row_opt->get().timestamp;
     
     // Apply disorder strategy
     bool delayed = apply_disorder(*row_opt);
@@ -226,22 +260,18 @@ void RowDataGenerator::process_delay_queue() {
     }
 }
 
-std::optional<RowData> RowDataGenerator::fetch_raw_row() {
-    RowData row_data;
-    
+std::optional<std::reference_wrapper<RowData>> RowDataGenerator::fetch_raw_row() {
     try {
         if (use_generator_) {
-            row_data = generate_from_generator();
+            generate_from_generator();
         } else {
-            if (auto csv_row = generate_from_csv()) {
-                row_data = std::move(*csv_row);
-            } else {
+            if (!generate_from_csv()) {
                 total_rows_ = generated_rows_;
                 return std::nullopt;
             }
         }
 
-        return row_data;
+        return cached_row_;
     } catch (const std::exception& e) {
         std::cerr << "Error generating row: " << e.what() << std::endl;
         return std::nullopt;
@@ -261,20 +291,20 @@ void RowDataGenerator::reset() {
     }
 }
 
-RowData RowDataGenerator::generate_from_generator() {
-    RowData row_data;
-    // row_data.table_name = table_name_;
-    
+void RowDataGenerator::generate_from_generator() {
     // Generate timestamp
-    row_data.timestamp = TimestampUtils::convert_timestamp_precision(timestamp_generator_->generate(),
+    cached_row_.timestamp = TimestampUtils::convert_timestamp_precision(timestamp_generator_->generate(),
         timestamp_generator_->timestamp_precision(), target_precision_);
     
     // Generate column data
-    row_data.columns = row_generator_->generate();
+    row_generator_->generate(cached_row_.columns);
     
-    return row_data;
+    return;
 }
 
-std::optional<RowData> RowDataGenerator::generate_from_csv() {
-    return csv_rows_[csv_row_index_++];;
+bool RowDataGenerator::generate_from_csv() {
+    cached_row_.timestamp =  csv_rows_[csv_row_index_].timestamp;
+    cached_row_.columns = csv_rows_[csv_row_index_].columns;
+    csv_row_index_++;
+    return true;
 }
