@@ -16,10 +16,10 @@ MemoryPool::MemoryPool(size_t block_count,
 {   
     for (auto& block : blocks_) {
         block.owning_pool = this;
-        block.tables.reserve(max_tables_per_block);
+        block.tables.resize(max_tables_per_block);
         
         for (size_t i = 0; i < max_tables_per_block; ++i) {
-            TableBlock table;
+            auto& table = block.tables[i];
             table.max_rows = max_rows_per_table;
             table.col_handlers_ptr = &col_handlers_;
             
@@ -31,9 +31,11 @@ MemoryPool::MemoryPool(size_t block_count,
             }
             
             // Initialize each column
-            for (const auto& col_instance : col_instances) {
-                TableBlock::Column col;
-                const auto& config = col_instance.config();
+            table.columns.resize(col_instances.size());
+            for (size_t col_idx = 0; col_idx < table.columns.size(); ++col_idx) {
+                auto& col = table.columns[col_idx];
+                const auto& config = col_instances[col_idx].config();
+
                 col.is_fixed = !config.is_var_length();
                 
                 if (col.is_fixed) {
@@ -82,12 +84,12 @@ MemoryPool::MemoryPool(size_t block_count,
                 
                 // Initialize NULL marker to 0 (not NULL)
                 memset(col.is_nulls, 0, max_rows_per_table * sizeof(char));
-                
-                table.columns.push_back(std::move(col));
             }
-            block.tables.push_back(std::move(table));
         }
         
+        // 初始化bindv结构
+        block.init_bindv();
+
         // Initial state: memory block is free
         block.reset();
         free_queue_.enqueue(&block);

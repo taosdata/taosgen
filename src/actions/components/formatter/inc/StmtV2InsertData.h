@@ -15,7 +15,9 @@ struct StmtV2InsertData : public BaseInsertData {
                          block->end_time,
                          block->total_rows),
           data(block, col_instances),
-          block(block) {}
+          block(block) {
+            block->build_bindv();
+          }
 
     // Move constructor
     StmtV2InsertData(StmtV2InsertData&& other) noexcept 
@@ -30,5 +32,9 @@ struct StmtV2InsertData : public BaseInsertData {
     StmtV2InsertData(const StmtV2InsertData&) = delete;
     StmtV2InsertData& operator=(const StmtV2InsertData&) = delete;
     
-    ~StmtV2InsertData() = default;
+    ~StmtV2InsertData() {
+        if (block) {
+            block->release();
+        }
+    }
 };

@@ -58,17 +58,17 @@ public:
     
         Task task;
         task.destructor = [ptr, this]() {
-            if constexpr (is_variant<DataType>::value) {
-                // DataType is a std::variant
-                std::visit([this](auto& obj) {
-                    using U = std::decay_t<decltype(obj)>;
-                    if constexpr (std::is_same_v<U, StmtV2InsertData>) {
-                        obj.block->release();
-                    }
-                }, *ptr);
-            } else {
-                // Other types do not require special handling
-            }
+            // if constexpr (is_variant<DataType>::value) {
+            //     // DataType is a std::variant
+            //     std::visit([this](auto& obj) {
+            //         using U = std::decay_t<decltype(obj)>;
+            //         if constexpr (std::is_same_v<U, StmtV2InsertData>) {
+            //             obj.block->release();
+            //         }
+            //     }, *ptr);
+            // } else {
+            //     // Other types do not require special handling
+            // }
         };
 
 

@@ -7,6 +7,8 @@
 #include <cstring>
 #include <limits>
 #include <stdexcept>
+#include "taos.h"
+#include "taosws.h"
 #include "ColumnConfigInstance.h"
 #include "concurrentqueue.h"
 #include "blockingconcurrentqueue.h"
@@ -160,8 +162,14 @@ public:
         int64_t end_time = std::numeric_limits<int64_t>::min();
         size_t total_rows = 0;
         size_t used_tables = 0;         // Actual used table count
+        size_t col_count = 0;
         bool in_use = false;
         MemoryPool* owning_pool = nullptr;
+
+        TAOS_STMT2_BINDV bindv_{};
+        std::vector<const char*> tbnames_;          // 表名指针数组
+        std::vector<TAOS_STMT2_BIND*> bind_ptrs_;   // 绑定指针数组
+        std::vector<std::vector<TAOS_STMT2_BIND>> bind_lists_; // 绑定数据存储
 
         void release() {
             if (owning_pool) {
@@ -169,11 +177,83 @@ public:
             }
         }
 
+        // 初始化bindv结构（在MemoryPool中调用）
+        void init_bindv() {
+            size_t max_tables = tables.size();
+            const ColumnConfigInstanceVector& col_instances = owning_pool->col_instances_;
+            col_count = col_instances.size();
+
+            // 预分配数据结构
+            tbnames_.resize(max_tables, nullptr);
+            bind_ptrs_.resize(max_tables, nullptr);
+            bind_lists_.resize(max_tables);
+
+            // 为每个表预分配绑定列表
+            for (size_t i = 0; i < max_tables; ++i) {
+                bind_lists_[i].resize(1 + col_count);
+                bind_ptrs_[i] = bind_lists_[i].data();
+                auto& table = tables[i];
+                
+                // 初始化时间戳列绑定
+                bind_lists_[i][0] = {
+                    TSDB_DATA_TYPE_TIMESTAMP,
+                    table.timestamps,
+                    nullptr,
+                    nullptr,
+                    static_cast<int>(table.max_rows)
+                };
+                
+                // 初始化数据列绑定
+                for (size_t col_idx = 0; col_idx < col_count; ++col_idx) {
+                    auto& bind = bind_lists_[i][1 + col_idx];
+                    const auto& config = col_instances[col_idx].config();
+                    auto& col = table.columns[col_idx];
+
+                    bind.buffer_type = config.get_taos_type();
+                    bind.num = static_cast<int>(table.max_rows);
+
+                    if (config.is_var_length()) {
+                        bind.buffer = col.var_data;
+                        bind.length = col.lengths;
+                        bind.is_null = col.is_nulls;
+                    } else {
+                        bind.buffer = col.fixed_data;
+                        bind.length = nullptr;
+                        bind.is_null = col.is_nulls;
+                    }
+                }
+            }
+            
+            // 设置指针
+            bindv_.tbnames = const_cast<char**>(tbnames_.data());
+            bindv_.bind_cols = bind_ptrs_.data();
+        }
+
+        void build_bindv() {
+            bindv_.count = used_tables;
+            
+            // 更新表名和行数
+            for (size_t i = 0; i < used_tables; ++i) {
+                auto& table = tables[i];
+                tbnames_[i] = table.table_name;
+                
+                // 更新时间戳行数
+                bind_lists_[i][0].num = table.used_rows;
+                
+                // 更新数据列行数
+                for (size_t col_idx = 0; col_idx < col_count; ++col_idx) {
+                    bind_lists_[i][1 + col_idx].num = table.used_rows;
+                }
+            }
+        }
+
+        // 重置方法
         void reset() {
             total_rows = 0;
             start_time = std::numeric_limits<int64_t>::max();
             end_time = std::numeric_limits<int64_t>::min();
             used_tables = 0;
+            
             for (auto& table : tables) {
                 table.used_rows = 0;
                 for (auto& col : table.columns) {
@@ -184,8 +264,10 @@ public:
                     // }
                 }
             }
+        
+            // 重置bindv计数
+            bindv_.count = 0;
         }
-
     };
 
     MemoryPool(size_t block_count, 

@@ -135,7 +135,7 @@ void InsertDataAction::execute() {
         std::vector<std::unique_ptr<IWriter>> writers;
         writers.reserve(consumer_thread_count);
 
-        const size_t group_size = 4;
+        const size_t group_size = 10;
         GarbageCollector<FormatResult> gc((consumer_thread_count + group_size - 1) / group_size);
 
         // Create all writer instances
