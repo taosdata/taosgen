@@ -179,10 +179,15 @@ public:
         
         result << ";";
 
+        int64_t start_time = batch->start_time;
+        int64_t end_time = batch->end_time;
+        size_t total_rows = batch->total_rows;
+        batch->release();
+
         return SqlInsertData(
-            batch->start_time,
-            batch->end_time,
-            batch->total_rows,
+            start_time,
+            end_time,
+            total_rows,
             result.str()
         );
     }

@@ -9,11 +9,13 @@ MemoryPool::MemoryPool(size_t block_count,
                        size_t max_tables_per_block,
                        size_t max_rows_per_table,
                        const ColumnConfigInstanceVector& col_instances)
-    : col_instances_(col_instances), col_handlers_(ColumnConverter::create_handlers_for_columns(col_instances))
-{
-    blocks_.resize(block_count);
-    
+    : col_instances_(col_instances),
+      col_handlers_(ColumnConverter::create_handlers_for_columns(col_instances)),
+      blocks_(block_count),
+      free_queue_(block_count)
+{   
     for (auto& block : blocks_) {
+        block.owning_pool = this;
         block.tables.reserve(max_tables_per_block);
         
         for (size_t i = 0; i < max_tables_per_block; ++i) {
@@ -94,6 +96,7 @@ MemoryPool::MemoryPool(size_t block_count,
 
 MemoryPool::~MemoryPool() {
     for (auto& block : blocks_) {
+        block.owning_pool = nullptr;
         for (auto& table : block.tables) {
             // Free timestamp column
             if (table.timestamps) {

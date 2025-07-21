@@ -161,7 +161,14 @@ public:
         size_t total_rows = 0;
         size_t used_tables = 0;         // Actual used table count
         bool in_use = false;
-        
+        MemoryPool* owning_pool = nullptr;
+
+        void release() {
+            if (owning_pool) {
+                owning_pool->release_block(this);
+            }
+        }
+
         void reset() {
             total_rows = 0;
             start_time = std::numeric_limits<int64_t>::max();

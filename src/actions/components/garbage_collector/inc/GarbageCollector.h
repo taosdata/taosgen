@@ -29,8 +29,8 @@ public:
     };
 
     // Constructor: specify the number of consumer threads
-    explicit GarbageCollector(MemoryPool& pool, size_t num_consumer_threads = 4)
-        : pool_(pool), terminated_(false) {
+    explicit GarbageCollector(size_t num_consumer_threads = 4)
+        : terminated_(false) {
 
         if (num_consumer_threads == 0)
             throw std::invalid_argument("Number of consumer threads must be at least 1");
@@ -63,7 +63,7 @@ public:
                 std::visit([this](auto& obj) {
                     using U = std::decay_t<decltype(obj)>;
                     if constexpr (std::is_same_v<U, StmtV2InsertData>) {
-                        pool_.release_block(obj.block);
+                        obj.block->release();
                     }
                 }, *ptr);
             } else {
@@ -102,6 +102,5 @@ private:
 private:
     moodycamel::BlockingConcurrentQueue<Task> queue_;
     std::vector<std::thread> threads_;
-    MemoryPool& pool_;
     std::atomic<bool> terminated_;
 };

@@ -7,10 +7,6 @@
 #include <chrono>
 
 
-struct DummyMemoryPool : MemoryPool {
-    DummyMemoryPool() : MemoryPool(1, 1, 1, ColumnConfigInstanceVector{}) {}
-};
-
 struct Dummy {
     static std::atomic<int> destruct_count;
     int id;
@@ -24,8 +20,7 @@ std::atomic<int> Dummy::destruct_count{0};
 void test_gc_single_thread_dispose() {
     Dummy::destruct_count = 0;
     {
-        DummyMemoryPool dummy_pool;
-        GarbageCollector<Dummy> gc(dummy_pool, 1);
+        GarbageCollector<Dummy> gc(1);
         gc.dispose(Dummy(1));
         gc.dispose(Dummy(2));
         gc.dispose(Dummy(3));
@@ -38,8 +33,7 @@ void test_gc_single_thread_dispose() {
 void test_gc_multi_thread_dispose() {
     Dummy::destruct_count = 0;
     {
-        DummyMemoryPool dummy_pool;
-        GarbageCollector<Dummy> gc(dummy_pool, 4);
+        GarbageCollector<Dummy> gc(4);
         std::vector<std::thread> writers;
         for (int i = 0; i < 8; ++i) {
             writers.emplace_back([&gc, i] {
@@ -55,8 +49,7 @@ void test_gc_multi_thread_dispose() {
 
 void test_gc_terminate() {
     Dummy::destruct_count = 0;
-    DummyMemoryPool dummy_pool;
-    GarbageCollector<Dummy> gc(dummy_pool, 2);
+    GarbageCollector<Dummy> gc(2);
     gc.dispose(Dummy(1));
     gc.terminate();
     gc.dispose(Dummy(2)); // Should not be processed
@@ -68,8 +61,7 @@ void test_gc_terminate() {
 void test_gc_destruction_flushes() {
     Dummy::destruct_count = 0;
     {
-        DummyMemoryPool dummy_pool;
-        GarbageCollector<Dummy> gc(dummy_pool, 2);
+        GarbageCollector<Dummy> gc(2);
         gc.dispose(Dummy(1));
         gc.dispose(Dummy(2));
         // Don't wait, let destructor flush

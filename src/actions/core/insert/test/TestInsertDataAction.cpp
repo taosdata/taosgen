@@ -35,7 +35,7 @@ InsertDataConfig create_test_config() {
     // Setup control parameters
     config.control.data_generation.per_table_rows = 100;
     config.control.data_generation.generate_threads = 2;
-    config.control.data_generation.queue_capacity = 1000;
+    config.control.data_generation.queue_capacity = 2;
 
     config.control.insert_control.insert_threads = 2;
     config.control.insert_control.per_request_rows = 10;
@@ -170,6 +170,7 @@ void test_end_to_end_data_generation() {
     auto config = create_test_config();
     config.control.data_generation.per_table_rows = 10;
     config.control.data_generation.generate_threads = 2;
+    config.control.data_generation.queue_capacity = 2;
     config.control.insert_control.insert_threads = 2;
     config.source.table_name.generator.count = 4;           // 4 tables total
     config.target.target_type = "tdengine";
