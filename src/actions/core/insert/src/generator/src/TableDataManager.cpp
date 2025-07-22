@@ -27,15 +27,17 @@ bool TableDataManager::init(const std::vector<std::string>& table_names) {
         std::cerr << "TableDataManager initialized with empty table list" << std::endl;
         return false;
     }
-    
-    table_order_ = table_names;
+
     active_table_count_ = table_names.size();
+    table_states_.clear();
+    table_states_.reserve(table_names.size());
     
     try {        
         // Create RowDataGenerator for each table
         for (const auto& table_name : table_names) {
             TableState state;
             try {
+                state.table_name = table_name;
                 state.generator = std::make_unique<RowDataGenerator>(
                     table_name,
                     config_.source.columns,
@@ -46,8 +48,8 @@ bool TableDataManager::init(const std::vector<std::string>& table_names) {
                 state.rows_generated = 0;
                 state.interlace_counter = 0;
                 state.completed = false;
-                
-                table_states_[table_name] = std::move(state);
+
+                table_states_.push_back(std::move(state));
             } catch (const std::exception& e) {
                 std::cerr << "Failed to create RowDataGenerator for table: " << table_name 
                          << " - " << e.what() << std::endl;
@@ -104,7 +106,7 @@ MemoryPool::MemoryBlock* TableDataManager::collect_batch_data(size_t max_rows) {
     int64_t end_time = std::numeric_limits<int64_t>::min();
     size_t total_rows = 0;
     size_t table_loops = 0;
-    const size_t max_loops = table_order_.size();
+    const size_t max_loops = table_states_.size();
 
     while (total_rows < max_rows && 
            has_more() && 
@@ -116,8 +118,8 @@ MemoryPool::MemoryBlock* TableDataManager::collect_batch_data(size_t max_rows) {
         
         // Get current table slot
         auto& table_block = block->tables[block->used_tables];
-        table_block.table_name = table_order_[current_table_index_].c_str();
-        
+        table_block.table_name = table_state->table_name.c_str();
+
         // Calculate number of rows that can be generated
         size_t remaining = max_rows - total_rows;
         size_t rows_to_generate = std::min(
@@ -187,40 +189,34 @@ bool TableDataManager::has_more() const {
 }
 
 std::string TableDataManager::current_table() const {
-    if (table_order_.empty()) return "";
-    return table_order_[current_table_index_];
+    if (table_states_.empty()) return "";
+    return table_states_[current_table_index_].table_name;
 }
 
-const std::unordered_map<std::string, TableDataManager::TableState>& TableDataManager::table_states() const {
+const std::vector<TableDataManager::TableState>& TableDataManager::table_states() const {
     return table_states_;
 }
 
 TableDataManager::TableState* TableDataManager::get_next_active_table() {
-    if (table_order_.empty()) return nullptr;
+    if (table_states_.empty()) return nullptr;
     
     // Loop through tables to find one with available data
-    // size_t start_index = current_table_index_;
-    size_t attempts = 0;
-    
+    size_t start_index = current_table_index_;
+
     do {
-        const std::string& table_name = table_order_[current_table_index_];
-        auto it = table_states_.find(table_name);
-        if (it != table_states_.end()) {
-            TableState& state = it->second;
-            
-            // Check if table still has data and is not completed
-            if (!state.completed && 
-                state.rows_generated < config_.control.data_generation.per_table_rows && 
-                state.generator->has_more()) {
-                return &state;
-            }
+        TableState& state = table_states_[current_table_index_];
+        
+        // Check if table still has data and is not completed
+        if (!state.completed && 
+            state.rows_generated < config_.control.data_generation.per_table_rows &&
+            state.generator->has_more()) 
+        {
+            return &state;
         }
         
         // Move to next table
-        current_table_index_ = (current_table_index_ + 1) % table_order_.size();
-        attempts++;
-        
-    } while (attempts < table_order_.size());
+        current_table_index_ = (current_table_index_ + 1) % table_states_.size();
+    } while (current_table_index_ != start_index);
     
     return nullptr;
 }
@@ -250,14 +246,11 @@ size_t TableDataManager::calculate_rows_to_generate(TableState& state) const {
 }
 
 void TableDataManager::advance_to_next_table() {
-    if (table_order_.empty()) return;
+    if (table_states_.empty()) return;
     
     // Reset interlace counter for current table
-    const std::string& current_table_name = table_order_[current_table_index_];
-    if (auto it = table_states_.find(current_table_name); it != table_states_.end()) {
-        it->second.interlace_counter = 0;
-    }
-    
+    table_states_[current_table_index_].interlace_counter = 0;
+
     // Move to next table
-    current_table_index_ = (current_table_index_ + 1) % table_order_.size();
+    current_table_index_ = (current_table_index_ + 1) % table_states_.size();
 }

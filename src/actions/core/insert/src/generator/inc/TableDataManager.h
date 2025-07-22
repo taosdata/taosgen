@@ -14,6 +14,7 @@
 class TableDataManager {
 public:
     struct TableState {
+        std::string table_name;
         std::unique_ptr<RowDataGenerator> generator;
         int64_t rows_generated = 0;         // Total rows generated for this table
         int64_t interlace_counter = 0;      // Current row count in interlace mode
@@ -43,7 +44,7 @@ public:
     std::string current_table() const;
     
     // Get table states
-    const std::unordered_map<std::string, TableState>& table_states() const;
+    const std::vector<TableState>&  table_states() const;
 
     // Acquire tokens for flow control
     void acquire_tokens(int64_t tokens);
@@ -56,8 +57,7 @@ private:
     MemoryPool& pool_;
     const InsertDataConfig& config_;
     const ColumnConfigInstanceVector& col_instances_;
-    std::unordered_map<std::string, TableState> table_states_;
-    std::vector<std::string> table_order_;      // Order of table names
+    std::vector<TableState> table_states_;
     size_t current_table_index_ = 0;            // Current table index
     size_t active_table_count_ = 0;             // Count of active tables with data available
     int64_t interlace_rows_ = 1;                // Number of rows to generate per table in interlace mode

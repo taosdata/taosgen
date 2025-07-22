@@ -53,8 +53,8 @@ void test_init_with_valid_tables() {
     const auto& states = manager.table_states();
     (void)states;
     assert(states.size() == 2);
-    assert(states.count("test_table_1") == 1);
-    assert(states.count("test_table_2") == 1);
+    assert(states[0].table_name == "test_table_1");
+    assert(states[1].table_name == "test_table_2");
     
     std::cout << "test_init_with_valid_tables passed.\n";
 }
@@ -78,7 +78,8 @@ void test_has_more() {
     
     const auto& states = manager.table_states();
     (void)states;
-    assert(states.at("test_table").rows_generated == 5);
+    assert(states.size() == 1);
+    assert(states[0].rows_generated == 5);
     
     std::cout << "test_has_more passed.\n";
 }
@@ -98,7 +99,7 @@ void test_table_completion() {
     }
     
     const auto& states = manager.table_states();
-    for (const auto& [_, state] : states) {
+    for (const auto& state : states) {
         (void)state;
         assert(state.completed  || state.rows_generated >= config.control.data_generation.per_table_rows);
         assert(state.rows_generated == 2);
