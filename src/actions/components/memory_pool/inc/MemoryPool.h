@@ -166,13 +166,13 @@ public:
         bool in_use = false;
         MemoryPool* owning_pool = nullptr;
 
-        void* data_chunk = nullptr;  // 所有数据的连续内存块
-        size_t data_chunk_size = 0;  // 内存块大小
+        void* data_chunk = nullptr;  // Continuous memory block for all data
+        size_t data_chunk_size = 0;  // Memory block size
 
         TAOS_STMT2_BINDV bindv_{};
-        std::vector<const char*> tbnames_;          // 表名指针数组
-        std::vector<TAOS_STMT2_BIND*> bind_ptrs_;   // 绑定指针数组
-        std::vector<std::vector<TAOS_STMT2_BIND>> bind_lists_; // 绑定数据存储
+        std::vector<const char*> tbnames_;          // Table name pointer array
+        std::vector<TAOS_STMT2_BIND*> bind_ptrs_;   // Bind pointer array
+        std::vector<std::vector<TAOS_STMT2_BIND>> bind_lists_; // Bind data storage
 
         void release() {
             if (owning_pool) {
@@ -180,7 +180,7 @@ public:
             }
         }
 
-        // 释放大块内存
+        // Release large memory block
         void release_data_chunk() {
             if (data_chunk) {
                 std::free(data_chunk);
@@ -189,24 +189,24 @@ public:
             }
         }
 
-        // 初始化bindv结构（在MemoryPool中调用）
+        // Initialize bindv structure
         void init_bindv() {
             size_t max_tables = tables.size();
             const ColumnConfigInstanceVector& col_instances = owning_pool->col_instances_;
             col_count = col_instances.size();
 
-            // 预分配数据结构
+            // Pre-allocate data structures
             tbnames_.resize(max_tables, nullptr);
             bind_ptrs_.resize(max_tables, nullptr);
             bind_lists_.resize(max_tables);
 
-            // 为每个表预分配绑定列表
+            // Pre-allocate bind list for each table
             for (size_t i = 0; i < max_tables; ++i) {
                 bind_lists_[i].resize(1 + col_count);
                 bind_ptrs_[i] = bind_lists_[i].data();
                 auto& table = tables[i];
                 
-                // 初始化时间戳列绑定
+                // Initialize timestamp column binding
                 bind_lists_[i][0] = {
                     TSDB_DATA_TYPE_TIMESTAMP,
                     table.timestamps,
@@ -215,7 +215,7 @@ public:
                     static_cast<int>(table.max_rows)
                 };
                 
-                // 初始化数据列绑定
+                // Initialize data column binding
                 for (size_t col_idx = 0; col_idx < col_count; ++col_idx) {
                     auto& bind = bind_lists_[i][1 + col_idx];
                     const auto& config = col_instances[col_idx].config();
@@ -236,7 +236,7 @@ public:
                 }
             }
             
-            // 设置指针
+            // Set pointers
             bindv_.tbnames = const_cast<char**>(tbnames_.data());
             bindv_.bind_cols = bind_ptrs_.data();
         }
@@ -244,22 +244,22 @@ public:
         void build_bindv() {
             bindv_.count = used_tables;
             
-            // 更新表名和行数
+            // Update table names and row counts
             for (size_t i = 0; i < used_tables; ++i) {
                 auto& table = tables[i];
                 tbnames_[i] = table.table_name;
                 
-                // 更新时间戳行数
+                // Update timestamp row count
                 bind_lists_[i][0].num = table.used_rows;
                 
-                // 更新数据列行数
+                // Update data column row count
                 for (size_t col_idx = 0; col_idx < col_count; ++col_idx) {
                     bind_lists_[i][1 + col_idx].num = table.used_rows;
                 }
             }
         }
 
-        // 重置方法
+        // Reset method
         void reset() {
             total_rows = 0;
             start_time = std::numeric_limits<int64_t>::max();
@@ -277,7 +277,7 @@ public:
                 }
             }
         
-            // 重置bindv计数
+            // Reset bindv count
             bindv_.count = 0;
         }
     };

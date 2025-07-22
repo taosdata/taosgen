@@ -14,13 +14,13 @@ MemoryPool::MemoryPool(size_t block_count,
       blocks_(block_count),
       free_queue_(block_count)
 {
-    size_t max_rows_per_block = max_tables_per_block * max_rows_per_table;
+    const size_t max_rows_per_block = max_tables_per_block * max_rows_per_table;
     const size_t col_count = col_instances.size();
     
-    // 时间戳部分总大小
+    // Total size for timestamp section
     const size_t timestamps_size = max_rows_per_block * sizeof(int64_t);
     
-    // 计算列总大小
+    // Calculate total size for columns
     size_t common_meta_size = 0;
     size_t fixed_data_size = 0;
     size_t var_meta_size = 0;
@@ -40,117 +40,108 @@ MemoryPool::MemoryPool(size_t block_count,
         }
     }
 
-    // 总内存大小 (64字节对齐)
+    // Total memory size
     const size_t total_block_size = timestamps_size + common_meta_size + fixed_data_size + var_meta_size + var_data_size;
     const size_t aligned_size = ((total_block_size + 63) / 64) * 64;
 
     for (auto& block : blocks_) {
         block.owning_pool = this;
 
-        // 分配单个大块内存 (64字节对齐)
+        // Allocate a single large memory block
         block.data_chunk = std::aligned_alloc(64, aligned_size);
         block.data_chunk_size = aligned_size;
         if (!block.data_chunk) {
             throw std::bad_alloc();
         }
 
-        // 初始化内存为0
+        // Initialize memory to zero
         std::memset(block.data_chunk, 0, aligned_size);
         
         char* current_ptr = static_cast<char*>(block.data_chunk);
         
-        // 1. 分配时间戳内存
+        // 1. Allocate memory for timestamps
         int64_t* timestamps_base = reinterpret_cast<int64_t*>(current_ptr);
         current_ptr += timestamps_size;
         
-        // 2. 分配定长列内存
+        // 2. Allocate memory for fixed-length column data
         void* fixed_data_base = current_ptr;
         current_ptr += fixed_data_size;
         
-        // 3. 分配变长列元数据内存
+        // 3. Allocate memory for variable-length column metadata
         void* var_meta_base = current_ptr;
         current_ptr += var_meta_size;
         
-        // 4. 分配变长列数据内存
+        // 4. Allocate memory for variable-length column data
         char* var_data_base = current_ptr;
         current_ptr += var_data_size;
         
-        // 5. 分配公用元数据内存
+        // 5. Allocate memory for common metadata
         char* common_meta_base = current_ptr;
         current_ptr += common_meta_size;
         
-        // 初始化表结构
+        // Initialize table structure
         block.tables.resize(max_tables_per_block);
 
-        // 初始化表元数据
+        // Initialize table metadata
         for (size_t i = 0; i < max_tables_per_block; ++i) {
             auto& table = block.tables[i];
             table.max_rows = max_rows_per_table;
             table.col_handlers_ptr = &col_handlers_;
             table.columns.resize(col_instances.size());
 
-            // 设置时间戳指针
+            // Set timestamp pointer
             table.timestamps = timestamps_base + i * max_rows_per_table;
         }
         
-        // 设置列指针
+        // Set column pointers
         char* fixed_col_ptr = static_cast<char*>(fixed_data_base);
         char* var_meta_ptr = static_cast<char*>(var_meta_base);
         char* var_data_ptr = var_data_base;
         char* common_meta_ptr = common_meta_base;
 
-        for (size_t col_idx = 0; col_idx < col_count; ++col_idx) {
-            const auto& config = col_instances[col_idx].config();
-            const size_t is_nulls_size = max_rows_per_table * sizeof(char);
+        const size_t is_nulls_size = max_rows_per_table * sizeof(char);
+        const size_t lengths_size = max_rows_per_table * sizeof(int32_t);
+        const size_t offsets_size = max_rows_per_table * sizeof(size_t);
 
-            if (config.is_var_length()) {
-                const size_t lengths_size = max_rows_per_table * sizeof(int32_t);
-                const size_t offsets_size = max_rows_per_table * sizeof(size_t);
-                const size_t col_data_size = max_rows_per_table * config.len.value();
-                
-                for (size_t table_idx = 0; table_idx < max_tables_per_block; ++table_idx) {
-                    auto& col = block.tables[table_idx].columns[col_idx];
+        for (size_t table_idx = 0; table_idx < max_tables_per_block; ++table_idx) {
+            for (size_t col_idx = 0; col_idx < col_count; ++col_idx) {
+                auto& col = block.tables[table_idx].columns[col_idx];
+                const auto& config = col_instances[col_idx].config();
+
+                col.is_nulls = common_meta_ptr;
+                common_meta_ptr += is_nulls_size;
+
+                if (config.is_var_length()) {
                     col.is_fixed = false;
                     col.max_length = config.len.value();
                     col.element_size = 0;
                     
-                    // lengths 数组
+                    // lengths array
                     col.lengths = reinterpret_cast<int32_t*>(var_meta_ptr);
                     var_meta_ptr += lengths_size;
                     
-                    // offsets 数组
+                    // offsets array
                     col.var_offsets = reinterpret_cast<size_t*>(var_meta_ptr);
                     var_meta_ptr += offsets_size;
                     
-                    // is_nulls 数组
-                    col.is_nulls = common_meta_ptr;
-                    common_meta_ptr += is_nulls_size;
-    
-                    // var_data 数据区
+                    // var_data data area
+                    const size_t col_data_size = max_rows_per_table * config.len.value();
                     col.var_data = var_data_ptr;
                     var_data_ptr += col_data_size;
-                }
-            } else {
-                const size_t col_data_size = max_rows_per_table * config.get_fixed_type_size();
-                
-                for (size_t table_idx = 0; table_idx < max_tables_per_block; ++table_idx) {
-                    auto& col = block.tables[table_idx].columns[col_idx];
+                } else {
                     col.is_fixed = true;
                     col.element_size = config.get_fixed_type_size();
                     col.max_length = col.element_size;
-
-                    // is_nulls 数组
-                    col.is_nulls = common_meta_ptr;
-                    common_meta_ptr += is_nulls_size;
-
-                    // fixed_data 数据区
+                    
+                    // fixed_data data area
+                    const size_t col_data_size = max_rows_per_table * col.element_size;
                     col.fixed_data = fixed_col_ptr;
                     fixed_col_ptr += col_data_size;
                 }
             }
         }
         
-        // 初始化bindv结构
+        // Initialize bindv structure
         block.init_bindv();
 
         // Initial state: memory block is free
