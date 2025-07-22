@@ -166,6 +166,9 @@ public:
         bool in_use = false;
         MemoryPool* owning_pool = nullptr;
 
+        void* data_chunk = nullptr;  // 所有数据的连续内存块
+        size_t data_chunk_size = 0;  // 内存块大小
+
         TAOS_STMT2_BINDV bindv_{};
         std::vector<const char*> tbnames_;          // 表名指针数组
         std::vector<TAOS_STMT2_BIND*> bind_ptrs_;   // 绑定指针数组
@@ -174,6 +177,15 @@ public:
         void release() {
             if (owning_pool) {
                 owning_pool->release_block(this);
+            }
+        }
+
+        // 释放大块内存
+        void release_data_chunk() {
+            if (data_chunk) {
+                std::free(data_chunk);
+                data_chunk = nullptr;
+                data_chunk_size = 0;
             }
         }
 
