@@ -175,7 +175,8 @@ void ParameterContext::parse_create_database_action(Step& step) {
     if (step.with["database_info"]) {
         create_db_config.database_info = step.with["database_info"].as<DatabaseInfo>();
     } else {
-        throw std::runtime_error("Missing required 'database_info' for create-database action.");
+        // throw std::runtime_error("Missing required 'database_info' for create-database action.");
+        create_db_config.database_info = config_data.global.database_info;
     }
 
     // Print parse result

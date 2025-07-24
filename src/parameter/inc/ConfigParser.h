@@ -311,8 +311,14 @@ namespace YAML {
                 const auto& csv = node["csv"];
 
                 // Detect unknown keys in csv
-                static const std::set<std::string> csv_keys = {"file_path", "has_header", "delimiter", "exclude_indices"};
+                static const std::set<std::string> csv_keys = {"schema", "file_path", "has_header", "delimiter", "exclude_indices"};
                 check_unknown_keys(csv, csv_keys, "tags::csv");
+
+                if (csv["schema"]) {
+                    for (const auto& item : csv["schema"]) {
+                        rhs.csv.schema.push_back(item.as<ColumnConfig>());
+                    }
+                }
 
                 if (csv["file_path"]) {
                     rhs.csv.file_path = csv["file_path"].as<std::string>();
