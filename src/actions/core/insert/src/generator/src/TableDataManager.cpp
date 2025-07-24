@@ -101,7 +101,7 @@ MemoryPool::MemoryBlock* TableDataManager::collect_batch_data(size_t max_rows) {
     // }
     
     // Initialize memory block state
-    block->reset();
+    // block->reset();
     int64_t start_time = std::numeric_limits<int64_t>::max();
     int64_t end_time = std::numeric_limits<int64_t>::min();
     size_t total_rows = 0;

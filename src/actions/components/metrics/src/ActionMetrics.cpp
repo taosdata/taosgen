@@ -11,7 +11,7 @@ void ActionMetrics::add_sample(double duration_ms) {
     samples_.push_back(duration_ms);
 }
 
-std::vector<double> ActionMetrics::get_samples() const {
+const std::vector<double>& ActionMetrics::get_samples() const {
     return samples_;
 }
 

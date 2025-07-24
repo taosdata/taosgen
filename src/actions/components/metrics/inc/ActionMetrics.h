@@ -25,7 +25,7 @@ public:
     void reset();
     
     // Get samples
-    std::vector<double> get_samples() const;
+    const std::vector<double>& get_samples() const;
 
     double get_min() const { return metrics_.min; }
     double get_max() const { return metrics_.max; }

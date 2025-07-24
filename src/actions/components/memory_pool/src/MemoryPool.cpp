@@ -184,7 +184,7 @@ MemoryPool::MemoryBlock* MemoryPool::convert_to_memory_block(MultiBatch&& batch)
     // }
     
     // 2. Set memory block metadata
-    block->reset();
+    // block->reset();
     block->start_time = batch.start_time;
     block->end_time = batch.end_time;
     block->total_rows = batch.total_rows;

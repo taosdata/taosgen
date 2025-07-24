@@ -331,17 +331,27 @@ void InsertDataAction::execute() {
         }
 
         // Obtain the maximum value of the end_write_time() for all writers
+        std::vector<std::chrono::steady_clock::time_point> end_write_times;
+        end_write_times.reserve(writers.size());
         auto max_end_write_time = std::chrono::steady_clock::time_point::min();
         for (const auto& writer : writers) {
             auto t = writer->end_write_time();
+            end_write_times.push_back(t);
             if (t > max_end_write_time) {
                 max_end_write_time = t;
             }
         }
 
+        // Calculate total wait time (sum of each thread's waiting time after its own finish)
+        double total_wait_time = 0.0;
+        for (const auto& t : end_write_times) {
+            total_wait_time += std::chrono::duration<double>(max_end_write_time - t).count();
+        }
+        double avg_wait_time = total_wait_time / consumer_thread_count; // average per thread
+
         // Calculate total duration (seconds)
         const auto total_duration = std::chrono::duration<double>(max_end_write_time - min_start_write_time).count();
-        
+
         // Calculate average insert rate
         const double avg_rows_per_sec = total_duration > 0 ? 
             static_cast<double>(final_total_rows) / total_duration : 0.0;
@@ -371,13 +381,15 @@ void InsertDataAction::execute() {
         // Print performance statistics
         double thread_latency = global_write_metrics.get_sum() / consumer_thread_count / 1000;
         double effective_ratio = thread_latency / total_duration * 100.0;
+        double framework_ratio = (1 - (thread_latency + avg_wait_time) / total_duration) * 100.0;
         TimeIntervalStrategy time_strategy(config_.control.time_interval, config_.target.timestamp_precision);
         std::cout << "\n=============================================== Insert Latency & Efficiency Metrics ==========================================\n"
                 << "Total Operations: " << global_write_metrics.get_samples().size() << "\n"
                 << "Total Duration: " << std::fixed << std::setprecision(2) << total_duration << " seconds\n"
                 << "Pure Insert Latency: " << std::fixed << std::setprecision(2) << thread_latency << " seconds\n"
                 << "Effective Time Ratio: " << std::fixed << std::setprecision(2) << effective_ratio << "%\n"
-                << "Framework Overhead: " << std::fixed << std::setprecision(2) << (100.0 - effective_ratio) << "%\n";
+                << "Framework Overhead: " << std::fixed << std::setprecision(2) << framework_ratio << "%\n"
+                << "Idle Time After Finish: " << std::fixed << std::setprecision(2) << avg_wait_time << " seconds\n";
 
         if (time_strategy.strategy_type() == IntervalStrategyType::Literal) {
             std::cout << "Play Latency Distribution: " << global_play_metrics.get_summary() << "\n";
