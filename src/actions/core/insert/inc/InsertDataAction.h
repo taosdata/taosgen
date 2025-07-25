@@ -25,6 +25,9 @@ private:
     const GlobalConfig& global_;
     InsertDataConfig config_;
 
+    void set_realtime_priority();
+    void set_thread_affinity(size_t thread_id, bool reverse = false, const std::string& purpose = "");
+
     ColumnConfigInstanceVector create_column_instances(const InsertDataConfig& config) const;
     void print_writer_times(const std::vector<std::unique_ptr<IWriter>>& writers);
 

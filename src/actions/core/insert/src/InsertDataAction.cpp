@@ -17,7 +17,7 @@
 #include "ProcessUtils.h"
 
 
-void set_realtime_priority() {
+void InsertDataAction::set_realtime_priority() {
 #if defined(__linux__) || defined(__APPLE__)
     struct sched_param param;
     param.sched_priority = sched_get_priority_max(SCHED_FIFO);
@@ -29,7 +29,7 @@ void set_realtime_priority() {
 #endif
 }
 
-void set_thread_affinity(size_t thread_id, bool reverse = false, const std::string& purpose = "") {
+void InsertDataAction::set_thread_affinity(size_t thread_id, bool reverse, const std::string& purpose) {
 #if defined(__linux__) || defined(__APPLE__)
     // Get available CPU cores
     unsigned int num_cores = std::thread::hardware_concurrency();
@@ -54,8 +54,13 @@ void set_thread_affinity(size_t thread_id, bool reverse = false, const std::stri
         return;
     }
 
-    std::cout << (purpose.empty() ? "" : (purpose + " ")) << "Thread " << thread_id << " bound to core " << core_id
-              << (reverse ? " (reverse binding)" : " (forward binding)") << std::endl;
+    if (global_.verbose) {
+        // Print binding info if verbose mode is enabled
+        std::cout << "[Debug] " << (purpose.empty() ? "" : (purpose + " ")) 
+                  << "Thread " << thread_id << " bound to core " 
+                  << core_id << (reverse ? " (reverse binding)" : " (forward binding)") 
+                  << std::endl;
+    }
 #endif
 }
 
