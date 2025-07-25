@@ -9,6 +9,7 @@
 
 struct GlobalConfig {
     bool confirm_prompt = false;
+    bool verbose = false;
     std::string log_dir = "log/";
     std::string cfg_dir = "/etc/taos/";
     ConnectionInfo connection_info;

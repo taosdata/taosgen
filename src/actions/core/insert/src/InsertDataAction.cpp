@@ -7,6 +7,7 @@
 #include <variant>
 #include <type_traits>
 #include <pthread.h>
+#include <iomanip> 
 #include "FormatterRegistrar.h"
 #include "FormatterFactory.h"
 #include "TableNameManager.h"
@@ -321,6 +322,10 @@ void InsertDataAction::execute() {
             final_total_rows += manager->get_total_rows_generated();
         }
 
+        if (global_.verbose) {
+            print_writer_times(writers);
+        }
+
         // Obtain the minimum value of the start_write_time() for all writers
         auto min_start_write_time = std::chrono::steady_clock::time_point::max();
         for (const auto& writer : writers) {
@@ -574,5 +579,34 @@ ColumnConfigInstanceVector InsertDataAction::create_column_instances(const Inser
         return ColumnConfigInstanceFactory::create(schema);
     } catch (const std::exception& e) {
         throw std::runtime_error(std::string("Failed to create column instances: ") + e.what());
+    }
+}
+
+void InsertDataAction::print_writer_times(const std::vector<std::unique_ptr<IWriter>>& writers) {
+    for (size_t i = 0; i < writers.size(); ++i) {
+        auto start = writers[i]->start_write_time();
+        auto end = writers[i]->end_write_time();
+
+        auto start_sys = std::chrono::system_clock::now() + (start - std::chrono::steady_clock::now());
+        auto end_sys = std::chrono::system_clock::now() + (end - std::chrono::steady_clock::now());
+
+        auto print_time = [](const std::chrono::system_clock::time_point& tp) {
+            auto t = std::chrono::system_clock::to_time_t(tp);
+            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(tp.time_since_epoch()) % 1000;
+            std::tm tm;
+#if defined(_WIN32)
+            localtime_s(&tm, &t);
+#else
+            localtime_r(&t, &tm);
+#endif
+            std::cout << std::put_time(&tm, "%Y-%m-%d %H:%M:%S")
+                      << "." << std::setfill('0') << std::setw(3) << ms.count();
+        };
+
+        std::cout << "[Debug] Writer " << i << " start_write_time: ";
+        print_time(start_sys);
+        std::cout << ", end_write_time: ";
+        print_time(end_sys);
+        std::cout << std::endl;
     }
 }

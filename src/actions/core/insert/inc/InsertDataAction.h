@@ -26,6 +26,7 @@ private:
     InsertDataConfig config_;
 
     ColumnConfigInstanceVector create_column_instances(const InsertDataConfig& config) const;
+    void print_writer_times(const std::vector<std::unique_ptr<IWriter>>& writers);
 
     void producer_thread_function(
         size_t producer_id,

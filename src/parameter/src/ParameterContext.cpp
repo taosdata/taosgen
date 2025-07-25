@@ -68,6 +68,9 @@ void ParameterContext::parse_global(const YAML::Node& global_yaml) {
     if (global_yaml["confirm_prompt"]) {
         global_config.confirm_prompt = global_yaml["confirm_prompt"].as<bool>();
     }
+    if (global_yaml["verbose"]) {
+        global_config.verbose = global_yaml["verbose"].as<bool>();
+    }
     if (global_yaml["log_dir"]) {
         global_config.log_dir = global_yaml["log_dir"].as<std::string>();
     }
@@ -503,6 +506,10 @@ void ParameterContext::merge_commandline() {
     }
     if (cli_params.count("--user")) conn_info.user = cli_params["--user"];
     if (cli_params.count("--password")) conn_info.password = cli_params["--password"];
+
+    if (cli_params.count("--verbose")) {
+        config_data.global.verbose = true;
+    }
 }
 
 
