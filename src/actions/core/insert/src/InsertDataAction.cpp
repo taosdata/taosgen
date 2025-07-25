@@ -131,7 +131,7 @@ void InsertDataAction::execute() {
         MemoryPool pool(block_count, max_tables_per_block, max_rows_per_table, col_instances);
 
         // Create data pipeline
-        DataPipeline<FormatResult> pipeline(producer_thread_count, consumer_thread_count, queue_capacity);
+        DataPipeline<FormatResult> pipeline(queue_capacity);
         Barrier sync_barrier(consumer_thread_count + 1);
 
         // 4. Start consumer threads
@@ -478,7 +478,7 @@ void InsertDataAction::producer_thread_function(
         // }, formatted_result);
 
         // Push data to pipeline
-        pipeline.push_data(producer_id, std::move(formatted_result));
+        pipeline.push_data(std::move(formatted_result));
 
         // std::cout << "Producer " << producer_id << ": Pushed batch for table(s): "
         //           << batch_size << ", total rows: " << total_rows 
@@ -504,7 +504,7 @@ void InsertDataAction::consumer_thread_function(
     // Data processing loop
     (void)running;
     while (true) {
-        auto result = pipeline.fetch_data(consumer_id);
+        auto result = pipeline.fetch_data();
 
         switch (result.status) {
         case DataPipeline<FormatResult>::Status::Success:

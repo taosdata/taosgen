@@ -71,9 +71,10 @@ void test_has_more() {
     
     int rows_generated = 0;
     while (manager.has_more()) {
-        auto batch = manager.next_multi_batch();
-        assert(batch);
-        rows_generated += batch.value()->total_rows;
+        auto block = manager.next_multi_batch();
+        assert(block);
+        rows_generated += block.value()->total_rows;
+        block.value()->release();
     }
     
     const auto& states = manager.table_states();
@@ -95,7 +96,9 @@ void test_table_completion() {
     assert(manager.init(table_names));
     
     while (manager.has_more()) {
-        manager.next_multi_batch();
+        auto block = manager.next_multi_batch();
+        assert(block);
+        block.value()->release();
     }
     
     const auto& states = manager.table_states();
@@ -138,6 +141,7 @@ void test_data_generation_basic() {
                 row_count++;
             }
         }
+        block.value()->release();
     }
     
     (void)row_count;
@@ -179,7 +183,7 @@ void test_data_generation_with_interlace() {
     assert(table2.timestamps[0] == 1000);
     assert(table2.timestamps[1] == 1010);
 
-    pool.release_block(block.value());
+    block.value()->release();
 
     // Verify no more data available
     auto block2 = manager.next_multi_batch();
@@ -201,6 +205,8 @@ void test_data_generation_with_interlace() {
     assert(table1_2.timestamps[1] == 1030);
     assert(table2_2.timestamps[0] == 1020);
     assert(table2_2.timestamps[1] == 1030);
+
+    block2.value()->release();
 
     std::cout << "test_data_generation_with_interlace passed.\n";
 }
@@ -227,7 +233,7 @@ void test_per_request_rows_limit() {
         assert(batch->total_rows <= 3);
         total_rows += batch->total_rows;
 
-        pool.release_block(block.value());
+        block.value()->release();
     }
     
     assert(total_rows == 20);
@@ -258,7 +264,7 @@ void test_data_generation_with_flow_control() {
             assert(table.used_rows > 0);
         }
 
-        pool.release_block(block.value());
+        block.value()->release();
     }
     
     auto end_time = std::chrono::steady_clock::now();
