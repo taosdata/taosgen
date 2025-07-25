@@ -78,9 +78,9 @@ const ColumnConfigInstanceVector& TableDataManager::get_column_instances() const
 }
 
 std::optional<MemoryPool::MemoryBlock*> TableDataManager::next_multi_batch() {
-    if (!has_more()) {
-        return std::nullopt;
-    }
+    // if (!has_more()) {
+    //     return std::nullopt;
+    // }
 
     // Get maximum rows per request from config
     size_t max_rows = config_.control.insert_control.per_request_rows;
@@ -89,6 +89,10 @@ std::optional<MemoryPool::MemoryBlock*> TableDataManager::next_multi_batch() {
     }
 
     MemoryPool::MemoryBlock* batch = collect_batch_data(max_rows);
+    if (batch == nullptr) {
+        return std::nullopt;
+    }
+
     total_rows_generated_.fetch_add(batch->total_rows, std::memory_order_relaxed);
     return batch;
 }
@@ -175,7 +179,13 @@ MemoryPool::MemoryBlock* TableDataManager::collect_batch_data(size_t max_rows) {
         
         table_loops++;
     }
-    
+
+    if (total_rows == 0) {
+        // No data generated, release the block
+        block->release();
+        return nullptr;
+    }
+
     // Update memory block metadata
     block->start_time = start_time;
     block->end_time = end_time;

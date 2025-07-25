@@ -550,8 +550,16 @@ namespace YAML {
                 const auto& csv = node["csv"];
 
                 // Detect unknown keys in csv
-                static const std::set<std::string> csv_keys = {"file_path", "has_header", "delimiter", "timestamp_strategy"};
+                static const std::set<std::string> csv_keys = {"schema", "file_path", "has_header", "delimiter", "tbname_index", "timestamp_strategy"};
                 check_unknown_keys(csv, csv_keys, "columns::csv");
+
+                if (csv["schema"]) {
+                    for (const auto& item : csv["schema"]) {
+                        rhs.csv.schema.push_back(item.as<ColumnConfig>());
+                    }
+                } else {
+                    throw std::runtime_error("Missing required 'schema' configuration for columns::csv");
+                }
 
                 if (csv["file_path"]) {
                     rhs.csv.file_path = csv["file_path"].as<std::string>();
@@ -560,10 +568,13 @@ namespace YAML {
                 }
 
                 if (csv["has_header"]) {
-                    rhs.csv.has_header = csv["has_header"].as<bool>(true);
+                    rhs.csv.has_header = csv["has_header"].as<bool>();
                 }
                 if (csv["delimiter"]) {
-                    rhs.csv.delimiter = csv["delimiter"].as<std::string>(",");
+                    rhs.csv.delimiter = csv["delimiter"].as<std::string>();
+                }
+                if (csv["tbname_index"]) {
+                    rhs.csv.tbname_index = csv["tbname_index"].as<int>();
                 }
                 if (csv["timestamp_strategy"]) {
                     const auto& ts = csv["timestamp_strategy"];

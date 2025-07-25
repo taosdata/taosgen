@@ -104,3 +104,62 @@ jobs:
             size: 1000
             concurrency: 10
 
+
+  # Insert data job
+  insert-second-data:
+    name: Insert Second-Level Data
+    needs: [create-second-child-table]
+    steps:
+      - name: Insert Second-Level Data
+        uses: actions/insert-data
+        with:
+          # source
+          source:
+            table_name:
+              source_type: csv
+              csv:
+                file_path: ../src/parameter/conf/ctb-tags.csv
+                tbname_index: 2
+            columns:
+              source_type: csv
+              csv:
+                schema: *columns_info
+                file_path: ../src/parameter/conf/ctb-data.csv
+                tbname_index : 0
+
+                timestamp_strategy:
+                  strategy_type: generator
+                  generator:
+                    start_timestamp: 1700000000000
+                    timestamp_precision : ms
+                    timestamp_step: 1
+
+          # target
+          target:
+            target_type: tdengine
+            tdengine:
+              connection_info: *db_conn
+              database_info: *db_info
+              super_table_info: *stb_info
+
+          # control
+          control:
+            data_format:
+              format_type: stmt
+              stmt:
+                version: v2
+            data_channel:
+              channel_type: native
+            data_generation:
+              interlace_mode:
+                enabled: true
+                rows: 1
+              generate_threads: 1
+              per_table_rows: 100
+              queue_capacity: 100
+              queue_warmup_ratio: 0.5
+            insert_control:
+              per_request_rows: 10000
+              auto_create_table: false
+              insert_threads: 1
+              thread_allocation: index_range
