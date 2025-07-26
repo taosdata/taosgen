@@ -115,7 +115,7 @@ void InsertDataAction::execute() {
         const size_t interlace_rows = config_.control.data_generation.interlace_mode.rows;
         const int64_t per_table_rows = config_.control.data_generation.per_table_rows;
         
-        size_t block_count = (queue_capacity + 2) * producer_thread_count;
+        size_t block_count = queue_capacity;
         size_t max_tables_per_block = std::min(name_manager.chunk_size(), per_request_rows);
         size_t max_rows_per_table = per_table_rows;
 
@@ -238,6 +238,8 @@ void InsertDataAction::execute() {
         // 6. Monitor
         size_t last_total_rows = 0;
         auto last_time = start_time;
+        size_t max_total_rows = all_names.size() * per_table_rows;
+        int total_col_width = std::to_string(max_total_rows).length();
         
         while (active_producers > 0) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -265,13 +267,13 @@ void InsertDataAction::execute() {
             // Calculate total runtime
             const auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - start_time);
 
-            std::cout << "Runtime: " << duration.count() << "s | "
-                    << "Rate: " << std::fixed << std::setprecision(1) << rows_per_sec << " rows/s | "
-                    << "Total: " << total_rows << " rows | "
-                    << "Queue: " << pipeline.total_queued() << " items | "
-                    << "CPU Usage: " << std::fixed << std::setprecision(2) << ProcessUtils::get_cpu_usage_percent() << "% | "
+            std::cout << "Runtime: " << std::setw(4) << std::setfill(' ') << duration.count() << "s | "
+                    << "Rate: " << std::setw(8) << std::setfill(' ') << static_cast<long long>(rows_per_sec) << " rows/s | "
+                    << "Total: " << std::setw(total_col_width) << std::setfill(' ') << total_rows << " rows | "
+                    << "Queue: " << std::setw(3) << std::setfill(' ') << pipeline.total_queued() << " items | "
+                    << "CPU Usage: " << std::setw(7) << std::fixed << std::setprecision(2) << ProcessUtils::get_cpu_usage_percent() << "% | "
                     << "Memory Usage: " << ProcessUtils::get_memory_usage_human_readable() << " | "
-                    << "Thread Count: " << ProcessUtils::get_thread_count() << "\n";
+                    << "Thread Count: " << std::setw(3) << std::setfill(' ') << ProcessUtils::get_thread_count() << "\n";
         }
 
         std::cout << "All producer threads have finished." << std::endl;
@@ -289,13 +291,12 @@ void InsertDataAction::execute() {
                 size_t current_queue_size = pipeline.total_queued();
                 double process_rate = (last_queue_size - current_queue_size) / interval;
         
-                std::cout << "Remaining queue items: " << current_queue_size 
-                          << " | Processing rate: " << std::fixed << std::setprecision(1) 
-                          << process_rate << " items/s | "
-                          << "CPU Usage: " << std::fixed << std::setprecision(2) << ProcessUtils::get_cpu_usage_percent() << "% | "
+                std::cout << "Remaining Queue: " << std::setw(3) << std::setfill(' ') << current_queue_size << " items | "
+                          << "Processing Rate: " << std::setw(6) << std::fixed << std::setprecision(2) << process_rate << " items/s | "
+                          << "CPU Usage: " << std::setw(7) << std::fixed << std::setprecision(2) << ProcessUtils::get_cpu_usage_percent() << "% | "
                           << "Memory Usage: " << ProcessUtils::get_memory_usage_human_readable() << " | "
-                          << "Thread Count: " << ProcessUtils::get_thread_count() << "\n";
-                
+                          << "Thread Count: " << std::setw(3) << std::setfill(' ') << ProcessUtils::get_thread_count() << "\n";
+
                 last_queue_size = current_queue_size;
                 last_check_time = current_time;
             }

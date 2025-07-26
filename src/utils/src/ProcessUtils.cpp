@@ -33,11 +33,16 @@ std::string get_memory_usage_human_readable() {
     if (mem_mb < 0) return "Unknown";
     std::ostringstream mem_usage_ss;
     mem_usage_ss << std::fixed << std::setprecision(2);
+    std::string unit;
+    double value;
     if (mem_mb < 1024.0) {
-        mem_usage_ss << mem_mb << " MB";
+        value = mem_mb;
+        unit = "MB";
     } else {
-        mem_usage_ss << (mem_mb / 1024.0) << " GB";
+        value = mem_mb / 1024.0;
+        unit = "GB";
     }
+    mem_usage_ss << std::setw(6) << value << " " << unit;
     return mem_usage_ss.str();
 }
 
