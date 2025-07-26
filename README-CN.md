@@ -1,0 +1,984 @@
+<!-- omit in toc -->
+# tsgen
+
+![GitHub commit activity](https://img.shields.io/github/commit-activity/m/taosdata/tsgen)
+![GitHub License](https://img.shields.io/github/license/taosdata/tsgen)
+![GitHub Tag](https://img.shields.io/github/v/tag/taosdata/tsgen?label=latest)
+<br />
+[![Twitter Follow](https://img.shields.io/twitter/follow/tdenginedb?label=TDengine&style=social)](https://twitter.com/tdenginedb)
+[![YouTube Channel](https://img.shields.io/badge/Subscribe_@tdengine--white?logo=youtube&style=social)](https://www.youtube.com/@tdengine)
+[![Discord Community](https://img.shields.io/badge/Join_Discord--white?logo=discord&style=social)](https://discord.com/invite/VZdSuUg4pS)
+[![LinkedIn](https://img.shields.io/badge/Follow_LinkedIn--white?logo=linkedin&style=social)](https://www.linkedin.com/company/tdengine)
+[![StackOverflow](https://img.shields.io/badge/Ask_StackOverflow--white?logo=stackoverflow&style=social&logoColor=orange)](https://stackoverflow.com/questions/tagged/tdengine)
+
+<!-- omit in toc -->
+## 目录
+- [1. 简介](#1-简介)
+- [2. 文档](#2-文档)
+  - [运行](#运行)
+  - [命令行参数](#命令行参数)
+  - [配置文件参数](#配置文件参数)
+    - [整体结构](#整体结构)
+    - [全局配置参数](#全局配置参数)
+      - [连接信息参数](#连接信息参数)
+      - [数据格式化参数](#数据格式化参数)
+      - [数据通道参数](#数据通道参数)
+      - [数据库信息参数](#数据库信息参数)
+      - [超级表信息参数](#超级表信息参数)
+        - [列配置包含属性](#列配置包含属性)
+        - [数据生成方式详解](#数据生成方式详解)
+    - [作业的格式](#作业的格式)
+    - [步骤的格式](#步骤的格式)
+    - [行动的种类](#行动的种类)
+    - [创建数据库行动的格式](#创建数据库行动的格式)
+      - [connection\_info (可选)：](#connection_info-可选)
+      - [data\_format (可选)：](#data_format-可选)
+      - [data\_channel (可选)：](#data_channel-可选)
+      - [database\_info (可选)：](#database_info-可选)
+    - [创建超级表行动的格式](#创建超级表行动的格式)
+      - [connection\_info (可选)：](#connection_info-可选-1)
+      - [data\_format (可选)：](#data_format-可选-1)
+      - [data\_channel (可选)：](#data_channel-可选-1)
+      - [database\_info (可选)：](#database_info-可选-1)
+      - [super\_table\_info (可选)：](#super_table_info-可选)
+    - [创建子表行动的格式](#创建子表行动的格式)
+      - [connection\_info (可选)：](#connection_info-可选-2)
+      - [data\_format (可选)：](#data_format-可选-2)
+      - [data\_channel (可选)：](#data_channel-可选-2)
+      - [database\_info (可选)：](#database_info-可选-2)
+      - [super\_table\_info (可选)：](#super_table_info-可选-1)
+      - [child\_table\_info (必需)：](#child_table_info-必需)
+        - [table\_name（子表名称）](#table_name子表名称)
+        - [tags（标签列）](#tags标签列)
+      - [batch (可选)](#batch-可选)
+    - [插入数据行动的格式](#插入数据行动的格式)
+      - [source (必需)](#source-必需)
+        - [table\_name（子表名称）](#table_name子表名称-1)
+        - [columns（普通列）](#columns普通列)
+      - [target (必需)](#target-必需)
+        - [timestamp\_precision （时间戳精度，可选）](#timestamp_precision-时间戳精度可选)
+        - [target\_type (目标类型，必需)](#target_type-目标类型必需)
+        - [tdengine](#tdengine)
+      - [control (必需)](#control-必需)
+        - [data\_format（数据格式化，可选）](#data_format数据格式化可选)
+        - [data\_channel (数据通道，可选)](#data_channel-数据通道可选)
+        - [data\_generation（数据生成策略，可选）](#data_generation数据生成策略可选)
+        - [insert\_control（写入控制策略，可选）](#insert_control写入控制策略可选)
+        - [time\_interval（时间间隔策略，可选）](#time_interval时间间隔策略可选)
+  - [配置文件示例](#配置文件示例)
+    - [生成器方式生成数据 stmt v2 写入 TDengine 示例](#生成器方式生成数据-stmt-v2-写入-tdengine-示例)
+    - [CSV文件方式生成数据 stmt v2 写入 TDengine 实例](#csv文件方式生成数据-stmt-v2-写入-tdengine-实例)
+- [3. 前置条件](#3-前置条件)
+- [4. 构建](#4-构建)
+- [5. 测试](#5-测试)
+  - [5.1 运行测试](#51-运行测试)
+  - [5.2 添加用例](#52-添加用例)
+- [6. CI/CD](#6-cicd)
+- [7. 提交 Issue](#7-提交-issue)
+  - [7.1 必要信息](#71-必要信息)
+  - [7.2 额外信息](#72-额外信息)
+- [8. 提交 PR](#8-提交-pr)
+- [9. 引用](#9-引用)
+- [10. 附录](#10-附录)
+- [11. 许可证](#11-许可证)
+
+
+## 1. 简介
+`tsgen` 是时序数据领域产品的性能基准测试工具，支持数据生成、写入性能测试等功能。tsgen 以“作业”为基础单元，作业是由用户定义，用于完成特定任务的一组操作集合。每个作业包含一个或多个步骤，并可通过依赖关系与其他作业连接，形成有向无环图（DAG）式的执行流程，实现灵活高效的任务编排。
+
+`tsgen` 目前仅支持 Linux 系统。
+
+## 2. 文档
+
+### 运行
+tsgen 支持通过命令行、配置文件指定参数配置，相同的参数配置，命令行优先级要高于配置文件。 
+
+示例：
+
+```bash
+tsgen -h 192.168.1.1 -c config.yaml
+```
+
+### 命令行参数
+| 命令行参数                     | 功能说明                                         |
+| ----------------------------- | ----------------------------------------------- |
+| -h/--host \<host>             | 指定要连接的服务器的主机名称或 IP 地址，默认值为 localhost |
+| -P/--port \<port>             | 指定要连接的服务器的端口号，默认值为 6030 | 
+| -u/--user \<user>             | 指定用于连接服务器的用户名，默认为 root |
+| -p/--password \<passwd>       | 指定用于连接服务服务器的密码，默认值为 taosdata |
+| -c/--config-file \<yaml file> | 指定 yaml 格式配置文件的路径 |
+| -?/--help                     | 显示帮助信息并退出|
+
+
+### 配置文件参数
+
+#### 整体结构
+配置文件分为："global"、"concurrency"、"jobs" 三部分。
+- global：描述全局生效的配置参数。
+- concurrency：描述作业执行的并发度。
+- jobs：描述所有作业的具体相关参数。
+
+示例配置如下：
+
+```yaml
+global:
+  connection_info:
+    host: 192.168.1.1
+    port: 6030
+    user: root
+    password: taosdata
+
+concurrency: 3
+
+jobs:
+  # 创建数据库作业
+  create-database:
+    ......
+
+  # 创建超级表作业
+  create-super-table:
+    ......
+
+  # 创建秒级子表作业
+  create-second-child-table:
+    ......
+
+  # 创建分钟级子表作业
+  create-minute-child-table:
+    ......
+
+  # 写入秒级数据作业
+  insert-second-data:
+    ......
+
+  # 写入分钟级数据作业
+  insert-minute-data:
+    ......
+```
+
+#### 全局配置参数
+
+##### 连接信息参数
+- connection_info：定义服务器连接信息，它包括以下属性：
+  - host (字符串，可选)：表示要连接服务器的主机名或 IP 地址，默认值为 localhost。
+  - port (整型，可选)：表示要连接服务器的端口号，默认值为 6030。
+  - user (字符串，可选)：表示用于连接服务器的用户名，默认值为 root。
+  - password (字符串，可选)：表示用于连接服务器的密码，默认值为 taosdata。
+
+##### 数据格式化参数
+- data_format：定义输出数据的格式类型及其相关配置，描述数据以何种格式输出到数据存储介质中，它包括以下属性：
+  - format_type: (字符串类型，可选)：表示数据格式化的类型，默认值为 sql，可选值包括：
+    - sql：以 SQL 语句形式格式化数据。
+    - stmt：使用 STMT 接口格式化数据。
+
+  - 相应格式类型的描述信息：包含属性根据 format_type 不同而不同：
+    - 当 format_type: sql 时，暂无额外配置项。
+    - 当 format_type: stmt 时：
+      - version (字符串，可选)：表示 STMT 接口版本，目前仅支持 v2。
+
+##### 数据通道参数
+- data_channel：定义数据传输所使用的通信通道或目标路径。
+  - channel_type (字符串，可选)：表示数据通道类型，目前仅支持 native。可选值包括：
+    - native：使用原生接口与数据库交互。
+    - websocket：通过 WebSocket 协议与数据库交互。
+
+##### 数据库信息参数
+- database_info：定义 TDengine 数据库的实例信息，它包括以下属性：
+  - name (字符串，必需)：表示数据库名称。
+  - drop_if_exists (布尔，可选)：表示数据库已存在时是否删除该数据库，默认为 true。
+  - properties (字符串，可选)：表示数据库支持的创建数据库的属性信息。
+  例如，precision ms vgroups 20 replica 3 keep 3650 分别设置了虚拟组数量、副本数及数据保留期限。
+    - precision：
+      指定数据库的时间精度，可选值为："ms"、"us"、"ns"，默认值为 "ms"。
+    - vgroups：
+      指定数据库的虚拟组的个数，默认不指定。
+    - replica：
+      指定数据库的副本格式，默认不指定。
+
+##### 超级表信息参数
+- super_table_info：定义 TDengine 数据库的超级表信息的映射结构，它包括以下属性：
+  - name (字符串)：表示超级表的名称。
+  - columns (列表)：表示超级表的普通列的模式定义。
+  - tags (列表)：表示超级表的标签列的模式定义。
+
+###### 列配置包含属性
+每列包含以下属性：
+- name (字符串，必需)：表示列的名称，当 count 属性大于1时，name 表示的是列名称前缀，比如：name：current，count：3，则 3 个列的名字分别为 current0、current1、current2。
+- type（字符串，必需）：表示数据类型，支持以下类型（不区分大小写，与 TDengine 的数据类型兼容）：
+  - 整型：timestamp、bool、tinyint、tinyint unsigned、smallint、smallint unsigned、int、int unsigned、bigint、bigint unsigned。
+  - 浮点型：float、double、decimal。
+  - 字符型：nchar、varchar（binary）。
+- count (整数，可选)：表示指定该类型的列连续出现的数量，例如 count：4096 即可生成 4096 个指定类型的列。
+- properties (字符串，可选)：表示 TDengine 数据库的列支持的属性信息，可以包含以下属性：
+  - encode：指定此列两级压缩中的第一级编码算法。
+  - compress：指定此列两级压缩中的第二级加密算法。
+  - level：指定此列两级压缩中的第二级加密算法的压缩率高低。
+- gen_type (字符串，可选)：指定此列生成数据的方式，默认值为 random，支持的类型有：
+  - random：随机方式生成。
+  - order：按自然数顺序增长，仅适用整数类型。
+
+###### 数据生成方式详解
+- random：随机方式生成
+  - distribution (字符串，可选)：表示随机数的分别模型，目前仅支持均匀分布，后续按需扩充，默认值为 "uniform"。
+  - min (浮点数，可选)：表示列的最小值，仅适用整数类型和浮点数类型，生成的值将大于或等于最小值。
+  - max (浮点数，可选)：表示列的最大值，仅适用整数类型和浮点数类型，生成的值将小于最大值。
+
+- order：按自然数顺序增长，仅适用整数类型，达到最大值后会自动翻转到最小值
+  - min (整数，可选)：表示列的最小值，生成的值将大于或等于最小值。
+  - max (整数，可选)：表示列的最大值，生成的值将小于最大值。
+
+#### 作业的格式
+作业（Job）是由用户定义并包含一组有序的步骤（steps）。每个作业具有唯一的作业标识符（即键名），并可指定依赖关系（needs），以控制与其他作业之间的执行顺序。作业的组成包括以下属性：
+- 作业标识符（Job Key）：字符串类型，表示该作业在 jobs 列表中的唯一键名，用于内部引用和依赖管理。
+- name：字符串类型，表示作业的显示名称，用于日志输出或 UI 展示。
+- needs：列表类型，表示当前作业所依赖的其他作业的标识符列表。若不依赖任何作业，则为空列表。
+- steps：列表类型，由一个或多个步骤（Step）组成，按顺序依次执行，定义了该作业的具体操作流程。
+作业支持复用全局配置（如数据库连接信息等），并通过 YAML 锚点与别名机制减少重复定义，提高配置文件的可读性和可维护性。
+
+#### 步骤的格式
+步骤（Step）是作业中基础的操作单位，代表某一种具体操作类型的执行过程。每个步骤按顺序运行，并可以引用预定义的 Action 来完成特定功能。步骤的组成包括以下属性：
+- name：字符串类型，表示该步骤的显示名称，用于日志输出和界面展示。
+- uses：字符串类型，指向要使用的 Action 路径或标识符，指示系统调用哪一个操作模块来执行此步骤。
+- with：映射（字典）类型，包含传递给该 Action 的参数集合。参数内容因 Action 类型而异，支持灵活配置。
+通过组合多个步骤，作业能够实现复杂的逻辑流程，例如创建数据库、写入数据等。
+
+#### 行动的种类
+行动（Action） 是封装好的可复用操作单元，用于完成特定功能。每个行动代表一类独立的操作逻辑，可以在不同的步骤（Step）中被调用和执行。通过将常用操作抽象为标准化的行动模块，系统实现了良好的扩展性与配置灵活性。
+同一类型的行动可以在多个步骤中并行或重复使用，从而支持多样化的任务流程编排。例如：创建数据库、定义超级表、生成子表、插入数据等核心操作，均可通过对应的行动进行统一调度。
+目前系统支持以下内置行动：
+- `actions/create-database`：用于创建数据库。
+- `actions/create-super-table`：用于创建超级表。
+- `actions/create-child-table`：用于基于超级表生成子表。
+- `actions/insert-data`：用于向指定的数据表中插入数据。
+每个行动在调用时可通过 with 字段传入参数，具体参数内容因行动类型而异。
+
+
+#### 创建数据库行动的格式
+`actions/create-database` 行动用于在指定的 TDengine 数据库服务器上创建一个新的数据库。通过传递必要的连接信息和数据库配置参数，用户可以轻松地定义新数据库的各种属性，如数据库名称、是否在存在时删除旧数据库、时间精度等。
+
+##### connection_info (可选)：
+同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
+
+##### data_format (可选)：
+同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
+
+##### data_channel (可选)：
+同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
+
+##### database_info (可选)：
+同《全局配置参数》章节中同名参数的描述，包含数据库创建所需的所有细节。如果未指定，则默认使用全局配置中的参数信息。
+
+#### 创建超级表行动的格式
+`actions/create-super-table` 行动用于在指定数据库中创建一个新的超级表（Super Table）。通过传递必要的连接信息和超级表配置参数，用户能够定义超级表的各种属性，如表名、普通列和标签列等。
+
+##### connection_info (可选)：
+同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
+
+##### data_format (可选)：
+同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
+
+##### data_channel (可选)：
+同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
+
+##### database_info (可选)：
+同《全局配置参数》章节中同名参数的描述，指定要在哪个数据库中创建超级表。如果未指定，则默认使用全局配置中的参数信息。
+
+##### super_table_info (可选)：
+同《全局配置参数》章节中同名参数的描述，包含超级表创建所需的所有细节。如果未指定，则默认使用全局配置中的参数信息。
+
+#### 创建子表行动的格式
+`actions/create-child-table` 行动用于基于指定的超级表，在目标数据库中批量创建多个子表（Child Tables）。每个子表可以拥有不同的名称和标签列数据，从而实现对时间序列数据的有效分类与管理。该行动支持从生成器（Generator）或 CSV 文件两种来源定义子表名称及标签列信息，具备高度灵活性和可配置性。
+
+##### connection_info (可选)：
+同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
+
+##### data_format (可选)：
+同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
+
+##### data_channel (可选)：
+同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
+
+##### database_info (可选)：
+同《全局配置参数》章节中同名参数的描述，指定要在哪个数据库中创建子表。如果未指定，则默认使用全局配置中的参数信息。
+
+##### super_table_info (可选)：
+同《全局配置参数》章节中同名参数的描述，指定基于哪个超级表创建子表。如果未指定，则默认使用全局配置中的参数信息。
+
+##### child_table_info (必需)：
+包含创建子表所需的核心信息，包括子表名称和标签列数据的来源及具体配置。
+
+###### table_name（子表名称）
+- source_type (字符串，必需)：
+  子表名称的数据来源支持以下两种方式：generator、csv。
+- generator：仅在 source_type="generator" 时生效，包含如下属性：
+  使用生成器动态生成子表名称列表，需提供以下属性：
+  - prefix (字符串)：
+    子表名前缀，默认为 "d"。
+  - count (整数)：
+    要创建的子表数量，默认为 10000。
+  - from (整数)：
+    子表名称的起始下标（包含），默认为 0。
+- csv：仅在 source_type="csv" 时生效，包含如下属性：
+  从 CSV 文件读取子表名称列表，需提供以下属性：
+  - file_path (字符串)：
+    CSV 文件路径。
+  - has_header (布尔)：
+    是否包含表头行，默认为 true。
+  - tbname_index (整数)：
+    指定子表名称所在的列索引（从 0 开始），默认为 0。
+
+###### tags（标签列）
+- source_type (字符串，必需)：
+  标签列的数据来源支持以下两种方式：generator、csv。 
+- generator：仅在 source_type="generator" 时生效，包含如下属性：
+  使用生成器动态生成标签列数据，需提供以下属性：
+  - schema (列表类型，可选)：
+    标签列的 Schema 定义，每个元素表示一个标签列，包含字段名（name）、类型（type）以及生成规则（如随机等）。若未指定，则使用全局作用域中预定义的标签列的 Schema。
+- csv：仅在 source_type="csv" 时生效，包含如下属性：
+  从 CSV 文件读取标签列数据，需提供以下属性：
+  - schema (列表类型，可选)：标签列的 Schema 定义，每个元素表示一个标签列，包含字段名（name）、类型（type）等信息。
+  - file_path (字符串)：
+    CSV 文件路径。
+  - has_header (布尔)：
+    是否包含表头行，默认为 true。
+  - exclude_indices (字符串)：
+    若文件中同时包含子表名称列和标签列，或者仅想使用部分标签列时，此参数用于指定剔除的子表名称列/无用标签列等的索引（从 0 开始），列索引之间使用英文逗号,分隔，默认值为空，表示不剔除。
+
+##### batch (可选)
+控制批量创建子表时的行为：
+- size (整数)：
+  每批创建的子表数量，默认值为 1000。
+- concurrency (整数)：
+  并发执行的批次数量，提升创建效率，默认值为 10。
+
+#### 插入数据行动的格式
+`actions/insert-data` 行动用于将数据插入到指定的子表中。它支持从生成器或 CSV 文件两种来源获取子表名称、普通列数据，并允许用户通过多种时间戳策略控制数据的时间属性。此外，还提供了丰富的写入控制策略以优化数据插入过程，具备高度灵活性和可配置性。
+
+##### source (必需)
+包含了需要插入的数据的所有相关信息：
+
+###### table_name（子表名称）
+描述同：《创建子表行动的格式》中的同名配置项的描述。
+
+###### columns（普通列）
+- source_type (字符串，必需)：
+  普通列的数据来源支持以下两种方式：generator、csv。
+- generator：
+  仅在 source_type="generator" 时生效，使用生成器动态生成普通列数据，需提供以下属性：
+  - schema (列表类型，必须)：
+    普通列的 Schema 定义，每个元素表示一个普通列，包含字段名（name）、类型（type）以及生成规则（如随机等）。
+  - timestamp_strategy (时间戳列策略，可选)：
+    generator 类型数据源下的时间戳列策略仅有一种类型，即是生成方式，包含如下属性：
+    - start_timestamp (整数或关键字 "now"，可选)：表示子表的时间戳列的起始值，默认值为 "now"。
+    - timestamp_precision (字符串，可选)：
+      表示时间戳列的时间精度，可选值为："ms"、"us"、"ns"，默认与数据目标中的时间戳列的精度一致。
+    - timestamp_step (整数，可选)：表示子表中插入数据的时间戳步长，单位与时间精度一致，默认值是 1。
+- csv
+  仅在 source_type="csv" 时生效，从 CSV 文件读取普通列数据，需提供以下属性：
+  - schema (列表类型，可选)：
+    普通列的 Schema 定义，每个元素表示一个普通列，包含字段名（name）、类型（type）。
+  - file_path (字符串，必需)：
+    CSV 文件路径，支持单个文件或目录路径。
+  - has_header (布尔，可选)：
+    是否包含表头行，默认为 true。
+  - tbname_index （整数，可选）：
+    指定子表名称所在的列索引（从 0 开始）。
+  - timestamp_strategy (时间戳列策略，必需)：用于控制时间戳的生成逻辑。
+    - strategy_type (字符串，必需)：时间戳生成策略类型，默认为 original，可选值包括：
+      - original：使用原始文件中的时间列作为时间戳。
+      - generator：根据用户规则 start_timestamp 和 timestamp_step 生成时间戳。
+    1. original (对象，可选)：仅在 strategy_type="original" 时生效，包含以下属性：
+      - timestamp_index (整数，可选)：指定原始时间列的索引（从 0 开始），默认值为 0。
+      - timestamp_precision (字符串，可选)：表示原始时间列的时间精度，默认与数据目标中的时间戳列的精度一致，可选值为 "s"、"ms"、"us"、"ns"。
+      - offset_config (可选)：
+        - offset_type (字符串)：表示时间戳偏移类型，可选值为："relative"、"absolute"。
+        - value（字符串或整型）：表示时间戳的偏移量（relative）或起始时间戳（absolute）：
+          - 时间戳偏移类型为 "relative" 时：字符串类型，格式为 ±[数值][单位] 组合（示例："+1d3h" 表示加1天3小时），支持以下时间单位：
+            - y：年偏移量。
+            - m：月偏移量。
+            - d：天偏移量。
+            - s：秒偏移量。
+          - 时间戳偏移类型为 "absolute" 时：整型或字符串类型，格式如下：
+            - 时间戳数值（精度由 timestamp_precision 参数决定）
+            - ISO 8601 格式字符串（"YYYY-MM-DD HH:mm:ss"）
+    2. generator (对象，可选)：仅在 strategy_type="generator" 时生效，包含以下属性：
+      - start_timestamp (整数或字符串，可选)：表示子表的时间戳列的起始值，默认值为 "now"。
+      - timestamp_precision (字符串，可选)：
+        表示时间戳列的时间精度，可选值为："ms"、"us"、"ns"，默认与数据目标中的时间戳列的精度一致。
+      - timestamp_step (整数，可选)：表示子表中插入数据的时间戳步长，单位与时间精度一致，默认值是 1。
+
+##### target (必需)
+描述数据写入的目标数据库或其他存储介质信息：
+
+###### timestamp_precision （时间戳精度，可选）
+字符串类型：表示时间戳列的精度，可选值为："ms"、"us"、"ns"，当数据目标是 tdengine 时，默认为数据库的精度，否则默认为 "ms"。
+
+###### target_type (目标类型，必需)
+字符串类型，目标数据类型支持以下几种方式：
+- tdengine：TDengine 数据库。
+
+###### tdengine
+仅在 target_type="tdengine" 时生效，包含如下属性：
+- connection_info (必需)：
+数据库连接信息。
+- database_info (对象类型，必需)：
+包含目标数据库的相关信息：
+  - name (字符串，必需)：
+数据库名称。
+  - precision (字符串，可选)：
+数据库的时间精度，与上边 timestamp_precision 的值保持一致。
+- super_table_info (必需)：
+包含超级表的信息：
+  - name (字符串，必需)：
+超级表名称。
+  - columns (可选)：
+引用预定义的普通列 Schema。
+  - tags (可选)：
+引用预定义的标签列 Schema。
+
+##### control (必需)
+定义数据写入过程中的行为策略，包括数据格式化（data_format）、数据通道（data_channel）、数据生成策略（data_generation）、写入控制策略（insert_control）、时间间隔策略（time_interval）等部分。
+
+###### data_format（数据格式化，可选）
+同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
+
+###### data_channel (数据通道，可选)
+同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
+
+###### data_generation（数据生成策略，可选）
+定义数据生成的行为相关设置：
+- interlace_mode（可选）：控制交错生成子表数据的方式。
+  - enabled (布尔，可选)：表示是否启用交错模式，默认值为 false。
+  - rows (整数，可选)：表示每个子表单次生成的行数，默认值为 1。
+- generate_threads (整数，可选)，表示生成数据的线程数量，默认值为 1。
+- per_table_rows (整数，可选)，每个子表插入的行数，默认值为 10000。
+- queue_capacity (整数，可选)，表示存放生成数据的队列的容量，默认值为 100。
+- queue_warmup_ratio（浮点，可选），表示队列中数据预热生成的比例，默认值为 0.5，表示提前生成队列容量 50%的数据。
+
+###### insert_control（写入控制策略，可选）
+写入控制策略：控制实际数据的写入目标数据库或文件的行为细节。
+- per_request_rows (整数，可选)，默认值为 10000，表示每次请求写入的最大行数。
+- insert_threads (整数，可选)，默认值为 8，表示并发写入线程数量。
+
+###### time_interval（时间间隔策略，可选）
+  控制写入过程中时间间隔分布策略。
+- enabled (布尔，可选)：默认值为 false，表示是否启用时间间隔控制。
+- interval_strategy (字符串，可选)：表示时间间隔策略类型，默认值为 fixed。可选值为：
+  - fixed：固定的时间间隔。
+  - first_to_first：本次发送数据的首行的时间列 - 上次发送数据的首行的时间列。
+  - last_to_first：本次发送数据的首行的时间列 - 上次发送数据的末行的时间列。
+  - literal：根据本次发送数据的首行的时间列的值的时间点来发送，模拟实时产生数据的场景。
+- fixed_interval：仅在 interval_strategy = fixed 时生效：
+  - base_interval (整数，必需)：表示固定间隔数值，单位毫秒。
+- dynamic_interval：仅在 interval_strategy = first_to_first / last_to_first 时生效：
+  - min_interval (整数，可选)：默认值为 -1，表示最小时间间隔阈值。
+  - max_interval (整数，可选)：默认值为 -1，表示最大时间间隔阈值。
+- wait_strategy (字符串，可选)：表示在开启时间间隔控制时，发送写入请求之间的等待策略，默认值为：sleep，可选值为：
+  - sleep：睡眠，归还当前线程的执行权给操作系统。
+  - busy_wait：忙等待，保持当前线程的执行权。
+
+### 配置文件示例
+
+#### 生成器方式生成数据 stmt v2 写入 TDengine 示例
+
+```yaml
+global:
+  confirm_prompt: false
+  log_dir: log/
+  cfg_dir: /etc/taos/
+
+  # Common structure definition
+  connection_info: &db_conn
+    host: 127.0.0.1
+    port: 6030
+    user: root
+    password: taosdata
+
+  data_format: &data_format
+    format_type: sql
+
+  data_channel: &data_channel
+    channel_type: native
+
+  database_info: &db_info
+    name: benchdebug
+    drop_if_exists: true
+    properties: precision 'ms' vgroups 4
+
+  super_table_info: &stb_info
+    name: meters
+    columns: &columns_info
+      - name: current
+        type: float
+        min: 0
+        max: 100
+      - name: voltage
+        type: int
+        min: 200
+        max: 240
+      - name: phase
+        type: float
+        min: 0
+        max: 360
+    tags: &tags_info
+      - name: groupid
+        type: int
+        min: 1
+        max: 10
+      - name: location
+        type: binary(24)
+
+  tbname_generator: &tbname_generator
+    prefix: d
+    count: 100000
+    from: 0
+
+concurrency: 4
+
+jobs:
+  # Create database job
+  create-database:
+    name: Create Database
+    needs: []
+    steps:
+      - name: Create Database
+        uses: actions/create-database
+        with:
+          connection_info: *db_conn
+          database_info: *db_info
+
+  # Create super table job
+  create-super-table:
+    name: Create Super Table
+    needs: [create-database]
+    steps:
+      - name: Create Super Table
+        uses: actions/create-super-table
+        with:
+          connection_info: *db_conn
+          database_info: *db_info
+          super_table_info: *stb_info
+
+  # Create child table job
+  create-second-child-table:
+    name: Create Second Child Table
+    needs: [create-super-table]
+    steps:
+      - name: Create Second Child Table
+        uses: actions/create-child-table
+        with:
+          connection_info: *db_conn
+          database_info: *db_info
+          super_table_info: *stb_info
+          child_table_info:
+            table_name:
+              source_type: generator
+              generator: *tbname_generator
+            tags: 
+              source_type: generator
+              generator:
+                schema: *tags_info
+          batch:
+            size: 1000
+            concurrency: 10
+
+  # Insert data job
+  insert-second-data:
+    name: Insert Second-Level Data
+    needs: [create-second-child-table]
+    steps:
+      - name: Insert Second-Level Data
+        uses: actions/insert-data
+        with:
+          # source
+          source:
+            table_name:
+              source_type: generator
+              generator: *tbname_generator
+            columns:
+              source_type: generator
+              generator:
+                schema: *columns_info
+
+                timestamp_strategy:
+                  generator:
+                    start_timestamp: 1700000000000
+                    timestamp_precision : ms
+                    timestamp_step: 1
+
+          # target
+          target:
+            target_type: tdengine
+            tdengine:
+              connection_info: *db_conn
+              database_info: *db_info
+              super_table_info: *stb_info
+
+          # control
+          control:
+            data_format:
+              format_type: stmt
+              stmt:
+                version: v2
+            data_channel:
+              channel_type: native
+            data_generation:
+              interlace_mode:
+                enabled: true
+                rows: 1
+              generate_threads: 1
+              per_table_rows: 100
+              queue_capacity: 100
+              queue_warmup_ratio: 0.5
+            insert_control:
+              per_request_rows: 10000
+              auto_create_table: false
+              insert_threads: 1
+```
+
+#### CSV文件方式生成数据 stmt v2 写入 TDengine 实例
+
+```yaml
+global:
+  confirm_prompt: false
+  log_dir: log/
+  cfg_dir: /etc/taos/
+
+  # Common structure definition
+  connection_info: &db_conn
+    host: 127.0.0.1
+    port: 6030
+    user: root
+    password: taosdata
+
+  data_format: &data_format
+    format_type: sql
+
+  data_channel: &data_channel
+    channel_type: native
+
+  database_info: &db_info
+    name: benchdebug
+    drop_if_exists: true
+    properties: precision 'ms' vgroups 4
+
+  super_table_info: &stb_info
+    name: meters
+    columns: &columns_info
+      - name: current
+        type: float
+        min: 0
+        max: 100
+      - name: voltage
+        type: int
+        min: 200
+        max: 240
+      - name: phase
+        type: float
+        min: 0
+        max: 360
+    tags: &tags_info
+      - name: groupid
+        type: int
+        min: 1
+        max: 10
+      - name: location
+        type: binary(24)
+
+  tbname_generator: &tbname_generator
+    prefix: d
+    count: 100000
+    from: 0
+
+concurrency: 4
+
+jobs:
+  # Create database job
+  create-database:
+    name: Create Database
+    needs: []
+    steps:
+      - name: Create Database
+        uses: actions/create-database
+        with:
+          connection_info: *db_conn
+          database_info: *db_info
+
+  # Create super table job
+  create-super-table:
+    name: Create Super Table
+    needs: [create-database]
+    steps:
+      - name: Create Super Table
+        uses: actions/create-super-table
+        with:
+          connection_info: *db_conn
+          database_info: *db_info
+          super_table_info: *stb_info
+
+  # Create child table job
+  create-second-child-table:
+    name: Create Second Child Table
+    needs: [create-super-table]
+    steps:
+      - name: Create Second Child Table
+        uses: actions/create-child-table
+        with:
+          connection_info: *db_conn
+          database_info: *db_info
+          super_table_info: *stb_info
+          child_table_info:
+            table_name:
+              source_type: csv
+              csv:
+                file_path: ../src/parameter/conf/ctb-tags.csv
+                tbname_index: 2
+            tags: 
+              source_type: csv
+              csv:
+                schema: *tags_info
+                file_path: ../src/parameter/conf/ctb-tags.csv
+                exclude_indices: 2
+          batch:
+            size: 1000
+            concurrency: 10
+
+  # Insert data job
+  insert-second-data:
+    name: Insert Second-Level Data
+    needs: [create-second-child-table]
+    steps:
+      - name: Insert Second-Level Data
+        uses: actions/insert-data
+        with:
+          # source
+          source:
+            table_name:
+              source_type: csv
+              csv:
+                file_path: ../src/parameter/conf/ctb-tags.csv
+                tbname_index: 2
+            columns:
+              source_type: csv
+              csv:
+                schema: *columns_info
+                file_path: ../src/parameter/conf/ctb-data.csv
+                tbname_index : 0
+
+                timestamp_strategy:
+                  strategy_type: generator
+                  generator:
+                    start_timestamp: 1700000000000
+                    timestamp_precision : ms
+                    timestamp_step: 1
+
+          # target
+          target:
+            target_type: tdengine
+            tdengine:
+              connection_info: *db_conn
+              database_info: *db_info
+              super_table_info: *stb_info
+
+          # control
+          control:
+            data_format:
+              format_type: stmt
+              stmt:
+                version: v2
+            data_channel:
+              channel_type: native
+            data_generation:
+              interlace_mode:
+                enabled: true
+                rows: 1
+              generate_threads: 1
+              per_table_rows: 100
+              queue_capacity: 100
+              queue_warmup_ratio: 0.5
+            insert_control:
+              per_request_rows: 10000
+              insert_threads: 1
+```
+
+其中：
+- `ctb-tags.csv` 文件内容为：
+
+```csv
+groupid,location,tbname
+1,loc1,d1
+2,loc2,d2
+3,loc3,d3
+```
+
+- `ctb-data.csv` 文件内容为：
+
+```csv
+tbname,current,voltage,phase
+d1,11,200,1001
+d3,13,201,3001
+d2,12,202,2001
+d3,23,203,3002
+d2,22,204,2002
+d1,21,205,1002
+```
+
+## 3. 前置条件
+首先，确保 TDengine 已本地部署。有关详细的部署步骤，请参阅[部署TDengine](https://docs.tdengine.com/get-started/deploy-from-package/)。确保 taosd 和 taosAdapter 服务均已启动并运行。
+
+在安装和使用 `tsgen` 之前，请确保您已满足特定平台的以下前置条件。
+
+- cmake，3.0 或以上版本，请参阅 [cmake](https://cmake.org/)。
+
+## 4. 构建
+本节提供了在 Linux 平台构建 `tsgen` 的详细说明。
+在继续之前，请确保您位于该项目的根目录中。
+
+```shell
+mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build . 
+```
+
+## 5. 测试
+
+### 5.1 运行测试
+`tsgen` 测试框架使用 ctest 来运行测试用例，在构建目录中运行 `ctest` 命令将运行所有测试用例。
+
+### 5.2 添加用例
+测试用例位于各子模块的 test 目录中。
+- 在现有测试文件中添加测试用例：测试用例函数名称以 `test_` 开头，并在 `main` 函数中调用。
+- 新增测试文件：在文件内编写测试用例和 `main` 函数，并在同目录下的 `CMakeLists.txt` 文件中，添加编译控制相关配置。
+
+## 6. CI/CD
+- [Build Workflow] -TODO
+- [Code Coverage] -TODO
+
+## 7. 提交 Issue
+我们欢迎提交 [GitHub Issue](https://github.com/taosdata/tsgen/issues/new?template=Blank+issue) 。提交时，请提供以下信息以帮助我们更高效地诊断和解决问题：
+
+### 7.1 必要信息
+- 问题描述：
+  提供您遇到的问题的清晰和详细描述。
+  指出问题是持续发生还是间歇性发生。
+  如果可能，请包括详细的调用栈或错误消息，以帮助诊断问题。
+
+- tsgen 版本或 Commit ID
+- tsgen 配置参数
+- TDengine 服务器版本
+
+### 7.2 额外信息
+- 操作系统：指定操作系统及其版本。
+- 重现步骤：提供说明如何重现问题，这有助于我们复现和验证问题。
+- 环境配置：包括任何相关的环境配置。
+- 日志：附加任何可能有助于诊断问题的相关日志。
+
+## 8. 提交 PR
+我们欢迎开发者一起开发本项目，提交 PR 时请参考下面步骤：
+1. Fork 本项目，请参考 ([how to fork a repo](https://docs.github.com/en/get-started/quickstart/fork-a-repo))。
+2. 从 main 分支创建一个新分支，请使用有意义的分支名称 (`git checkout -b my_branch`)。注意不要直接在 main 分支上修改。
+3. 修改代码，保证所有单元测试通过，并增加新的单元测试验证修改。
+4. 提交修改到远端分支 (`git push origin my_branch`)。
+5. 在 GitHub 上创建一个 Pull Request ([how to create a pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request))。
+6. 提交 PR 后，可以通过 [Pull Request](https://github.com/taosdata/tsgen/pulls) 找到自己的 PR，点击对应链接进去可以看到自己 PR CI 是否通过，如果通过会显示 “All checks have passed”。无论 CI 是否通过，都可以点击 “Show all checks” -> “Details” 来查看详细用例日志。
+7. 提交 PR 后，如果 CI 通过，可以在 [codecov](https://app.codecov.io/gh/taosdata/tsgen/pulls) 页面找到自己 PR，看单测覆盖率。
+
+## 9. 引用
+- [TDengine Official Website](https://www.tdengine.com/) 
+- [TDengine GitHub](https://github.com/taosdata/TDengine) 
+
+## 10. 附录
+项目源代码布局，仅目录：
+```
+<root>
+├── cmake
+├── inc
+├── src
+│   ├── actions
+│   │   ├── base
+│   │   ├── components
+│   │   │   ├── connector
+│   │   │   │   ├── inc
+│   │   │   │   ├── src
+│   │   │   │   └── test
+│   │   │   ├── formatter
+│   │   │   │   ├── inc
+│   │   │   │   ├── src
+│   │   │   │   └── test
+│   │   │   ├── garbage_collector
+│   │   │   │   ├── inc
+│   │   │   │   ├── src
+│   │   │   │   └── test
+│   │   │   ├── generator
+│   │   │   │   ├── inc
+│   │   │   │   ├── src
+│   │   │   │   └── test
+│   │   │   ├── memory_pool
+│   │   │   │   ├── inc
+│   │   │   │   ├── src
+│   │   │   │   └── test
+│   │   │   ├── metrics
+│   │   │   │   ├── inc
+│   │   │   │   ├── src
+│   │   │   │   └── test
+│   │   │   └── reader
+│   │   │       ├── csv
+│   │   │       │   ├── inc
+│   │   │       │   ├── src
+│   │   │       │   └── test
+│   │   │       └── kafka
+│   │   ├── config
+│   │   │   ├── inc
+│   │   │   ├── src
+│   │   │   └── test
+│   │   └── core
+│   │       ├── create
+│   │       │   ├── inc
+│   │       │   ├── src
+│   │       │   └── test
+│   │       ├── insert
+│   │       │   ├── inc
+│   │       │   ├── src
+│   │       │   │   ├── generator
+│   │       │   │   │   ├── inc
+│   │       │   │   │   ├── src
+│   │       │   │   │   └── test
+│   │       │   │   ├── pipeline
+│   │       │   │   │   ├── inc
+│   │       │   │   │   ├── src
+│   │       │   │   │   └── test
+│   │       │   │   └── writer
+│   │       │   │       ├── inc
+│   │       │   │       ├── src
+│   │       │   │       └── test
+│   │       │   └── test
+│   │       ├── query
+│   │       │   ├── inc
+│   │       │   ├── src
+│   │       │   └── test
+│   │       └── subscribe
+│   │           ├── inc
+│   │           ├── src
+│   │           └── test
+│   ├── engine
+│   │   ├── inc
+│   │   ├── src
+│   │   └── test
+│   ├── parameter
+│   │   ├── conf
+│   │   ├── inc
+│   │   ├── src
+│   │   └── test
+│   ├── utils
+│   │   ├── inc
+│   │   ├── src
+│   │   └── test
+│   └── workflow
+│       ├── inc
+│       ├── src
+│       └── test
+└── test
+```
+
+## 11. 许可证
+[MIT License](./LICENSE)
