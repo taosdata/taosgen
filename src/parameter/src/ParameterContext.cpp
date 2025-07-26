@@ -20,7 +20,7 @@ const std::vector<ParameterContext::CommandOption> ParameterContext::valid_optio
 };
 
 void ParameterContext::show_help() {
-    std::cout << "Usage: taosbench [OPTIONS]...\n\n"
+    std::cout << "Usage: tsgen [OPTIONS]...\n\n"
               << "Options:\n";
 
     // Calculate the longest option length for alignment
@@ -57,8 +57,8 @@ void ParameterContext::show_help() {
     }
 
     std::cout << "\nExamples:\n"
-              << "  taosbench --config-file=example.yaml\n"
-              << "  taosbench -h localhost -P 6030 -u root -p taosdata\n"
+              << "  tsgen --config-file=example.yaml\n"
+              << "  tsgen -h localhost -P 6030 -u root -p taosdata\n"
               << "\nFor more information, visit: https://docs.taosdata.com/\n\n";
 }
 
@@ -94,7 +94,6 @@ void ParameterContext::parse_global(const YAML::Node& global_yaml) {
     }
 }
 
-
 void ParameterContext::parse_jobs(const YAML::Node& jobs_yaml) {
     for (const auto& job_node : jobs_yaml) {
         Job job;
@@ -113,8 +112,6 @@ void ParameterContext::parse_jobs(const YAML::Node& jobs_yaml) {
         config_data.jobs.push_back(job);
     }
 }
-
-
 
 void ParameterContext::parse_steps(const YAML::Node& steps_yaml, std::vector<Step>& steps) {
     for (const auto& step_node : steps_yaml) {
@@ -145,7 +142,6 @@ void ParameterContext::parse_steps(const YAML::Node& steps_yaml, std::vector<Ste
         steps.push_back(step);
     }
 }
-
 
 void ParameterContext::parse_create_database_action(Step& step) {
     CreateDatabaseConfig create_db_config;
@@ -188,7 +184,6 @@ void ParameterContext::parse_create_database_action(Step& step) {
     // Save result to Step's action_config field
     step.action_config = std::move(create_db_config);
 }
-
 
 void ParameterContext::parse_create_super_table_action(Step& step) {
     CreateSuperTableConfig create_stb_config;
@@ -242,7 +237,6 @@ void ParameterContext::parse_create_super_table_action(Step& step) {
     // Save result to Step's action_config field
     step.action_config = std::move(create_stb_config);
 }
-
 
 void ParameterContext::parse_create_child_table_action(Step& step) {
     CreateChildTableConfig create_child_config;
@@ -304,7 +298,6 @@ void ParameterContext::parse_create_child_table_action(Step& step) {
     step.action_config = std::move(create_child_config);
 }
 
-
 void ParameterContext::parse_insert_data_action(Step& step) {
     InsertDataConfig insert_config;
 
@@ -333,7 +326,6 @@ void ParameterContext::parse_insert_data_action(Step& step) {
     step.action_config = std::move(insert_config);
 }
 
-
 void ParameterContext::parse_query_data_action(Step& step) {
     QueryDataConfig query_config;
 
@@ -358,7 +350,6 @@ void ParameterContext::parse_query_data_action(Step& step) {
     step.action_config = std::move(query_config);
 }
 
-
 void ParameterContext::parse_subscribe_data_action(Step& step) {
     SubscribeDataConfig subscribe_config;
 
@@ -382,7 +373,6 @@ void ParameterContext::parse_subscribe_data_action(Step& step) {
     // Save result to Step's action_config field
     step.action_config = std::move(subscribe_config);
 }
-
 
 void ParameterContext::merge_yaml(const YAML::Node& config) {
     // Parse global config
@@ -450,10 +440,16 @@ void ParameterContext::parse_commandline(int argc, char* argv[]) {
             }
 
             // Check if value is required
-            if (it->requires_value && pos == std::string::npos) {
-                throw std::runtime_error("Option requires a value: " + key);
+            if (it->requires_value) {
+                if (pos == std::string::npos) {
+                    // Try to get value from next argv
+                    if (i + 1 >= argc) {
+                        throw std::runtime_error("Option requires a value: " + key);
+                    }
+                    value = argv[++i];
+                }
             }
-                
+
             cli_params[key] = value;
         }
         // Handle short option format (-k value)
@@ -487,7 +483,6 @@ void ParameterContext::parse_commandline(int argc, char* argv[]) {
     } 
 }
 
-
 void ParameterContext::merge_commandline(int argc, char* argv[]) {
     parse_commandline(argc, argv);
     merge_commandline();
@@ -511,7 +506,6 @@ void ParameterContext::merge_commandline() {
         config_data.global.verbose = true;
     }
 }
-
 
 void ParameterContext::merge_environment_vars() {
     // Define environment variables to read

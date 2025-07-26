@@ -795,7 +795,7 @@ jobs:
               generate_threads: 1
               per_table_rows: 100
               queue_capacity: 100
-              queue_warmup_ratio: 0.5
+              queue_warmup_ratio: 0.0
             insert_control:
               per_request_rows: 10000
               insert_threads: 1
