@@ -97,7 +97,7 @@ void test_create_child_table_action_from_csv() {
     config.child_table_info.tags.csv.exclude_indices = {2,3};
     config.child_table_info.tags.csv.schema = {
         {"tag1", "float"},
-        {"tag2", "varchar"}
+        {"tag2", "varchar(20)"}
     };
 
     // Create action instance

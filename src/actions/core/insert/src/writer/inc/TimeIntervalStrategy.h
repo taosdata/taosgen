@@ -3,6 +3,11 @@
 #include <atomic>
 #include "InsertDataConfig.h"
 
+
+enum class IntervalStrategyType {
+    Fixed, FirstToFirst, LastToFirst, Literal, Unknown
+};
+
 class TimeIntervalStrategy {
 public:
     TimeIntervalStrategy(
@@ -24,7 +29,15 @@ public:
 
     // Dynamic interval clamping
     int64_t clamp_interval(int64_t interval) const;
-    
+
+    std::chrono::steady_clock::time_point last_write_time() const noexcept {
+        return last_write_time_;
+    }
+
+    IntervalStrategyType strategy_type() const noexcept {
+        return strategy_type_;
+    }
+
 private:
     // First row to first row strategy
     int64_t first_to_first_strategy(int64_t current_start, int64_t last_start) const;
@@ -43,4 +56,7 @@ private:
     
     // Last write completion timestamp
     std::chrono::steady_clock::time_point last_write_time_;
+
+    // Interval strategy type
+    IntervalStrategyType strategy_type_;
 };

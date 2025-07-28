@@ -23,6 +23,7 @@ void test_single_thread_metrics() {
 
     // Verify metrics values
     const auto& samples = metrics.get_samples();
+    (void)samples;
     assert(samples.size() == 5);
     assert(std::abs(metrics.get_min() - 10.5) < 0.0001);
     assert(std::abs(metrics.get_max() - 20.9) < 0.0001);

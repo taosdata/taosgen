@@ -31,8 +31,8 @@ void test_validate_config_mismatched_column_types() {
     test_file.close();
 
     ColumnConfigVector col_configs = {
-        {"name", "varchar", std::nullopt},
-        {"age", "int", std::nullopt}            // Mismatched size
+        {"name", "varchar(20)"},
+        {"age", "int"}            // Mismatched size
     };
     auto instances = ColumnConfigInstanceFactory::create(col_configs);
 
@@ -57,8 +57,8 @@ void test_generate_table_data_with_default_timestamp() {
     test_file.close();
 
     ColumnConfigVector col_configs = {
-        {"name", "varchar", std::nullopt},
-        {"city", "varchar", std::nullopt}
+        {"name", "varchar(20)"},
+        {"city", "varchar(20)"}
     };
     auto instances = ColumnConfigInstanceFactory::create(col_configs);
 
@@ -88,8 +88,8 @@ void test_generate_table_data_with_timestamp() {
     test_file.close();
 
     ColumnConfigVector col_configs = {
-        {"name", "varchar", std::nullopt},
-        {"city", "varchar", std::nullopt}
+        {"name", "varchar(20)"},
+        {"city", "varchar(20)"}
     };
     auto instances = ColumnConfigInstanceFactory::create(col_configs);
 
@@ -121,9 +121,9 @@ void test_generate_table_data_with_generated_timestamp() {
     test_file.close();
 
     ColumnConfigVector col_configs = {
-        {"name", "varchar", std::nullopt},
-        {"age", "int", std::nullopt},
-        {"city", "varchar", std::nullopt}
+        {"name", "varchar(20)"},
+        {"age", "int"},
+        {"city", "varchar(20)"}
     };
     auto instances = ColumnConfigInstanceFactory::create(col_configs);
 
@@ -154,8 +154,8 @@ void test_generate_table_data_include_tbname() {
     test_file.close();
 
     ColumnConfigVector col_configs = {
-        {"age", "int", std::nullopt},
-        {"city", "varchar", std::nullopt}
+        {"age", "int"},
+        {"city", "varchar(20)"}
     };
     auto instances = ColumnConfigInstanceFactory::create(col_configs);
 

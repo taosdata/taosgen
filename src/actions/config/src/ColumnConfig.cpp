@@ -135,7 +135,7 @@ void ColumnConfig::parse_type() {
 
     std::smatch match;
     // varchar/binary/nchar/geometry(len)
-    static const std::regex varlen_regex(R"((varchar|binary|nchar|geometry)\s*\(\s*(\d+)\s*\))", std::regex::icase);
+    static const std::regex varlen_regex(R"((varchar|binary|nchar|varbinary|geometry)\s*\(\s*(\d+)\s*\))", std::regex::icase);
     // decimal(precision, scale)
     static const std::regex decimal_regex(R"(decimal\s*\(\s*(\d+)\s*,\s*(\d+)\s*\))", std::regex::icase);
 
@@ -170,7 +170,24 @@ void ColumnConfig::parse_type() {
 
     // Other types (no parameters)
     type_tag = get_type_tag(lower_type);
-    len.reset();
+    if (type_tag == ColumnTypeTag::VARCHAR
+        || type_tag == ColumnTypeTag::BINARY
+        || type_tag == ColumnTypeTag::NCHAR
+        || type_tag == ColumnTypeTag::VARBINARY
+        || type_tag == ColumnTypeTag::GEOMETRY) {
+
+        throw std::runtime_error("Variable length types must specify length: " + lower_type);
+    } else if (type_tag == ColumnTypeTag::DECIMAL) {
+        // DECIMAL type requires precision and scale
+        if (!precision.has_value() || !scale.has_value()) {
+            throw std::runtime_error("DECIMAL type must specify precision and scale: " + lower_type);
+        }
+    } else if (type_tag == ColumnTypeTag::JSON) {
+        len = 200;
+    } else {
+        len.reset();
+    }
+
     precision.reset();
     scale.reset();
 }

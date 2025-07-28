@@ -1,21 +1,23 @@
 #include "InsertDataAction.h"
 #include <sched.h>
+#include <cstring>
 #include <iostream>
 #include <chrono>
 #include <thread>
 #include <variant>
 #include <type_traits>
 #include <pthread.h>
-#include <barrier> 
+#include <iomanip> 
 #include "FormatterRegistrar.h"
 #include "FormatterFactory.h"
 #include "TableNameManager.h"
 #include "TableDataManager.h"
 #include "WriterFactory.h"
 #include "TimeRecorder.h"
+#include "ProcessUtils.h"
 
 
-void set_realtime_priority() {
+void InsertDataAction::set_realtime_priority() {
 #if defined(__linux__) || defined(__APPLE__)
     struct sched_param param;
     param.sched_priority = sched_get_priority_max(SCHED_FIFO);
@@ -27,30 +29,38 @@ void set_realtime_priority() {
 #endif
 }
 
-void set_thread_affinity(size_t thread_id) {
+void InsertDataAction::set_thread_affinity(size_t thread_id, bool reverse, const std::string& purpose) {
 #if defined(__linux__) || defined(__APPLE__)
     // Get available CPU cores
     unsigned int num_cores = std::thread::hardware_concurrency();
     if (num_cores == 0) num_cores = 1;
-    
-    // Calculate core ID, ensuring it's within valid range
-    size_t core_id = thread_id % num_cores;
-    
+
+    // Calculate core ID, supporting forward or reverse binding
+    size_t core_id = reverse
+        ? (num_cores - 1 - (thread_id % num_cores))
+        : (thread_id % num_cores);
+
     // Set affinity
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
     CPU_SET(core_id, &cpuset);
-    
+
     int rc = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
     if (rc != 0) {
-        std::cerr << "Warning: Failed to set thread affinity for thread " 
-                  << thread_id << " to core " << core_id 
-                  << " (error code: " << rc << ", " 
+        std::cerr << "Warning: Failed to set thread affinity for thread "
+                  << thread_id << " to core " << core_id
+                  << " (error code: " << rc << ", "
                   << strerror(rc) << ")" << std::endl;
         return;
     }
-    
-    std::cout << "Thread " << thread_id << " bound to core " << core_id << std::endl;
+
+    if (global_.verbose) {
+        // Print binding info if verbose mode is enabled
+        std::cout << "[Debug] " << (purpose.empty() ? "" : (purpose + " ")) 
+                  << "Thread " << thread_id << " bound to core " 
+                  << core_id << (reverse ? " (reverse binding)" : " (forward binding)") 
+                  << std::endl;
+    }
 #endif
 }
 
@@ -76,7 +86,7 @@ void InsertDataAction::execute() {
             throw std::runtime_error("No table names were generated");
         }
         
-        auto split_names = name_manager.split_for_threads();
+        const auto split_names = name_manager.split_for_threads();
         
         // Check split result
         if (split_names.size() != config_.control.data_generation.generate_threads) {
@@ -100,10 +110,29 @@ void InsertDataAction::execute() {
         const size_t producer_thread_count = config_.control.data_generation.generate_threads;
         const size_t consumer_thread_count = config_.control.insert_control.insert_threads;
         const size_t queue_capacity = config_.control.data_generation.queue_capacity;
+        const double queue_warmup_ratio = config_.control.data_generation.queue_warmup_ratio;
+        const size_t per_request_rows = config_.control.insert_control.per_request_rows;
+        const size_t interlace_rows = config_.control.data_generation.interlace_mode.rows;
+        const int64_t per_table_rows = config_.control.data_generation.per_table_rows;
         
+        size_t block_count = queue_capacity;
+        size_t max_tables_per_block = std::min(name_manager.chunk_size(), per_request_rows);
+        size_t max_rows_per_table = per_table_rows;
+
+        if (config_.control.data_generation.interlace_mode.enabled) {
+            max_tables_per_block = (per_request_rows + interlace_rows - 1) / interlace_rows;
+            max_rows_per_table = std::min(max_rows_per_table, interlace_rows);
+
+        } else {
+            max_tables_per_block = (per_request_rows + per_table_rows - 1) / per_table_rows;
+            max_rows_per_table = per_table_rows;
+        }
+
+        MemoryPool pool(block_count, max_tables_per_block, max_rows_per_table, col_instances);
+
         // Create data pipeline
-        DataPipeline<FormatResult> pipeline(producer_thread_count, consumer_thread_count, queue_capacity);
-        std::barrier sync_barrier(consumer_thread_count + 1);
+        DataPipeline<FormatResult> pipeline(queue_capacity);
+        Barrier sync_barrier(consumer_thread_count + 1);
 
         // 4. Start consumer threads
         std::vector<std::thread> consumer_threads;
@@ -112,7 +141,8 @@ void InsertDataAction::execute() {
         std::vector<std::unique_ptr<IWriter>> writers;
         writers.reserve(consumer_thread_count);
 
-        GarbageCollector<DataPipeline<FormatResult>::Result> gc(consumer_thread_count, 10);
+        const size_t group_size = 10;
+        GarbageCollector<FormatResult> gc((consumer_thread_count + group_size - 1) / group_size);
 
         // Create all writer instances
         auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(config_.control.data_format);
@@ -162,11 +192,13 @@ void InsertDataAction::execute() {
         std::atomic<size_t> active_producers(producer_thread_count);
 
         for (size_t i = 0; i < producer_thread_count; i++) {
-            auto data_manager = std::make_shared<TableDataManager>(config_, col_instances);
+            auto data_manager = std::make_shared<TableDataManager>(pool, config_, col_instances);
             data_managers.push_back(data_manager);
 
-            producer_threads.emplace_back([=, this, &pipeline, &active_producers, &producer_finished] {
+            producer_threads.emplace_back([this, i, &split_names, &col_instances, &pipeline, data_manager, &active_producers, &producer_finished] {
                 try {
+                    set_thread_affinity(i, false, "Producer");
+                    set_realtime_priority();
                     producer_thread_function(i, split_names[i], col_instances, pipeline, data_manager);
                     producer_finished[i].store(true);
                 } catch (const std::exception& e) {
@@ -176,16 +208,27 @@ void InsertDataAction::execute() {
             });
         }
 
+        (void)ProcessUtils::get_cpu_usage_percent();
         std::this_thread::sleep_for(std::chrono::seconds(2));
+
+        while (true) {
+            size_t total_queued = pipeline.total_queued();
+            double queue_ratio = static_cast<double>(total_queued) / (producer_thread_count * queue_capacity);
+
+            std::cout << "[Warmup] Queue fill ratio: " << std::fixed << std::setprecision(2)
+                      << (queue_ratio * 100) << "%, target: " << (queue_warmup_ratio * 100) << "%" << std::endl;
+        
+            if (queue_ratio >= queue_warmup_ratio) break;
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        }
 
         // Start consumer threads
         for (size_t i = 0; i < consumer_thread_count; i++) {
 
             consumer_threads.emplace_back([this, i, &pipeline, &consumer_running, &writers, &gc, &sync_barrier] {
-                set_thread_affinity(i);
+                set_thread_affinity(i, true, "Consumer");
                 set_realtime_priority();
-                sync_barrier.arrive_and_wait();
-                consumer_thread_function(i, pipeline, consumer_running[i], writers[i].get(), gc);
+                consumer_thread_function(i, pipeline, consumer_running[i], writers[i].get(), gc, sync_barrier);
             });
         }
 
@@ -195,6 +238,8 @@ void InsertDataAction::execute() {
         // 6. Monitor
         size_t last_total_rows = 0;
         auto last_time = start_time;
+        size_t max_total_rows = all_names.size() * per_table_rows;
+        int total_col_width = std::to_string(max_total_rows).length();
         
         while (active_producers > 0) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -221,11 +266,14 @@ void InsertDataAction::execute() {
             
             // Calculate total runtime
             const auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - start_time);
-            
-            std::cout << "Runtime: " << duration.count() << "s | "
-                     << "Rate: " << std::fixed << std::setprecision(1) << rows_per_sec << " rows/s | "
-                     << "Total: " << total_rows << " rows | "
-                     << "Queue: " << pipeline.total_queued() << " items\n";
+
+            std::cout << "Runtime: " << std::setw(4) << std::setfill(' ') << duration.count() << "s | "
+                    << "Rate: " << std::setw(8) << std::setfill(' ') << static_cast<long long>(rows_per_sec) << " rows/s | "
+                    << "Total: " << std::setw(total_col_width) << std::setfill(' ') << total_rows << " rows | "
+                    << "Queue: " << std::setw(3) << std::setfill(' ') << pipeline.total_queued() << " items | "
+                    << "CPU Usage: " << std::setw(7) << std::fixed << std::setprecision(2) << ProcessUtils::get_cpu_usage_percent() << "% | "
+                    << "Memory Usage: " << ProcessUtils::get_memory_usage_human_readable() << " | "
+                    << "Thread Count: " << std::setw(3) << std::setfill(' ') << ProcessUtils::get_thread_count() << "\n";
         }
 
         std::cout << "All producer threads have finished." << std::endl;
@@ -242,41 +290,20 @@ void InsertDataAction::execute() {
             if (interval >= 1.0) {
                 size_t current_queue_size = pipeline.total_queued();
                 double process_rate = (last_queue_size - current_queue_size) / interval;
-                
-                std::cout << "Remaining queue items: " << current_queue_size 
-                          << " | Processing rate: " << std::fixed << std::setprecision(1) 
-                          << process_rate << " items/s" << std::endl;
-                
+        
+                std::cout << "Remaining Queue: " << std::setw(3) << std::setfill(' ') << current_queue_size << " items | "
+                          << "Processing Rate: " << std::setw(6) << std::fixed << std::setprecision(2) << process_rate << " items/s | "
+                          << "CPU Usage: " << std::setw(7) << std::fixed << std::setprecision(2) << ProcessUtils::get_cpu_usage_percent() << "% | "
+                          << "Memory Usage: " << ProcessUtils::get_memory_usage_human_readable() << " | "
+                          << "Thread Count: " << std::setw(3) << std::setfill(' ') << ProcessUtils::get_thread_count() << "\n";
+
                 last_queue_size = current_queue_size;
                 last_check_time = current_time;
             }
         }
 
         const auto end_time = std::chrono::steady_clock::now();
-
-        // Calculate final total rows
-        size_t final_total_rows = 0;
-        for (const auto& manager : data_managers) {
-            final_total_rows += manager->get_total_rows_generated();
-        }
-        
-        // Calculate total duration (seconds)
-        const auto total_duration = std::chrono::duration<double>(end_time - start_time).count();
-        
-        // Calculate average insert rate
-        const double avg_rows_per_sec = total_duration > 0 ? 
-            static_cast<double>(final_total_rows) / total_duration : 0.0;
-
-        // Print performance statistics
-        std::cout << "\n=================================================== Performance Statistics ===================================================\n"
-                  << "Insert Threads: " << consumer_thread_count << "\n"
-                  << "Total Rows: " << final_total_rows << "\n"
-                  << "Total Duration: " << std::fixed << std::setprecision(2) 
-                  << total_duration << " seconds\n"
-                  << "Average Rate: " << std::fixed << std::setprecision(2) 
-                  << avg_rows_per_sec << " rows/second\n"
-                  << "==============================================================================================================================\n\n";
-
+        (void)end_time;
 
         // 7. Wait for producers to finish
         for (auto& t : producer_threads) {
@@ -295,31 +322,94 @@ void InsertDataAction::execute() {
             if (t.joinable()) t.join();
         }
 
-
-
-        // Collect performance metrics
-        ActionMetrics global_metrics;
-        std::vector<ActionMetrics> all_metrics;
-
-        for (const auto& writer : writers) {
-            all_metrics.push_back(writer->get_metrics());
+        // Calculate final total rows
+        size_t final_total_rows = 0;
+        for (const auto& manager : data_managers) {
+            final_total_rows += manager->get_total_rows_generated();
         }
 
-        // Merge all metrics
-        global_metrics.merge_from(all_metrics);
-        global_metrics.calculate();
+        if (global_.verbose) {
+            print_writer_times(writers);
+        }
+
+        // Obtain the minimum value of the start_write_time() for all writers
+        auto min_start_write_time = std::chrono::steady_clock::time_point::max();
+        for (const auto& writer : writers) {
+            auto t = writer->start_write_time();
+            if (t < min_start_write_time) {
+                min_start_write_time = t;
+            }
+        }
+
+        // Obtain the maximum value of the end_write_time() for all writers
+        std::vector<std::chrono::steady_clock::time_point> end_write_times;
+        end_write_times.reserve(writers.size());
+        auto max_end_write_time = std::chrono::steady_clock::time_point::min();
+        for (const auto& writer : writers) {
+            auto t = writer->end_write_time();
+            end_write_times.push_back(t);
+            if (t > max_end_write_time) {
+                max_end_write_time = t;
+            }
+        }
+
+        // Calculate total wait time (sum of each thread's waiting time after its own finish)
+        double total_wait_time = 0.0;
+        for (const auto& t : end_write_times) {
+            total_wait_time += std::chrono::duration<double>(max_end_write_time - t).count();
+        }
+        double avg_wait_time = total_wait_time / consumer_thread_count; // average per thread
+
+        // Calculate total duration (seconds)
+        const auto total_duration = std::chrono::duration<double>(max_end_write_time - min_start_write_time).count();
+
+        // Calculate average insert rate
+        const double avg_rows_per_sec = total_duration > 0 ? 
+            static_cast<double>(final_total_rows) / total_duration : 0.0;
 
         // Print performance statistics
-        double thread_latency = global_metrics.get_sum() / consumer_thread_count / 1000;
+        std::cout << "\n=============================================== Insert Summary Statistics ====================================================\n"
+                  << "Insert Threads: " << consumer_thread_count << "\n"
+                  << "Total Rows: " << final_total_rows << "\n"
+                  << "Total Duration: " << std::fixed << std::setprecision(2) 
+                  << total_duration << " seconds\n"
+                  << "Average Rate: " << std::fixed << std::setprecision(2) 
+                  << avg_rows_per_sec << " rows/second\n"
+                  << "==============================================================================================================================\n";
+
+        // Collect performance metrics
+        ActionMetrics global_play_metrics;
+        ActionMetrics global_write_metrics;
+        
+        for (const auto& writer : writers) {
+            global_play_metrics.merge_from(writer->get_play_metrics());
+            global_write_metrics.merge_from(writer->get_write_metrics());
+        }
+        
+        global_play_metrics.calculate();
+        global_write_metrics.calculate();
+
+        // Print performance statistics
+        double thread_latency = global_write_metrics.get_sum() / consumer_thread_count / 1000;
         double effective_ratio = thread_latency / total_duration * 100.0;
-        std::cout << "\n=================================================== Insert Performance Metrics ===============================================\n"
-                << "Total Operations: " << global_metrics.get_samples().size() << "\n"
+        double framework_ratio = (1 - (thread_latency + avg_wait_time) / total_duration) * 100.0;
+        TimeIntervalStrategy time_strategy(config_.control.time_interval, config_.target.timestamp_precision);
+        std::cout << "\n=============================================== Insert Latency & Efficiency Metrics ==========================================\n"
+                << "Total Operations: " << global_write_metrics.get_samples().size() << "\n"
                 << "Total Duration: " << std::fixed << std::setprecision(2) << total_duration << " seconds\n"
                 << "Pure Insert Latency: " << std::fixed << std::setprecision(2) << thread_latency << " seconds\n"
                 << "Effective Time Ratio: " << std::fixed << std::setprecision(2) << effective_ratio << "%\n"
-                << "Framework Overhead: " << std::fixed << std::setprecision(2) << (100.0 - effective_ratio) << "%\n"
-                << "Latency Distribution: " << global_metrics.get_summary() << "\n"
-                << "==============================================================================================================================\n\n";
+                << "Framework Overhead: " << std::fixed << std::setprecision(2) << framework_ratio << "%\n"
+                << "Idle Time After Finish: " << std::fixed << std::setprecision(2) << avg_wait_time << " seconds\n";
+
+        if (time_strategy.strategy_type() == IntervalStrategyType::Literal) {
+            std::cout << "Play Latency Distribution: " << global_play_metrics.get_summary() << "\n";
+        }
+
+        std::cout << "Write Latency Distribution: " << global_write_metrics.get_summary() << "\n"
+                << "==============================================================================================================================\n";
+
+        std::cout << std::endl;
 
         // Clean up resources
         for (auto& writer : writers) {
@@ -389,7 +479,7 @@ void InsertDataAction::producer_thread_function(
         // }, formatted_result);
 
         // Push data to pipeline
-        pipeline.push_data(producer_id, std::move(formatted_result));
+        pipeline.push_data(std::move(formatted_result));
 
         // std::cout << "Producer " << producer_id << ": Pushed batch for table(s): "
         //           << batch_size << ", total rows: " << total_rows 
@@ -402,16 +492,20 @@ void InsertDataAction::consumer_thread_function(
     DataPipeline<FormatResult>& pipeline,
     std::atomic<bool>& running,
     IWriter* writer,
-    GarbageCollector<DataPipeline<FormatResult>::Result>& gc)
+    GarbageCollector<FormatResult>& gc,
+    Barrier& sync_barrier)
 {
     // Failure retry logic
     const auto& failure_cfg = config_.control.insert_control.failure_handling;
     size_t retry_count = 0;
     
+
+    sync_barrier.arrive_and_wait();
+
     // Data processing loop
     (void)running;
     while (true) {
-        auto result = pipeline.fetch_data(consumer_id);
+        auto result = pipeline.fetch_data();
 
         switch (result.status) {
         case DataPipeline<FormatResult>::Status::Success:
@@ -435,7 +529,7 @@ void InsertDataAction::consumer_thread_function(
 
                 }, *result.data);
 
-                gc.dispose(consumer_id, std::move(result));
+                gc.dispose(std::move(*result.data));
 
             } catch (const std::exception& e) {
                 std::cerr << "Consumer " << consumer_id << " write failed: " << e.what() << std::endl;
@@ -491,5 +585,34 @@ ColumnConfigInstanceVector InsertDataAction::create_column_instances(const Inser
         return ColumnConfigInstanceFactory::create(schema);
     } catch (const std::exception& e) {
         throw std::runtime_error(std::string("Failed to create column instances: ") + e.what());
+    }
+}
+
+void InsertDataAction::print_writer_times(const std::vector<std::unique_ptr<IWriter>>& writers) {
+    for (size_t i = 0; i < writers.size(); ++i) {
+        auto start = writers[i]->start_write_time();
+        auto end = writers[i]->end_write_time();
+
+        auto start_sys = std::chrono::system_clock::now() + (start - std::chrono::steady_clock::now());
+        auto end_sys = std::chrono::system_clock::now() + (end - std::chrono::steady_clock::now());
+
+        auto print_time = [](const std::chrono::system_clock::time_point& tp) {
+            auto t = std::chrono::system_clock::to_time_t(tp);
+            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(tp.time_since_epoch()) % 1000;
+            std::tm tm;
+#if defined(_WIN32)
+            localtime_s(&tm, &t);
+#else
+            localtime_r(&t, &tm);
+#endif
+            std::cout << std::put_time(&tm, "%Y-%m-%d %H:%M:%S")
+                      << "." << std::setfill('0') << std::setw(3) << ms.count();
+        };
+
+        std::cout << "[Debug] Writer " << i << " start_write_time: ";
+        print_time(start_sys);
+        std::cout << ", end_write_time: ";
+        print_time(end_sys);
+        std::cout << std::endl;
     }
 }

@@ -1,4 +1,5 @@
 #include <cassert>
+#include <cstring>
 #include <iostream>
 #include "FormatResult.h"
 
@@ -106,19 +107,19 @@ void test_stmt_v2_insert_data() {
     std::vector<RowData> rows;
     rows.push_back({1500000000000, {3.14f}});
     batch.table_batches.emplace_back("test_table", std::move(rows));
+    batch.start_time = 1500000000000;
+    batch.end_time = 1500000000000;
+    batch.total_rows = 1;
     
+    MemoryPool pool(1, 1, 1, col_instances);
+    auto* block = pool.convert_to_memory_block(std::move(batch));
+
     // Create StmtV2InsertData
-    StmtV2InsertData data{
-        1500000000000,
-        1500000001000,
-        1,
-        col_instances,
-        std::move(batch)
-    };
+    StmtV2InsertData data{block, col_instances};
     
     // Test base class members
     assert(data.start_time == 1500000000000);
-    assert(data.end_time == 1500000001000);
+    assert(data.end_time == 1500000000000);
     assert(data.total_rows == 1);
     
     // Test StmtV2Data members

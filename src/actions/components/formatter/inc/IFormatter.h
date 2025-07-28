@@ -35,6 +35,6 @@ class IChildTableFormatter : public IFormatter {
 class IInsertDataFormatter : public IFormatter {
 public:
     virtual std::string prepare(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances, int mode) const = 0;
-    virtual FormatResult format(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances, MultiBatch&& batch) const = 0;
+    virtual FormatResult format(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances, MemoryPool::MemoryBlock* batch) const = 0;
 };
 

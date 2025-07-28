@@ -32,7 +32,8 @@ InsertDataConfig create_test_config() {
 void test_init_with_empty_tables() {
     auto config = create_test_config();
     auto col_instances = ColumnConfigInstanceFactory::create(config.source.columns.generator.schema);
-    TableDataManager manager(config, col_instances);
+    MemoryPool pool(1, 1, 1, col_instances);
+    TableDataManager manager(pool, config, col_instances);
     
     assert(!manager.init({}));
     std::cout << "test_init_with_empty_tables passed.\n";
@@ -41,7 +42,8 @@ void test_init_with_empty_tables() {
 void test_init_with_valid_tables() {
     auto config = create_test_config();
     auto col_instances = ColumnConfigInstanceFactory::create(config.source.columns.generator.schema);
-    TableDataManager manager(config, col_instances);
+    MemoryPool pool(1, 2, 1, col_instances);
+    TableDataManager manager(pool, config, col_instances);
     
     std::vector<std::string> table_names = {"test_table_1", "test_table_2"};
     assert(manager.init(table_names));
@@ -51,8 +53,8 @@ void test_init_with_valid_tables() {
     const auto& states = manager.table_states();
     (void)states;
     assert(states.size() == 2);
-    assert(states.count("test_table_1") == 1);
-    assert(states.count("test_table_2") == 1);
+    assert(states[0].table_name == "test_table_1");
+    assert(states[1].table_name == "test_table_2");
     
     std::cout << "test_init_with_valid_tables passed.\n";
 }
@@ -61,21 +63,24 @@ void test_has_more() {
     auto config = create_test_config();
     config.control.data_generation.per_table_rows = 5;
     auto col_instances = ColumnConfigInstanceFactory::create(config.source.columns.generator.schema);
-    TableDataManager manager(config, col_instances);
+    MemoryPool pool(1, 1, 5, col_instances);
+    TableDataManager manager(pool, config, col_instances);
     
     std::vector<std::string> table_names = {"test_table"};
     assert(manager.init(table_names));
     
     int rows_generated = 0;
     while (manager.has_more()) {
-        auto batch = manager.next_multi_batch();
-        assert(batch);
-        rows_generated += batch->total_rows;
+        auto block = manager.next_multi_batch();
+        assert(block);
+        rows_generated += block.value()->total_rows;
+        block.value()->release();
     }
     
     const auto& states = manager.table_states();
     (void)states;
-    assert(states.at("test_table").rows_generated == 5);
+    assert(states.size() == 1);
+    assert(states[0].rows_generated == 5);
     
     std::cout << "test_has_more passed.\n";
 }
@@ -84,17 +89,20 @@ void test_table_completion() {
     auto config = create_test_config();
     config.control.data_generation.per_table_rows = 2;
     auto col_instances = ColumnConfigInstanceFactory::create(config.source.columns.generator.schema);
-    TableDataManager manager(config, col_instances);
+    MemoryPool pool(1, 2, 2, col_instances);
+    TableDataManager manager(pool, config, col_instances);
     
     std::vector<std::string> table_names = {"test_table_1", "test_table_2"};
     assert(manager.init(table_names));
     
     while (manager.has_more()) {
-        manager.next_multi_batch();
+        auto block = manager.next_multi_batch();
+        assert(block);
+        block.value()->release();
     }
     
     const auto& states = manager.table_states();
-    for (const auto& [_, state] : states) {
+    for (const auto& state : states) {
         (void)state;
         assert(state.completed  || state.rows_generated >= config.control.data_generation.per_table_rows);
         assert(state.rows_generated == 2);
@@ -108,7 +116,8 @@ void test_data_generation_basic() {
     config.control.data_generation.per_table_rows = 5;
     config.control.data_generation.interlace_mode.enabled = false;
     auto col_instances = ColumnConfigInstanceFactory::create(config.source.columns.generator.schema);
-    TableDataManager manager(config, col_instances);
+    MemoryPool pool(1, 1, 5, col_instances);
+    TableDataManager manager(pool, config, col_instances);
     
     std::vector<std::string> table_names = {"test_table_1"};
     assert(manager.init(table_names));
@@ -117,16 +126,22 @@ void test_data_generation_basic() {
     int row_count = 0;
     int64_t last_timestamp = 0;
     
-    while (auto batch = manager.next_multi_batch()) {
-        for (const auto& [table_name, rows] : batch->table_batches) {
-            assert(table_name == "test_table_1");
-            for (const auto& row : rows) {
-                assert(row.timestamp == 1000 + row_count * 10);
-                assert(row.columns.size() == 2);
-                last_timestamp = row.timestamp;
+    while (auto block = manager.next_multi_batch()) {
+        const auto* batch = block.value();
+        for (const auto& table : batch->tables) {
+            assert(std::string(table.table_name) == "test_table_1");
+            assert(table.used_rows == 5);
+            assert(table.columns.size() == 2);
+
+            for (size_t row_idx = 0; row_idx < table.used_rows; ++row_idx) {
+                int64_t timestamp = table.timestamps[row_idx];
+                assert(timestamp == 1000 + static_cast<int64_t >(row_idx) * 10);
+
+                last_timestamp = timestamp;
                 row_count++;
             }
         }
+        block.value()->release();
     }
     
     (void)row_count;
@@ -143,37 +158,55 @@ void test_data_generation_with_interlace() {
     config.control.data_generation.interlace_mode.rows = 2;
     config.control.data_generation.per_table_rows = 4;
     auto col_instances = ColumnConfigInstanceFactory::create(config.source.columns.generator.schema);
-    TableDataManager manager(config, col_instances);
+    MemoryPool pool(1, 2, 4, col_instances);
+    TableDataManager manager(pool, config, col_instances);
     
     std::vector<std::string> table_names = {"test_table_1", "test_table_2"};
     assert(manager.init(table_names));
     
     // Verify batch generation with interlace mode
-    auto batch = manager.next_multi_batch();
-    assert(batch);
-    assert(batch->table_batches.size() == 2);
-    assert(batch->table_batches[0].second.size() == 2);
-    assert(batch->table_batches[1].second.size() == 2);
-    
+    auto block = manager.next_multi_batch();
+    assert(block);
+
+    const auto* batch = block.value();
+    assert(batch->tables.size() == 2);
+    const auto& table1 = batch->tables[0];
+    const auto& table2 = batch->tables[1];
+    (void)table1;
+    (void)table2;
+    assert(table1.used_rows == 2);
+    assert(table2.used_rows == 2);
+
     // Verify timestamps of first batch
-    assert(batch->table_batches[0].second[0].timestamp == 1000);
-    assert(batch->table_batches[0].second[1].timestamp == 1010);
-    assert(batch->table_batches[1].second[0].timestamp == 1000);
-    assert(batch->table_batches[1].second[1].timestamp == 1010);
+    assert(table1.timestamps[0] == 1000);
+    assert(table1.timestamps[1] == 1010);
+    assert(table2.timestamps[0] == 1000);
+    assert(table2.timestamps[1] == 1010);
+
+    block.value()->release();
 
     // Verify no more data available
-    auto batch2 = manager.next_multi_batch();
-    assert(batch2);
+    auto block2 = manager.next_multi_batch();
+    assert(block2);
+
+    auto batch2 = block2.value();
     assert(!manager.has_more());
     
-    assert(batch2->table_batches.size() == 2);
-    assert(batch2->table_batches[0].second.size() == 2);
-    assert(batch2->table_batches[1].second.size() == 2);
+    assert(batch2->tables.size() == 2);
+    const auto& table1_2 = batch2->tables[0];
+    const auto& table2_2 = batch2->tables[1];
+    (void)table1_2;
+    (void)table2_2;
 
-    assert(batch2->table_batches[0].second[0].timestamp == 1020);
-    assert(batch2->table_batches[0].second[1].timestamp == 1030);
-    assert(batch2->table_batches[1].second[0].timestamp == 1020);
-    assert(batch2->table_batches[1].second[1].timestamp == 1030);
+    assert(table1_2.used_rows == 2);
+    assert(table2_2.used_rows == 2);
+
+    assert(table1_2.timestamps[0] == 1020);
+    assert(table1_2.timestamps[1] == 1030);
+    assert(table2_2.timestamps[0] == 1020);
+    assert(table2_2.timestamps[1] == 1030);
+
+    block2.value()->release();
 
     std::cout << "test_data_generation_with_interlace passed.\n";
 }
@@ -184,7 +217,8 @@ void test_per_request_rows_limit() {
     config.control.data_generation.per_table_rows = 10;
     config.control.data_generation.interlace_mode.enabled = false;
     auto col_instances = ColumnConfigInstanceFactory::create(config.source.columns.generator.schema);
-    TableDataManager manager(config, col_instances);
+    MemoryPool pool(1, 2, 10, col_instances);
+    TableDataManager manager(pool, config, col_instances);
     
     std::vector<std::string> table_names = {"test_table_1", "test_table_2"};
     assert(manager.init(table_names));
@@ -192,10 +226,14 @@ void test_per_request_rows_limit() {
     // Count total rows across all batches
     int total_rows = 0;
     while (manager.has_more()) {
-        auto batch = manager.next_multi_batch();
-        assert(batch);
+        auto block = manager.next_multi_batch();
+        assert(block);
+
+        const auto* batch = block.value();
         assert(batch->total_rows <= 3);
         total_rows += batch->total_rows;
+
+        block.value()->release();
     }
     
     assert(total_rows == 20);
@@ -209,20 +247,24 @@ void test_data_generation_with_flow_control() {
     config.control.data_generation.flow_control.rate_limit = 100;  // 100 rows per second
     config.control.data_generation.per_table_rows = 5;
     auto col_instances = ColumnConfigInstanceFactory::create(config.source.columns.generator.schema);
-    TableDataManager manager(config, col_instances);
+    MemoryPool pool(1, 1, 5, col_instances);
+    TableDataManager manager(pool, config, col_instances);
     
     std::vector<std::string> table_names = {"test_table_1"};
     assert(manager.init(table_names));
     
     auto start_time = std::chrono::steady_clock::now();
     
-    while (auto batch = manager.next_multi_batch()) {
-        for (const auto& [table_name, rows] : batch->table_batches) {
-            (void)table_name;
-            (void)rows;
-            assert(table_name == "test_table_1");
-            assert(!rows.empty());
+    while (auto block = manager.next_multi_batch()) {
+        const auto* batch = block.value();
+
+        for (const auto& table : batch->tables) {
+            (void)table;
+            assert(std::string(table.table_name) == "test_table_1");
+            assert(table.used_rows > 0);
         }
+
+        block.value()->release();
     }
     
     auto end_time = std::chrono::steady_clock::now();

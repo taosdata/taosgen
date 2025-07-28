@@ -12,6 +12,7 @@ public:
     void add_sample(double duration_ms);
 
     // Merge data from other thread instances
+    void merge_from(const ActionMetrics& other);
     void merge_from(const std::vector<ActionMetrics>& others);
     
     // Calculate final metrics
@@ -24,7 +25,7 @@ public:
     void reset();
     
     // Get samples
-    std::vector<double> get_samples() const;
+    const std::vector<double>& get_samples() const;
 
     double get_min() const { return metrics_.min; }
     double get_max() const { return metrics_.max; }

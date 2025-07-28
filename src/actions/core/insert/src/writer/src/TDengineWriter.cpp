@@ -7,7 +7,9 @@
 TDengineWriter::TDengineWriter(const InsertDataConfig& config)
         : config_(config),
           timestamp_precision_(config.target.timestamp_precision),
-          time_strategy_(config.control.time_interval, config.target.timestamp_precision) {
+          time_strategy_(config.control.time_interval, config.target.timestamp_precision),
+          start_write_time_(std::chrono::steady_clock::now()),
+          end_write_time_(std::chrono::steady_clock::now()) {
     
     // Validate timestamp precision
     if (timestamp_precision_.empty()) {
@@ -74,10 +76,11 @@ void TDengineWriter::write(const BaseInsertData& data) {
         default:
             throw std::runtime_error("Unsupported data type");
     }
-    // metrics_.add_sample(timer.elapsed());
+    // write_metrics_.add_sample(timer.elapsed());
 
     // Update state
     if (write_success) {
+        end_write_time_ = std::chrono::steady_clock::now();
         last_start_time_ = data.start_time;
         last_end_time_ = data.end_time;
         current_retry_count_ = 0;
@@ -101,9 +104,18 @@ bool TDengineWriter::handle_insert(const T& data) {
     const size_t MAX_RETRY = 1;
     while (current_retry_count_ < MAX_RETRY) {
         try {
+            if (is_literal_strategy()) {
+                int64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::system_clock::now().time_since_epoch()
+                    ).count();
+                int64_t start_time = static_cast<const BaseInsertData&>(data).start_time;
+                int64_t elapsed_ms = now_ms - start_time;
+                // std::cout << "now_ms=" << now_ms << ", start_time=" << start_time << ", elapsed_ms=" << elapsed_ms << std::endl;
+                play_metrics_.add_sample(elapsed_ms);
+            }
             TimeRecorder timer;
             bool success = connector_->execute(data);
-            metrics_.add_sample(timer.elapsed());
+            write_metrics_.add_sample(timer.elapsed());
             if (success) {
                 current_retry_count_ = 0;
                 return true;
@@ -138,4 +150,7 @@ void TDengineWriter::apply_time_interval_strategy(int64_t current_start, int64_t
         last_start_time_, last_end_time_,
         first_write_
     );
+    if (first_write_ == true) {
+        start_write_time_ = time_strategy_.last_write_time();
+    }
 }

@@ -4,8 +4,6 @@
 
 
 struct RowData {
-    // std::string table_name;
-    // std::optional<int64_t> timestamp;
     int64_t timestamp;
     RowType columns;
 };

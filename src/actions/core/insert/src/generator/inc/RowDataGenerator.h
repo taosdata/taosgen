@@ -10,7 +10,7 @@
 #include "TimestampGenerator.h"
 #include "ColumnsCSV.h"
 #include "TableNameCSV.h"
-
+#include "MemoryPool.h"
 
 class RowDataGenerator {
 public:
@@ -22,7 +22,8 @@ public:
     
     // Get next row data
     std::optional<RowData> next_row();
-    
+    int next_row(MemoryPool::TableBlock& table_block);
+
     // Check if there is more data
     bool has_more() const;
     
@@ -33,6 +34,16 @@ public:
     void reset();
 
 private:
+    // Type handler function type definitions
+    using FixedHandler = void(*)(const ColumnType&, void*, size_t);
+    using VarHandler = size_t(*)(const ColumnType&, char*, size_t);
+
+    // Column handler structure
+    struct ColumnHandler {
+        FixedHandler fixed_handler = nullptr;
+        VarHandler var_handler = nullptr;
+    };
+
     // Delayed queue element
     struct DelayedRow {
         int64_t deliver_timestamp;
@@ -49,6 +60,7 @@ private:
         int latency_range;
     };
 
+    void init_cached_row();
 
     // Initialize cache
     void init_cache();
@@ -66,7 +78,7 @@ private:
     void process_delay_queue();
     
     // Fetch a row from raw source
-    std::optional<RowData> fetch_raw_row();
+    std::optional<std::reference_wrapper<RowData>> fetch_raw_row();
 
     // Initialize generator components
     void init_generator();
@@ -75,16 +87,20 @@ private:
     void init_csv_reader();
     
     // Get data from generator
-    RowData generate_from_generator();
+    void generate_from_generator();
     
     // Get data from CSV
-    std::optional<RowData> generate_from_csv();
-    
+    bool generate_from_csv();
+
+private:
     const std::string& table_name_;
     const ColumnsConfig& columns_config_;
     const ColumnConfigInstanceVector& instances_;
     const InsertDataConfig::Control& control_;
     const std::string& target_precision_;
+
+    // Initialize cache line memory
+    RowData cached_row_;
 
     // Data source components
     std::unique_ptr<RowGenerator> row_generator_;
@@ -109,8 +125,4 @@ private:
     
     // Timestamp state
     int64_t current_timestamp_ = 0;
-    // int64_t last_timestamp_ = 0;
-    // int64_t timestamp_step_ = 1;
-    // int64_t precision_factor_ = 1;
-    // std::unordered_map<std::string, int64_t> last_timestamps_;
 };

@@ -13,7 +13,7 @@ add_subdirectory(workflow)
 add_subdirectory(engine)
 
 # Main executable
-add_executable(taosbench benchmark.cpp)
+add_executable(tsgen benchmark.cpp)
 
 # Set include directories
 target_include_directories(parameter
@@ -23,7 +23,7 @@ target_include_directories(parameter
 )
 
 # Link all dependent libraries
-target_link_libraries(taosbench
+target_link_libraries(tsgen
   PRIVATE
     actions
     engine
@@ -36,6 +36,6 @@ target_link_libraries(taosbench
 )
 
 # Install target
-install(TARGETS taosbench 
+install(TARGETS tsgen 
   RUNTIME DESTINATION bin
 )

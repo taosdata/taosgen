@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include "Barrier.h"
 #include "ActionBase.h"
 #include "ActionFactory.h"
 #include "InsertDataConfig.h"
@@ -24,7 +25,11 @@ private:
     const GlobalConfig& global_;
     InsertDataConfig config_;
 
+    void set_realtime_priority();
+    void set_thread_affinity(size_t thread_id, bool reverse = false, const std::string& purpose = "");
+
     ColumnConfigInstanceVector create_column_instances(const InsertDataConfig& config) const;
+    void print_writer_times(const std::vector<std::unique_ptr<IWriter>>& writers);
 
     void producer_thread_function(
         size_t producer_id,
@@ -38,7 +43,8 @@ private:
         DataPipeline<FormatResult>& pipeline,
         std::atomic<bool>& running,
         IWriter* writer,
-        GarbageCollector<DataPipeline<FormatResult>::Result>& gc);
+        GarbageCollector<FormatResult>& gc,
+        Barrier& sync_barrier);
 
     // Register InsertDataAction to ActionFactory
     inline static bool registered_ = []() {

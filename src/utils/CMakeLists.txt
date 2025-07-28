@@ -2,6 +2,8 @@
 add_library(utils STATIC
   src/StringUtils.cpp
   src/TimestampUtils.cpp
+  src/ProcessUtils.cpp
+  src/Barrier.cpp
 )
 
 # Set include directories

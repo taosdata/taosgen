@@ -18,9 +18,12 @@ public:
     // Split table names based on thread allocation strategy
     std::vector<std::vector<std::string>> split_for_threads();
 
+    size_t chunk_size() const { return chunk_size_; }
+
 private:
     const InsertDataConfig& config_;
     std::vector<std::string> table_names_;
+    size_t chunk_size_;
 
     // Split methods for different strategies
     std::vector<std::vector<std::string>> split_by_index_range();

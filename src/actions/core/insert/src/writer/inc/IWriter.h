@@ -27,5 +27,9 @@ public:
     // Get timestamp precision
     virtual std::string get_timestamp_precision() const = 0;
 
-    virtual const ActionMetrics& get_metrics() const = 0; 
+    virtual const ActionMetrics& get_play_metrics() const = 0; 
+    virtual const ActionMetrics& get_write_metrics() const = 0; 
+    virtual std::chrono::steady_clock::time_point start_write_time() const noexcept = 0;
+    virtual std::chrono::steady_clock::time_point end_write_time() const noexcept = 0;
+    virtual bool is_literal_strategy() const = 0;
 };

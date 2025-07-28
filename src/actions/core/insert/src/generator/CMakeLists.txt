@@ -12,6 +12,7 @@ target_include_directories(insert_generator
     ${CMAKE_CURRENT_SOURCE_DIR}/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../utils/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../../config/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../../components/memory_pool/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../../components/generator/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../../components/reader/csv/inc
 )
@@ -20,6 +21,7 @@ target_include_directories(insert_generator
 target_link_libraries(insert_generator
   PUBLIC
     actions_config
+    components_memory_pool
     components_generator
     components_reader
     utils

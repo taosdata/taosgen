@@ -35,7 +35,7 @@ InsertDataConfig create_test_config() {
     // Setup control parameters
     config.control.data_generation.per_table_rows = 100;
     config.control.data_generation.generate_threads = 2;
-    config.control.data_generation.queue_capacity = 1000;
+    config.control.data_generation.queue_capacity = 2;
 
     config.control.insert_control.insert_threads = 2;
     config.control.insert_control.per_request_rows = 10;
@@ -91,7 +91,7 @@ void test_table_name_generation() {
 
 void test_data_pipeline() {
     auto config = create_test_config();
-    DataPipeline<FormatResult> pipeline(2, 2, 1000);
+    DataPipeline<FormatResult> pipeline(1000);
     
     std::atomic<bool> producer_done{false};
     std::atomic<size_t> rows_generated{0};
@@ -100,7 +100,7 @@ void test_data_pipeline() {
     // Start producer thread
     std::thread producer([&]() {
         for(int i = 0; i < 5; i++) {
-            pipeline.push_data(0, FormatResult{
+            pipeline.push_data(FormatResult{
                 SqlInsertData(1700000000000, 1700000000100, 10, "INSERT INTO test_table VALUES (...)")
             });
             rows_generated++;
@@ -111,7 +111,7 @@ void test_data_pipeline() {
     // Start consumer thread
     std::thread consumer([&]() {
         while (!producer_done || pipeline.total_queued() > 0) {
-            auto result = pipeline.fetch_data(0);
+            auto result = pipeline.fetch_data();
             if (result.status == DataPipeline<FormatResult>::Status::Success) {
                 std::visit([&](const auto& data) {
                     using T = std::decay_t<decltype(data)>;
@@ -141,22 +141,25 @@ void test_data_generation() {
     config.control.data_generation.interlace_mode.enabled = false;
     
     auto col_instances = ColumnConfigInstanceFactory::create(config.source.columns.generator.schema);
-    TableDataManager manager(config, col_instances);
+    MemoryPool pool(1, 1, 5, col_instances);
+    TableDataManager manager(pool, config, col_instances);
     
     std::vector<std::string> table_names = {"d0"};
     assert(manager.init(table_names));
     
     int row_count = 0;
-    while (auto batch = manager.next_multi_batch()) {
-        assert(batch->table_batches.size() == 1);
+    while (auto block = manager.next_multi_batch()) {
+        const auto* batch = block.value();
+        assert(batch->used_tables == 1);
         row_count += batch->total_rows;
         
         // Verify timestamp progression
-        for (const auto& [table_name, rows] : batch->table_batches) {
-            for (size_t i = 0; i < rows.size(); i++) {
-                assert(rows[i].timestamp == 1700000000000 + static_cast<int64_t>(row_count - rows.size() + i) * 10);
+        for (const auto& table : batch->tables) {
+            for (size_t i = 0; i < table.used_rows; i++) {
+                assert(table.timestamps[i] == 1700000000000 + static_cast<int64_t>(row_count - table.used_rows + i) * 10);
             }
         }
+        block.value()->release();
     }
     
     assert(row_count == 5);
@@ -168,6 +171,7 @@ void test_end_to_end_data_generation() {
     auto config = create_test_config();
     config.control.data_generation.per_table_rows = 10;
     config.control.data_generation.generate_threads = 2;
+    config.control.data_generation.queue_capacity = 2;
     config.control.insert_control.insert_threads = 2;
     config.source.table_name.generator.count = 4;           // 4 tables total
     config.target.target_type = "tdengine";

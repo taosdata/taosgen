@@ -216,7 +216,7 @@ void test_csv_mode_basic() {
     // Configure data columns
     auto& schema = columns_config.csv.schema;
     schema.emplace_back(ColumnConfig{"age", "INT"});
-    schema.emplace_back(ColumnConfig{"city", "VARCHAR"});
+    schema.emplace_back(ColumnConfig{"city", "VARCHAR(20)"});
     auto instances = ColumnConfigInstanceFactory::create(schema); 
     
     InsertDataConfig::Control control;
@@ -292,7 +292,7 @@ void test_csv_precision_conversion() {
 
     auto& schema = columns_config.csv.schema;
     schema.emplace_back(ColumnConfig{"age", "INT"});
-    schema.emplace_back(ColumnConfig{"city", "VARCHAR"});
+    schema.emplace_back(ColumnConfig{"city", "VARCHAR(20)"});
     auto instances = ColumnConfigInstanceFactory::create(schema); 
 
     InsertDataConfig::Control control;

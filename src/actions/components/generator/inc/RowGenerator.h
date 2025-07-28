@@ -15,6 +15,8 @@ public:
 
     RowType generate() const;
 
+    void generate(RowType& columns) const;
+
     std::vector<RowType> generate(size_t count) const;
 
 private:

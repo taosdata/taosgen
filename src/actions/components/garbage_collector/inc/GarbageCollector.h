@@ -1,15 +1,21 @@
 #pragma once
 
-#include <queue>
-#include <mutex>
-#include <condition_variable>
 #include <thread>
-#include <atomic>
 #include <vector>
+#include <atomic>
 #include <functional>
 #include <memory>
 #include <stdexcept>
+#include "blockingconcurrentqueue.h"
+#include "MemoryPool.h"
+#include "StmtV2InsertData.h"
 
+
+template<typename>
+struct is_variant : std::false_type {};
+
+template<typename... Ts>
+struct is_variant<std::variant<Ts...>> : std::true_type {};
 
 template <typename T>
 class GarbageCollector {
@@ -18,26 +24,21 @@ public:
         std::function<void()> destructor;
 
         Task() = default;
-        Task(Task&&) = default;
-        Task& operator=(Task&&) = default;
+        Task(Task&&) noexcept = default;
+        Task& operator=(Task&&) noexcept = default;
     };
 
-    GarbageCollector(size_t writer_threads, size_t group_size = 1)
-        : terminated_(false),
-          writer_threads_(writer_threads),
-          group_size_(group_size) {
-        
-        if (writer_threads == 0) throw std::invalid_argument("writer_threads cannot be zero");
-        if (group_size == 0) throw std::invalid_argument("group_size cannot be zero");
-        
-        // Calculate number of collector thread groups
-        size_t groups = (writer_threads + group_size - 1) / group_size;
-        queues_.resize(groups);
-        threads_.reserve(groups);
+    // Constructor: specify the number of consumer threads
+    explicit GarbageCollector(size_t num_consumer_threads = 4)
+        : terminated_(false) {
 
-        // Start collector threads
-        for (size_t i = 0; i < groups; ++i) {
-            threads_.emplace_back([this, i] { worker_thread(i); });
+        if (num_consumer_threads == 0)
+            throw std::invalid_argument("Number of consumer threads must be at least 1");
+
+        // Start consumer threads
+        threads_.reserve(num_consumer_threads);
+        for (size_t i = 0; i < num_consumer_threads; ++i) {
+            threads_.emplace_back([this] { worker_thread(); });
         }
     }
 
@@ -48,92 +49,58 @@ public:
         }
     }
 
-    // Add object to be destroyed
-    void dispose(size_t writer_id, T&& data) {
-        if (terminated_) return;
-        
-        // Calculate the index of the collector queue for the writer thread
-        size_t gc_index = writer_id % queues_.size();
-        auto& queue = queues_[gc_index];
-        
-        {
-            std::lock_guard<std::mutex> lock(queue.mutex);
-            
-            // Create destruction task
-            Task task;
-            task.destructor = [ptr = std::make_shared<std::decay_t<T>>(std::move(data))]() {
+    // Submit an object to be collected
+    void dispose(T&& data) {
+        if (terminated_.load(std::memory_order_relaxed)) return;
 
-            };
-            queue.tasks.push(std::move(task));
-        }
-        queue.cv.notify_one();
+        using DataType = std::decay_t<T>;
+        auto ptr = std::make_shared<DataType>(std::move(data));
+    
+        Task task;
+        task.destructor = [ptr, this]() {
+            // if constexpr (is_variant<DataType>::value) {
+            //     // DataType is a std::variant
+            //     std::visit([this](auto& obj) {
+            //         using U = std::decay_t<decltype(obj)>;
+            //         if constexpr (std::is_same_v<U, StmtV2InsertData>) {
+            //             obj.block->release();
+            //         }
+            //     }, *ptr);
+            // } else {
+            //     // Other types do not require special handling
+            // }
+        };
+
+
+        queue_.enqueue(std::move(task));
     }
 
+    // Terminate the collector
     void terminate() {
-        terminated_.store(true);
-        for (auto& queue : queues_) {
-            std::lock_guard<std::mutex> lock(queue.mutex);
-            queue.cv.notify_all();
-        }
+        terminated_.store(true, std::memory_order_release);
     }
 
 private:
-    void worker_thread(size_t queue_index) {
-        auto& queue = queues_[queue_index];
-        
-        while (!terminated_) {
-            Task task;
-            
-            {
-                std::unique_lock<std::mutex> lock(queue.mutex);
-                queue.cv.wait(lock, [&] {
-                    return !queue.tasks.empty() || terminated_;
-                });
-                
-                if (terminated_ && queue.tasks.empty()) break;
-                
-                if (!queue.tasks.empty()) {
-                    task = std::move(queue.tasks.front());
-                    queue.tasks.pop();
+    void worker_thread() {
+        Task task;
+        while (!terminated_.load(std::memory_order_acquire)) {
+            if (queue_.wait_dequeue_timed(task, std::chrono::milliseconds(100))) {
+                if (task.destructor) {
+                    task.destructor();
                 }
             }
-            
-            // Execute destructor task
+        }
+
+        // Clear remaining tasks
+        while (queue_.try_dequeue(task)) {
             if (task.destructor) {
                 task.destructor();
             }
         }
-        
-        // Clear remaining tasks
-        std::queue<Task> remaining;
-        {
-            std::lock_guard<std::mutex> lock(queue.mutex);
-            remaining = std::move(queue.tasks);
-        }
-        
-        while (!remaining.empty()) {
-            if (auto& task = remaining.front(); task.destructor) {
-                task.destructor();
-            }
-            remaining.pop();
-        }
     }
 
-    struct GCQueue {
-        std::queue<Task> tasks;
-        mutable std::mutex mutex;
-        std::condition_variable cv;
-        
-        // Support move semantics
-        GCQueue() = default;
-        GCQueue(GCQueue&& other) noexcept 
-            : tasks(std::move(other.tasks)) 
-        {}
-    };
-
-    std::vector<GCQueue> queues_;
+private:
+    moodycamel::BlockingConcurrentQueue<Task> queue_;
     std::vector<std::thread> threads_;
     std::atomic<bool> terminated_;
-    const size_t writer_threads_;
-    const size_t group_size_;
 };

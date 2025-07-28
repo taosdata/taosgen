@@ -5,5 +5,6 @@ add_executable(TestActionMetrics
 target_link_libraries(TestActionMetrics
   PRIVATE 
     components_metrics
+    Threads::Threads
 )
 add_test(NAME TestActionMetrics COMMAND TestActionMetrics)
