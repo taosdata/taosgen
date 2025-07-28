@@ -16,22 +16,22 @@
       - [数据生成方式详解](#数据生成方式详解)
   - [行动的种类](#行动的种类)
   - [创建数据库行动的格式](#创建数据库行动的格式)
-    - [connection\_info (可选)：](#connection_info-可选)
-    - [data\_format (可选)：](#data_format-可选)
-    - [data\_channel (可选)：](#data_channel-可选)
-    - [database\_info (可选)：](#database_info-可选)
+    - [connection\_info (可选)](#connection_info-可选)
+    - [data\_format (可选)](#data_format-可选)
+    - [data\_channel (可选)](#data_channel-可选)
+    - [database\_info (可选)](#database_info-可选)
   - [创建超级表行动的格式](#创建超级表行动的格式)
-    - [connection\_info (可选)：](#connection_info-可选-1)
-    - [data\_format (可选)：](#data_format-可选-1)
-    - [data\_channel (可选)：](#data_channel-可选-1)
-    - [database\_info (可选)：](#database_info-可选-1)
-    - [super\_table\_info (可选)：](#super_table_info-可选)
+    - [connection\_info (可选)](#connection_info-可选-1)
+    - [data\_format (可选)](#data_format-可选-1)
+    - [data\_channel (可选)](#data_channel-可选-1)
+    - [database\_info (可选)](#database_info-可选-1)
+    - [super\_table\_info (可选)](#super_table_info-可选)
   - [创建子表行动的格式](#创建子表行动的格式)
-    - [connection\_info (可选)：](#connection_info-可选-2)
-    - [data\_format (可选)：](#data_format-可选-2)
-    - [data\_channel (可选)：](#data_channel-可选-2)
-    - [database\_info (可选)：](#database_info-可选-2)
-    - [super\_table\_info (可选)：](#super_table_info-可选-1)
+    - [connection\_info (可选)](#connection_info-可选-2)
+    - [data\_format (可选)](#data_format-可选-2)
+    - [data\_channel (可选)](#data_channel-可选-2)
+    - [database\_info (可选)](#database_info-可选-2)
+    - [super\_table\_info (可选)](#super_table_info-可选-1)
     - [child\_table\_info (必需)：](#child_table_info-必需)
       - [table\_name（子表名称）](#table_name子表名称)
       - [tags（标签列）](#tags标签列)
@@ -237,62 +237,62 @@ jobs:
 行动（Action） 是封装好的可复用操作单元，用于完成特定功能。每个行动代表一类独立的操作逻辑，可以在不同的步骤（Step）中被调用和执行。通过将常用操作抽象为标准化的行动模块，系统实现了良好的扩展性与配置灵活性。
 同一类型的行动可以在多个步骤中并行或重复使用，从而支持多样化的任务流程编排。例如：创建数据库、定义超级表、生成子表、插入数据等核心操作，均可通过对应的行动进行统一调度。
 目前系统支持以下内置行动：
-- `actions/create-database`：用于创建数据库。
-- `actions/create-super-table`：用于创建超级表。
-- `actions/create-child-table`：用于基于超级表生成子表。
-- `actions/insert-data`：用于向指定的数据表中插入数据。
+- `actions/create-database`：用于创建数据库
+- `actions/create-super-table`：用于创建超级表
+- `actions/create-child-table`：用于基于超级表生成子表
+- `actions/insert-data`：用于向指定的数据表中插入数据
 每个行动在调用时可通过 with 字段传入参数，具体参数内容因行动类型而异。
 
 
 ### 创建数据库行动的格式
 `actions/create-database` 行动用于在指定的 TDengine 数据库服务器上创建一个新的数据库。通过传递必要的连接信息和数据库配置参数，用户可以轻松地定义新数据库的各种属性，如数据库名称、是否在存在时删除旧数据库、时间精度等。
 
-#### connection_info (可选)：
+#### connection_info (可选)
 同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
 
-#### data_format (可选)：
+#### data_format (可选)
 同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
 
-#### data_channel (可选)：
+#### data_channel (可选)
 同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
 
-#### database_info (可选)：
+#### database_info (可选)
 同《全局配置参数》章节中同名参数的描述，包含数据库创建所需的所有细节。如果未指定，则默认使用全局配置中的参数信息。
 
 ### 创建超级表行动的格式
 `actions/create-super-table` 行动用于在指定数据库中创建一个新的超级表（Super Table）。通过传递必要的连接信息和超级表配置参数，用户能够定义超级表的各种属性，如表名、普通列和标签列等。
 
-#### connection_info (可选)：
+#### connection_info (可选)
 同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
 
-#### data_format (可选)：
+#### data_format (可选)
 同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
 
-#### data_channel (可选)：
+#### data_channel (可选)
 同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
 
-#### database_info (可选)：
+#### database_info (可选)
 同《全局配置参数》章节中同名参数的描述，指定要在哪个数据库中创建超级表。如果未指定，则默认使用全局配置中的参数信息。
 
-#### super_table_info (可选)：
+#### super_table_info (可选)
 同《全局配置参数》章节中同名参数的描述，包含超级表创建所需的所有细节。如果未指定，则默认使用全局配置中的参数信息。
 
 ### 创建子表行动的格式
 `actions/create-child-table` 行动用于基于指定的超级表，在目标数据库中批量创建多个子表（Child Tables）。每个子表可以拥有不同的名称和标签列数据，从而实现对时间序列数据的有效分类与管理。该行动支持从生成器（Generator）或 CSV 文件两种来源定义子表名称及标签列信息，具备高度灵活性和可配置性。
 
-#### connection_info (可选)：
+#### connection_info (可选)
 同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
 
-#### data_format (可选)：
+#### data_format (可选)
 同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
 
-#### data_channel (可选)：
+#### data_channel (可选)
 同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
 
-#### database_info (可选)：
+#### database_info (可选)
 同《全局配置参数》章节中同名参数的描述，指定要在哪个数据库中创建子表。如果未指定，则默认使用全局配置中的参数信息。
 
-#### super_table_info (可选)：
+#### super_table_info (可选)
 同《全局配置参数》章节中同名参数的描述，指定基于哪个超级表创建子表。如果未指定，则默认使用全局配置中的参数信息。
 
 #### child_table_info (必需)：
@@ -385,10 +385,10 @@ jobs:
         - offset_type (字符串)：表示时间戳偏移类型，可选值为："relative"、"absolute"。
         - value（字符串或整型）：表示时间戳的偏移量（relative）或起始时间戳（absolute）：
           - 时间戳偏移类型为 "relative" 时：字符串类型，格式为 ±[数值][单位] 组合（示例："+1d3h" 表示加1天3小时），支持以下时间单位：
-            - y：年偏移量。
-            - m：月偏移量。
-            - d：天偏移量。
-            - s：秒偏移量。
+            - y：年偏移量
+            - m：月偏移量
+            - d：天偏移量
+            - s：秒偏移量
           - 时间戳偏移类型为 "absolute" 时：整型或字符串类型，格式如下：
             - 时间戳数值（精度由 timestamp_precision 参数决定）
             - ISO 8601 格式字符串（"YYYY-MM-DD HH:mm:ss"）
