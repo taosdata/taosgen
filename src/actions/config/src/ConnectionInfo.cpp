@@ -1,9 +1,9 @@
-#include "ConnectionInfo.h"
+#include "ConnectionInfo.hpp"
 
 #include <vector>
 #include <stdexcept>
 #include <algorithm>
-#include "StringUtils.h"
+#include "StringUtils.hpp"
 
 
 /**

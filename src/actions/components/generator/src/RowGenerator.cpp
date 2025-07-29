@@ -1,6 +1,6 @@
-#include "RowGenerator.h"
+#include "RowGenerator.hpp"
 #include <stdexcept>
-#include "ColumnGeneratorFactory.h"
+#include "ColumnGeneratorFactory.hpp"
 
 
 RowGenerator::RowGenerator(const ColumnConfigInstanceVector& col_instances) {

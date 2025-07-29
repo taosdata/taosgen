@@ -1,8 +1,8 @@
-#include "TDengineWriter.h"
+#include "TDengineWriter.hpp"
 #include <iostream>
 #include <stdexcept>
 #include <thread>
-#include "TimeRecorder.h"
+#include "TimeRecorder.hpp"
 
 TDengineWriter::TDengineWriter(const InsertDataConfig& config)
         : config_(config),

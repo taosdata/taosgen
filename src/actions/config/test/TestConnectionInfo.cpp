@@ -1,4 +1,4 @@
-#include "ConnectionInfo.h"
+#include "ConnectionInfo.hpp"
 #include <cassert>
 #include <iostream>
 #include <stdexcept>

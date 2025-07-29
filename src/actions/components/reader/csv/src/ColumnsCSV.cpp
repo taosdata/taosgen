@@ -1,4 +1,4 @@
-#include "ColumnsCSV.h"
+#include "ColumnsCSV.hpp"
 #include <stdexcept>
 #include <algorithm>
 #include <sstream>
@@ -12,10 +12,10 @@
 #include <iomanip>
 #include <ctime>
 #include <unordered_map>
-#include "StringUtils.h"
-#include "TimestampUtils.h"
-#include "ColumnType.h"
-#include "CSVUtils.h"
+#include "StringUtils.hpp"
+#include "TimestampUtils.hpp"
+#include "ColumnType.hpp"
+#include "CSVUtils.hpp"
 
 
 

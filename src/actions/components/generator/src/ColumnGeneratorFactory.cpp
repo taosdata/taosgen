@@ -1,9 +1,9 @@
 
-#include "ColumnGeneratorFactory.h"
+#include "ColumnGeneratorFactory.hpp"
 #include <stdexcept>
-#include "RandomColumnGenerator.h"
-#include "OrderColumnGenerator.h"
-#include "FunctionColumnGenerator.h"
+#include "RandomColumnGenerator.hpp"
+#include "OrderColumnGenerator.hpp"
+#include "FunctionColumnGenerator.hpp"
 
 
 std::unique_ptr<ColumnGenerator> ColumnGeneratorFactory::create(const ColumnConfigInstance& instance) {

@@ -2,7 +2,7 @@
 #include <sstream>
 #include <cassert>
 #include <yaml-cpp/yaml.h>
-#include "ConfigParser.h"
+#include "ConfigParser.hpp"
 
 
 void test_ConnectionInfo() {

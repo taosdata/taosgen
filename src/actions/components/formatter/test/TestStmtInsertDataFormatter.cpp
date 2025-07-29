@@ -1,7 +1,7 @@
 #include <iostream>
 #include <cassert>
-#include "FormatterRegistrar.h"
-#include "StmtInsertDataFormatter.h"
+#include "FormatterRegistrar.hpp"
+#include "StmtInsertDataFormatter.hpp"
 
 void test_stmt_format_insert_data_single_table() {
     DataFormat format;

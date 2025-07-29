@@ -1,6 +1,6 @@
 #include <iostream>
 #include <cassert>
-#include "RandomColumnGenerator.h"
+#include "RandomColumnGenerator.hpp"
 
 void test_generate_int_column() {
     ColumnConfig config;

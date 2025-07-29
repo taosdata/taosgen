@@ -1,4 +1,4 @@
-#include "ThreadSafeQueue.h"
+#include "ThreadSafeQueue.hpp"
 
 void ThreadSafeQueue::enqueue(DAGNode* node) {
     std::lock_guard<std::mutex> lock(mtx_);

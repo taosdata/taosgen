@@ -1,7 +1,7 @@
 #include <iostream>
 #include <cassert>
 #include <fstream>
-#include "TagsCSV.h"
+#include "TagsCSV.hpp"
 
 
 void test_validate_config_empty_file_path() {

@@ -1,6 +1,6 @@
 #include <iostream>
 #include <cassert>
-#include "ColumnGeneratorFactory.h"
+#include "ColumnGeneratorFactory.hpp"
 
 
 void test_factory_create_random_column_generator() {

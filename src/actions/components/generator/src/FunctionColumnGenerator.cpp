@@ -1,4 +1,4 @@
-#include "FunctionColumnGenerator.h"
+#include "FunctionColumnGenerator.hpp"
 #include <cmath>
 #include <random>
 #include <stdexcept>

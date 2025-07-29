@@ -1,4 +1,4 @@
-#include "RandomColumnGenerator.h"
+#include "RandomColumnGenerator.hpp"
 #include <random>
 #include <stdexcept>
 #include <functional>

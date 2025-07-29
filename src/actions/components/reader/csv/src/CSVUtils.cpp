@@ -1,5 +1,5 @@
-#include "CSVUtils.h"
-#include "StringUtils.h"
+#include "CSVUtils.hpp"
+#include "StringUtils.hpp"
 
 namespace CSVUtils {
 

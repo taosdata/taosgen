@@ -1,6 +1,6 @@
 #include <cassert>
 #include <iostream>
-#include "RowDataGenerator.h"
+#include "RowDataGenerator.hpp"
 
 
 void test_generator_mode_basic() {

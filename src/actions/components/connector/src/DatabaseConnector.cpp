@@ -1,7 +1,7 @@
 #include <stdexcept>
-#include "NativeConnector.h"
-#include "WebsocketConnector.h"
-#include "RestfulConnector.h"
+#include "NativeConnector.hpp"
+#include "WebsocketConnector.hpp"
+#include "RestfulConnector.hpp"
 
 std::unique_ptr<DatabaseConnector> DatabaseConnector::create(
     const DataChannel& channel,

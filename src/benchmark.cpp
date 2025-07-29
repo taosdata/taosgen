@@ -1,6 +1,6 @@
 #include <iostream>
-#include "ParameterContext.h"
-#include "JobScheduler.h"
+#include "ParameterContext.hpp"
+#include "JobScheduler.hpp"
 
 
 int main(int argc, char* argv[]) {

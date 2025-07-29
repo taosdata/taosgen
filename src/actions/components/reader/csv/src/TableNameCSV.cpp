@@ -1,8 +1,8 @@
-#include "TableNameCSV.h"
+#include "TableNameCSV.hpp"
 #include <stdexcept>
 #include <algorithm>
 #include <sstream>
-#include "StringUtils.h"
+#include "StringUtils.hpp"
 
 
 TableNameCSV::TableNameCSV(const TableNameConfig::CSV& config) : config_(config) {

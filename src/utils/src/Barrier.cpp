@@ -1,4 +1,4 @@
-#include "Barrier.h"
+#include "Barrier.hpp"
 
 Barrier::Barrier(std::size_t count)
     : threshold_(count), count_(count), generation_(0) {}

@@ -1,12 +1,12 @@
-#include "StepExecutionStrategy.h"
+#include "StepExecutionStrategy.hpp"
 #include <iostream>
-#include "ActionFactory.h"
-#include "CreateDatabaseAction.h"
-#include "CreateSuperTableAction.h"
-#include "CreateChildTableAction.h"
-#include "InsertDataAction.h"
-#include "QueryDataAction.h"
-#include "SubscribeDataAction.h"
+#include "ActionFactory.hpp"
+#include "CreateDatabaseAction.hpp"
+#include "CreateSuperTableAction.hpp"
+#include "CreateChildTableAction.hpp"
+#include "InsertDataAction.hpp"
+#include "QueryDataAction.hpp"
+#include "SubscribeDataAction.hpp"
 
 
 // Implementation of production environment strategy

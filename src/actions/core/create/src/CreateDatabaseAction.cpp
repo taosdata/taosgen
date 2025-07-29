@@ -1,6 +1,6 @@
-#include "CreateDatabaseAction.h"
+#include "CreateDatabaseAction.hpp"
 #include <iostream>
-#include "FormatterRegistrar.h"
+#include "FormatterRegistrar.hpp"
 
 
 void CreateDatabaseAction::prepare_connector() {

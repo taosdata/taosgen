@@ -1,4 +1,4 @@
-#include "NativeConnector.h"
+#include "NativeConnector.hpp"
 #include <iostream>
 
 NativeConnector::NativeConnector(const ConnectionInfo& conn_info)

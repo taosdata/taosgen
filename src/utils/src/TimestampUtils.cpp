@@ -1,4 +1,4 @@
-#include "TimestampUtils.h"
+#include "TimestampUtils.hpp"
 #include <string>
 #include <chrono>
 #include <optional>
@@ -9,7 +9,7 @@
 #include <iomanip>
 #include <ctime>
 #include <algorithm>
-#include "StringUtils.h"
+#include "StringUtils.hpp"
 
 
 const std::unordered_map<std::string, int64_t> TimestampUtils::precision_map = {

@@ -1,0 +1,12 @@
+#pragma once
+
+#include <string>
+#include <variant>
+#include <vector>
+#include "SqlInsertData.hpp"
+#include "StmtV2InsertData.hpp"
+
+
+
+// General format result type
+using FormatResult = std::variant<std::string, std::vector<std::string>, SqlInsertData, StmtV2InsertData>;

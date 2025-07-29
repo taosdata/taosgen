@@ -1,4 +1,4 @@
-#include "TableNameManager.h"
+#include "TableNameManager.hpp"
 #include <cassert>
 #include <iostream>
 

@@ -1,10 +1,10 @@
-#include "InsertDataAction.h"
+#include "InsertDataAction.hpp"
 #include <cassert>
 #include <memory>
 #include <thread>
 #include <chrono>
 #include <filesystem>
-#include "TableNameManager.h"
+#include "TableNameManager.hpp"
 
 
 InsertDataConfig create_test_config() {

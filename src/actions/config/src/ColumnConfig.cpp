@@ -1,11 +1,11 @@
-#include "ColumnConfig.h"
+#include "ColumnConfig.hpp"
 #include <stdexcept>
 #include <cfloat>
 #include <limits>
 #include <regex>
 #include <unordered_map>
 #include "taos.h"
-#include "StringUtils.h"
+#include "StringUtils.hpp"
 
 
 ColumnTypeTag ColumnConfig::get_type_tag(const std::string& type_str) {

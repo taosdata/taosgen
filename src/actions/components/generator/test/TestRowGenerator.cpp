@@ -1,6 +1,6 @@
 #include <iostream>
 #include <cassert>
-#include "RowGenerator.h"
+#include "RowGenerator.hpp"
 
 void test_generate_row_without_timestamp() {
     ColumnConfigVector col_configs = {

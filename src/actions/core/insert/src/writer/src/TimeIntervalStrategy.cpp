@@ -1,4 +1,4 @@
-#include "TimeIntervalStrategy.h"
+#include "TimeIntervalStrategy.hpp"
 #include <chrono>
 #include <thread>
 

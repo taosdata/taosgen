@@ -1,6 +1,6 @@
-#include "CreateSuperTableAction.h"
+#include "CreateSuperTableAction.hpp"
 #include <iostream>
-#include "FormatterRegistrar.h"
+#include "FormatterRegistrar.hpp"
 
 
 void CreateSuperTableAction::prepare_connector() {

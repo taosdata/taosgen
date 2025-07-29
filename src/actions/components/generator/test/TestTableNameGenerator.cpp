@@ -1,6 +1,6 @@
 #include <iostream>
 #include <cassert>
-#include "TableNameGenerator.h"
+#include "TableNameGenerator.hpp"
 
 void test_generate_table_names() {
     TableNameConfig::Generator config;

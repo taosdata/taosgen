@@ -1,4 +1,4 @@
-#include "RateLimiter.h"
+#include "RateLimiter.hpp"
 #include <algorithm>
 
 RateLimiter::RateLimiter(int64_t rate_limit)
