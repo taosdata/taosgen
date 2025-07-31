@@ -3,7 +3,7 @@
 #include <stdexcept>
 #include "RandomColumnGenerator.hpp"
 #include "OrderColumnGenerator.hpp"
-#include "FunctionColumnGenerator.hpp"
+#include "ExprColumnGenerator.hpp"
 
 
 std::unique_ptr<ColumnGenerator> ColumnGeneratorFactory::create(const ColumnConfigInstance& instance) {
@@ -17,8 +17,8 @@ std::unique_ptr<ColumnGenerator> ColumnGeneratorFactory::create(const ColumnConf
     else if (gen_type == "order") {
         return std::make_unique<OrderColumnGenerator>(instance);
     }
-    else if (gen_type == "function") {
-        return std::make_unique<FunctionColumnGenerator>(instance);
+    else if (gen_type == "expression") {
+        return std::make_unique<ExprColumnGenerator>(instance);
     }
     
     throw std::runtime_error("Unsupported generator type: " + gen_type);

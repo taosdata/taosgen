@@ -28,6 +28,16 @@ target_link_libraries(TestRandomColumnGenerator
 )
 add_test(NAME TestRandomColumnGenerator COMMAND TestRandomColumnGenerator)
 
+# Test ExprColumnGenerator
+add_executable(TestExprColumnGenerator
+  TestExprColumnGenerator.cpp
+)
+target_link_libraries(TestExprColumnGenerator
+  PRIVATE 
+    components_generator
+)
+add_test(NAME TestExprColumnGenerator COMMAND TestExprColumnGenerator)
+
 # Test ColumnGeneratorFactory
 add_executable(TestColumnGeneratorFactory
   TestColumnGeneratorFactory.cpp

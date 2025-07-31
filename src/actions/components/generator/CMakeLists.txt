@@ -1,11 +1,11 @@
 # Create library target
-add_library(components_generator STATIC 
+add_library(components_generator STATIC
   src/TableNameGenerator.cpp
   src/TimestampGenerator.cpp
   src/ColumnGeneratorFactory.cpp
   src/RandomColumnGenerator.cpp
   src/OrderColumnGenerator.cpp
-  src/FunctionColumnGenerator.cpp
+  src/ExprColumnGenerator.cpp
   src/RowGenerator.cpp
 )
 
@@ -13,13 +13,14 @@ add_library(components_generator STATIC
 target_include_directories(components_generator
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/inc
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../config/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../expression/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../utils/inc
 )
 
 # Link dependencies
 target_link_libraries(components_generator
   PUBLIC
+    components_expression
     actions_config
     utils
 )

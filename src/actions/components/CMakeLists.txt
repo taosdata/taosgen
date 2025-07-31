@@ -2,6 +2,7 @@
 add_subdirectory(metrics)
 add_subdirectory(memory_pool)
 add_subdirectory(garbage_collector)
+add_subdirectory(expression)
 add_subdirectory(connector)
 add_subdirectory(formatter)
 add_subdirectory(generator)
@@ -12,6 +13,7 @@ add_library(actions_components STATIC
   $<TARGET_OBJECTS:components_metrics>
   $<TARGET_OBJECTS:components_memory_pool>
   $<TARGET_OBJECTS:components_gc>
+  $<TARGET_OBJECTS:components_expression>
   $<TARGET_OBJECTS:components_connector>
   $<TARGET_OBJECTS:components_formatter>
   $<TARGET_OBJECTS:components_generator>
@@ -24,6 +26,7 @@ target_include_directories(actions_components
     ${CMAKE_CURRENT_SOURCE_DIR}/metrics/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/memory_pool/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/garbage_collector/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/expression/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/connector/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/formatter/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/generator/inc
@@ -36,6 +39,7 @@ target_link_libraries(actions_components
     components_metrics
     components_memory_pool
     components_gc
+    components_expression
     components_connector
     components_formatter
     components_generator

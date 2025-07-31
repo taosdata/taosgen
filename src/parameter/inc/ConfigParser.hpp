@@ -13,6 +13,15 @@
 
 namespace YAML {
 
+    template<typename T>
+    std::set<T> merge_keys(const std::initializer_list<std::set<T>>& sets) {
+        std::set<T> result;
+        for (const auto& s : sets) {
+            result.insert(s.begin(), s.end());
+        }
+        return result;
+    }
+
     inline void check_unknown_keys(const YAML::Node& node, const std::set<std::string>& valid_keys, const std::string& context) {
         for (auto it = node.begin(); it != node.end(); ++it) {
             std::string key = it->first.as<std::string>();
@@ -22,6 +31,14 @@ namespace YAML {
         }
     }
 
+    inline void check_forbidden_keys(const YAML::Node& node, const std::set<std::string>& forbidden_keys, const std::string& context) {
+        for (auto it = node.begin(); it != node.end(); ++it) {
+            std::string key = it->first.as<std::string>();
+            if (forbidden_keys.find(key) != forbidden_keys.end()) {
+                throw std::runtime_error("Forbidden configuration key in " + context + ": " + key);
+            }
+        }
+    }
 
     template<>
     struct convert<ConnectionInfo> {
@@ -85,11 +102,22 @@ namespace YAML {
     struct convert<ColumnConfig> {    
         static bool decode(const Node& node, ColumnConfig& rhs) {
             // Detect unknown configuration keys
-            static const std::set<std::string> valid_keys = {
-                "name", "type", "primary_key", "count", "properties", "gen_type", "null_ratio", "none_ratio", 
-                "distribution", "min", "max", "dec_min", "dec_max", "corpus", "chinese", "values",
-                "expression"
+            static const std::set<std::string> common_keys = {
+                "name", "type", "primary_key", "count", "properties", "gen_type", "null_ratio", "none_ratio"
             };
+            static const std::set<std::string> random_allowed = {
+                "distribution", "min", "max", "dec_min", "dec_max", "corpus", "chinese", "values"
+            };
+            static const std::set<std::string> order_allowed = {
+                "min", "max"
+            };
+            static const std::set<std::string> expression_allowed = {
+                "formula"
+            };
+
+            static const std::set<std::string> valid_keys = merge_keys<std::string>({
+                common_keys, random_allowed, order_allowed, expression_allowed
+            });
             check_unknown_keys(node, valid_keys, "columns or tags");
 
             if (!node["name"]) {
@@ -118,6 +146,9 @@ namespace YAML {
             }
 
             if (*rhs.gen_type == "random") {
+                // Detect forbidden keys in random
+                check_unknown_keys(node, merge_keys<std::string>({common_keys, random_allowed}), "columns or tags::random");
+
                 if (node["distribution"]) {
                     rhs.distribution = node["distribution"].as<std::string>();
                 } else {
@@ -139,67 +170,22 @@ namespace YAML {
                 if (node["chinese"]) rhs.chinese = node["chinese"].as<bool>();
                 if (node["values"]) rhs.values = node["values"].as<std::vector<std::string>>();
             } else if (*rhs.gen_type == "order") {
+                // Detect forbidden keys in order
+                check_unknown_keys(node, merge_keys<std::string>({common_keys, order_allowed}), "columns or tags::order");
+
                 if (node["min"]) rhs.order_min = node["min"].as<int64_t>();
                 if (node["max"]) rhs.order_max = node["max"].as<int64_t>();
-            } else if (*rhs.gen_type == "function") {
-                if (node["expression"]) {
-                    if (!rhs.function_config) {
-                        rhs.function_config = ColumnConfig::FunctionConfig();
-                    }
-                    rhs.function_config->expression = node["expression"].as<std::string>();
+            } else if (*rhs.gen_type == "expression") {
+                // Detect forbidden keys in expression
+                check_unknown_keys(node, merge_keys<std::string>({common_keys, expression_allowed}), "columns or tags::expression");
+
+                if (node["formula"]) {
+                    rhs.formula = node["formula"].as<std::string>();
+                } else {
+                    throw std::runtime_error("Missing required 'formula' for expression type column: " + rhs.name);
                 }
-                // ColumnConfig::FunctionConfig func_config;
-                // if (node["function_config"]) {
-                //     const auto& func_node = node["function_config"];
-                //     if (func_node["expression"]) func_config.expression = func_node["expression"].as<std::string>();
-                //     if (func_node["function"]) func_config.function = func_node["function"].as<std::string>();
-                //     if (func_node["multiple"]) func_config.multiple = func_node["multiple"].as<double>();
-                //     if (func_node["addend"]) func_config.addend = func_node["addend"].as<double>();
-                //     if (func_node["random"]) func_config.random = func_node["random"].as<int>();
-                //     if (func_node["base"]) func_config.base = func_node["base"].as<double>();
-                //     if (func_node["min"]) func_config.min = func_node["min"].as<double>();
-                //     if (func_node["max"]) func_config.max = func_node["max"].as<double>();
-                //     if (func_node["period"]) func_config.period = func_node["period"].as<int>();
-                //     if (func_node["offset"]) func_config.offset = func_node["offset"].as<int>();
-                // }
-                // rhs.function_config = func_config;
-
-                // ColumnConfig::FunctionConfig func_config;
-                // func_config.expression = item["function"].as<std::string>(); // Parse full expression
-                // // Parse each part of the function expression
-                // // Assume function expression format: <multiple> * <function>(<args>) + <addend> * random(<random>) + <base>
-                // std::istringstream expr_stream(func_config.expression);
-                // std::string token;
-                // while (std::getline(expr_stream, token, '*')) {
-                //     if (token.find("sinusoid") != std::string::npos ||
-                //         token.find("counter") != std::string::npos ||
-                //         token.find("sawtooth") != std::string::npos ||
-                //         token.find("square") != std::string::npos ||
-                //         token.find("triangle") != std::string::npos) {
-                //         func_config.function = token.substr(0, token.find('('));
-                //         // Parse function arguments
-                //         auto args_start = token.find('(') + 1;
-                //         auto args_end = token.find(')');
-                //         auto args = token.substr(args_start, args_end - args_start);
-                //         std::istringstream args_stream(args);
-                //         std::string arg;
-                //         while (std::getline(args_stream, arg, ',')) {
-                //             if (arg.find("min") != std::string::npos) func_config.min = std::stod(arg.substr(arg.find('=') + 1));
-                //             if (arg.find("max") != std::string::npos) func_config.max = std::stod(arg.substr(arg.find('=') + 1));
-                //             if (arg.find("period") != std::string::npos) func_config.period = std::stoi(arg.substr(arg.find('=') + 1));
-                //             if (arg.find("offset") != std::string::npos) func_config.offset = std::stoi(arg.substr(arg.find('=') + 1));
-                //         }
-                //     } else if (token.find("random") != std::string::npos) {
-                //         func_config.random = std::stoi(token.substr(token.find('(') + 1, token.find(')') - token.find('(') - 1));
-                //     } else if (token.find('+') != std::string::npos) {
-                //         func_config.addend = std::stod(token.substr(0, token.find('+')));
-                //         func_config.base = std::stod(token.substr(token.find('+') + 1));
-                //     } else {
-                //         func_config.multiple = std::stod(token);
-                //     }
-                // }
-                // column.function_config = func_config;
-
+            } else {
+                throw std::runtime_error("Invalid gen_type: " + *rhs.gen_type);
             }
             return true;
         }

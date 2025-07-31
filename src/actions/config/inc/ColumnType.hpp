@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <type_traits>
 
 
 using Timestamp = int64_t;
@@ -74,3 +75,24 @@ using RowType = ColumnTypeVector;
 
 std::ostream& operator<<(std::ostream& os, const ColumnType& column);
 std::ostream& operator<<(std::ostream& os, const RowType& row);
+
+template <typename T, typename Variant>
+struct variant_index;
+
+template <typename T, typename... Types>
+struct variant_index<T, std::variant<Types...>> {
+    static_assert(
+        (std::is_same_v<T, Types> || ...), 
+        "Type not found in variant"
+    );
+
+    static constexpr std::size_t index() {
+        constexpr bool matches[] = { std::is_same_v<T, Types>... };
+        for (std::size_t i = 0; i < sizeof...(Types); ++i) {
+            if (matches[i]) return i;
+        }
+        return static_cast<std::size_t>(-1);
+    }
+
+    static constexpr std::size_t value = index();
+};

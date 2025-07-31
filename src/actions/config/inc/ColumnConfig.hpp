@@ -12,6 +12,7 @@ struct ColumnConfig {
     std::string name;
     std::string type;
     ColumnTypeTag type_tag;
+    size_t type_index = std::variant_npos;
     bool primary_key = false;
     std::optional<int> len;
     size_t count = 1;
@@ -36,27 +37,17 @@ struct ColumnConfig {
     std::optional<int64_t> order_min;
     std::optional<int64_t> order_max;
 
-    // Attributes for gen_type=function
-    struct FunctionConfig {
-        std::string expression; // Full function expression
-        std::string function;   // Function name, e.g. sinusoid, counter, etc.
-        double multiple = 1.0;  // Multiplier
-        double addend = 0.0;    // Addend
-        int random = 0;         // Random range
-        double base = 0.0;      // Base value
-        std::optional<double> min; // Function parameter: min value
-        std::optional<double> max; // Function parameter: max value
-        std::optional<int> period; // Function parameter: period
-        std::optional<int> offset; // Function parameter: offset
-    };
-    std::optional<FunctionConfig> function_config;
-
-    static ColumnTypeTag get_type_tag(const std::string& type_str);
+    // Attributes for gen_type=expression
+    std::optional<std::string> formula; 
 
     ColumnConfig() = default;
     ColumnConfig(const std::string& name, const std::string& type);
     ColumnConfig(const std::string& name, const std::string& type, std::optional<std::string> gen_type);
     ColumnConfig(const std::string& name, const std::string& type, std::optional<std::string> gen_type, std::optional<double> min, std::optional<double> max);
+
+    static ColumnTypeTag get_type_tag(const std::string& type_str);
+
+    std::size_t get_type_index(const std::string& type_str);
 
     void parse_type();
 

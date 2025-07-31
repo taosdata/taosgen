@@ -152,6 +152,7 @@ jobs:
             columns:
               source_type: csv
               csv:
+                schema: *columns_info
                 file_path: /root/data/cnnc_csv_1s/
                 has_header: true
 

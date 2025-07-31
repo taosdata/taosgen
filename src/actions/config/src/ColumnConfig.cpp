@@ -9,32 +9,63 @@
 
 
 ColumnTypeTag ColumnConfig::get_type_tag(const std::string& type_str) {
-    static const std::unordered_map<std::string, ColumnTypeTag> type_map = {
-        {"bool", ColumnTypeTag::BOOL},
-        {"tinyint", ColumnTypeTag::TINYINT},
-        {"tinyint unsigned", ColumnTypeTag::TINYINT_UNSIGNED},
-        {"smallint", ColumnTypeTag::SMALLINT},
-        {"smallint unsigned", ColumnTypeTag::SMALLINT_UNSIGNED},
-        {"int", ColumnTypeTag::INT},
-        {"int unsigned", ColumnTypeTag::INT_UNSIGNED},
-        {"bigint", ColumnTypeTag::BIGINT},
-        {"bigint unsigned", ColumnTypeTag::BIGINT_UNSIGNED},
-        {"float", ColumnTypeTag::FLOAT},
-        {"double", ColumnTypeTag::DOUBLE},
-        {"decimal", ColumnTypeTag::DECIMAL},
-        {"nchar", ColumnTypeTag::NCHAR},
-        {"varchar", ColumnTypeTag::VARCHAR},
-        {"binary", ColumnTypeTag::BINARY},
-        {"json", ColumnTypeTag::JSON},
-        {"varbinary", ColumnTypeTag::VARBINARY},
-        {"geometry", ColumnTypeTag::GEOMETRY}
+    static const std::unordered_map<std::string, ColumnTypeTag> type_tag_map = {
+        {"bool",                ColumnTypeTag::BOOL},
+        {"tinyint",             ColumnTypeTag::TINYINT},
+        {"tinyint unsigned",    ColumnTypeTag::TINYINT_UNSIGNED},
+        {"smallint",            ColumnTypeTag::SMALLINT},
+        {"smallint unsigned",   ColumnTypeTag::SMALLINT_UNSIGNED},
+        {"int",                 ColumnTypeTag::INT},
+        {"int unsigned",        ColumnTypeTag::INT_UNSIGNED},
+        {"bigint",              ColumnTypeTag::BIGINT},
+        {"bigint unsigned",     ColumnTypeTag::BIGINT_UNSIGNED},
+        {"float",               ColumnTypeTag::FLOAT},
+        {"double",              ColumnTypeTag::DOUBLE},
+        {"decimal",             ColumnTypeTag::DECIMAL},
+        {"nchar",               ColumnTypeTag::NCHAR},
+        {"varchar",             ColumnTypeTag::VARCHAR},
+        {"binary",              ColumnTypeTag::BINARY},
+        {"json",                ColumnTypeTag::JSON},
+        {"varbinary",           ColumnTypeTag::VARBINARY},
+        {"geometry",            ColumnTypeTag::GEOMETRY}
     };
 
     std::string lower_type = StringUtils::to_lower(type_str);
-    auto it = type_map.find(lower_type);
-    if (it != type_map.end()) {
+    auto it = type_tag_map.find(lower_type);
+    if (it != type_tag_map.end()) {
         return it->second;
     }
+    throw std::runtime_error("Unsupported type: " + lower_type);
+}
+
+std::size_t ColumnConfig::get_type_index(const std::string& type_str) {
+    static const std::unordered_map<std::string, std::size_t> type_index_map = {
+        {"bool",                variant_index<bool, ColumnType>::value},
+        {"tinyint",             variant_index<int8_t, ColumnType>::value},
+        {"tinyint unsigned",    variant_index<uint8_t, ColumnType>::value},
+        {"smallint",            variant_index<int16_t, ColumnType>::value},
+        {"smallint unsigned",   variant_index<uint16_t, ColumnType>::value},
+        {"int",                 variant_index<int32_t, ColumnType>::value},
+        {"int unsigned",        variant_index<uint32_t, ColumnType>::value},
+        {"bigint",              variant_index<int64_t, ColumnType>::value},
+        {"bigint unsigned",     variant_index<uint64_t, ColumnType>::value},
+        {"float",               variant_index<float, ColumnType>::value},
+        {"double",              variant_index<double, ColumnType>::value},
+
+        {"decimal",             variant_index<Decimal, ColumnType>::value},
+        {"nchar",               variant_index<std::u16string, ColumnType>::value},
+        {"varchar",             variant_index<std::string, ColumnType>::value},
+        {"binary",              variant_index<std::string, ColumnType>::value},
+        {"json",                variant_index<JsonValue, ColumnType>::value},
+        {"varbinary",           variant_index<std::vector<uint8_t>, ColumnType>::value},
+        {"geometry",            variant_index<Geometry, ColumnType>::value}
+    };
+
+    std::string lower_type = StringUtils::to_lower(type_str);
+    if (auto it = type_index_map.find(lower_type); it != type_index_map.end()) {
+        return it->second;
+    }
+    
     throw std::runtime_error("Unsupported type: " + lower_type);
 }
 
@@ -144,6 +175,7 @@ void ColumnConfig::parse_type() {
         std::string base = match[1].str();
         int len_val = std::stoi(match[2].str());
         type_tag = get_type_tag(base);
+        type_index = get_type_index(base);
         len = len_val;
         precision.reset();
         scale.reset();
@@ -152,6 +184,7 @@ void ColumnConfig::parse_type() {
     if (std::regex_match(lower_type, match, decimal_regex)) {
         // decimal(precision, scale)
         type_tag = ColumnTypeTag::DECIMAL;
+        type_index = variant_index<Decimal, ColumnType>::value;
         precision = std::stoi(match[1].str());
         scale = std::stoi(match[2].str());
         len.reset();
@@ -162,6 +195,7 @@ void ColumnConfig::parse_type() {
     static const std::regex decimal1_regex(R"(decimal\s*\(\s*(\d+)\s*\))", std::regex::icase);
     if (std::regex_match(lower_type, match, decimal1_regex)) {
         type_tag = ColumnTypeTag::DECIMAL;
+        type_index = variant_index<Decimal, ColumnType>::value;
         precision = std::stoi(match[1].str());
         scale.reset();
         len.reset();
@@ -170,6 +204,8 @@ void ColumnConfig::parse_type() {
 
     // Other types (no parameters)
     type_tag = get_type_tag(lower_type);
+    type_index = get_type_index(lower_type);
+
     if (type_tag == ColumnTypeTag::VARCHAR
         || type_tag == ColumnTypeTag::BINARY
         || type_tag == ColumnTypeTag::NCHAR

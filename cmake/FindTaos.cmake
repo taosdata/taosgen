@@ -48,7 +48,7 @@ endif()
 
 # Handle REQUIRED and QUIET arguments
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(Taos
+find_package_handle_standard_args(TAOS
     REQUIRED_VARS 
         TAOS_LIBRARY
         TAOS_INCLUDE_DIR
