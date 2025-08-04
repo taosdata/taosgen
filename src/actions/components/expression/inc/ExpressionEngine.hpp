@@ -1,18 +1,19 @@
 #pragma once
 #include "ColumnType.hpp"
+#include <memory>
 #include <string>
 #include <variant>
-#include <memory>
-#include <random>
+#include <unordered_map>
 #include <mutex>
+#include <lua.hpp>
+#include <thread>
 
 class ExpressionEngine {
 public:
-    // using Result = std::variant<double, std::string>;
     using Result = ColumnType;
-
+    
     explicit ExpressionEngine(const std::string& expression);
-    ~ExpressionEngine();
+    ~ExpressionEngine() = default;
     
     Result evaluate();
     
@@ -21,8 +22,35 @@ public:
     ExpressionEngine& operator=(const ExpressionEngine&) = delete;
 
 private:
-    const std::string& expression_;
-    struct LuaState;
-    std::unique_ptr<LuaState> lua_;
-    int call_count_ = 0;
+    // Thread-local context
+    struct ThreadLocalContext {
+        lua_State* lua_vm = nullptr;
+        std::unordered_map<std::string, int> template_cache;
+        
+        ThreadLocalContext();
+        ~ThreadLocalContext();
+    };
+    
+    // Expression template
+    struct ExpressionTemplate {
+        std::string expression;
+        int function_ref = LUA_NOREF;
+    };
+    
+    // Execution state
+    struct ExpressionState {
+        std::shared_ptr<ExpressionTemplate> template_;
+        int call_count = 0;
+    };
+    
+    std::unique_ptr<ExpressionState> state_;
+    
+    // Get thread-local context
+    static ThreadLocalContext& get_thread_context();
+    
+    // Get or create expression template
+    std::shared_ptr<ExpressionTemplate> get_template(
+        const std::string& expression,
+        ThreadLocalContext& context
+    );
 };

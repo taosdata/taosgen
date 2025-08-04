@@ -1,6 +1,5 @@
 #pragma once
 
-#include <iostream>
 #include "Barrier.hpp"
 #include "ActionBase.hpp"
 #include "ActionFactory.hpp"
@@ -12,7 +11,7 @@
 #include "FormatResult.hpp"
 #include "IWriter.hpp"
 #include "GarbageCollector.hpp"
-
+#include <iostream>
 
 class InsertDataAction : public ActionBase {
 public:

@@ -31,7 +31,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 else()
   add_compile_options(
     -O3
-    -flto
+    -flto=auto
   )
 endif()
 

@@ -10,6 +10,7 @@ target_include_directories(components_expression
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../config/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../utils/inc
     ${LUAJIT_INCLUDE_DIRS}
 )
 

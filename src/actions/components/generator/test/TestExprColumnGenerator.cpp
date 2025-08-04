@@ -15,6 +15,8 @@ void test_generate_expr_double_column() {
     assert(std::holds_alternative<double>(value));
     double double_value = std::get<double>(value);
     double expected = 20.0 + std::sin(0.1); // __call_count==1
+    (void)double_value;
+    (void)expected;
     assert(std::abs(double_value - expected) < 1e-6);
 
     std::cout << "test_generate_expr_double_column passed.\n";
@@ -35,6 +37,7 @@ void test_generate_expr_string_column() {
     size_t dot1 = str_value.find('.');
     size_t dot2 = str_value.find('.', dot1 + 1);
     size_t dot3 = str_value.find('.', dot2 + 1);
+    (void)dot3;
     assert(dot1 != std::string::npos);
     assert(dot2 != std::string::npos);
     assert(dot3 != std::string::npos);
@@ -53,6 +56,7 @@ void test_generate_expr_int_column() {
     ColumnType value = generator.generate();
     assert(std::holds_alternative<int32_t>(value));
     int32_t int_value = std::get<int32_t>(value);
+    (void)int_value;
     assert(int_value == 5); // static_cast<int32_t>(5.7) == 5
 
     std::cout << "test_generate_expr_int_column passed.\n";
@@ -112,6 +116,8 @@ void test_generate_expr_multiple_values() {
     for (size_t i = 0; i < values.size(); ++i) {
         assert(std::holds_alternative<double>(values[i]));
         double double_value = std::get<double>(values[i]);
+        (void)double_value;
+        (void)expected;
         assert(std::abs(double_value - expected[i]) < 1e-6);
     }
 

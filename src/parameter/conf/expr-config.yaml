@@ -26,16 +26,16 @@ global:
     columns: &columns_info
       - name: current
         type: float
-        min: 0
-        max: 100
+        gen_type: expression
+        formula: 200 + __call_count * 0.1
       - name: voltage
         type: int
         min: 200
         max: 240
       - name: phase
         type: float
-        min: 0
-        max: 360
+        gen_type: expression
+        formula: square(0, 1, 4, 0)
     tags: &tags_info
       - name: groupid
         type: int

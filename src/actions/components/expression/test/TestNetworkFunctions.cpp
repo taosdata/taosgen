@@ -9,6 +9,7 @@ void test_random_ipv4_format() {
     size_t dot1 = ip.find('.');
     size_t dot2 = ip.find('.', dot1 + 1);
     size_t dot3 = ip.find('.', dot2 + 1);
+    (void)dot3;
     assert(dot1 != std::string::npos);
     assert(dot2 != std::string::npos);
     assert(dot3 != std::string::npos);
@@ -18,6 +19,11 @@ void test_random_ipv4_format() {
     int a, b, c, d;
     char dummy;
     std::istringstream iss(ip);
+    (void)a;
+    (void)b;
+    (void)c;
+    (void)d;
+    (void)dummy;
     assert((iss >> a >> dummy >> b >> dummy >> c >> dummy >> d));
     assert(a >= 0 && a <= 255);
     assert(b >= 0 && b <= 255);

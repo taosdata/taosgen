@@ -162,8 +162,10 @@ void test_data_generation_with_interlace() {
     TableDataManager manager(pool, config, col_instances);
     
     std::vector<std::string> table_names = {"test_table_1", "test_table_2"};
-    assert(manager.init(table_names));
-    
+    bool inited = manager.init(table_names);
+    (void)inited;
+    assert(inited);
+
     // Verify batch generation with interlace mode
     auto block = manager.next_multi_batch();
     assert(block);

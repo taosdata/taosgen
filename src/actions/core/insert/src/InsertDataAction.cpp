@@ -1,4 +1,11 @@
 #include "InsertDataAction.hpp"
+#include "FormatterRegistrar.hpp"
+#include "FormatterFactory.hpp"
+#include "TableNameManager.hpp"
+#include "TableDataManager.hpp"
+#include "WriterFactory.hpp"
+#include "TimeRecorder.hpp"
+#include "ProcessUtils.hpp"
 #include <sched.h>
 #include <cstring>
 #include <iostream>
@@ -8,13 +15,6 @@
 #include <type_traits>
 #include <pthread.h>
 #include <iomanip> 
-#include "FormatterRegistrar.hpp"
-#include "FormatterFactory.hpp"
-#include "TableNameManager.hpp"
-#include "TableDataManager.hpp"
-#include "WriterFactory.hpp"
-#include "TimeRecorder.hpp"
-#include "ProcessUtils.hpp"
 
 
 void InsertDataAction::set_realtime_priority() {

@@ -1,7 +1,7 @@
 #pragma once
-#include <string>
 #include "BaseInsertData.hpp"
 #include "SqlData.hpp"
+#include <string>
 
 
 struct SqlInsertData : public BaseInsertData {

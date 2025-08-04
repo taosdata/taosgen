@@ -1,101 +1,152 @@
 #include "ExpressionEngine.hpp"
-#include "FunctionRegistry.hpp"
-#include "MathFunctions.hpp"
-#include "NetworkFunctions.hpp"
+#include "RegistryFunctions.hpp"
 #include <stdexcept>
+#include <sstream>
+#include <cassert>
 
-// Global function registry manager
-static FunctionRegistry& get_function_registry() {
-    static FunctionRegistry registry;
-    static bool initialized = false;
-    
-    if (!initialized) {
-        // Register all function modules
-        registry.add_module(std::make_unique<MathFunctions>());
-        registry.add_module(std::make_unique<NetworkFunctions>());
-        // Add more modules...
-        initialized = true;
-    }
-    
-    return registry;
+// Explicitly register all modules
+void register_all_custom_modules() {
+    auto& registry = FunctionRegistry::instance();
+    registry.register_module("MathFunctions", register_MathFunctions);
+    registry.register_module("NetworkFunctions", register_NetworkFunctions);
+    // Add more modules...
 }
 
-struct ExpressionEngine::LuaState {
-    lua_State* L;
-    int compiled_ref;
-    
-    LuaState() : L(luaL_newstate()), compiled_ref(LUA_NOREF) {
-        if (!L) throw std::runtime_error("Failed to create Lua state");
+// --------------------------
+// ThreadLocalContext implementation
+// --------------------------
+ExpressionEngine::ThreadLocalContext::ThreadLocalContext() {
+    static std::once_flag once;
+    std::call_once(once, register_all_custom_modules);
 
-        // Open base libraries
-        luaL_openlibs(L);
-        
-        // Register all custom functions
-        get_function_registry().register_all(L);
-    }
-    
-    ~LuaState() {
-        if (compiled_ref != LUA_NOREF) {
-            luaL_unref(L, LUA_REGISTRYINDEX, compiled_ref);
-        }
-        lua_close(L);
-    }
-    
-    void compile(const std::string& expr) {
-        // Compile expression as function
-        std::string full_expr = "return " + expr;
-        
-        if (luaL_loadstring(L, full_expr.c_str())) {
-            std::string err = lua_tostring(L, -1);
-            lua_pop(L, 1);
-            throw std::runtime_error("Compile error: " + err);
-        }
+    // Create Lua VM
+    lua_vm = luaL_newstate();
+    if (!lua_vm) throw std::runtime_error("Failed to create Lua state");
 
-        // Save to registry
-        compiled_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+    // Open base libraries
+    luaL_openlibs(lua_vm);
+
+    // Register all custom functions
+    FunctionRegistry::instance().register_all(lua_vm);
+}
+
+ExpressionEngine::ThreadLocalContext::~ThreadLocalContext() {
+    if (lua_vm) {
+        // Release all cached function references
+        for (auto& [_, ref] : template_cache) {
+            if (ref != LUA_NOREF) {
+                luaL_unref(lua_vm, LUA_REGISTRYINDEX, ref);
+            }
+        }
+        
+        lua_close(lua_vm);
+    }
+}
+
+// --------------------------
+// Get thread-local context
+// --------------------------
+ExpressionEngine::ThreadLocalContext& ExpressionEngine::get_thread_context() {
+    // Thread-local storage
+    thread_local ThreadLocalContext context;
+    return context;
+}
+
+// --------------------------
+// Template management
+// --------------------------
+std::shared_ptr<ExpressionEngine::ExpressionTemplate> 
+ExpressionEngine::get_template(const std::string& expression, ThreadLocalContext& context) {
+    // Find template in local context
+    auto& cache = context.template_cache;
+    auto it = cache.find(expression);
+    
+    if (it != cache.end()) {
+        // Template already exists
+        return std::make_shared<ExpressionTemplate>(ExpressionTemplate{
+            expression, 
+            it->second
+        });
     }
     
-    Result execute(int call_count) {
-        // Inject call count
-        lua_pushinteger(L, call_count);
-        lua_setglobal(L, "__call_count");
-        
-        // Get precompiled function
-        lua_rawgeti(L, LUA_REGISTRYINDEX, compiled_ref);
-        
-        // Execute function
-        if (lua_pcall(L, 0, 1, 0)) {
-            std::string err = lua_tostring(L, -1);
-            lua_pop(L, 1);
-            throw std::runtime_error("Runtime error: " + err);
-        }
-        
-        // Handle return value
-        Result result;
-        if (lua_isnumber(L, -1)) {
-            result = lua_tonumber(L, -1);
-        } else if (lua_isstring(L, -1)) {
-            result = lua_tostring(L, -1);
-        } else if (lua_isboolean(L, -1)) {
-            result = static_cast<bool>(lua_toboolean(L, -1));
-        } else {
-            lua_pop(L, 1);
-            throw std::runtime_error("Invalid return type");
-        }
-        
+    // Compile new expression
+    lua_State* L = context.lua_vm;
+    std::string full_expr = "return " + expression;
+    
+    if (luaL_loadstring(L, full_expr.c_str())) {
+        std::string err = lua_tostring(L, -1);
         lua_pop(L, 1);
-        return result;
+        throw std::runtime_error("Compile error: " + err);
     }
-};
-
-ExpressionEngine::ExpressionEngine(const std::string& expression) 
-    : expression_(expression), lua_(std::make_unique<LuaState>()) {
-    lua_->compile(expression);
+    
+    // Save function reference
+    int ref = luaL_ref(L, LUA_REGISTRYINDEX);
+    
+    // Update cache
+    cache[expression] = ref;
+    
+    // Create template object
+    return std::make_shared<ExpressionTemplate>(ExpressionTemplate{
+        expression,
+        ref
+    });
 }
 
-ExpressionEngine::~ExpressionEngine() = default;
+// --------------------------
+// ExpressionEngine implementation
+// --------------------------
+ExpressionEngine::ExpressionEngine(const std::string& expression) {
+    // Get thread-local context
+    auto& context = get_thread_context();
+    
+    // Get or create expression template
+    auto template_ = get_template(expression, context);
+    
+    // Create execution state
+    state_ = std::make_unique<ExpressionState>();
+    state_->template_ = template_;
+}
 
 ExpressionEngine::Result ExpressionEngine::evaluate() {
-    call_count_++;
-    return lua_->execute(call_count_);
+    // if (!state_ || !state_->template_) {
+    //     throw std::runtime_error("Expression engine not initialized");
+    // }
+    
+    // Get thread-local context
+    auto& context = get_thread_context();
+    lua_State* L = context.lua_vm;
+    
+    // Update call count
+    state_->call_count++;
+    const int call_count = state_->call_count;
+    
+    // Inject call count
+    lua_pushinteger(L, call_count);
+    lua_setglobal(L, "__call_count");
+    
+    // Get precompiled function
+    lua_rawgeti(L, LUA_REGISTRYINDEX, state_->template_->function_ref);
+    
+    // Execute function
+    if (lua_pcall(L, 0, 1, 0)) {
+        std::string err = lua_tostring(L, -1);
+        lua_pop(L, 1);
+        throw std::runtime_error("Runtime error: " + err);
+    }
+    
+    // Handle return value
+    Result result;
+    if (lua_isnumber(L, -1)) {
+        result = lua_tonumber(L, -1);
+    } else if (lua_isstring(L, -1)) {
+        result = lua_tostring(L, -1);
+    } else if (lua_isboolean(L, -1)) {
+        result = static_cast<bool>(lua_toboolean(L, -1));
+    } else {
+        lua_pop(L, 1);
+        throw std::runtime_error("Invalid return type");
+    }
+    
+    lua_pop(L, 1);
+    return result;
 }

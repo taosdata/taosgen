@@ -1,5 +1,7 @@
 #include "ExpressionEngine.hpp"
+#include "RegistryFunctions.hpp"
 #include <cassert>
+#include <cmath>
 #include <iostream>
 #include <string>
 #include <variant>
@@ -32,6 +34,7 @@ void test_evaluate_square_wave() {
     auto result = engine.evaluate();
     assert(std::holds_alternative<double>(result));
     double value = std::get<double>(result);
+    (void)value;
     assert(value == 10.0);
     std::cout << "test_evaluate_square_wave passed.\n";
 }
@@ -46,6 +49,7 @@ void test_evaluate_random_ipv4() {
     size_t dot1 = ip.find('.');
     size_t dot2 = ip.find('.', dot1 + 1);
     size_t dot3 = ip.find('.', dot2 + 1);
+    (void)dot3;
     assert(dot1 != std::string::npos);
     assert(dot2 != std::string::npos);
     assert(dot3 != std::string::npos);
@@ -60,6 +64,8 @@ void test_evaluate_mixed_expression() {
     double value = std::get<double>(result);
     // square(0,1,100,25) == 1, __call_count==1, so 1*2 + sin(0.1)
     double expected = 2.0 + std::sin(0.1);
+    (void)value;
+    (void)expected;
     assert(std::abs(value - expected) < 1e-6);
     std::cout << "test_evaluate_mixed_expression passed.\n";
 }

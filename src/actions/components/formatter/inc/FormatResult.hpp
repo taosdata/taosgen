@@ -1,10 +1,9 @@
 #pragma once
-
+#include "SqlInsertData.hpp"
+#include "StmtV2InsertData.hpp"
 #include <string>
 #include <variant>
 #include <vector>
-#include "SqlInsertData.hpp"
-#include "StmtV2InsertData.hpp"
 
 
 

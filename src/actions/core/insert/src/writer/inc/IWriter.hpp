@@ -1,9 +1,10 @@
 #pragma once
-#include <variant>
-#include <chrono>
+
 #include "FormatResult.hpp"
 #include "InsertDataConfig.hpp"
 #include "ActionMetrics.hpp"
+#include <variant>
+#include <chrono>
 
 class IWriter {
 public:

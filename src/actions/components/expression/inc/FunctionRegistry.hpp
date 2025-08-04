@@ -1,23 +1,41 @@
 #pragma once
-#include "ILuaFunction.hpp"
-#include <vector>
-#include <memory>
 #include <lua.hpp>
+#include <functional>
+#include <vector>
+#include <string>
+#include <unordered_map>
 
 class FunctionRegistry {
 public:
-    // Add function module
-    void add_module(std::unique_ptr<ILuaFunction> module) {
-        modules.push_back(std::move(module));
+    using RegisterFunction = std::function<void(lua_State*)>;
+    
+    // Singleton access
+    static FunctionRegistry& instance() {
+        static FunctionRegistry reg;
+        return reg;
     }
-
-    // Register all functions
+    
+    // Explicitly register a module
+    void register_module(const std::string& name, RegisterFunction func) {
+        modules_[name] = func;
+    }
+    
+    // Get the registration function for a specific module
+    RegisterFunction get_module(const std::string& name) {
+        auto it = modules_.find(name);
+        if (it != modules_.end()) {
+            return it->second;
+        }
+        return nullptr;
+    }
+    
+    // Register all modules to the Lua environment
     void register_all(lua_State* L) {
-        for (auto& module : modules) {
-            module->register_function(L);
+        for (auto& [name, func] : modules_) {
+            func(L);
         }
     }
 
 private:
-    std::vector<std::unique_ptr<ILuaFunction>> modules;
+    std::unordered_map<std::string, RegisterFunction> modules_;
 };

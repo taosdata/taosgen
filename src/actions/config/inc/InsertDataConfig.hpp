@@ -1,7 +1,5 @@
 #pragma once
 
-#include <string>
-#include <vector>
 #include "TableNameConfig.hpp"
 #include "TagsConfig.hpp"
 #include "ColumnsConfig.hpp"
@@ -10,6 +8,8 @@
 #include "SuperTableInfo.hpp"
 #include "DataFormat.hpp"
 #include "DataChannel.hpp"
+#include <string>
+#include <vector>
 
 struct InsertDataConfig {
     struct Source {
