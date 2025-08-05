@@ -1,7 +1,7 @@
 #include <iostream>
 #include <cassert>
-#include "FormatterRegistrar.h"
-#include "SqlChildTableFormatter.h"
+#include "FormatterRegistrar.hpp"
+#include "SqlChildTableFormatter.hpp"
 
 
 void test_format_create_child_table_single() {

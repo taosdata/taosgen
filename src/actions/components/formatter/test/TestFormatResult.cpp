@@ -1,7 +1,7 @@
 #include <cassert>
 #include <cstring>
 #include <iostream>
-#include "FormatResult.h"
+#include "FormatResult.hpp"
 
 void test_sql_data() {
     // Test construction and move semantics

@@ -1,4 +1,4 @@
-#include "JobScheduler.h"
+#include "JobScheduler.hpp"
 #include <iostream>
 #include <sstream>
 #include <cassert>

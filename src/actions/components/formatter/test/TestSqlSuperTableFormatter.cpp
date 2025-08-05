@@ -1,7 +1,7 @@
 #include <iostream>
 #include <cassert>
-#include "FormatterRegistrar.h"
-#include "SqlSuperTableFormatter.h"
+#include "FormatterRegistrar.hpp"
+#include "SqlSuperTableFormatter.hpp"
 
 void test_format_create_super_table_with_columns_and_tags() {
     DataFormat format;

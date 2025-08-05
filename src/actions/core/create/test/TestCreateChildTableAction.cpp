@@ -1,10 +1,10 @@
 #include <iostream>
 #include <cassert>
 #include <fstream>
-#include "CreateChildTableAction.h"
-#include "ActionFactory.h"
-#include "DatabaseConnector.h"
-#include "CreateChildTableConfig.h"
+#include "CreateChildTableAction.hpp"
+#include "ActionFactory.hpp"
+#include "DatabaseConnector.hpp"
+#include "CreateChildTableConfig.hpp"
 
 
 void test_create_child_table_action_from_generator() {

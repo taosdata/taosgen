@@ -1,4 +1,11 @@
-#include "InsertDataAction.h"
+#include "InsertDataAction.hpp"
+#include "FormatterRegistrar.hpp"
+#include "FormatterFactory.hpp"
+#include "TableNameManager.hpp"
+#include "TableDataManager.hpp"
+#include "WriterFactory.hpp"
+#include "TimeRecorder.hpp"
+#include "ProcessUtils.hpp"
 #include <sched.h>
 #include <cstring>
 #include <iostream>
@@ -8,13 +15,6 @@
 #include <type_traits>
 #include <pthread.h>
 #include <iomanip> 
-#include "FormatterRegistrar.h"
-#include "FormatterFactory.h"
-#include "TableNameManager.h"
-#include "TableDataManager.h"
-#include "WriterFactory.h"
-#include "TimeRecorder.h"
-#include "ProcessUtils.h"
 
 
 void InsertDataAction::set_realtime_priority() {
@@ -213,7 +213,7 @@ void InsertDataAction::execute() {
 
         while (true) {
             size_t total_queued = pipeline.total_queued();
-            double queue_ratio = static_cast<double>(total_queued) / (producer_thread_count * queue_capacity);
+            double queue_ratio = static_cast<double>(total_queued) / queue_capacity;
 
             std::cout << "[Warmup] Queue fill ratio: " << std::fixed << std::setprecision(2)
                       << (queue_ratio * 100) << "%, target: " << (queue_warmup_ratio * 100) << "%" << std::endl;

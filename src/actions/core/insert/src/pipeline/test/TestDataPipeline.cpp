@@ -1,4 +1,4 @@
-#include "DataPipeline.h"
+#include "DataPipeline.hpp"
 #include <cassert>
 #include <thread>
 #include <vector>

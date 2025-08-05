@@ -1,6 +1,6 @@
 #include <iostream>
 #include <cassert>
-#include "ColumnConfigInstance.h"
+#include "ColumnConfigInstance.hpp"
 
 void test_column_instance_single() {
     std::cout << "Running test_column_instance_single..." << std::endl;

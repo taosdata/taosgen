@@ -1,4 +1,4 @@
-#include "ColumnConverter.h"
+#include "ColumnConverter.hpp"
 
 namespace ColumnConverter {
     template<typename T>

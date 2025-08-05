@@ -1,4 +1,4 @@
-#include "TableNameGenerator.h"
+#include "TableNameGenerator.hpp"
 #include <sstream>
 
 

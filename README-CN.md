@@ -45,6 +45,7 @@
 
 - cmake，3.0 或以上版本，请参阅 [cmake](https://cmake.org)。
 - yaml-cpp，0.6.2 或以上版本，请参阅 [yaml-cpp](https://github.com/jbeder/yaml-cpp)。
+- LuaJIT，2.1 或以上版本，请参阅 [LuaJIT](https://github.com/LuaJIT/LuaJIT)。
 
 ## 4. 构建
 本节提供了在 Linux 平台构建 `tsgen` 的详细说明。

@@ -1,7 +1,7 @@
 #include <iostream>
 #include <cassert>
-#include "FormatterRegistrar.h"
-#include "SqlInsertDataFormatter.h"
+#include "FormatterRegistrar.hpp"
+#include "SqlInsertDataFormatter.hpp"
 
 void test_format_insert_data_single_table() {
     DataFormat format;

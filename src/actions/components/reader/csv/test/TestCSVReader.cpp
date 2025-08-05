@@ -1,6 +1,6 @@
 #include <iostream>
 #include <cassert>
-#include "CSVReader.h"
+#include "CSVReader.hpp"
 
 
 void test_open_invalid_file() {

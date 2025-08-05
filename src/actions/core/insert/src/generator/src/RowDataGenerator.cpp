@@ -1,11 +1,11 @@
-#include "RowDataGenerator.h"
+#include "RowDataGenerator.hpp"
 #include <stdexcept>
 #include <cstdlib>
 #include <ctime>
 #include <cmath>
-#include "ColumnGeneratorFactory.h"
-#include "TimestampGenerator.h"
-#include "StringUtils.h"
+#include "ColumnGeneratorFactory.hpp"
+#include "TimestampGenerator.hpp"
+#include "StringUtils.hpp"
 
 
 RowDataGenerator::RowDataGenerator(const std::string& table_name, 

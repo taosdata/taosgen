@@ -1,4 +1,4 @@
-#include "TagsCSV.h"
+#include "TagsCSV.hpp"
 #include <stdexcept>
 #include <algorithm>
 #include <sstream>
@@ -7,8 +7,8 @@
 #include <cmath>
 #include <locale>
 #include <iomanip>
-#include "ColumnType.h"
-#include "CSVUtils.h"
+#include "ColumnType.hpp"
+#include "CSVUtils.hpp"
 
 
 TagsCSV::TagsCSV(const TagsConfig::CSV& config, std::optional<ColumnConfigInstanceVector> instances)

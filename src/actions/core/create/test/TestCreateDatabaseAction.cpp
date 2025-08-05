@@ -1,9 +1,9 @@
 #include <iostream>
 #include <cassert>
-#include "CreateDatabaseAction.h"
-#include "ActionFactory.h"
-#include "DatabaseConnector.h"
-#include "CreateDatabaseConfig.h"
+#include "CreateDatabaseAction.hpp"
+#include "ActionFactory.hpp"
+#include "DatabaseConnector.hpp"
+#include "CreateDatabaseConfig.hpp"
 
 
 void test_create_database_action() {

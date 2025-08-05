@@ -1,9 +1,9 @@
-#include "TimestampGenerator.h"
+#include "TimestampGenerator.hpp"
 #include <chrono>
 #include <stdexcept>
 #include <variant>
 #include <unordered_map>
-#include "TimestampUtils.h"
+#include "TimestampUtils.hpp"
 
 
 TimestampGenerator::TimestampGenerator(const TimestampGeneratorConfig& config) 

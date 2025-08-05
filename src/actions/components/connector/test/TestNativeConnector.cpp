@@ -1,4 +1,4 @@
-#include "NativeConnector.h"
+#include "NativeConnector.hpp"
 #include <iostream>
 
 void test_native_connector_create_database() {

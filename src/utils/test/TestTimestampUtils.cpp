@@ -4,7 +4,7 @@
 #include <string>
 #include <thread>
 #include <chrono>
-#include "TimestampUtils.h"
+#include "TimestampUtils.hpp"
 
 // Test: pass int64_t directly
 void test_parse_timestamp_int64() {

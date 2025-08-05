@@ -1,4 +1,4 @@
-#include "ColumnConfig.h"
+#include "ColumnConfig.hpp"
 #include <iostream>
 #include <cassert>
 

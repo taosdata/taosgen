@@ -1,6 +1,6 @@
 #include <cassert>
 #include <iostream>
-#include "TimeIntervalStrategy.h"
+#include "TimeIntervalStrategy.hpp"
 
 
 InsertDataConfig::Control::TimeInterval create_test_config() {

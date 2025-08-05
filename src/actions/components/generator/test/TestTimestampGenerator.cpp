@@ -1,7 +1,7 @@
 #include <iostream>
 #include <cassert>
 #include <chrono>
-#include "TimestampGenerator.h"
+#include "TimestampGenerator.hpp"
 
 void test_generate_single_timestamp() {
     TimestampGeneratorConfig config;

@@ -1,4 +1,4 @@
-#include "GarbageCollector.h"
+#include "GarbageCollector.hpp"
 #include <cassert>
 #include <iostream>
 #include <thread>

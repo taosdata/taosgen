@@ -1,6 +1,6 @@
 #include <iostream>
 #include <cassert>
-#include "FormatterRegistrar.h"
+#include "FormatterRegistrar.hpp"
 
 
 void test_format_drop_database() {

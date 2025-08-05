@@ -1,11 +1,11 @@
-#include "CreateChildTableAction.h"
+#include "CreateChildTableAction.hpp"
 #include <iostream>
 #include <thread>
-#include "FormatterRegistrar.h"
-#include "TableNameGenerator.h"
-#include "TableNameCSV.h"
-#include "RowGenerator.h"
-#include "TagsCSV.h"
+#include "FormatterRegistrar.hpp"
+#include "TableNameGenerator.hpp"
+#include "TableNameCSV.hpp"
+#include "RowGenerator.hpp"
+#include "TagsCSV.hpp"
 
 
 void CreateChildTableAction::execute() {

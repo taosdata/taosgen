@@ -1,4 +1,4 @@
-#include "JobDAG.h"
+#include "JobDAG.hpp"
 #include <queue>
 
 JobDAG::JobDAG(const std::vector<Job>& jobs) {

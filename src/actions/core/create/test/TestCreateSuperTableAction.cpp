@@ -1,9 +1,9 @@
 #include <iostream>
 #include <cassert>
-#include "CreateSuperTableAction.h"
-#include "ActionFactory.h"
-#include "DatabaseConnector.h"
-#include "CreateSuperTableConfig.h"
+#include "CreateSuperTableAction.hpp"
+#include "ActionFactory.hpp"
+#include "DatabaseConnector.hpp"
+#include "CreateSuperTableConfig.hpp"
 
 
 void test_create_super_table_action() {

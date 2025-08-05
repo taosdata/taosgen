@@ -29,7 +29,10 @@ add_compile_options(
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   add_compile_options(-O0 -g)
 else()
-  add_compile_options(-O3)
+  add_compile_options(
+    -O3
+    -flto=auto
+  )
 endif()
 
 # Add cmake modules path
@@ -42,7 +45,8 @@ setup_colored_output()
 # Find dependencies
 find_package(Threads REQUIRED)
 find_package(YAML_CPP REQUIRED)
-find_package(Taos REQUIRED)
+find_package(LUAJIT REQUIRED)
+find_package(TAOS REQUIRED)
 
 # Test support
 enable_testing()

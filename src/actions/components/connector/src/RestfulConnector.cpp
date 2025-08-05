@@ -1,4 +1,4 @@
-#include "RestfulConnector.h"
+#include "RestfulConnector.hpp"
 #include <iostream>
 
 

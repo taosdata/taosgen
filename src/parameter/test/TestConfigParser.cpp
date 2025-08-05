@@ -2,7 +2,7 @@
 #include <sstream>
 #include <cassert>
 #include <yaml-cpp/yaml.h>
-#include "ConfigParser.h"
+#include "ConfigParser.hpp"
 
 
 void test_ConnectionInfo() {
@@ -74,20 +74,20 @@ max: 100
     assert(col.order_max.has_value() && *col.order_max == 100);
 }
 
-void test_ColumnConfig_function() {
+void test_ColumnConfig_expression() {
     std::string yaml = R"(
 name: value
 type: float
-gen_type: function
-expression: "2*sinusoid(period=10,min=0,max=10)+3"
+gen_type: expression
+formula: "2*sinusoid(period=10,min=0,max=10)+3"
 )";
     YAML::Node node = YAML::Load(yaml);
     ColumnConfig col = node.as<ColumnConfig>();
     assert(col.name == "value");
     assert(col.type == "float");
-    assert(col.gen_type.has_value() && *col.gen_type == "function");
-    assert(col.function_config.has_value());
-    assert(col.function_config->expression == "2*sinusoid(period=10,min=0,max=10)+3");
+    assert(col.gen_type.has_value() && *col.gen_type == "expression");
+    assert(col.formula.has_value());
+    assert(col.formula == "2*sinusoid(period=10,min=0,max=10)+3");
 }
 
 void test_TableNameConfig_generator() {
@@ -271,6 +271,9 @@ void test_ColumnsConfig_csv() {
     std::string yaml = R"(
 source_type: csv
 csv:
+  schema:
+    - name: c1
+      type: int
   file_path: data.csv
   has_header: true
   delimiter: ","
@@ -286,6 +289,9 @@ csv:
     YAML::Node node = YAML::Load(yaml);
     ColumnsConfig cc = node.as<ColumnsConfig>();
     assert(cc.source_type == "csv");
+    assert(cc.csv.schema.size() == 1);
+    assert(cc.csv.schema[0].name == "c1");
+    assert(cc.csv.schema[0].type == "int");
     assert(cc.csv.file_path == "data.csv");
     assert(cc.csv.timestamp_strategy.strategy_type == "original");
 }
@@ -860,7 +866,7 @@ int main() {
     test_DatabaseInfo();
     test_ColumnConfig_random();
     test_ColumnConfig_order();
-    test_ColumnConfig_function();
+    test_ColumnConfig_expression();
     test_TableNameConfig_generator();
     test_TableNameConfig_csv();
     test_TagsConfig_generator();

@@ -1,7 +1,7 @@
 #include <iostream>
 #include <cassert>
 #include <fstream>
-#include "ColumnsCSV.h"
+#include "ColumnsCSV.hpp"
 
 
 void test_validate_config_empty_file_path() {
