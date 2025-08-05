@@ -27,7 +27,7 @@ global:
       - name: current
         type: float
         gen_type: expression
-        formula: 200 + __call_count * 0.1
+        formula: 200 + _i * 0.1
       - name: voltage
         type: int
         min: 200
@@ -35,7 +35,7 @@ global:
       - name: phase
         type: float
         gen_type: expression
-        formula: (math.sin(__call_count / 7) * math.cos(__call_count / 13) + 0.5 * (math.random(80, 120) / 100)) * ((__call_count % 50 < 25) and (1 + 0.3 * math.sin(__call_count / 3)) or 0.7) + 10 * (math.floor(__call_count / 100) % 2)
+        formula: (math.sin(_i / 7) * math.cos(_i / 13) + 0.5 * (math.random(80, 120) / 100)) * ((_i % 50 < 25) and (1 + 0.3 * math.sin(_i / 3)) or 0.7) + 10 * (math.floor(_i / 100) % 2)
     tags: &tags_info
       - name: groupid
         type: int

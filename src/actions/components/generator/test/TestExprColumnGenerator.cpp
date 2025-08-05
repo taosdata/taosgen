@@ -6,7 +6,7 @@
 void test_generate_expr_double_column() {
     ColumnConfig config;
     config.type = "double";
-    config.formula = std::string("square(1, 10, 4, 0) * 2 + math.sin(__call_count/10)");
+    config.formula = std::string("square(1, 10, 4, 0) * 2 + math.sin(_i/10)");
     ColumnConfigInstance instance(config);
 
     ExprColumnGenerator generator(instance);
@@ -14,7 +14,7 @@ void test_generate_expr_double_column() {
     ColumnType value = generator.generate();
     assert(std::holds_alternative<double>(value));
     double double_value = std::get<double>(value);
-    double expected = 20.0 + std::sin(0.1); // __call_count==1
+    double expected = 20.0 + std::sin(0.0); // _i==0
     (void)double_value;
     (void)expected;
     assert(std::abs(double_value - expected) < 1e-6);

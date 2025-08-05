@@ -10,10 +10,10 @@ void test_square_wave_basic() {
     (void)max;
     (void)period;
     (void)offset;
+    assert(MathFunctions::square_wave(0, min, max, period, offset) == max);
     assert(MathFunctions::square_wave(1, min, max, period, offset) == max);
-    assert(MathFunctions::square_wave(2, min, max, period, offset) == max);
+    assert(MathFunctions::square_wave(2, min, max, period, offset) == min);
     assert(MathFunctions::square_wave(3, min, max, period, offset) == min);
-    assert(MathFunctions::square_wave(4, min, max, period, offset) == min);
     std::cout << "test_square_wave_basic passed.\n";
 }
 
@@ -24,10 +24,10 @@ void test_square_wave_offset() {
     (void)max;
     (void)period;
     (void)offset;
-    assert(MathFunctions::square_wave(1, min, max, period, offset) == max);
+    assert(MathFunctions::square_wave(0, min, max, period, offset) == max);
+    assert(MathFunctions::square_wave(1, min, max, period, offset) == min);
     assert(MathFunctions::square_wave(2, min, max, period, offset) == min);
-    assert(MathFunctions::square_wave(3, min, max, period, offset) == min);
-    assert(MathFunctions::square_wave(4, min, max, period, offset) == max);
+    assert(MathFunctions::square_wave(3, min, max, period, offset) == max);
     std::cout << "test_square_wave_offset passed.\n";
 }
 
@@ -38,7 +38,7 @@ void test_square_wave_invalid_period() {
     (void)max;
     (void)period;
     (void)offset;
-    assert(MathFunctions::square_wave(1, min, max, period, offset) == min);
+    assert(MathFunctions::square_wave(0, min, max, period, offset) == min);
     std::cout << "test_square_wave_invalid_period passed.\n";
 }
 

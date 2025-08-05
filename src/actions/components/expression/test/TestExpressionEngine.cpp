@@ -58,12 +58,12 @@ void test_evaluate_random_ipv4() {
 
 void test_evaluate_mixed_expression() {
     // Test mixed arithmetic expression
-    ExpressionEngine engine("square(0, 1, 100, 25) * 2 + math.sin(__call_count/10)");
+    ExpressionEngine engine("square(0, 1, 100, 25) * 2 + math.sin(_i/10)");
     auto result = engine.evaluate();
     assert(std::holds_alternative<double>(result));
     double value = std::get<double>(result);
-    // square(0,1,100,25) == 1, __call_count==1, so 1*2 + sin(0.1)
-    double expected = 2.0 + std::sin(0.1);
+    // square(0,1,100,25) == 1, _i==0, so 1*2 + sin(0.0)
+    double expected = 2.0 + std::sin(0.0);
     (void)value;
     (void)expected;
     assert(std::abs(value - expected) < 1e-6);

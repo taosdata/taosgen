@@ -40,7 +40,7 @@ private:
     // Execution state
     struct ExpressionState {
         std::shared_ptr<ExpressionTemplate> template_;
-        int call_count = 0;
+        int call_index = 0;
     };
     
     std::unique_ptr<ExpressionState> state_;

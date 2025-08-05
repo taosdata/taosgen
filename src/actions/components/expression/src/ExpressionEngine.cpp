@@ -117,12 +117,11 @@ ExpressionEngine::Result ExpressionEngine::evaluate() {
     lua_State* L = context.lua_vm;
     
     // Update call count
-    state_->call_count++;
-    const int call_count = state_->call_count;
+    const int call_index = state_->call_index++;
     
     // Inject call count
-    lua_pushinteger(L, call_count);
-    lua_setglobal(L, "__call_count");
+    lua_pushinteger(L, call_index);
+    lua_setglobal(L, "_i");
     
     // Get precompiled function
     lua_rawgeti(L, LUA_REGISTRYINDEX, state_->template_->function_ref);
