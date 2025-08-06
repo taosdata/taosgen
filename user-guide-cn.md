@@ -188,7 +188,7 @@ jobs:
     - native：使用原生接口与数据库交互。
     - websocket：通过 WebSocket 协议与数据库交互。
 
-    注意：暂时不支持：native、websocket 混合使用！
+    注意：暂时不支持 native、websocket 混合使用！
 
 #### 数据库信息参数
 - database_info：定义 TDengine 数据库的实例信息，它包括以下属性：
