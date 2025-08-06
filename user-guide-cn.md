@@ -184,7 +184,7 @@ jobs:
 
 #### 数据通道参数
 - data_channel：定义数据传输所使用的通信通道或目标路径。
-  - channel_type (字符串，可选)：表示数据通道类型，目前仅支持 native。可选值包括：
+  - channel_type (字符串，可选)：表示数据通道类型，可选值包括：
     - native：使用原生接口与数据库交互。
     - websocket：通过 WebSocket 协议与数据库交互。
 
