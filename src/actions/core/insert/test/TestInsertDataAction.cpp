@@ -43,6 +43,9 @@ InsertDataConfig create_test_config() {
     config.control.insert_control.failure_handling.retry_interval_ms = 1000;
     config.control.insert_control.failure_handling.on_failure = "exit";
     
+    // Data channel settings
+    config.control.data_channel.channel_type = "websocket";
+
     // Data format settings
     config.control.data_format.format_type = "stmt";
     config.control.data_format.stmt_config.version = "v2";
@@ -51,7 +54,7 @@ InsertDataConfig create_test_config() {
     config.target.timestamp_precision = "ms";
     config.target.target_type = "tdengine";
     config.target.tdengine.connection_info.host = "localhost";
-    config.target.tdengine.connection_info.port = 6030;
+    config.target.tdengine.connection_info.port = 6041;
     config.target.tdengine.database_info.name = "test_action_db";
     config.target.tdengine.super_table_info.name = "test_super_table";
     
