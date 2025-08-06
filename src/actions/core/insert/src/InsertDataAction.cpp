@@ -146,7 +146,7 @@ void InsertDataAction::execute() {
 
         // Create all writer instances
         auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(config_.control.data_format);
-        auto sql = formatter->prepare(config_, col_instances, 1);
+        auto sql = formatter->prepare(config_, col_instances);
         for (size_t i = 0; i < consumer_thread_count; i++) {
             writers.push_back(WriterFactory::create(config_));
             

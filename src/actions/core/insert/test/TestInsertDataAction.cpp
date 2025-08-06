@@ -43,6 +43,9 @@ InsertDataConfig create_test_config() {
     config.control.insert_control.failure_handling.retry_interval_ms = 1000;
     config.control.insert_control.failure_handling.on_failure = "exit";
     
+    // Data channel settings
+    config.control.data_channel.channel_type = "websocket";
+
     // Data format settings
     config.control.data_format.format_type = "stmt";
     config.control.data_format.stmt_config.version = "v2";
@@ -51,7 +54,7 @@ InsertDataConfig create_test_config() {
     config.target.timestamp_precision = "ms";
     config.target.target_type = "tdengine";
     config.target.tdengine.connection_info.host = "localhost";
-    config.target.tdengine.connection_info.port = 6030;
+    config.target.tdengine.connection_info.port = 6041;
     config.target.tdengine.database_info.name = "test_action_db";
     config.target.tdengine.super_table_info.name = "test_super_table";
     
@@ -168,23 +171,46 @@ void test_data_generation() {
 
 void test_end_to_end_data_generation() {
     GlobalConfig global;
-    auto config = create_test_config();
-    config.control.data_generation.per_table_rows = 10;
-    config.control.data_generation.generate_threads = 2;
-    config.control.data_generation.queue_capacity = 2;
-    config.control.insert_control.insert_threads = 2;
-    config.source.table_name.generator.count = 4;           // 4 tables total
-    config.target.target_type = "tdengine";
-    config.target.tdengine.database_info.name = "test_action_db";
-    config.target.tdengine.super_table_info.name = "test_super_table";
 
-    InsertDataAction action(global, config);
+    std::vector<DataChannel> channel_types = {
+        // DataChannel{"native"},
+        DataChannel{"websocket"}
+    };
 
-    action.execute();
+    std::vector<DataFormat> format_types = {
+        DataFormat{"sql"},
+        DataFormat{"stmt", DataFormat::StmtConfig{"v2"}}
+    };
+
+    for (const auto& channel : channel_types) {
+        for (const auto& format : format_types) {
+            std::cout << "[DEBUG] Executing test for channel_type=" << channel.channel_type
+                      << ", format_type=" << format.format_type << std::endl;
+
+            auto config = create_test_config();
+
+            config.control.data_channel = channel;
+            config.control.data_format = format;
+            config.target.tdengine.connection_info.port = ConnectionInfo::default_port(channel.channel_type);
+
+            config.control.data_generation.per_table_rows = 10;
+            config.control.data_generation.generate_threads = 1;
+            config.control.data_generation.queue_capacity = 2;
+            config.control.insert_control.insert_threads = 1;
+            config.source.table_name.generator.count = 4;           // 4 tables total
+            config.target.target_type = "tdengine";
+            config.target.tdengine.database_info.name = "test_action_db";
+            config.target.tdengine.super_table_info.name = "test_super_table";
+
+            InsertDataAction action(global, config);
+
+            action.execute();
     
-    // TODO: Verify contain correct data
-    // int row_count = 0;
-    // assert(row_count == 10 && "Each table should have 10 rows");
+            // TODO: Verify contain correct data
+            // int row_count = 0;
+            // assert(row_count == 10 && "Each table should have 10 rows");
+        }
+    }
 
     std::cout << "test_end_to_end_data_generation passed\n";
 }

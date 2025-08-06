@@ -1,21 +1,19 @@
 #pragma once
-#include <sstream>
-#include <limits> 
-#include "taos.h"
+
 #include "IFormatter.hpp"
 #include "FormatterFactory.hpp"
-
+#include "taos.h"
+#include <sstream>
+#include <limits> 
 
 class SqlInsertDataFormatter final : public IInsertDataFormatter {
 public:
     explicit SqlInsertDataFormatter(const DataFormat& format) : format_(format) {}
 
     std::string prepare(const InsertDataConfig& config,
-                        const ColumnConfigInstanceVector& col_instances,
-                        int mode) const override {
+                        const ColumnConfigInstanceVector& col_instances) override {
         (void)config;
         (void)col_instances;
-        (void)mode;
         return "";
     }
 

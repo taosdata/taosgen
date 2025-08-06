@@ -1,5 +1,11 @@
 #pragma once
 
+#include "ColumnConfigInstance.hpp"
+#include "concurrentqueue.hpp"
+#include "blockingconcurrentqueue.hpp"
+#include "ColumnConverter.hpp"
+#include "TableData.hpp"
+#include "taos.h"
 #include <vector>
 #include <atomic>
 #include <memory>
@@ -7,14 +13,6 @@
 #include <cstring>
 #include <limits>
 #include <stdexcept>
-#include "taos.h"
-#include "taosws.h"
-#include "ColumnConfigInstance.hpp"
-#include "concurrentqueue.hpp"
-#include "blockingconcurrentqueue.hpp"
-#include "ColumnConverter.hpp"
-#include "TableData.hpp"
-
 
 class MemoryPool {
 public:

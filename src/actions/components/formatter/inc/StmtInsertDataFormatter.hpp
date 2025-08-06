@@ -1,27 +1,32 @@
 #pragma once
-#include <sstream>
-#include <limits> 
-#include "taos.h"
+
 #include "IFormatter.hpp"
 #include "FormatterFactory.hpp"
-
+#include "taos.h"
+#include <sstream>
+#include <limits> 
 
 class StmtInsertDataFormatter final : public IInsertDataFormatter {
 public:
     explicit StmtInsertDataFormatter(const DataFormat& format) : format_(format) {}
 
     std::string prepare(const InsertDataConfig& config,
-                        const ColumnConfigInstanceVector& col_instances,
-                        int mode = 1) const override {
+                        const ColumnConfigInstanceVector& col_instances) override {
         // TODO:
         // 1. native            : INSERT INTO ? VALUES(?,cols-qmark)
-        // 2. websocket  -stb   : INSERT INTO `db_name`.`stb_name`(cols-name) VALUES(?,?,col-qmark)
-        //               -ntb   : INSERT INTO `db_name`.`stb_name`(cols-name) VALUES(?,cols-qmark)
+        // 2. websocket  -stb   : INSERT INTO `db_name`.`stb_name`(tbname,ts,cols-name) VALUES(?,?,col-qmark)
+        //               -ntb   : INSERT INTO `db_name`.`stb_name`(ts,cols-name) VALUES(?,cols-qmark)
         // 3. auto create table : INSERT INTO ? USING `db_name`.`stb_name` TAGS (tags-qmark) VALUES(?,cols-qmark)
+
+        if (config.control.data_channel.channel_type == "websocket") {
+            mode_ = InsertMode::SuperTable;
+        } else {
+            mode_ = InsertMode::SubTable;
+        }
 
         std::ostringstream result;
 
-        if (mode == 1) {
+        if (mode_ == InsertMode::SubTable) {
             result << "INSERT INTO ? VALUES(?";
 
             // Add question marks for each column
@@ -30,7 +35,7 @@ public:
             }
             result << ")";
         }
-        else if (mode == 2)
+        else if (mode_ == InsertMode::SuperTable)
         {
             result << "INSERT INTO `"
                 << config.target.tdengine.database_info.name << "`.`" 

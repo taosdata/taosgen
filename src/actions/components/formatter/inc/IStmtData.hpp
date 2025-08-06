@@ -1,7 +1,6 @@
 #pragma once
 
 #include "taos.h"
-#include "taosws.h"
 
 class IStmtData {
 public:

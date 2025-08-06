@@ -1,10 +1,9 @@
 #pragma once
-#include <sstream>
-#include "taos.h"
+
 #include "IFormatter.hpp"
 #include "FormatterFactory.hpp"
-
-
+#include "taos.h"
+#include <sstream>
 
 class SqlSuperTableFormatter final : public ISuperTableFormatter {
 public:
