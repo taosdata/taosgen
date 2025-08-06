@@ -1,8 +1,7 @@
 # Create library target
 add_library(components_connector STATIC 
   src/DatabaseConnector.cpp
-  src/NativeConnector.cpp
-  src/WebsocketConnector.cpp
+  src/TDengineConnector.cpp
   src/RestfulConnector.cpp
 )
 

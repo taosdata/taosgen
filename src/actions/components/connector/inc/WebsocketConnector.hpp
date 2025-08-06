@@ -1,25 +1,9 @@
 #pragma once
 
-#include "DatabaseConnector.hpp"
-#include <taos.h>
+#include "TDengineConnector.hpp"
 
-class WebsocketConnector final : public DatabaseConnector {
+class WebsocketConnector final : public TDengineConnector {
 public:
-    explicit WebsocketConnector(const ConnectionInfo& conn_info);
-    ~WebsocketConnector() override;
-
-    bool connect() override;
-    bool select_db(const std::string& db_name) override;
-    bool prepare(const std::string& sql) override;
-    bool execute(const std::string& sql) override;
-    bool execute(const SqlInsertData& data) override;
-    bool execute(const StmtV2InsertData& data) override;
-    void close() noexcept override;
-
-private:
-    TAOS* conn_{nullptr};
-    TAOS_STMT* stmt_{nullptr}; 
-    ConnectionInfo conn_info_;
-    bool is_connected_{false};
-    std::string prepare_sql_;
+    explicit WebsocketConnector(const ConnectionInfo& conn_info)
+        : TDengineConnector(conn_info, "websocket", "WebSocket") {}
 };
