@@ -1,6 +1,7 @@
 #pragma once
-#include <taos.h>
+
 #include "DatabaseConnector.hpp"
+#include <taos.h>
 
 class NativeConnector final : public DatabaseConnector {
 public:
@@ -20,5 +21,5 @@ private:
     TAOS_STMT* stmt_{nullptr}; 
     ConnectionInfo conn_info_;
     bool is_connected_{false};
-    std::string prepare_sql_; 
+    std::string prepare_sql_;
 };

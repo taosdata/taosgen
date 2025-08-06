@@ -1,6 +1,7 @@
 #pragma once
-#include <taos.h>
+
 #include "DatabaseConnector.hpp"
+#include <taos.h>
 
 class RestfulConnector final : public DatabaseConnector {
 public:

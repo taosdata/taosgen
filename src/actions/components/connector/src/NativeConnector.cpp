@@ -1,8 +1,22 @@
 #include "NativeConnector.hpp"
 #include <iostream>
+#include <sstream>
 
 NativeConnector::NativeConnector(const ConnectionInfo& conn_info)
-    : conn_info_(conn_info) {}
+    : conn_info_(conn_info) {
+
+    static std::once_flag native_driver_once;
+    std::call_once(native_driver_once, []() {
+        int32_t code = taos_options(TSDB_OPTION_DRIVER, "native");
+        if (code != 0) {
+            std::ostringstream oss;
+            oss << "Failed to set driver to Native: "
+                << taos_errstr(nullptr)
+                << " [0x" << std::hex << taos_errno(nullptr) << "]";
+            throw std::runtime_error(oss.str());
+        }
+    });
+}
 
 NativeConnector::~NativeConnector() {
     close();
@@ -31,7 +45,7 @@ bool NativeConnector::select_db(const std::string& db_name) {
 
     int code = taos_select_db(conn_, db_name.c_str());
     if (code != 0) {
-        std::cerr << "Select database failed: " << taos_errstr(conn_) << std::endl;
+        std::cerr << "Native select database failed: " << taos_errstr(conn_) << std::endl;
         return false;
     }
 
@@ -52,14 +66,14 @@ bool NativeConnector::prepare(const std::string& sql) {
     // init
     stmt_ = taos_stmt2_init(conn_, &option);
     if (!stmt_) {
-        std::cerr << "Init stmt failed: " << taos_errstr(conn_) << std::endl;
+        std::cerr << "Native init stmt failed: " << taos_errstr(conn_) << std::endl;
         return false;
     }
     
     // prepare
     int code = taos_stmt2_prepare(stmt_, sql.c_str(), sql.size());
     if (code != 0) {
-        std::cerr << "Prepare failed: " << taos_stmt2_error(stmt_) << ", SQL: " << sql << std::endl;
+        std::cerr << "Native prepare failed: " << taos_stmt2_error(stmt_) << ", SQL: " << sql << std::endl;
         taos_stmt2_close(stmt_);
         return false;
     }
@@ -100,7 +114,7 @@ bool NativeConnector::execute(const StmtV2InsertData& data) {
     if (!is_connected_) return false;
 
     if (!stmt_) {
-        std::cerr << "Statement is not prepared. Call prepare() first." << std::endl;
+        std::cerr << "Native statement is not prepared. Call prepare() first." << std::endl;
         return false;
     }
 
@@ -111,16 +125,16 @@ bool NativeConnector::execute(const StmtV2InsertData& data) {
         -1
     );
     if (code != 0) {
-        std::cerr << "Failed to bind parameters: " 
+        std::cerr << "Native failed to bind parameters: " 
                   << taos_stmt2_error(static_cast<TAOS_STMT*>(stmt_)) << std::endl;
         return false;
     }
-    
+
     // Execute
     int affected_rows = 0;
     code = taos_stmt2_exec(stmt_, &affected_rows);
     if (code != 0) {
-        std::cerr << "Execute failed: " << taos_stmt2_error(stmt_) << std::endl;
+        std::cerr << "Native execute failed: " << taos_stmt2_error(stmt_) << std::endl;
         return false;
     }
 

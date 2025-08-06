@@ -32,9 +32,18 @@ class IChildTableFormatter : public IFormatter {
     };
 
 
+enum class InsertMode {
+    SubTable,      // INSERT INTO ? VALUES(?,cols-qmark)
+    SuperTable,    // INSERT INTO `db_name`.`stb_name`(tbname,ts,cols-name) VALUES(?,?,col-qmark)
+    AutoCreate     // INSERT INTO ? USING `db_name`.`stb_name` TAGS (tags-qmark) VALUES(?,cols-qmark)
+};
+
 class IInsertDataFormatter : public IFormatter {
 public:
-    virtual std::string prepare(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances, int mode) const = 0;
+    virtual std::string prepare(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances) = 0;
     virtual FormatResult format(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances, MemoryPool::MemoryBlock* batch) const = 0;
+
+protected:
+    InsertMode mode_;
 };
 

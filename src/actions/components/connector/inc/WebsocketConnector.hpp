@@ -1,6 +1,7 @@
 #pragma once
-#include <taosws.h>
+
 #include "DatabaseConnector.hpp"
+#include <taos.h>
 
 class WebsocketConnector final : public DatabaseConnector {
 public:
@@ -16,7 +17,9 @@ public:
     void close() noexcept override;
 
 private:
-    WS_TAOS* conn_{nullptr};
+    TAOS* conn_{nullptr};
+    TAOS_STMT* stmt_{nullptr}; 
     ConnectionInfo conn_info_;
     bool is_connected_{false};
+    std::string prepare_sql_;
 };
