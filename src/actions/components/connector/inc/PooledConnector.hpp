@@ -1,12 +1,16 @@
 #pragma once
 
 #include "DatabaseConnector.hpp"
-#include <taos.h>
+#include "ConnectionPoolImpl.hpp"
 
-class RestfulConnector final : public DatabaseConnector {
+class PooledConnector : public DatabaseConnector {
 public:
-    explicit RestfulConnector(const ConnectionInfo& conn_info);
-    ~RestfulConnector() override;
+    PooledConnector(std::unique_ptr<DatabaseConnector> real_conn, ConnectionPoolImpl& pool);
+
+    ~PooledConnector() override;
+
+    PooledConnector(const PooledConnector&) = delete;
+    PooledConnector& operator=(const PooledConnector&) = delete;
 
     bool connect() override;
     void close() noexcept override;
@@ -22,7 +26,8 @@ public:
     void reset_state() noexcept override;
 
 private:
+    std::unique_ptr<DatabaseConnector> real_conn_;
+    ConnectionPoolImpl& pool_;
+    bool is_closed_ = false;
 
-    ConnectionInfo conn_info_;
-    bool is_connected_{false};
 };

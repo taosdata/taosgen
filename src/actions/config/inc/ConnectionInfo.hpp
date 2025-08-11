@@ -11,13 +11,22 @@ struct ConnectionInfo {
     std::string password = "taosdata";
     std::optional<std::string> dsn;
 
-    static int default_port(const std::string& channel_type) {
-        if (channel_type == "websocket") {
-            return 6041;
-        }
+    struct ConnectionPoolConfig {
+        bool enabled = true;
+        size_t max_pool_size = 100;
+        size_t min_pool_size = 2;
+        size_t connection_timeout = 1000;       // unit: ms
+    } pool_config;
 
-        return 6030;
-    }
+    static int default_port(const std::string& channel_type);
+
+    ConnectionInfo() = default;
+    ConnectionInfo(
+        std::string host_,
+        int port_,
+        std::string user_,
+        std::string password_
+    );
 
     /**
      * Parse DSN string and fill host/port/user/password fields

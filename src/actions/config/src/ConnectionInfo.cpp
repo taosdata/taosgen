@@ -5,6 +5,23 @@
 #include <algorithm>
 #include "StringUtils.hpp"
 
+int ConnectionInfo::default_port(const std::string& channel_type) {
+    if (channel_type == "websocket") {
+        return 6041;
+    }
+    return 6030;
+}
+
+ConnectionInfo::ConnectionInfo(
+    std::string host_,
+    int port_,
+    std::string user_,
+    std::string password_
+)
+    : host(std::move(host_))
+    , port(port_)
+    , user(std::move(user_))
+    , password(std::move(password_)) {}
 
 /**
  * Parse DSN string and fill host/port/user/password fields

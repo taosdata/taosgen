@@ -14,7 +14,7 @@ public:
             // return std::make_unique<FileSystemWriter>(config);
             throw std::invalid_argument("Unsupported target type: " + config.target.target_type);
         }
-        
+
         throw std::invalid_argument("Unsupported target type: " + config.target.target_type);
     }
 };

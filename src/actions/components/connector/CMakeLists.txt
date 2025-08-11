@@ -1,6 +1,9 @@
 # Create library target
-add_library(components_connector STATIC 
-  src/DatabaseConnector.cpp
+add_library(components_connector STATIC
+  src/ConnectionPoolImpl.cpp
+  src/ConnectorFactory.cpp
+  src/ConnectorSource.cpp
+  src/PooledConnector.cpp
   src/TDengineConnector.cpp
   src/RestfulConnector.cpp
 )
@@ -16,7 +19,7 @@ target_include_directories(components_connector
 
 # Link dependencies
 target_link_libraries(components_connector
-  PUBLIC 
+  PUBLIC
     components_formatter
     actions_config
     ${TAOS_LIBRARIES}

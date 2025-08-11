@@ -3,7 +3,7 @@
 #include <atomic>
 #include <memory>
 #include "IWriter.hpp"
-#include "DatabaseConnector.hpp"
+#include "ConnectorSource.hpp"
 #include "TimeIntervalStrategy.hpp"
 #include "FormatResult.hpp"
 #include "InsertDataConfig.hpp"
@@ -15,8 +15,8 @@ public:
     ~TDengineWriter();
 
     // Connect to database
-    bool connect() override;
-    
+    bool connect(std::optional<ConnectorSource>& conn_source) override;
+
     bool select_db(const std::string& db_name) override;
 
     // Prepare for write operation
@@ -24,10 +24,10 @@ public:
 
     // Execute write operation
     void write(const BaseInsertData& data) override;
-    
+
     // Close connection
     void close() noexcept override;
-    
+
     // Get timestamp precision
     std::string get_timestamp_precision() const override { return timestamp_precision_; }
 
@@ -50,7 +50,7 @@ private:
     // Handle data insertion
     template<typename T>
     bool handle_insert(const T& data);
-    
+
     std::string get_format_description() const;
 
     // Apply time interval strategy
@@ -70,7 +70,7 @@ private:
     bool first_write_ = true;
     int64_t last_start_time_ = 0;
     int64_t last_end_time_ = 0;
-    
+
     // Failure retry state
     size_t current_retry_count_ = 0;
 

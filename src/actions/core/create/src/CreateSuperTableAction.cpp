@@ -1,11 +1,11 @@
 #include "CreateSuperTableAction.hpp"
-#include <iostream>
 #include "FormatterRegistrar.hpp"
-
+#include "ConnectorFactory.hpp"
+#include <iostream>
 
 void CreateSuperTableAction::prepare_connector() {
-    connector_ = DatabaseConnector::create(
-        config_.data_channel, 
+    connector_ = ConnectorFactory::create(
+        config_.data_channel,
         config_.connection_info
     );
 }
@@ -15,7 +15,7 @@ void CreateSuperTableAction::execute() {
 
     try {
         prepare_connector();
-        
+
         auto formatter = FormatterFactory::instance().create_formatter<CreateSuperTableConfig>(config_.data_format);
         FormatResult formatted_result = formatter->format(config_);
         connector_->execute(std::get<std::string>(formatted_result));

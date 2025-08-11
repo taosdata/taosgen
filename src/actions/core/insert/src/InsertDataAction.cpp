@@ -14,14 +14,14 @@
 #include <variant>
 #include <type_traits>
 #include <pthread.h>
-#include <iomanip> 
+#include <iomanip>
 
 
 void InsertDataAction::set_realtime_priority() {
 #if defined(__linux__) || defined(__APPLE__)
     struct sched_param param;
     param.sched_priority = sched_get_priority_max(SCHED_FIFO);
-    
+
     if (pthread_setschedparam(pthread_self(), SCHED_FIFO, &param) != 0) {
         std::cerr << "Warning: Failed to set real-time priority. "
                   << "Requires root privileges or CAP_SYS_NICE capability.";
@@ -56,9 +56,9 @@ void InsertDataAction::set_thread_affinity(size_t thread_id, bool reverse, const
 
     if (global_.verbose) {
         // Print binding info if verbose mode is enabled
-        std::cout << "[Debug] " << (purpose.empty() ? "" : (purpose + " ")) 
-                  << "Thread " << thread_id << " bound to core " 
-                  << core_id << (reverse ? " (reverse binding)" : " (forward binding)") 
+        std::cout << "[Debug] " << (purpose.empty() ? "" : (purpose + " "))
+                  << "Thread " << thread_id << " bound to core "
+                  << core_id << (reverse ? " (reverse binding)" : " (forward binding)")
                   << std::endl;
     }
 #endif
@@ -80,29 +80,29 @@ void InsertDataAction::execute() {
         // 1. Generate all child table names and split by producer thread count
         TableNameManager name_manager(config_);
         auto all_names = name_manager.generate_table_names();
-        
+
         // Check generated table names
         if (all_names.empty()) {
             throw std::runtime_error("No table names were generated");
         }
-        
+
         const auto split_names = name_manager.split_for_threads();
-        
+
         // Check split result
         if (split_names.size() != config_.control.data_generation.generate_threads) {
             throw std::runtime_error(
-                "Split names count (" + std::to_string(split_names.size()) + 
-                ") does not match generate_threads (" + 
+                "Split names count (" + std::to_string(split_names.size()) +
+                ") does not match generate_threads (" +
                 std::to_string(config_.control.data_generation.generate_threads) + ")"
             );
         }
 
         // Print assignment info
         for (size_t i = 0; i < split_names.size(); i++) {
-            std::cout << "Producer thread " << i << " will handle " 
+            std::cout << "Producer thread " << i << " will handle "
                      << split_names[i].size() << " tables" << std::endl;
         }
-        
+
         // 2. Create column config instances
         auto col_instances = create_column_instances(config_);
 
@@ -114,7 +114,7 @@ void InsertDataAction::execute() {
         const size_t per_request_rows = config_.control.insert_control.per_request_rows;
         const size_t interlace_rows = config_.control.data_generation.interlace_mode.rows;
         const int64_t per_table_rows = config_.control.data_generation.per_table_rows;
-        
+
         size_t block_count = queue_capacity;
         size_t max_tables_per_block = std::min(name_manager.chunk_size(), per_request_rows);
         size_t max_rows_per_table = per_table_rows;
@@ -135,6 +135,11 @@ void InsertDataAction::execute() {
         Barrier sync_barrier(consumer_thread_count + 1);
 
         // 4. Start consumer threads
+        std::optional<ConnectorSource> conn_source;
+        if (config_.target.target_type == "tdengine") {
+            conn_source.emplace(config_.control.data_channel, config_.target.tdengine.connection_info);
+        }
+
         std::vector<std::thread> consumer_threads;
         consumer_threads.reserve(consumer_thread_count);
 
@@ -149,21 +154,21 @@ void InsertDataAction::execute() {
         auto sql = formatter->prepare(config_, col_instances);
         for (size_t i = 0; i < consumer_thread_count; i++) {
             writers.push_back(WriterFactory::create(config_));
-            
+
             // Connect to database
-            if (!writers[i]->connect()) {
+            if (!writers[i]->connect(conn_source)) {
                 throw std::runtime_error("Failed to connect writer for thread " + std::to_string(i));
             }
 
             if (config_.target.target_type == "tdengine") {
                 if (!writers[i]->select_db(config_.target.tdengine.database_info.name)) {
                     throw std::runtime_error("Failed to select database for writer thread " + std::to_string(i) + \
-                        " with database name: " + config_.target.tdengine.database_info.name);  
+                        " with database name: " + config_.target.tdengine.database_info.name);
                 }
             }
 
             // For stmt v2 format, need to prepare
-            if (config_.control.data_format.format_type == "stmt" && 
+            if (config_.control.data_format.format_type == "stmt" &&
                 config_.control.data_format.stmt_config.version == "v2") {
                 if (!writers[i]->prepare(sql)) {
                     throw std::runtime_error("Failed to prepare writer for thread " + std::to_string(i) + \
@@ -180,7 +185,7 @@ void InsertDataAction::execute() {
         // 5. Start producer threads
         std::vector<std::shared_ptr<TableDataManager>> data_managers;
         data_managers.reserve(producer_thread_count);
-        
+
         std::vector<std::thread> producer_threads;
         producer_threads.reserve(producer_thread_count);
 
@@ -217,7 +222,7 @@ void InsertDataAction::execute() {
 
             std::cout << "[Warmup] Queue fill ratio: " << std::fixed << std::setprecision(2)
                       << (queue_ratio * 100) << "%, target: " << (queue_warmup_ratio * 100) << "%" << std::endl;
-        
+
             if (queue_ratio >= queue_warmup_ratio) break;
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
@@ -240,10 +245,10 @@ void InsertDataAction::execute() {
         auto last_time = start_time;
         size_t max_total_rows = all_names.size() * per_table_rows;
         int total_col_width = std::to_string(max_total_rows).length();
-        
+
         while (active_producers > 0) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
-            
+
             // Calculate total rows generated by all producers
             size_t total_rows = 0;
             for (const auto& manager : data_managers) {
@@ -252,18 +257,18 @@ void InsertDataAction::execute() {
 
             // Get current time
             const auto now = std::chrono::steady_clock::now();
-            
+
             // Calculate actual interval (seconds)
             const auto interval = std::chrono::duration<double>(now - last_time).count();
-            
+
             // Calculate real-time rate (rows/sec)
-            const double rows_per_sec = interval > 0 ? 
+            const double rows_per_sec = interval > 0 ?
                 static_cast<double>(total_rows - last_total_rows) / interval : 0.0;
-            
+
             // Update last values
             last_total_rows = total_rows;
             last_time = now;
-            
+
             // Calculate total runtime
             const auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - start_time);
 
@@ -280,17 +285,17 @@ void InsertDataAction::execute() {
         // Wait for all data to be sent
         size_t last_queue_size = pipeline.total_queued();
         auto last_check_time = std::chrono::steady_clock::now();
-        
+
         while (pipeline.total_queued() > 0) {
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
             auto current_time = std::chrono::steady_clock::now();
             auto interval = std::chrono::duration<double>(current_time - last_check_time).count();
-            
+
             if (interval >= 1.0) {
                 size_t current_queue_size = pipeline.total_queued();
                 double process_rate = (last_queue_size - current_queue_size) / interval;
-        
+
                 std::cout << "Remaining Queue: " << std::setw(3) << std::setfill(' ') << current_queue_size << " items | "
                           << "Processing Rate: " << std::setw(6) << std::fixed << std::setprecision(2) << process_rate << " items/s | "
                           << "CPU Usage: " << std::setw(7) << std::fixed << std::setprecision(2) << ProcessUtils::get_cpu_usage_percent() << "% | "
@@ -309,15 +314,15 @@ void InsertDataAction::execute() {
         for (auto& t : producer_threads) {
             if (t.joinable()) t.join();
         }
-        
+
         // Terminate pipeline (notify consumers)
         pipeline.terminate();
-        
+
         // 8. Wait for consumers to finish
         // for (size_t i = 0; i < consumer_thread_count; i++) {
         //     consumer_running[i] = false;
         // }
-        
+
         for (auto& t : consumer_threads) {
             if (t.joinable()) t.join();
         }
@@ -364,28 +369,28 @@ void InsertDataAction::execute() {
         const auto total_duration = std::chrono::duration<double>(max_end_write_time - min_start_write_time).count();
 
         // Calculate average insert rate
-        const double avg_rows_per_sec = total_duration > 0 ? 
+        const double avg_rows_per_sec = total_duration > 0 ?
             static_cast<double>(final_total_rows) / total_duration : 0.0;
 
         // Print performance statistics
         std::cout << "\n=============================================== Insert Summary Statistics ====================================================\n"
                   << "Insert Threads: " << consumer_thread_count << "\n"
                   << "Total Rows: " << final_total_rows << "\n"
-                  << "Total Duration: " << std::fixed << std::setprecision(2) 
+                  << "Total Duration: " << std::fixed << std::setprecision(2)
                   << total_duration << " seconds\n"
-                  << "Average Rate: " << std::fixed << std::setprecision(2) 
+                  << "Average Rate: " << std::fixed << std::setprecision(2)
                   << avg_rows_per_sec << " rows/second\n"
                   << "==============================================================================================================================\n";
 
         // Collect performance metrics
         ActionMetrics global_play_metrics;
         ActionMetrics global_write_metrics;
-        
+
         for (const auto& writer : writers) {
             global_play_metrics.merge_from(writer->get_play_metrics());
             global_write_metrics.merge_from(writer->get_write_metrics());
         }
-        
+
         global_play_metrics.calculate();
         global_write_metrics.calculate();
 
@@ -417,7 +422,7 @@ void InsertDataAction::execute() {
         }
 
         std::cout << "InsertDataAction completed successfully" << std::endl;
-        
+
     } catch (const std::exception& e) {
         std::cerr << "InsertDataAction failed: " << e.what() << std::endl;
         throw;
@@ -450,28 +455,28 @@ void InsertDataAction::producer_thread_function(
         // Debug: print formatted result info
         // std::visit([producer_id](const auto& result) {
         //     using T = std::decay_t<decltype(result)>;
-            
+
         //     if constexpr (std::is_same_v<T, SqlInsertData>) {
-        //         std::cout << "Producer " << producer_id 
+        //         std::cout << "Producer " << producer_id
         //                   << ": sql data, rows: " << result.total_rows
-        //                   << ", time range: [" << result.start_time 
+        //                   << ", time range: [" << result.start_time
         //                   << ", " << result.end_time << "]"
-        //                   << ", length: " << result.data.str().length() 
+        //                   << ", length: " << result.data.str().length()
         //                   << " bytes" << std::endl;
         //     } else if constexpr (std::is_same_v<T, StmtV2InsertData>) {
-        //         std::cout << "Producer " << producer_id 
+        //         std::cout << "Producer " << producer_id
         //                   << ": stmt v2 data, rows: " << result.total_rows
-        //                   << ", time range: [" << result.start_time 
+        //                   << ", time range: [" << result.start_time
         //                   << ", " << result.end_time << "]"
-        //                 //   << ", length: " << result.data.length() 
+        //                 //   << ", length: " << result.data.length()
         //                   << " bytes" << std::endl;
         //     } else if constexpr (std::is_same_v<T, std::string>) {
-        //         std::cout << "Producer " << producer_id 
-        //                   << ": unknown format result type: " 
-        //                   << typeid(result).name() << ", content: " 
-        //                   << result.substr(0, 100) 
-        //                   << (result.length() > 100 ? "..." : "") 
-        //                   << ", length: " << result.length() 
+        //         std::cout << "Producer " << producer_id
+        //                   << ": unknown format result type: "
+        //                   << typeid(result).name() << ", content: "
+        //                   << result.substr(0, 100)
+        //                   << (result.length() > 100 ? "..." : "")
+        //                   << ", length: " << result.length()
         //                   << " bytes" << std::endl;
 
         //         throw std::runtime_error("Unknown format result type: " + std::string(typeid(result).name()));
@@ -482,7 +487,7 @@ void InsertDataAction::producer_thread_function(
         pipeline.push_data(std::move(formatted_result));
 
         // std::cout << "Producer " << producer_id << ": Pushed batch for table(s): "
-        //           << batch_size << ", total rows: " << total_rows 
+        //           << batch_size << ", total rows: " << total_rows
         //           << ", queue size: " << pipeline.total_queued() << std::endl;
     }
 }
@@ -498,7 +503,7 @@ void InsertDataAction::consumer_thread_function(
     // Failure retry logic
     const auto& failure_cfg = config_.control.insert_control.failure_handling;
     size_t retry_count = 0;
-    
+
 
     sync_barrier.arrive_and_wait();
 
@@ -518,8 +523,8 @@ void InsertDataAction::consumer_thread_function(
                         retry_count = 0;
 
                         // if constexpr (std::is_same_v<T, SqlInsertData> || std::is_same_v<T, StmtV2InsertData>) {
-                        //     std::cout << "Consumer " << consumer_id 
-                        //              << ": Executed SQL with " << formatted_result.total_rows 
+                        //     std::cout << "Consumer " << consumer_id
+                        //              << ": Executed SQL with " << formatted_result.total_rows
                         //              << " rows" << std::endl;
                         // }
 
@@ -533,30 +538,30 @@ void InsertDataAction::consumer_thread_function(
 
             } catch (const std::exception& e) {
                 std::cerr << "Consumer " << consumer_id << " write failed: " << e.what() << std::endl;
-                
+
                 // Handle failure
                 if (retry_count < failure_cfg.max_retries) {
                     std::this_thread::sleep_for(
                         std::chrono::milliseconds(failure_cfg.retry_interval_ms));
                     retry_count++;
                 } else if (failure_cfg.on_failure == "exit") {
-                    // std::cerr << "Consumer " << consumer_id << " exiting after " 
+                    // std::cerr << "Consumer " << consumer_id << " exiting after "
                     //           << retry_count << " retries" << std::endl;
                     throw std::runtime_error(
-                        "Consumer " + std::to_string(consumer_id) + 
-                        " failed after " + std::to_string(retry_count) + 
+                        "Consumer " + std::to_string(consumer_id) +
+                        " failed after " + std::to_string(retry_count) +
                         " retries. Last error: " + e.what()
                     );
                     // return;
                 }
             }
             break;
-            
+
         case DataPipeline<FormatResult>::Status::Terminated:
             // Pipeline terminated, exit thread
             std::cout << "Consumer " << consumer_id << " received termination signal" << std::endl;
             return;
-            
+
         case DataPipeline<FormatResult>::Status::Timeout:
             // Short sleep
             // std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -581,7 +586,7 @@ ColumnConfigInstanceVector InsertDataAction::create_column_instances(const Inser
             }
             throw std::invalid_argument("Unsupported source type: " + config.source.columns.source_type);
         }();
-        
+
         return ColumnConfigInstanceFactory::create(schema);
     } catch (const std::exception& e) {
         throw std::runtime_error(std::string("Failed to create column instances: ") + e.what());

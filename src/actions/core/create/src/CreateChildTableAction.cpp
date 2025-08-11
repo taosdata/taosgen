@@ -6,6 +6,7 @@
 #include "TableNameCSV.hpp"
 #include "RowGenerator.hpp"
 #include "TagsCSV.hpp"
+#include "ConnectorSource.hpp"
 
 
 void CreateChildTableAction::execute() {
@@ -64,6 +65,7 @@ void CreateChildTableAction::execute() {
         int total_tables = table_names.size();
         int tables_per_group = (total_tables + concurrency - 1) / concurrency;
 
+        ConnectorSource conn_source(config_.data_channel, config_.connection_info);
         std::vector<std::thread> threads;
         for (int group_idx = 0; group_idx < concurrency; ++group_idx) {
             int start_idx  = group_idx * tables_per_group;
@@ -76,10 +78,10 @@ void CreateChildTableAction::execute() {
             std::vector<RowType> group_tags(tags.begin() + start_idx, tags.begin() + end_idx);
 
             // Create threads for each group
-            threads.emplace_back([this, group_idx, group_table_names, group_tags]() {
+            threads.emplace_back([this, group_idx, group_table_names, group_tags, &conn_source]() {
                 try {
                     // Create a local connector
-                    auto local_connector = DatabaseConnector::create(config_.data_channel, config_.connection_info);
+                    auto local_connector = conn_source.get_connection();
 
                     // Split into batches based on batch size
                     int batch_size = config_.batch.size;
@@ -97,7 +99,7 @@ void CreateChildTableAction::execute() {
                         // Format the batch data
                         FormatResult formatted_result = formatter->format(config_, batch_table_names, batch_tags);
 
-                        // std::cout << "Formatted result for batch " << group_idx << '#' << batch_idx << ": " 
+                        // std::cout << "Formatted result for batch " << group_idx << '#' << batch_idx << ": "
                         //           << std::get<std::string>(formatted_result) << std::endl;
 
                         // Execute the formatted result

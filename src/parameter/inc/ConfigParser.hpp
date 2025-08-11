@@ -41,10 +41,47 @@ namespace YAML {
     }
 
     template<>
+    struct convert<ConnectionInfo::ConnectionPoolConfig> {
+        static bool decode(const Node& node, ConnectionInfo::ConnectionPoolConfig& rhs) {
+            // Detect unknown configuration keys
+            static const std::set<std::string> valid_keys = {
+                "enabled", "max_pool_size", "min_pool_size", "connection_timeout"
+            };
+            check_unknown_keys(node, valid_keys, "connection_info::pool_config");
+
+            if (node["enabled"]) {
+                rhs.enabled = node["enabled"].as<bool>();
+            }
+
+            if (rhs.enabled) {
+                if (node["max_pool_size"]) {
+                    rhs.max_pool_size = node["max_pool_size"].as<size_t>();
+                    if (rhs.max_pool_size == 0) {
+                        throw std::runtime_error("max_pool_size must be greater than 0");
+                    }
+                }
+                if (node["min_pool_size"]) {
+                    rhs.min_pool_size = node["min_pool_size"].as<size_t>();
+                }
+                if (rhs.min_pool_size > rhs.max_pool_size) {
+                    throw std::runtime_error("min_pool_size cannot exceed max_pool_size");
+                }
+                if (node["connection_timeout"]) {
+                    rhs.connection_timeout = node["connection_timeout"].as<size_t>();
+                }
+            }
+
+            return true;
+        }
+    };
+
+    template<>
     struct convert<ConnectionInfo> {
         static bool decode(const Node& node, ConnectionInfo& rhs) {
             // Detect unknown configuration keys
-            static const std::set<std::string> valid_keys = {"host", "port", "user", "password", "dsn"};
+            static const std::set<std::string> valid_keys = {
+                "host", "port", "user", "password", "dsn", "pool_config"
+            };
             check_unknown_keys(node, valid_keys, "connection_info");
 
             if (node["host"]) {
@@ -61,8 +98,12 @@ namespace YAML {
             }
             if (node["dsn"]) {
                 rhs.dsn = node["dsn"].as<std::string>();
-                rhs.parse_dsn(*rhs.dsn); // Parse DSN string
+                rhs.parse_dsn(*rhs.dsn);
             }
+            if (node["pool_config"]) {
+                rhs.pool_config = node["pool_config"].as<ConnectionInfo::ConnectionPoolConfig>();
+            }
+
             return true;
         }
     };
@@ -99,7 +140,7 @@ namespace YAML {
 
 
     template<>
-    struct convert<ColumnConfig> {    
+    struct convert<ColumnConfig> {
         static bool decode(const Node& node, ColumnConfig& rhs) {
             // Detect unknown configuration keys
             static const std::set<std::string> common_keys = {
@@ -130,7 +171,7 @@ namespace YAML {
             rhs.name = node["name"].as<std::string>();
             rhs.type = node["type"].as<std::string>();
             rhs.parse_type();
-            
+
             if (node["primary_key"]) rhs.primary_key = node["primary_key"].as<bool>();
             // if (node["len"]) rhs.len = node["len"].as<int>();
             if (node["count"]) rhs.count = node["count"].as<size_t>();
@@ -205,7 +246,7 @@ namespace YAML {
                 throw std::runtime_error("Missing required 'source_type' in table_name.");
             }
             rhs.source_type = node["source_type"].as<std::string>();
-    
+
             if (rhs.source_type == "generator") {
                 if (!node["generator"]) {
                     throw std::runtime_error("Missing required 'generator' configuration for source_type 'generator' in table_name.");
@@ -254,7 +295,7 @@ namespace YAML {
             } else {
                 throw std::runtime_error("Invalid 'source_type' in table_name: " + rhs.source_type);
             }
-    
+
             return true;
         }
     };
@@ -365,10 +406,10 @@ namespace YAML {
             if (!node["tags"]) {
                 throw std::runtime_error("Missing required field 'tags' in child_table_info.");
             }
-    
+
             rhs.table_name = node["table_name"].as<TableNameConfig>();
             rhs.tags = node["tags"].as<TagsConfig>();
-    
+
             return true;
         }
     };
@@ -427,11 +468,11 @@ namespace YAML {
             }
             std::string offset_type = node["offset_type"].as<std::string>();
             rhs.offset_type = offset_type;
-            
+
             if (!node["value"]) {
                 throw std::runtime_error("Missing required field 'value' in offset_config");
             }
-    
+
             std::variant<int64_t, std::string> value;
             if (offset_type == "relative") {
                 value = node["value"].as<std::string>();
@@ -463,25 +504,25 @@ namespace YAML {
             if (node["column_index"]) {
                 rhs.timestamp_index = node["column_index"].as<size_t>();
             }
-            
+
             if (node["precision"]) {
                 rhs.timestamp_precision = node["precision"].as<std::string>();
                 // Validate precision
-                if (rhs.timestamp_precision != "s" && 
-                    rhs.timestamp_precision != "ms" && 
-                    rhs.timestamp_precision != "us" && 
+                if (rhs.timestamp_precision != "s" &&
+                    rhs.timestamp_precision != "ms" &&
+                    rhs.timestamp_precision != "us" &&
                     rhs.timestamp_precision != "ns") {
                     throw std::runtime_error("Invalid timestamp precision: " + rhs.timestamp_precision);
                 }
             }
-    
+
             if (node["offset_config"]) {
                 rhs.offset_config = node["offset_config"].as<TimestampOriginalConfig::OffsetConfig>();
                 if (rhs.offset_config) {
                     rhs.offset_config->parse_offset(rhs.timestamp_precision);
                 }
             }
-    
+
             return true;
         }
     };
@@ -498,7 +539,7 @@ namespace YAML {
                 throw std::runtime_error("Missing required field 'source_type' in columns.");
             }
             rhs.source_type = node["source_type"].as<std::string>();
-    
+
             if (rhs.source_type == "generator") {
                 if (!node["generator"]) {
                     throw std::runtime_error("Missing required 'generator' configuration for source_type 'generator' in columns.");
@@ -586,14 +627,14 @@ namespace YAML {
                         }
                         rhs.csv.timestamp_strategy.timestamp_config = ts["generator"].as<TimestampGeneratorConfig>();
                     } else {
-                        throw std::runtime_error("Invalid strategy_type in columns::csv::timestamp_strategy: " + 
+                        throw std::runtime_error("Invalid strategy_type in columns::csv::timestamp_strategy: " +
                             rhs.csv.timestamp_strategy.strategy_type);
                     }
                 }
             } else {
                 throw std::runtime_error("Invalid 'source_type' in columns: " + rhs.source_type);
             }
-    
+
             return true;
         }
     };
@@ -838,7 +879,7 @@ namespace YAML {
                         } else {
                             throw std::runtime_error("Missing required field 'ratio' in data_disorder::intervals.");
                         }
-  
+
                         if (interval["latency_range"]) {
                             i.latency_range = interval["latency_range"].as<int>(0);
                         } else {
@@ -876,7 +917,7 @@ namespace YAML {
                 if (interlace["rows"]) {
                     rhs.interlace_mode.rows = interlace["rows"].as<size_t>();
                 }
-                
+
             }
             if (node["data_cache"]) {
                 const auto& data_cache = node["data_cache"];
@@ -891,7 +932,7 @@ namespace YAML {
 
                 if (data_cache["cache_size"]) {
                     rhs.data_cache.cache_size = data_cache["cache_size"].as<size_t>();
-                }                
+                }
             }
             if (node["flow_control"]) {
                 const auto& flow_control = node["flow_control"];
@@ -1012,7 +1053,7 @@ namespace YAML {
                 }
                 if (fixed["random_deviation"]) {
                     rhs.fixed_interval.random_deviation = fixed["random_deviation"].as<int>(0);
-                }                
+                }
             } else if (rhs.interval_strategy == "first_to_first" || rhs.interval_strategy == "last_to_first") {
                 // if (!node["dynamic_interval"]) {
                 //     throw std::runtime_error("Missing required field 'dynamic_interval' in insert-data::control::time_interval.");

@@ -42,7 +42,7 @@ void test_create_database_action() {
 
     // // Verify result
     // std::cout << "Verifying database creation..." << std::endl;
-    // auto connector = DatabaseConnector::create(channel, conn_info);
+    // auto connector = ConnectorFactory::create(channel, conn_info);
     // if (!connector->connect()) {
     //     std::cerr << "Verification failed: cannot connect to database" << std::endl;
     //     return;
@@ -62,7 +62,7 @@ void test_create_database_action() {
     // connector->close();
 
     // if (db_exists) {
-    //     std::cout << "Verification succeeded: database '" << config.database_info.name 
+    //     std::cout << "Verification succeeded: database '" << config.database_info.name
     //               << "' created" << std::endl;
     // } else {
     //     std::cerr << "Verification failed: database not created" << std::endl;
@@ -70,7 +70,7 @@ void test_create_database_action() {
 
     // Clean up test database
     // std::cout << "Cleaning up test database..." << std::endl;
-    // auto cleanup_connector = DatabaseConnector::create(channel, conn_info);
+    // auto cleanup_connector = ConnectorFactory::create(channel, conn_info);
     // if (cleanup_connector->connect()) {
     //     cleanup_connector->execute("DROP DATABASE IF EXISTS `" + config.database_info.name + "`");
     //     cleanup_connector->close();

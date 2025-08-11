@@ -1,3 +1,4 @@
+#include "ConnectorFactory.hpp"
 #include "NativeConnector.hpp"
 #include <iostream>
 
@@ -13,8 +14,8 @@ void test_native_connector_create_database() {
     DataChannel channel;
     channel.channel_type = "native";
 
-    // Create connector instance using DatabaseConnector::create
-    auto connector = DatabaseConnector::create(channel, conn_info);
+    // Create connector instance using ConnectorFactory::create
+    auto connector = ConnectorFactory::create(channel, conn_info);
 
     // Test connection
     if (!connector->connect()) {

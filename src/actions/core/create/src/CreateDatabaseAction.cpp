@@ -1,11 +1,11 @@
 #include "CreateDatabaseAction.hpp"
-#include <iostream>
 #include "FormatterRegistrar.hpp"
-
+#include "ConnectorFactory.hpp"
+#include <iostream>
 
 void CreateDatabaseAction::prepare_connector() {
-    connector_ = DatabaseConnector::create(
-        config_.data_channel, 
+    connector_ = ConnectorFactory::create(
+        config_.data_channel,
         config_.connection_info
     );
 }
@@ -15,7 +15,7 @@ void CreateDatabaseAction::execute() {
 
     try {
         prepare_connector();
-        
+
         auto formatter = FormatterFactory::instance().create_formatter<CreateDatabaseConfig>(config_.data_format);
 
         FormatResult result = formatter->format(config_);
