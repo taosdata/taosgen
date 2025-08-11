@@ -22,6 +22,7 @@ public:
 
 private:
     void initialize();
+    void create_connections_locked(size_t count);
     void create_connections(size_t count);
     void close_all_connections();
 

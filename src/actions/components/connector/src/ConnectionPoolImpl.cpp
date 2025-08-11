@@ -25,9 +25,7 @@ void ConnectionPoolImpl::initialize() {
     create_connections(conn_info_.pool_config.min_pool_size);
 }
 
-void ConnectionPoolImpl::create_connections(size_t count) {
-    std::lock_guard<std::mutex> lock(mutex_);
-
+void ConnectionPoolImpl::create_connections_locked(size_t count) {
     for (size_t i = 0; i < count; ++i) {
         if (total_count_ >= conn_info_.pool_config.max_pool_size) break;
 
@@ -46,14 +44,17 @@ void ConnectionPoolImpl::create_connections(size_t count) {
     }
 }
 
+void ConnectionPoolImpl::create_connections(size_t count) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    create_connections_locked(count);
+}
+
 std::unique_ptr<DatabaseConnector> ConnectionPoolImpl::get_connection() {
     std::unique_lock<std::mutex> lock(mutex_);
 
     // Expand the pool if needed
     if (available_connections_.empty() && total_count_ < conn_info_.pool_config.max_pool_size) {
-        lock.unlock();
-        create_connections(1);
-        lock.lock();
+        create_connections_locked(1);
     }
 
     // Wait for an available connection
