@@ -1,5 +1,4 @@
 #include "ConnectionPoolImpl.hpp"
-#include "DummyConnector.hpp"
 #include <cassert>
 #include <iostream>
 #include <chrono>

@@ -1,5 +1,4 @@
 #include "ConnectorSource.hpp"
-#include "DummyConnector.hpp"
 #include <cassert>
 #include <iostream>
 

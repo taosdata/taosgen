@@ -110,6 +110,7 @@ void ConnectionPoolImpl::return_connection(
         std::lock_guard<std::mutex> lock(mutex_);
         if (is_shutting_down_) {
             conn->close();
+            total_count_--;
             return;
         }
 
