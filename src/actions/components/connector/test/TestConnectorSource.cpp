@@ -16,7 +16,7 @@ void test_connector_source_with_pool() {
     assert(source.available_connections() == info.pool_config.min_pool_size);
     assert(source.active_connections() == 0);
 
-    auto conn = source.get_connection();
+    auto conn = source.get_connector();
     assert(conn != nullptr);
     assert(source.available_connections() == info.pool_config.min_pool_size - 1);
     assert(source.active_connections() == 1);
@@ -37,7 +37,7 @@ void test_connector_source_without_pool() {
     assert(source.available_connections() == 0);
     assert(source.active_connections() == 0);
 
-    auto conn = source.get_connection();
+    auto conn = source.get_connector();
     assert(conn != nullptr);
 
     std::cout << "test_connector_source_without_pool passed\n";

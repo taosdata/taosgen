@@ -13,7 +13,7 @@ public:
     ConnectionPoolImpl(const DataChannel& channel, const ConnectionInfo& conn_info);
     ~ConnectionPoolImpl();
 
-    std::unique_ptr<DatabaseConnector> get_connection();
+    std::unique_ptr<DatabaseConnector> get_connector();
     void return_connection(std::unique_ptr<DatabaseConnector> conn);
 
     size_t total_connections() const;

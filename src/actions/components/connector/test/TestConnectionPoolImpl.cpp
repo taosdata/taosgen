@@ -30,7 +30,7 @@ void test_get_and_return_connection() {
 
     ConnectionPoolImpl pool(channel, info);
 
-    auto conn = pool.get_connection();
+    auto conn = pool.get_connector();
     assert(conn != nullptr);
     assert(pool.available_connections() == info.pool_config.min_pool_size - 1);
     assert(pool.active_connections() == 1);
@@ -52,8 +52,8 @@ void test_pool_max_size() {
 
     ConnectionPoolImpl pool(channel, info);
 
-    auto c1 = pool.get_connection();
-    auto c2 = pool.get_connection();
+    auto c1 = pool.get_connector();
+    auto c2 = pool.get_connector();
     assert(pool.total_connections() == 2);
     assert(pool.available_connections() == 0);
     assert(pool.active_connections() == 2);
@@ -76,14 +76,14 @@ void test_connection_timeout() {
     ConnectionPoolImpl pool(channel, info);
 
     // Get the only available connection
-    auto conn = pool.get_connection();
+    auto conn = pool.get_connector();
     assert(conn != nullptr);
 
     // Now the pool has no available connections, getting another should timeout and throw
     bool timeout_thrown = false;
     auto start = std::chrono::steady_clock::now();
     try {
-        pool.get_connection();
+        pool.get_connector();
     } catch (const std::runtime_error& e) {
         timeout_thrown = std::string(e.what()).find("Timeout") != std::string::npos;
     }
@@ -97,7 +97,7 @@ void test_connection_timeout() {
 
     // After returning the connection, it can be acquired again
     pool.return_connection(std::move(conn));
-    auto conn2 = pool.get_connection();
+    auto conn2 = pool.get_connector();
     assert(conn2 != nullptr);
 
     std::cout << "test_connection_timeout passed\n";

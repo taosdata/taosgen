@@ -49,7 +49,7 @@ void ConnectionPoolImpl::create_connections(size_t count) {
     create_connections_locked(count);
 }
 
-std::unique_ptr<DatabaseConnector> ConnectionPoolImpl::get_connection() {
+std::unique_ptr<DatabaseConnector> ConnectionPoolImpl::get_connector() {
     std::unique_lock<std::mutex> lock(mutex_);
 
     // Expand the pool if needed

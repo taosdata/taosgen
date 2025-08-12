@@ -13,7 +13,7 @@ public:
     ConnectorSource(const DataChannel& channel, const ConnectionInfo& conn_info);
     ~ConnectorSource();
 
-    std::unique_ptr<DatabaseConnector> get_connection();
+    std::unique_ptr<DatabaseConnector> get_connector();
 
     size_t total_connections() const;
     size_t available_connections() const;

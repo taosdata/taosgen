@@ -16,10 +16,10 @@ ConnectorSource::ConnectorSource(
 ConnectorSource::~ConnectorSource() {
 }
 
-std::unique_ptr<DatabaseConnector> ConnectorSource::get_connection() {
+std::unique_ptr<DatabaseConnector> ConnectorSource::get_connector() {
     if (conn_info_.pool_config.enabled && pool_impl_) {
         // Get connection from the connection pool
-        return pool_impl_->get_connection();
+        return pool_impl_->get_connector();
     }
 
     // Create a new connection

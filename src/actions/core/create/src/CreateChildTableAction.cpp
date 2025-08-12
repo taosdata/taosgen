@@ -81,7 +81,7 @@ void CreateChildTableAction::execute() {
             threads.emplace_back([this, group_idx, group_table_names, group_tags, &conn_source]() {
                 try {
                     // Create a local connector
-                    auto local_connector = conn_source.get_connection();
+                    auto local_connector = conn_source.get_connector();
 
                     // Split into batches based on batch size
                     int batch_size = config_.batch.size;

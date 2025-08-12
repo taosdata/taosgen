@@ -34,7 +34,7 @@ bool TDengineWriter::connect(std::optional<ConnectorSource>& conn_source) {
     try {
         // Create connector
         if (conn_source) {
-            connector_ = conn_source->get_connection();
+            connector_ = conn_source->get_connector();
             return connector_->is_connected();
         } else {
             connector_ = ConnectorFactory::create(
