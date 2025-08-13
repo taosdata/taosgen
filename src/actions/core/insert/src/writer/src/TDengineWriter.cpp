@@ -1,8 +1,9 @@
 #include "TDengineWriter.hpp"
+#include "ConnectorFactory.hpp"
+#include "TimeRecorder.hpp"
 #include <iostream>
 #include <stdexcept>
 #include <thread>
-#include "TimeRecorder.hpp"
 
 TDengineWriter::TDengineWriter(const InsertDataConfig& config)
         : config_(config),
@@ -10,12 +11,12 @@ TDengineWriter::TDengineWriter(const InsertDataConfig& config)
           time_strategy_(config.control.time_interval, config.target.timestamp_precision),
           start_write_time_(std::chrono::steady_clock::now()),
           end_write_time_(std::chrono::steady_clock::now()) {
-    
+
     // Validate timestamp precision
     if (timestamp_precision_.empty()) {
         timestamp_precision_ = "ms";
-    } else if (timestamp_precision_ != "ms" && 
-               timestamp_precision_ != "us" && 
+    } else if (timestamp_precision_ != "ms" &&
+               timestamp_precision_ != "us" &&
                timestamp_precision_ != "ns") {
         throw std::invalid_argument("Invalid timestamp precision: " + timestamp_precision_);
     }
@@ -25,21 +26,23 @@ TDengineWriter::~TDengineWriter() {
     close();
 }
 
-bool TDengineWriter::connect() {
+bool TDengineWriter::connect(std::optional<ConnectorSource>& conn_source) {
     if (connector_) {
-        // Already connected
         return true;
     }
-    
+
     try {
         // Create connector
-        connector_ = DatabaseConnector::create(
-            config_.control.data_channel, 
-            config_.target.tdengine.connection_info
-        );
-        
-        // Establish connection
-        return connector_->connect();
+        if (conn_source) {
+            connector_ = conn_source->get_connector();
+            return connector_->is_connected();
+        } else {
+            connector_ = ConnectorFactory::create(
+                config_.control.data_channel,
+                config_.target.tdengine.connection_info
+            );
+            return connector_->connect();
+        }
     } catch (const std::exception& e) {
         std::cerr << "TDengineWriter connection failed: " << e.what() << std::endl;
         connector_.reset();
@@ -59,7 +62,7 @@ void TDengineWriter::write(const BaseInsertData& data) {
     if (!connector_) {
         throw std::runtime_error("TDengineWriter is not connected");
     }
-    
+
     // Apply time interval strategy
     apply_time_interval_strategy(data.start_time, data.end_time);
 
@@ -122,7 +125,7 @@ bool TDengineWriter::handle_insert(const T& data) {
             }
 
             if (config_.control.insert_control.failure_handling.on_failure == "exit") {
-                throw std::runtime_error(get_format_description() + " insert failed: " + 
+                throw std::runtime_error(get_format_description() + " insert failed: " +
                     std::string(typeid(data).name()));
             }
             return false;
@@ -130,7 +133,7 @@ bool TDengineWriter::handle_insert(const T& data) {
             // std::this_thread::sleep_for(std::chrono::milliseconds(100 * current_retry_count_));
         } catch (const std::exception& e) {
             if (current_retry_count_ >= MAX_RETRY - 1) {
-                throw std::runtime_error(get_format_description() + " insert failed after " + 
+                throw std::runtime_error(get_format_description() + " insert failed after " +
                     std::to_string(MAX_RETRY) + " retries: " + e.what());
             }
             current_retry_count_++;

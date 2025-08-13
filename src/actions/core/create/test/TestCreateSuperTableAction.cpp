@@ -54,7 +54,7 @@ void test_create_super_table_action() {
 
     // // Verify super table creation
     // std::cout << "Verifying super table creation..." << std::endl;
-    // auto connector = DatabaseConnector::create(channel, conn_info);
+    // auto connector = ConnectorFactory::create(channel, conn_info);
     // if (!connector->connect()) {
     //     std::cerr << "Verification failed: cannot connect to database" << std::endl;
     //     return;
@@ -74,7 +74,7 @@ void test_create_super_table_action() {
     // connector->close();
 
     // if (table_exists) {
-    //     std::cout << "Verification succeeded: super table '" << config.super_table_info.name 
+    //     std::cout << "Verification succeeded: super table '" << config.super_table_info.name
     //               << "' created" << std::endl;
     // } else {
     //     std::cerr << "Verification failed: super table not created" << std::endl;
@@ -82,7 +82,7 @@ void test_create_super_table_action() {
 
     // Clean up test super table
     // std::cout << "Cleaning up test super table..." << std::endl;
-    // auto cleanup_connector = DatabaseConnector::create(channel, conn_info);
+    // auto cleanup_connector = ConnectorFactory::create(channel, conn_info);
     // if (cleanup_connector->connect()) {
     //     cleanup_connector->execute("DROP TABLE IF EXISTS `" + config.super_table_info.name + "`");
     //     cleanup_connector->close();

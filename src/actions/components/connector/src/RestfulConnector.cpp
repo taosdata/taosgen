@@ -13,6 +13,14 @@ bool RestfulConnector::connect() {
     throw std::runtime_error("RestfulConnector::connect is not implemented.");
 }
 
+bool RestfulConnector::is_connected() const {
+    throw std::runtime_error("RestfulConnector::is_connected is not implemented.");
+}
+
+bool RestfulConnector::is_valid() const {
+    throw std::runtime_error("RestfulConnector::is_valid is not implemented.");
+}
+
 bool RestfulConnector::select_db(const std::string& db_name) {
     (void)db_name;
     throw std::runtime_error("RestfulConnector::select_db is not implemented.");
@@ -36,6 +44,11 @@ bool RestfulConnector::execute(const SqlInsertData& data) {
 bool RestfulConnector::execute(const StmtV2InsertData& data) {
     (void)data;
     throw std::runtime_error("RestfulConnector::execute is not implemented.");
+}
+
+void RestfulConnector::reset_state() noexcept {
+    std::cerr << "RestfulConnector::reset_state is not implemented." << std::endl;
+    std::abort();
 }
 
 void RestfulConnector::close() noexcept {

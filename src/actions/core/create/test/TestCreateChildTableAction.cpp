@@ -53,8 +53,7 @@ void test_create_child_table_action_from_generator() {
     std::cout << "Executing child table creation..." << std::endl;
     action->execute();
 
-
-    std::cout << "=== Test completed ===" << std::endl;
+    std::cout << "test_create_child_table_action_from_generator passed\n";
 }
 
 void test_create_child_table_action_from_csv() {
@@ -89,7 +88,7 @@ void test_create_child_table_action_from_csv() {
     config.child_table_info.table_name.source_type = "csv";
     config.child_table_info.table_name.csv.file_path = "table_names_and_tags.csv";
     config.child_table_info.table_name.csv.has_header = true;
-    config.child_table_info.table_name.csv.tbname_index = 3; 
+    config.child_table_info.table_name.csv.tbname_index = 3;
 
     // Configure tag CSV file path
     config.child_table_info.tags.source_type = "csv";
@@ -112,9 +111,8 @@ void test_create_child_table_action_from_csv() {
     std::cout << "Executing child table creation from CSV..." << std::endl;
     action->execute();
 
-    std::cout << "=== Test completed ===" << std::endl;
+    std::cout << "test_create_child_table_action_from_csv passed\n";
 }
-
 
 int main() {
     std::cout << "Running create-child-table-action tests..." << std::endl;

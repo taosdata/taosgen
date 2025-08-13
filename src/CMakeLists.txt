@@ -16,7 +16,7 @@ add_subdirectory(engine)
 add_executable(tsgen benchmark.cpp)
 
 # Set include directories
-target_include_directories(parameter
+target_include_directories(tsgen
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/parameter/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/engine/inc
@@ -36,6 +36,6 @@ target_link_libraries(tsgen
 )
 
 # Install target
-install(TARGETS tsgen 
+install(TARGETS tsgen
   RUNTIME DESTINATION bin
 )

@@ -57,7 +57,7 @@
 
 
 ## 运行
-tsgen 支持通过命令行、配置文件指定参数配置，相同的参数配置，命令行优先级要高于配置文件。 
+tsgen 支持通过命令行、配置文件指定参数配置，相同的参数配置，命令行优先级要高于配置文件。
 
 示例：
 
@@ -69,7 +69,7 @@ tsgen -h 192.168.1.1 -c config.yaml
 | 命令行参数                     | 功能说明                                         |
 | ----------------------------- | ----------------------------------------------- |
 | -h/--host \<host>             | 指定要连接的服务器的主机名称或 IP 地址，默认值为 localhost |
-| -P/--port \<port>             | 指定要连接的服务器的端口号，默认值为 6030 | 
+| -P/--port \<port>             | 指定要连接的服务器的端口号，默认值为 6030 |
 | -u/--user \<user>             | 指定用于连接服务器的用户名，默认为 root |
 | -p/--password \<passwd>       | 指定用于连接服务服务器的密码，默认值为 taosdata |
 | -c/--config-file \<yaml file> | 指定 yaml 格式配置文件的路径 |
@@ -170,6 +170,11 @@ jobs:
   - port (整型，可选)：表示要连接服务器的端口号，默认值为 6030。
   - user (字符串，可选)：表示用于连接服务器的用户名，默认值为 root。
   - password (字符串，可选)：表示用于连接服务器的密码，默认值为 taosdata。
+  - pool：连接池配置，包含如下属性：
+    - enabled (布尔，可选)：表示是否启用连接池功能，默认值为 true，；
+    - max_pool_size（整型，可选）：表示连接池的最大容量，默认值为 100；
+    - min_pool_size（整型，可选）：表示连接池的最小容量，默认值为 2；
+    - connection_timeout（整型，可选）：表示获取连接超时时间，单位毫秒，默认值为 1000；
 
 #### 数据格式化参数
 - data_format：定义输出数据的格式类型及其相关配置，描述数据以何种格式输出到数据存储介质中，它包括以下属性：
@@ -248,7 +253,7 @@ jobs:
 
     | 部分 | 内容                                                               | 类别           | 作用                                                              |
     |------|--------------------------------------------------------------------|----------------|-------------------------------------------------------------------|
-    | A    | `math.sin(_i / 7) * math.cos(_i / 13)`                             | 基础信号       | 双频调制，生成复杂波形（拍频效应）                                | 
+    | A    | `math.sin(_i / 7) * math.cos(_i / 13)`                             | 基础信号       | 双频调制，生成复杂波形（拍频效应）                                |
     | B    | `0.5 * (math.random(80, 120) / 100)`                               | 噪声           | 添加 80%~120% 的随机扰动（模拟噪声）                              |
     | C    | `((_i % 50 < 25) and (1 + 0.3 * math.sin(_i / 3)) or 0.7)`         | 动态增益调制   | 每 50 次调用切换一次增益（前 25 次高增益，后 25 次低增益）        |
     | D    | `10 * (math.floor(_i / 100) % 2)`                                  | 基线阶跃变化   | 每 100 次调用切换一次基线（0 或 10），模拟阶跃变化，表示高峰/低谷 |
@@ -341,7 +346,7 @@ jobs:
 
 ##### tags（标签列）
 - source_type (字符串，必需)：
-  标签列的数据来源支持以下两种方式：generator、csv。 
+  标签列的数据来源支持以下两种方式：generator、csv。
 - generator：仅在 source_type="generator" 时生效，包含如下属性：
   使用生成器动态生成标签列数据，需提供以下属性：
   - schema (列表类型，可选)：
@@ -505,6 +510,11 @@ global:
     port: 6030
     user: root
     password: taosdata
+    pool:
+      enabled: true
+      max_size: 10
+      min_size: 2
+      connection_timeout: 1000
 
   data_format: &data_format
     format_type: sql
@@ -586,7 +596,7 @@ jobs:
             table_name:
               source_type: generator
               generator: *tbname_generator
-            tags: 
+            tags:
               source_type: generator
               generator:
                 schema: *tags_info
@@ -662,6 +672,11 @@ global:
     port: 6030
     user: root
     password: taosdata
+    pool:
+      enabled: true
+      max_size: 10
+      min_size: 2
+      connection_timeout: 1000
 
   data_format: &data_format
     format_type: sql
@@ -745,7 +760,7 @@ jobs:
               csv:
                 file_path: ../src/parameter/conf/ctb-tags.csv
                 tbname_index: 2
-            tags: 
+            tags:
               source_type: csv
               csv:
                 schema: *tags_info
