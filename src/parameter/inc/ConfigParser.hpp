@@ -45,26 +45,26 @@ namespace YAML {
         static bool decode(const Node& node, ConnectionInfo::ConnectionPoolConfig& rhs) {
             // Detect unknown configuration keys
             static const std::set<std::string> valid_keys = {
-                "enabled", "max_pool_size", "min_pool_size", "connection_timeout"
+                "enabled", "max_size", "min_size", "connection_timeout"
             };
-            check_unknown_keys(node, valid_keys, "connection_info::pool_config");
+            check_unknown_keys(node, valid_keys, "connection_info::pool");
 
             if (node["enabled"]) {
                 rhs.enabled = node["enabled"].as<bool>();
             }
 
             if (rhs.enabled) {
-                if (node["max_pool_size"]) {
-                    rhs.max_pool_size = node["max_pool_size"].as<size_t>();
-                    if (rhs.max_pool_size == 0) {
-                        throw std::runtime_error("max_pool_size must be greater than 0");
+                if (node["max_size"]) {
+                    rhs.max_size = node["max_size"].as<size_t>();
+                    if (rhs.max_size == 0) {
+                        throw std::runtime_error("max_size must be greater than 0");
                     }
                 }
-                if (node["min_pool_size"]) {
-                    rhs.min_pool_size = node["min_pool_size"].as<size_t>();
+                if (node["min_size"]) {
+                    rhs.min_size = node["min_size"].as<size_t>();
                 }
-                if (rhs.min_pool_size > rhs.max_pool_size) {
-                    throw std::runtime_error("min_pool_size cannot exceed max_pool_size");
+                if (rhs.min_size > rhs.max_size) {
+                    throw std::runtime_error("min_size cannot exceed max_size");
                 }
                 if (node["connection_timeout"]) {
                     rhs.connection_timeout = node["connection_timeout"].as<size_t>();
@@ -80,7 +80,7 @@ namespace YAML {
         static bool decode(const Node& node, ConnectionInfo& rhs) {
             // Detect unknown configuration keys
             static const std::set<std::string> valid_keys = {
-                "host", "port", "user", "password", "dsn", "pool_config"
+                "host", "port", "user", "password", "dsn", "pool"
             };
             check_unknown_keys(node, valid_keys, "connection_info");
 
@@ -100,8 +100,8 @@ namespace YAML {
                 rhs.dsn = node["dsn"].as<std::string>();
                 rhs.parse_dsn(*rhs.dsn);
             }
-            if (node["pool_config"]) {
-                rhs.pool_config = node["pool_config"].as<ConnectionInfo::ConnectionPoolConfig>();
+            if (node["pool"]) {
+                rhs.pool = node["pool"].as<ConnectionInfo::ConnectionPoolConfig>();
             }
 
             return true;

@@ -170,7 +170,7 @@ jobs:
   - port (整型，可选)：表示要连接服务器的端口号，默认值为 6030。
   - user (字符串，可选)：表示用于连接服务器的用户名，默认值为 root。
   - password (字符串，可选)：表示用于连接服务器的密码，默认值为 taosdata。
-  - pool_config：连接池配置，包含如下属性：
+  - pool：连接池配置，包含如下属性：
     - enabled (布尔，可选)：表示是否启用连接池功能，默认值为 true，；
     - max_pool_size（整型，可选）：表示连接池的最大容量，默认值为 100；
     - min_pool_size（整型，可选）：表示连接池的最小容量，默认值为 2；
@@ -510,10 +510,10 @@ global:
     port: 6030
     user: root
     password: taosdata
-    pool_config:
+    pool:
       enabled: true
-      max_pool_size: 10
-      min_pool_size: 2
+      max_size: 10
+      min_size: 2
       connection_timeout: 1000
 
   data_format: &data_format
@@ -672,10 +672,10 @@ global:
     port: 6030
     user: root
     password: taosdata
-    pool_config:
+    pool:
       enabled: true
-      max_pool_size: 10
-      min_pool_size: 2
+      max_size: 10
+      min_size: 2
       connection_timeout: 1000
 
   data_format: &data_format

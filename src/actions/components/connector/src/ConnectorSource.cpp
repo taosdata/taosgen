@@ -8,7 +8,7 @@ ConnectorSource::ConnectorSource(
     const DataChannel& channel, const ConnectionInfo& conn_info)
     : channel_(channel), conn_info_(conn_info)
 {
-    if (conn_info_.pool_config.enabled) {
+    if (conn_info_.pool.enabled) {
         pool_impl_ = std::make_unique<ConnectionPoolImpl>(channel, conn_info);
     }
 }
@@ -17,7 +17,7 @@ ConnectorSource::~ConnectorSource() {
 }
 
 std::unique_ptr<DatabaseConnector> ConnectorSource::get_connector() {
-    if (conn_info_.pool_config.enabled && pool_impl_) {
+    if (conn_info_.pool.enabled && pool_impl_) {
         // Get connection from the connection pool
         return pool_impl_->get_connector();
     }

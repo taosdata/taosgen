@@ -6,15 +6,15 @@
 void test_pool_initialization() {
     DataChannel channel;
     ConnectionInfo info;
-    info.pool_config.enabled = true;
-    info.pool_config.min_pool_size = 2;
-    info.pool_config.max_pool_size = 4;
-    info.pool_config.connection_timeout = 100;
+    info.pool.enabled = true;
+    info.pool.min_size = 2;
+    info.pool.max_size = 4;
+    info.pool.connection_timeout = 100;
 
     ConnectionPoolImpl pool(channel, info);
 
-    assert(pool.total_connections() == info.pool_config.min_pool_size);
-    assert(pool.available_connections() == info.pool_config.min_pool_size);
+    assert(pool.total_connections() == info.pool.min_size);
+    assert(pool.available_connections() == info.pool.min_size);
     assert(pool.active_connections() == 0);
 
     std::cout << "test_pool_initialization passed\n";
@@ -23,20 +23,20 @@ void test_pool_initialization() {
 void test_get_and_return_connection() {
     DataChannel channel;
     ConnectionInfo info;
-    info.pool_config.enabled = true;
-    info.pool_config.min_pool_size = 2;
-    info.pool_config.max_pool_size = 4;
-    info.pool_config.connection_timeout = 100;
+    info.pool.enabled = true;
+    info.pool.min_size = 2;
+    info.pool.max_size = 4;
+    info.pool.connection_timeout = 100;
 
     ConnectionPoolImpl pool(channel, info);
 
     auto conn = pool.get_connector();
     assert(conn != nullptr);
-    assert(pool.available_connections() == info.pool_config.min_pool_size - 1);
+    assert(pool.available_connections() == info.pool.min_size - 1);
     assert(pool.active_connections() == 1);
 
     pool.return_connection(std::move(conn));
-    assert(pool.available_connections() == info.pool_config.min_pool_size);
+    assert(pool.available_connections() == info.pool.min_size);
     assert(pool.active_connections() == 0);
 
     std::cout << "test_get_and_return_connection passed\n";
@@ -45,10 +45,10 @@ void test_get_and_return_connection() {
 void test_pool_max_size() {
     DataChannel channel;
     ConnectionInfo info;
-    info.pool_config.enabled = true;
-    info.pool_config.max_pool_size = 2;
-    info.pool_config.min_pool_size = 1;
-    info.pool_config.connection_timeout = 100;
+    info.pool.enabled = true;
+    info.pool.max_size = 2;
+    info.pool.min_size = 1;
+    info.pool.connection_timeout = 100;
 
     ConnectionPoolImpl pool(channel, info);
 
@@ -68,10 +68,10 @@ void test_pool_max_size() {
 void test_connection_timeout() {
     DataChannel channel;
     ConnectionInfo info;
-    info.pool_config.enabled = true;
-    info.pool_config.min_pool_size = 1;
-    info.pool_config.max_pool_size = 1;
-    info.pool_config.connection_timeout = 100; // 100ms
+    info.pool.enabled = true;
+    info.pool.min_size = 1;
+    info.pool.max_size = 1;
+    info.pool.connection_timeout = 100; // 100ms
 
     ConnectionPoolImpl pool(channel, info);
 
@@ -91,7 +91,7 @@ void test_connection_timeout() {
     assert(timeout_thrown);
 
     auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    int expected = info.pool_config.connection_timeout;
+    int expected = info.pool.connection_timeout;
     int tolerance = 30;
     assert(std::abs(elapsed_ms - expected) < tolerance);
 

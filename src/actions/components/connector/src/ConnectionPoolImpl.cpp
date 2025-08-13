@@ -22,12 +22,12 @@ ConnectionPoolImpl::~ConnectionPoolImpl() {
 }
 
 void ConnectionPoolImpl::initialize() {
-    create_connections(conn_info_.pool_config.min_pool_size);
+    create_connections(conn_info_.pool.min_size);
 }
 
 void ConnectionPoolImpl::create_connections_locked(size_t count) {
     for (size_t i = 0; i < count; ++i) {
-        if (total_count_ >= conn_info_.pool_config.max_pool_size) break;
+        if (total_count_ >= conn_info_.pool.max_size) break;
 
         try {
             std::unique_ptr<DatabaseConnector> conn = ConnectorFactory::create(channel_, conn_info_);
@@ -53,7 +53,7 @@ std::unique_ptr<DatabaseConnector> ConnectionPoolImpl::get_connector() {
     std::unique_lock<std::mutex> lock(mutex_);
 
     // Expand the pool if needed
-    if (available_connections_.empty() && total_count_ < conn_info_.pool_config.max_pool_size) {
+    if (available_connections_.empty() && total_count_ < conn_info_.pool.max_size) {
         create_connections_locked(1);
     }
 
@@ -61,7 +61,7 @@ std::unique_ptr<DatabaseConnector> ConnectionPoolImpl::get_connector() {
     if (available_connections_.empty()) {
         auto status = condition_.wait_for(
             lock,
-            std::chrono::milliseconds(conn_info_.pool_config.connection_timeout),
+            std::chrono::milliseconds(conn_info_.pool.connection_timeout),
             [this] { return !available_connections_.empty() ||
                 is_shutting_down_;
             }

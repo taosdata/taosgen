@@ -13,10 +13,10 @@ struct ConnectionInfo {
 
     struct ConnectionPoolConfig {
         bool enabled = true;
-        size_t max_pool_size = 100;
-        size_t min_pool_size = 2;
+        size_t max_size = 100;
+        size_t min_size = 2;
         size_t connection_timeout = 1000;       // unit: ms
-    } pool_config;
+    } pool;
 
     static int default_port(const std::string& channel_type);
 

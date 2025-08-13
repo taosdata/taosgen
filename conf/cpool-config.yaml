@@ -9,10 +9,10 @@ global:
     port: 6030
     user: root
     password: taosdata
-    pool_config:
+    pool:
       enabled: true
-      max_pool_size: 10
-      min_pool_size: 2
+      max_size: 10
+      min_size: 2
       connection_timeout: 1000
 
   data_format: &data_format
