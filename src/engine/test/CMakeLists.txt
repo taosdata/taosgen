@@ -4,10 +4,9 @@ add_executable(TestJobScheduler
 )
 
 target_link_libraries(TestJobScheduler
-  PRIVATE 
+  PRIVATE
     engine
     parameter
-    ${YAML_CPP_LIBRARIES}
 )
 
 add_test(NAME TestJobScheduler COMMAND TestJobScheduler)

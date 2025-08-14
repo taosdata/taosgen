@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.10)
 project(taosbenchmark LANGUAGES CXX)
 
+# Conan 2.x integration
+include(${CMAKE_BINARY_DIR}/conan/conan_toolchain.cmake)
+list(APPEND CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR}/conan)
+set(CMAKE_FIND_PACKAGE_PREFER_CONFIG ON)
+
 # Options
 option(CMAKE_ENABLE_TEST "Enable testing" ON)
 option(CMAKE_ENABLE_COVERAGE "Enable code coverage" OFF)
@@ -36,6 +41,7 @@ else()
 endif()
 
 # Add cmake modules path
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR})
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 # Load utilities
@@ -43,14 +49,20 @@ include(Utils)
 setup_colored_output()
 
 # Find dependencies
-find_package(Threads REQUIRED)
-find_package(YAML_CPP REQUIRED)
-find_package(LUAJIT REQUIRED)
+find_package(yaml-cpp REQUIRED)
+find_package(luajit REQUIRED)
+find_package(PahoMqttCpp REQUIRED)
+find_package(nlohmann_json REQUIRED)
 find_package(TAOS REQUIRED)
+find_package(Threads REQUIRED)
 
 # Test support
-enable_testing()
+if(CMAKE_ENABLE_TEST)
+  enable_testing()
+endif()
 
 # Add main program and test directories
 add_subdirectory(src)
-# add_subdirectory(test)
+# if(CMAKE_ENABLE_TEST)
+#   add_subdirectory(test)
+# endif()

@@ -1,5 +1,5 @@
 # Create library target
-add_library(components_formatter STATIC 
+add_library(components_formatter STATIC
   src/FormatterFactory.cpp
   src/StmtV2Data.cpp
 )
@@ -19,7 +19,7 @@ target_link_libraries(components_formatter
     components_memory_pool
     actions_config
     utils
-    ${TAOS_LIBRARIES}
+    TAOS::TAOS
 )
 
 # Enable tests

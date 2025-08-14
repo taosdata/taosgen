@@ -13,7 +13,7 @@ target_include_directories(workflow
 # Link dependent libraries
 target_link_libraries(workflow
   PUBLIC
-    ${YAML_CPP_LIBRARIES}
+    yaml-cpp::yaml-cpp
 )
 
 # Enable tests

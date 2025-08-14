@@ -15,7 +15,7 @@ target_include_directories(parameter
 target_link_libraries(parameter
   PUBLIC
     actions_config
-    ${YAML_CPP_LIBRARIES}
+    yaml-cpp::yaml-cpp
 )
 
 # Enable tests

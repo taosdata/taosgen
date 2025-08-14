@@ -1,6 +1,5 @@
 #pragma once
 #include "FunctionRegistry.hpp"
-#include <lua.hpp>
 
 class MathFunctions {
 public:

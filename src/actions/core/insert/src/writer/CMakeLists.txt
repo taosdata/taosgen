@@ -1,5 +1,5 @@
 # Create library target
-add_library(insert_writer STATIC 
+add_library(insert_writer STATIC
   src/TimeIntervalStrategy.cpp
   src/TDengineWriter.cpp
 )
@@ -22,7 +22,7 @@ target_link_libraries(insert_writer
     components_metrics
     components_connector
     utils
-    ${TAOS_LIBRARIES}
+    TAOS::TAOS
 )
 
 # Enable tests

@@ -1,5 +1,5 @@
 # Create library target
-add_library(engine STATIC 
+add_library(engine STATIC
   src/JobDAG.cpp
   src/ThreadSafeQueue.cpp
   src/StepExecutionStrategy.cpp

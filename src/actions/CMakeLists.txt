@@ -1,7 +1,7 @@
 # Add interface library
 add_library(actions_base INTERFACE)
-target_include_directories(actions_base 
-  INTERFACE 
+target_include_directories(actions_base
+  INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/base
 )
 
