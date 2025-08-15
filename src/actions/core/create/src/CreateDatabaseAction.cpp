@@ -22,7 +22,9 @@ void CreateDatabaseAction::execute() {
         const auto& stmts = std::get<std::vector<std::string>>(result);
 
         for (const auto& stmt : stmts) {
-            connector_->execute(stmt);
+            if (!connector_->execute(stmt)) {
+                throw std::runtime_error("Failed to execute SQL: " + stmt);
+            }
         }
     } catch (const std::exception& e) {
         std::cerr << "An error occurred: " << e.what() << std::endl;

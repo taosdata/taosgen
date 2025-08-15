@@ -319,7 +319,6 @@ columns:
 
 void test_InsertDataConfig_Target_TDengine() {
     std::string yaml = R"(
-timestamp_precision: ms
 target_type: tdengine
 tdengine:
   connection_info:
@@ -347,7 +346,6 @@ tdengine:
 
 void test_InsertDataConfig_Target_FileSystem() {
     std::string yaml = R"(
-timestamp_precision: ms
 target_type: file_system
 file_system:
   output_dir: ./out
@@ -894,7 +892,7 @@ int main() {
     test_QueryDataConfig_Control_QueryControl_SuperTable();
     test_QueryDataConfig_Control_QueryControl();
     test_QueryDataConfig_Control();
-  
+
     test_SubscribeDataConfig_Source();
     test_SubscribeDataConfig_Control_SubscribeControl_Execution();
     test_SubscribeDataConfig_Control_SubscribeControl_Topic();
@@ -903,7 +901,7 @@ int main() {
     test_SubscribeDataConfig_Control_SubscribeControl_Output();
     test_SubscribeDataConfig_Control_SubscribeControl();
     test_SubscribeDataConfig_Control();
-  
+
     std::cout << "All ConfigParser YAML tests passed!" << std::endl;
     return 0;
 }

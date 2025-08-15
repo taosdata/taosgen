@@ -218,7 +218,7 @@ void InsertDataAction::execute() {
 
         while (true) {
             size_t total_queued = pipeline.total_queued();
-            double queue_ratio = static_cast<double>(total_queued) / queue_capacity;
+            double queue_ratio = std::min(static_cast<double>(total_queued) / queue_capacity, 1.0);
 
             std::cout << "[Warmup] Queue fill ratio: " << std::fixed << std::setprecision(2)
                       << (queue_ratio * 100) << "%, target: " << (queue_warmup_ratio * 100) << "%" << std::endl;
