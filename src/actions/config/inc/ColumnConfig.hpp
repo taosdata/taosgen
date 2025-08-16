@@ -38,10 +38,11 @@ struct ColumnConfig {
     std::optional<int64_t> order_max;
 
     // Attributes for gen_type=expression
-    std::optional<std::string> formula; 
+    std::optional<std::string> formula;
 
     ColumnConfig() = default;
     ColumnConfig(const std::string& name, const std::string& type);
+    ColumnConfig(const std::string& name, const std::string& type, size_t count, std::optional<std::string> gen_type);
     ColumnConfig(const std::string& name, const std::string& type, std::optional<std::string> gen_type);
     ColumnConfig(const std::string& name, const std::string& type, std::optional<std::string> gen_type, std::optional<double> min, std::optional<double> max);
 
@@ -52,7 +53,7 @@ struct ColumnConfig {
     void parse_type();
 
     double get_min_value() const noexcept;
-    
+
     double get_max_value() const noexcept;
 
     // Check if the column type is variable length

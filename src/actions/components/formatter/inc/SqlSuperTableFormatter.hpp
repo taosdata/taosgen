@@ -12,24 +12,26 @@ public:
 
     FormatResult format(const CreateSuperTableConfig& config) const override {
         std::ostringstream result;
-        result << "CREATE TABLE IF NOT EXISTS `" 
-               << config.database_info.name << "`.`" 
+        result << "CREATE TABLE IF NOT EXISTS `"
+               << config.database_info.name << "`.`"
                << config.super_table_info.name << "` (ts TIMESTAMP";
-    
+
         // columns
+        auto col_instances = ColumnConfigInstanceFactory::create(config.super_table_info.columns);
         if (!config.super_table_info.columns.empty()) {
             result << ", ";
-            append_fields(result, config.super_table_info.columns, ", ");
+            append_fields(result, col_instances, ", ");
         }
         result << ")";
-    
+
         // tags
+        auto tag_instances = ColumnConfigInstanceFactory::create(config.super_table_info.tags);
         if (!config.super_table_info.tags.empty()) {
             result << " TAGS (";
-            append_fields(result, config.super_table_info.tags, ", ");
+            append_fields(result, tag_instances, ", ");
             result << ")";
         }
-    
+
         result << ";";
         return result.str();
     }
@@ -47,25 +49,26 @@ private:
             result << generate_column_or_tag(fields[i]);
         }
     }
-    
 
-    std::string generate_column_or_tag(const ColumnConfig& field) const {
+    std::string generate_column_or_tag(const ColumnConfigInstance& field) const {
         std::ostringstream oss;
-        oss << field.name << " " << field.type;
-    
+        oss << field.name() << " " << field.type();
+
+        const auto& config = field.config();
+
         // if (field.is_var_length()) {
         //     oss << "(" << field.len.value() << ")";
         // } else if (field.type_tag == ColumnTypeTag::DECIMAL) {
         //     oss << "(" << field.precision.value_or(10) << "," << field.scale.value_or(0) << ")";
         // }
-    
-        if (field.primary_key) {
+
+        if (config.primary_key) {
             oss << " PRIMARY KEY";
         }
-        if (field.properties.has_value()) {
-            oss << " " << field.properties.value();
+        if (config.properties.has_value()) {
+            oss << " " << config.properties.value();
         }
-    
+
         return oss.str();
     }
 

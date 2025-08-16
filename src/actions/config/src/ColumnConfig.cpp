@@ -65,7 +65,7 @@ std::size_t ColumnConfig::get_type_index(const std::string& type_str) {
     if (auto it = type_index_map.find(lower_type); it != type_index_map.end()) {
         return it->second;
     }
-    
+
     throw std::runtime_error("Unsupported type: " + lower_type);
 }
 
@@ -143,6 +143,16 @@ ColumnConfig::ColumnConfig(
     const std::string& type,
     std::optional<std::string> gen_type
 ) : name(name), type(type) {
+    parse_type();
+    this->gen_type = gen_type;
+}
+
+ColumnConfig::ColumnConfig(
+    const std::string& name,
+    const std::string& type,
+    size_t count,
+    std::optional<std::string> gen_type
+) : name(name), type(type), count(count) {
     parse_type();
     this->gen_type = gen_type;
 }
@@ -303,8 +313,8 @@ size_t ColumnConfig::get_fixed_type_size() const noexcept{
 int ColumnConfig::get_taos_type() const noexcept {
     // DECIMAL special handling
     if (type_tag == ColumnTypeTag::DECIMAL) {
-        return (precision && *precision <= 18) ? 
-            TSDB_DATA_TYPE_DECIMAL64 : 
+        return (precision && *precision <= 18) ?
+            TSDB_DATA_TYPE_DECIMAL64 :
             TSDB_DATA_TYPE_DECIMAL;
     }
 
