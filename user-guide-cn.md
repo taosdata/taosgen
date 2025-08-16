@@ -32,7 +32,7 @@
     - [data\_channel (可选)](#data_channel-可选-2)
     - [database\_info (可选)](#database_info-可选-2)
     - [super\_table\_info (可选)](#super_table_info-可选-1)
-    - [child\_table\_info (必需)：](#child_table_info-必需)
+    - [child\_table\_info (必需)](#child_table_info-必需)
       - [table\_name（子表名称）](#table_name子表名称)
       - [tags（标签列）](#tags标签列)
     - [batch (可选)](#batch-可选)
@@ -216,7 +216,7 @@ jobs:
 
 ##### 列配置包含属性
 每列包含以下属性：
-- name (字符串，必需)：表示列的名称，当 count 属性大于1时，name 表示的是列名称前缀，比如：name：current，count：3，则 3 个列的名字分别为 current0、current1、current2。
+- name (字符串，必需)：表示列的名称，当 count 属性大于1时，name 表示的是列名称前缀，比如：name：current，count：3，则 3 个列的名字分别为 current1、current2、current3。
 - type（字符串，必需）：表示数据类型，支持以下类型（不区分大小写，与 TDengine 的数据类型兼容）：
   - 整型：timestamp、bool、tinyint、tinyint unsigned、smallint、smallint unsigned、int、int unsigned、bigint、bigint unsigned。
   - 浮点型：float、double、decimal。
@@ -321,7 +321,7 @@ jobs:
 #### super_table_info (可选)
 同《全局配置参数》章节中同名参数的描述，指定基于哪个超级表创建子表。如果未指定，则默认使用全局配置中的参数信息。
 
-#### child_table_info (必需)：
+#### child_table_info (必需)
 包含创建子表所需的核心信息，包括子表名称和标签列数据的来源及具体配置。
 
 ##### table_name（子表名称）

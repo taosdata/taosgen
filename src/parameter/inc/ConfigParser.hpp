@@ -748,13 +748,9 @@ namespace YAML {
         static bool decode(const Node& node, InsertDataConfig::Target& rhs) {
             // Detect unknown configuration keys
             static const std::set<std::string> valid_keys = {
-                "timestamp_precision", "target_type", "tdengine", "file_system"
+                "target_type", "tdengine", "file_system"
             };
             check_unknown_keys(node, valid_keys, "insert-data::target");
-
-            if (node["timestamp_precision"]) {
-                rhs.timestamp_precision = node["timestamp_precision"].as<std::string>();
-            }
 
             if (node["target_type"]) {
                 rhs.target_type = node["target_type"].as<std::string>();
@@ -763,6 +759,7 @@ namespace YAML {
             if (rhs.target_type == "tdengine") {
                 if (node["tdengine"]) {
                     rhs.tdengine = node["tdengine"].as<InsertDataConfig::Target::TDengine>();
+                    rhs.timestamp_precision = rhs.tdengine.database_info.precision;
                 } else {
                     throw std::runtime_error("Missing required field 'tdengine' in insert-data::target.");
                 }

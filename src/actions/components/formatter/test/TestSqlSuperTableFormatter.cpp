@@ -14,7 +14,7 @@ void test_format_create_super_table_with_columns_and_tags() {
     // Add columns
     config.super_table_info.columns = {
         {"col1", "INT", "random", 1, 10},
-        {"col2", "BINARY(10)", "random"}
+        {"col2_", "BINARY(10)", 2, "random"}
     };
 
     // Add tags
@@ -27,8 +27,8 @@ void test_format_create_super_table_with_columns_and_tags() {
     FormatResult result = formatter->format(config);
 
     assert(std::holds_alternative<std::string>(result));
-    assert(std::get<std::string>(result) == 
-        "CREATE TABLE IF NOT EXISTS `test_db`.`test_table` (ts TIMESTAMP, col1 INT, col2 BINARY(10)) TAGS (tag1 FLOAT, tag2 NCHAR(20));");
+    assert(std::get<std::string>(result) ==
+        "CREATE TABLE IF NOT EXISTS `test_db`.`test_table` (ts TIMESTAMP, col1 INT, col2_1 BINARY(10), col2_2 BINARY(10)) TAGS (tag1 FLOAT, tag2 NCHAR(20));");
     std::cout << "test_format_create_super_table_with_columns_and_tags passed!" << std::endl;
 }
 
@@ -52,7 +52,7 @@ void test_format_create_super_table_without_columns() {
     FormatResult result = formatter->format(config);
 
     assert(std::holds_alternative<std::string>(result));
-    assert(std::get<std::string>(result) == 
+    assert(std::get<std::string>(result) ==
         "CREATE TABLE IF NOT EXISTS `test_db`.`test_table` (ts TIMESTAMP) TAGS (tag1 FLOAT);");
     std::cout << "test_format_create_super_table_without_columns passed!" << std::endl;
 }
@@ -77,7 +77,7 @@ void test_format_create_super_table_without_tags() {
     FormatResult result = formatter->format(config);
 
     assert(std::holds_alternative<std::string>(result));
-    assert(std::get<std::string>(result) == 
+    assert(std::get<std::string>(result) ==
         "CREATE TABLE IF NOT EXISTS `test_db`.`test_table` (ts TIMESTAMP, col1 INT);");
     std::cout << "test_format_create_super_table_without_tags passed!" << std::endl;
 }
@@ -98,7 +98,7 @@ void test_format_create_super_table_with_empty_config() {
     FormatResult result = formatter->format(config);
 
     assert(std::holds_alternative<std::string>(result));
-    assert(std::get<std::string>(result) == 
+    assert(std::get<std::string>(result) ==
         "CREATE TABLE IF NOT EXISTS `test_db`.`test_table` (ts TIMESTAMP);");
     std::cout << "test_format_create_super_table_with_empty_config passed!" << std::endl;
 }
