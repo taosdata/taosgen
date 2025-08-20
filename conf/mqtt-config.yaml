@@ -22,20 +22,13 @@ global:
           - "normal"
           - "warning"
           - "critical"
-    tags: &tags_info
-      - name: groupid
-        type: int
-        min: 1
-        max: 10
-      - name: location
-        type: binary(24)
 
   tbname_generator: &tbname_generator
     prefix: d
     count: 10000
     from: 0
 
-concurrency: 4
+concurrency: 1
 
 jobs:
   # Insert data job
