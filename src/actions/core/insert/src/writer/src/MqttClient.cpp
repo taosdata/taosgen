@@ -79,7 +79,8 @@ void PahoMqttClient::publish(const std::string& topic, const std::string& payloa
 
     // Asynchronous publish
     try {
-        client_->publish(pubmsg);
+        auto token = client_->publish(pubmsg);
+        token->wait();
     } catch (const mqtt::exception& e) {
         throw std::runtime_error(std::string("MQTT publish failed: ") + e.what());
     }

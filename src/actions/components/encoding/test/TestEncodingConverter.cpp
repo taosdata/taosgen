@@ -25,6 +25,7 @@ void test_unsupported_encoding() {
         assert(std::string(e.what()).find("Unsupported encoding type") != std::string::npos);
         caught = true;
     }
+    (void)caught;
     assert(caught);
     std::cout << "test_unsupported_encoding passed.\n";
 }

@@ -145,6 +145,7 @@ void test_memory_pool_get_cell_out_of_range() {
     } catch (const std::out_of_range&) {
         caught = true;
     }
+    (void)caught;
     assert(caught);
 
     caught = false;

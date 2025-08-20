@@ -111,6 +111,7 @@ void test_generate_int_column_with_values() {
         ColumnType value = generator.generate();
         assert(std::holds_alternative<int32_t>(value));
         int32_t int_value = std::get<int32_t>(value);
+        (void)int_value;
         assert(int_value == 10 || int_value == 20 || int_value == 30);
     }
 
@@ -130,6 +131,7 @@ void test_generate_bool_column_with_values() {
         ColumnType value = generator.generate();
         assert(std::holds_alternative<bool>(value));
         bool bool_value = std::get<bool>(value);
+        (void)bool_value;
         assert(bool_value == true || bool_value == false);
     }
 

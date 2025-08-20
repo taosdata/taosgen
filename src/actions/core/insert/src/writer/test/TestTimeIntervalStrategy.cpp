@@ -38,6 +38,7 @@ void test_timestamp_conversion() {
     } catch (const std::runtime_error&) {
         thrown = true;
     }
+    (void)thrown;
     assert(thrown);
 
     std::cout << "test_timestamp_conversion passed." << std::endl;
@@ -202,6 +203,8 @@ void test_last_write_time() {
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
     strategy.apply_wait_strategy(1000, 2000, 0, 0, false);
     auto after = strategy.last_write_time();
+    (void)before;
+    (void)after;
     assert(after > before);
     std::cout << "test_last_write_time passed." << std::endl;
 }

@@ -48,6 +48,7 @@ void test_invalid_type() {
         assert(std::string(e.what()).find("Unsupported compression type") != std::string::npos);
         caught = true;
     }
+    (void)caught;
     assert(caught);
     std::cout << "test_invalid_type passed.\n";
 }

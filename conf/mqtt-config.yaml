@@ -16,6 +16,12 @@ global:
         type: float
         min: 0
         max: 360
+      - name: state
+        type: varchar(20)
+        values:
+          - "normal"
+          - "warning"
+          - "critical"
     tags: &tags_info
       - name: groupid
         type: int
@@ -26,7 +32,7 @@ global:
 
   tbname_generator: &tbname_generator
     prefix: d
-    count: 10
+    count: 10000
     from: 0
 
 concurrency: 4
@@ -83,9 +89,9 @@ jobs:
                 enabled: true
                 rows: 1
               generate_threads: 1
-              per_table_rows: 50
+              per_table_rows: 1000
               queue_capacity: 10
               queue_warmup_ratio: 0.00
             insert_control:
-              per_request_rows: 10000
+              per_request_rows: 10
               insert_threads: 1

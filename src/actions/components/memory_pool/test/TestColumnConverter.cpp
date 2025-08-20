@@ -53,6 +53,7 @@ void test_u16string_type_handler() {
     ColumnType value = std::u16string(u"你好");
     char buf[16] = {};
     size_t len = ColumnConverter::u16string_type_handler(value, buf, sizeof(buf));
+    (void)len;
     assert(len == 2 * sizeof(char16_t));
     std::u16string restored(reinterpret_cast<const char16_t*>(buf), 2);
     assert(restored == std::u16string(u"你好"));
@@ -65,6 +66,7 @@ void test_json_type_handler() {
     ColumnType value = json;
     char buf[64] = {};
     size_t len = ColumnConverter::json_type_handler(value, buf, sizeof(buf));
+    (void)len;
     assert(len == json.raw_json.size());
     assert(std::string(buf, len) == json.raw_json);
     std::cout << "test_json_type_handler passed." << std::endl;
@@ -160,6 +162,7 @@ void test_handler_exceptions() {
         assert(std::string(e.what()).find("Unsupported type") != std::string::npos);
         caught = true;
     }
+    (void)caught;
     assert(caught);
     std::cout << "test_handler_exceptions passed." << std::endl;
 }

@@ -70,6 +70,7 @@ void test_connection() {
     std::optional<ConnectorSource> conn_src;
     assert(writer.connect(conn_src));
     assert(mock_ptr->is_connected());
+    (void)mock_ptr;
 
     // Connect again if already connected
     assert(writer.connect(conn_src));
@@ -126,7 +127,9 @@ void test_write_operations() {
     writer.set_client(std::move(mqtt_client));
 
     std::optional<ConnectorSource> conn_src;
-    assert(writer.connect(conn_src));
+    auto connected = writer.connect(conn_src);
+    (void)connected;
+    assert(connected);
 
     // Construct STMT_V2 data
     MultiBatch batch;
@@ -140,6 +143,7 @@ void test_write_operations() {
     StmtV2InsertData stmt(block, col_instances);
 
     writer.write(stmt);
+    (void)mock_ptr;
     assert(mock_ptr->publish_count == 1);
 
     // Unsupported data type

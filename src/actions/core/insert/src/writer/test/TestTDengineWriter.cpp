@@ -195,7 +195,9 @@ void test_retry_mechanism() {
     TDengineWriter writer(config, col_instances);
 
     std::optional<ConnectorSource> conn_src;
-    assert(writer.connect(conn_src));
+    auto connected = writer.connect(conn_src);
+    (void)connected;
+    assert(connected);
     SqlInsertData sql_data(1000, 2000, 1, "show databases");
     writer.write(sql_data);
 
@@ -214,6 +216,8 @@ void test_metrics_and_time() {
     (void)write;
     auto start = writer.start_write_time();
     auto end = writer.end_write_time();
+    (void)start;
+    (void)end;
     assert(end >= start);
 
     std::cout << "test_metrics_and_time passed." << std::endl;

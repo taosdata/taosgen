@@ -119,6 +119,7 @@ void test_execute_and_publish() {
     assert(ok);
 
     // Check published topic and payload
+    (void)mock_ptr;
     assert(mock_ptr->published_topics.size() == 1);
     assert(mock_ptr->published_topics[0] == "factory/f01/device-d01/data");
     assert(mock_ptr->published_payloads[0].find("\"factory_id\":\"f01\"") != std::string::npos);

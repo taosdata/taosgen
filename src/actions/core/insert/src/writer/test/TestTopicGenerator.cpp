@@ -94,9 +94,15 @@ void test_pattern_edge_cases() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
     const auto& tb = block->tables[0];
 
-    assert(tg1.generate(tb, 0) == "AA");
-    assert(tg2.generate(tb, 0) == "plain/text");
-    assert(tg3.generate(tb, 0) == "Atail");
+    auto tp1 = tg1.generate(tb, 0);
+    auto tp2 = tg2.generate(tb, 0);
+    auto tp3 = tg3.generate(tb, 0);
+    (void)tp1;
+    (void)tp2;
+    (void)tp3;
+    assert(tp1 == "AA");
+    assert(tp2 == "plain/text");
+    assert(tp3 == "Atail");
 
     std::cout << "test_pattern_edge_cases passed." << std::endl;
 }
