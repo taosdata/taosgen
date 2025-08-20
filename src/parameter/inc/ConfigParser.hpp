@@ -271,7 +271,22 @@ namespace YAML {
                 if (node["dec_max"]) rhs.dec_max = node["dec_max"].as<std::string>();
                 if (node["corpus"]) rhs.corpus = node["corpus"].as<std::string>();
                 if (node["chinese"]) rhs.chinese = node["chinese"].as<bool>();
-                if (node["values"]) rhs.values = node["values"].as<std::vector<std::string>>();
+                if (node["values"]) {
+                    if (rhs.type_tag == ColumnTypeTag::BOOL) {
+                        auto str_values = node["values"].as<std::vector<std::string>>();
+                        rhs.set_values_from_strings(str_values);
+                    } else if (rhs.is_var_length()) {
+                        auto str_values = node["values"].as<std::vector<std::string>>();
+                        rhs.set_values_from_strings(str_values);
+                    } else {
+                        auto dbl_values = node["values"].as<std::vector<double>>();
+                        rhs.set_values_from_doubles(dbl_values);
+                    }
+
+                    if (rhs.values_count < 1) {
+                        throw std::runtime_error("values must contain at least one element for column: " + rhs.name);
+                    }
+                }
             } else if (*rhs.gen_type == "order") {
                 // Detect forbidden keys in order
                 check_unknown_keys(node, merge_keys<std::string>({common_keys, order_allowed}), "columns or tags::order");

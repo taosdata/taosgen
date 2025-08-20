@@ -1,11 +1,5 @@
 #include "ColumnType.hpp"
-#include <codecvt>
-#include <locale>
-
-std::string u16string_to_utf8(const std::u16string& u16str) {
-    std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> converter;
-    return converter.to_bytes(u16str);
-}
+#include "StringUtils.hpp"
 
 // Overload << operator for ColumnType
 std::ostream& operator<<(std::ostream& os, const ColumnType& column) {
@@ -26,7 +20,7 @@ std::ostream& operator<<(std::ostream& os, const ColumnType& column) {
             os << "Decimal(" << value.value << ")";
         } else if constexpr (std::is_same_v<T, std::u16string>) {
             // os << "NChar(" << std::string(value.begin(), value.end()) << ")";
-            os  << u16string_to_utf8(value);
+            os  << StringUtils::u16string_to_utf8(value);
         } else if constexpr (std::is_same_v<T, std::string>) {
             os << value;
         } else if constexpr (std::is_same_v<T, JsonValue>) {
