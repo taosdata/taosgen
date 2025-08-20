@@ -14,7 +14,7 @@ const char* compression_to_string(CompressionType type) {
 
 CompressionType string_to_compression(const std::string& str) {
     std::string s = StringUtils::to_upper(str);
-    if (s == "NONE")  return CompressionType::NONE;
+    if (s == "" || s == "NONE")  return CompressionType::NONE;
     if (s == "GZIP")  return CompressionType::GZIP;
     if (s == "LZ4")   return CompressionType::LZ4;
     if (s == "ZSTD")  return CompressionType::ZSTD;

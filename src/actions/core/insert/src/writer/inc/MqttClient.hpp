@@ -43,7 +43,7 @@ public:
 // MQTT client implementation wrapper
 class PahoMqttClient : public IMqttClient {
 public:
-    PahoMqttClient(const std::string& host, const std::string& client_id);
+    PahoMqttClient(const std::string& host, int port, const std::string& client_id);
     ~PahoMqttClient();
 
     bool connect(const std::string& user, const std::string& password,
@@ -60,7 +60,7 @@ private:
 
 class MqttClient {
 public:
-    MqttClient(const MqttInfo& config, const ColumnConfigInstanceVector& col_instances);
+    MqttClient(const MqttInfo& config, const ColumnConfigInstanceVector& col_instances, size_t no = 0);
     ~MqttClient();
 
     // Connect to MQTT broker
@@ -76,7 +76,7 @@ public:
     }
 
     // Serialize a row of data to JSON
-    nlohmann::json serialize_row_to_json(
+    nlohmann::ordered_json serialize_row_to_json(
         const MemoryPool::TableBlock& table,
         size_t row_index
     ) const;
@@ -84,7 +84,7 @@ public:
     // Handle message publishing
     void publish_message(
         const std::string& topic,
-        const nlohmann::json& json_data
+        const nlohmann::ordered_json& json_data
     );
 
 private:

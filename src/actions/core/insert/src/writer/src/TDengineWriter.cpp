@@ -5,7 +5,7 @@
 #include <thread>
 #include <iostream>
 
-TDengineWriter::TDengineWriter(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances)
+TDengineWriter::TDengineWriter(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances, size_t)
     : BaseWriter(config, col_instances) {}
 
 TDengineWriter::~TDengineWriter() {

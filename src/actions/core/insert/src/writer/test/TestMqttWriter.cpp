@@ -23,10 +23,11 @@ public:
 
 InsertDataConfig create_test_config() {
     InsertDataConfig config;
-    config.target.mqtt.host = "tcp://localhost:1883";
-    config.target.mqtt.client_id = "test_client";
+    config.target.mqtt.host = "localhost";
+    config.target.mqtt.port = 1883;
     config.target.mqtt.user = "user";
     config.target.mqtt.password = "pass";
+    config.target.mqtt.client_id = "test_client";
     config.target.mqtt.keep_alive = 60;
     config.target.mqtt.clean_session = true;
     config.target.mqtt.qos = 1;

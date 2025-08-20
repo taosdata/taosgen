@@ -45,10 +45,11 @@ public:
 
 MqttInfo create_test_mqtt_info() {
     MqttInfo info;
-    info.host = "tcp://localhost:1883";
-    info.client_id = "test_client";
+    info.host = "localhost";
+    info.port = 1883;
     info.user = "user";
     info.password = "pass";
+    info.client_id = "test_client";
     info.keep_alive = 60;
     info.clean_session = true;
     info.qos = 1;

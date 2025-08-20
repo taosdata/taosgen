@@ -72,6 +72,10 @@ void InsertDataAction::execute() {
                   << config_.target.tdengine.connection_info.port << std::endl;
     } else if (config_.target.target_type == "file_system") {
         std::cout << " @ " << config_.target.file_system.output_dir << std::endl;
+    } else if (config_.target.target_type == "mqtt") {
+        std::cout << " @ "
+                  << config_.target.mqtt.host << ":"
+                  << config_.target.mqtt.port << std::endl;
     } else {
         throw std::invalid_argument("Unsupported target type: " + config_.target.target_type);
     }
@@ -153,7 +157,7 @@ void InsertDataAction::execute() {
         auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(config_.control.data_format);
         auto sql = formatter->prepare(config_, col_instances);
         for (size_t i = 0; i < consumer_thread_count; i++) {
-            writers.push_back(WriterFactory::create(config_, col_instances));
+            writers.push_back(WriterFactory::create(config_, col_instances, i));
 
             // Connect to database
             if (!writers[i]->connect(conn_source)) {

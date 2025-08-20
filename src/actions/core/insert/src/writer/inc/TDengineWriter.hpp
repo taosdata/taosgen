@@ -4,7 +4,7 @@
 
 class TDengineWriter : public BaseWriter {
 public:
-    explicit TDengineWriter(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances);
+    explicit TDengineWriter(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances, size_t no = 0);
     ~TDengineWriter() override;
 
     bool connect(std::optional<ConnectorSource>& conn_source) override;

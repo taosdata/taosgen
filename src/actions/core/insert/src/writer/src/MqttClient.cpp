@@ -7,10 +7,13 @@
 #include <mqtt/connect_options.h>
 #include <mqtt/properties.h>
 
-using json = nlohmann::json;
+PahoMqttClient::PahoMqttClient(const std::string& host, int port, const std::string& client_id) {
+    // Example: "tcp://localhost:1883"
+    std::ostringstream oss;
+    oss << "tcp://" << host << ":" << port;
+    std::string uri = oss.str();
 
-PahoMqttClient::PahoMqttClient(const std::string& host, const std::string& client_id) {
-    client_ = std::make_unique<mqtt::async_client>(host, client_id);
+    client_ = std::make_unique<mqtt::async_client>(uri, client_id);
 }
 
 PahoMqttClient::~PahoMqttClient() {
@@ -84,15 +87,22 @@ void PahoMqttClient::publish(const std::string& topic, const std::string& payloa
 
 // MqttClient implementation
 MqttClient::MqttClient(const MqttInfo& config,
-                       const ColumnConfigInstanceVector& col_instances)
+                       const ColumnConfigInstanceVector& col_instances, size_t no)
     : config_(config),
       col_instances_(col_instances),
       compression_type_(string_to_compression(config.compression)),
       encoding_type_(string_to_encoding(config.encoding)),
       topic_generator_(config.topic, col_instances)
 {
+    std::string client_id;
+    if (config.client_id.empty()) {
+        client_id = MqttInfo::generate_client_id();
+    } else {
+        client_id = config.client_id + "-" + std::to_string(no);
+    }
+
     // Initialize MQTT client
-    client_ = std::make_unique<PahoMqttClient>(config_.host, config_.client_id);
+    client_ = std::make_unique<PahoMqttClient>(config.host, config.port, client_id);
 }
 
 MqttClient::~MqttClient() = default;
@@ -142,7 +152,7 @@ bool MqttClient::execute(const StmtV2InsertData& data) {
             std::string topic = topic_generator_.generate(table_block, row_idx);
 
             // Serialize to JSON
-            json json_data = serialize_row_to_json(table_block, row_idx);
+            nlohmann::ordered_json json_data = serialize_row_to_json(table_block, row_idx);
 
             // Publish message
             publish_message(topic, json_data);
@@ -152,20 +162,20 @@ bool MqttClient::execute(const StmtV2InsertData& data) {
     return true;
 }
 
-nlohmann::json MqttClient::serialize_row_to_json(
+nlohmann::ordered_json MqttClient::serialize_row_to_json(
     const MemoryPool::TableBlock& table,
     size_t row_index
 ) const {
-    json json_data;
-
-    // Add timestamp
-    if (table.timestamps && row_index < table.used_rows) {
-        json_data["timestamp"] = table.timestamps[row_index];
-    }
+    nlohmann::ordered_json json_data;
 
     // Add table name
     if (table.table_name) {
         json_data["table"] = table.table_name;
+    }
+
+    // Add timestamp
+    if (table.timestamps && row_index < table.used_rows) {
+        json_data["timestamp"] = table.timestamps[row_index];
     }
 
     // Add data columns
@@ -204,7 +214,7 @@ nlohmann::json MqttClient::serialize_row_to_json(
 
 void MqttClient::publish_message(
     const std::string& topic,
-    const nlohmann::json& json_data
+    const nlohmann::ordered_json& json_data
 ) {
     // 1. Serialize to string
     std::string payload = json_data.dump();
