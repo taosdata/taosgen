@@ -44,6 +44,7 @@
 在安装和使用 `tsgen` 之前，请确保您已满足特定平台的以下前置条件。
 
 - cmake，3.0 或以上版本，请参阅 [cmake](https://cmake.org)。
+- conan，2.19 或以上版本，请参阅 [conan](https://conan.io/)。
 
 ## 4. 构建
 本节提供了在 Linux 平台构建 `tsgen` 的详细说明。
@@ -51,6 +52,7 @@
 
 ```shell
 mkdir build && cd build
+conan install .. --build=missing --output-folder=./conan --settings=build_type=Release
 cmake .. -DCMAKE_BUILD_TYPE=Release
 cmake --build .
 ```
