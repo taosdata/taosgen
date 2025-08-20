@@ -7,32 +7,29 @@
 
 struct StmtV2InsertData : public BaseInsertData {
     BlockStmtV2Data data;
-    MemoryPool::MemoryBlock* block;
-    
+
     StmtV2InsertData(MemoryPool::MemoryBlock* block, const ColumnConfigInstanceVector& col_instances)
-        : BaseInsertData(DataType::STMT_V2, 
+        : BaseInsertData(DataType::STMT_V2,
                          block->start_time,
                          block->end_time,
                          block->total_rows),
-          data(block, col_instances),
-          block(block) {
+          data(block, col_instances) {
             block->build_bindv();
           }
 
     // Move constructor
-    StmtV2InsertData(StmtV2InsertData&& other) noexcept 
+    StmtV2InsertData(StmtV2InsertData&& other) noexcept
         : BaseInsertData(std::move(other)),
-          data(std::move(other.data)),
-          block(other.block) 
-    {
-        other.block = nullptr;
+          data(std::move(other.data)) {
+        other.data.reset_block();
     }
-    
+
     // Disable copy
     StmtV2InsertData(const StmtV2InsertData&) = delete;
     StmtV2InsertData& operator=(const StmtV2InsertData&) = delete;
-    
+
     ~StmtV2InsertData() {
+        auto* block = data.get_block();
         if (block) {
             block->release();
         }

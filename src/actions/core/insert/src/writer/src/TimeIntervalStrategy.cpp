@@ -43,13 +43,13 @@ int64_t TimeIntervalStrategy::fixed_interval_strategy() const {
 }
 
 int64_t TimeIntervalStrategy::first_to_first_strategy(
-    int64_t current_start, int64_t last_start) const 
+    int64_t current_start, int64_t last_start) const
 {
     return to_milliseconds(current_start) - to_milliseconds(last_start);
 }
 
 int64_t TimeIntervalStrategy::last_to_first_strategy(
-    int64_t current_start, int64_t last_end) const 
+    int64_t current_start, int64_t last_end) const
 {
     return to_milliseconds(current_start) - to_milliseconds(last_end);
 }
@@ -59,7 +59,7 @@ int64_t TimeIntervalStrategy::literal_strategy(int64_t current_start) const {
     auto now_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now);
     auto epoch = now_ms.time_since_epoch();
     int64_t now_timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(epoch).count();
-    
+
     return to_milliseconds(current_start) - now_timestamp;
 }
 
@@ -68,7 +68,7 @@ void TimeIntervalStrategy::apply_wait_strategy(
     int64_t current_end_time,
     int64_t last_start_time,
     int64_t last_end_time,
-    bool is_first_write) 
+    bool is_first_write)
 {
     (void)current_end_time;
 
@@ -78,7 +78,7 @@ void TimeIntervalStrategy::apply_wait_strategy(
     }
 
     int64_t wait_time_ms = 0;
-    
+
     // Calculate wait time
     switch (strategy_type_) {
         case IntervalStrategyType::Fixed:
@@ -111,6 +111,6 @@ void TimeIntervalStrategy::apply_wait_strategy(
             }
         }
     }
-    
+
     last_write_time_ = std::chrono::steady_clock::now();
 }

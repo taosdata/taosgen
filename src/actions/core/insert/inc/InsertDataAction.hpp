@@ -27,7 +27,7 @@ private:
     void set_realtime_priority();
     void set_thread_affinity(size_t thread_id, bool reverse = false, const std::string& purpose = "");
 
-    ColumnConfigInstanceVector create_column_instances(const InsertDataConfig& config) const;
+    ColumnConfigInstanceVector create_column_instances() const;
     void print_writer_times(const std::vector<std::unique_ptr<IWriter>>& writers);
 
     void producer_thread_function(

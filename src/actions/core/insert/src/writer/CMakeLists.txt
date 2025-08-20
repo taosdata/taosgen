@@ -1,7 +1,11 @@
 # Create library target
 add_library(insert_writer STATIC
   src/TimeIntervalStrategy.cpp
+  src/BaseWriter.cpp
   src/TDengineWriter.cpp
+  src/MqttClient.cpp
+  src/MqttWriter.cpp
+  src/TopicGenerator.cpp
 )
 
 # Set include directories
@@ -13,6 +17,8 @@ target_include_directories(insert_writer
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../../components/metrics/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../../components/connector/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../../components/formatter/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../../components/compressor/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../../components/encoding/inc
 )
 
 # Link dependent libraries
@@ -21,8 +27,11 @@ target_link_libraries(insert_writer
     actions_config
     components_metrics
     components_connector
+    components_compressor
+    components_encoding
     utils
     TAOS::TAOS
+    PahoMqttCpp::paho-mqttpp3-static
 )
 
 # Enable tests

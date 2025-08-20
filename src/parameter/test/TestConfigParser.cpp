@@ -363,6 +363,42 @@ file_system:
     assert(tgt.file_system.timestamp_format == "%Y-%m-%d");
 }
 
+void test_InsertDataConfig_Target_Mqtt() {
+    std::string yaml = R"(
+target_type: mqtt
+mqtt:
+  host: mqtt.example.com
+  port: 1883
+  user: testuser
+  password: testpass
+  topic: test/topic
+  client_id: client-001
+  compression: none
+  encoding: utf8
+  timestamp_precision: ms
+  qos: 1
+  keep_alive: 60
+  clean_session: true
+  retain: false
+)";
+    YAML::Node node = YAML::Load(yaml);
+    InsertDataConfig::Target tgt = node.as<InsertDataConfig::Target>();
+    assert(tgt.target_type == "mqtt");
+    assert(tgt.mqtt.host == "mqtt.example.com");
+    assert(tgt.mqtt.port == 1883);
+    assert(tgt.mqtt.user == "testuser");
+    assert(tgt.mqtt.password == "testpass");
+    assert(tgt.mqtt.client_id == "client-001");
+    assert(tgt.mqtt.topic == "test/topic");
+    assert(tgt.mqtt.compression == "none");
+    assert(tgt.mqtt.encoding == "utf8");
+    assert(tgt.mqtt.timestamp_precision == "ms");
+    assert(tgt.mqtt.qos == 1);
+    assert(tgt.mqtt.keep_alive == 60);
+    assert(tgt.mqtt.clean_session == true);
+    assert(tgt.mqtt.retain == false);
+}
+
 void test_DataFormat_csv() {
     std::string yaml = R"(
 format_type: csv
@@ -421,7 +457,7 @@ data_cache:
   enabled: true
   cache_size: 1000
 flow_control:
-  enabled: false
+  enabled: true
   rate_limit: 10000
 generate_threads: 8
 per_table_rows: 10000
@@ -434,7 +470,7 @@ queue_capacity: 128
   assert(dg.interlace_mode.rows == 10);
   assert(dg.data_cache.enabled == true);
   assert(dg.data_cache.cache_size == 1000);
-  assert(dg.flow_control.enabled == false);
+  assert(dg.flow_control.enabled == true);
   assert(dg.flow_control.rate_limit == 10000);
   assert(dg.generate_threads == 8);
   assert(dg.per_table_rows == 10000);
@@ -880,6 +916,7 @@ int main() {
     test_InsertDataConfig_Source();
     test_InsertDataConfig_Target_TDengine();
     test_InsertDataConfig_Target_FileSystem();
+    test_InsertDataConfig_Target_Mqtt();
     test_InsertDataConfig_Control_DataQuality();
     test_InsertDataConfig_Control_DataGeneration();
     test_InsertDataConfig_Control_InsertControl();

@@ -1,0 +1,111 @@
+#include "TopicGenerator.hpp"
+#include <cassert>
+#include <iostream>
+#include <vector>
+#include <stdexcept>
+
+void test_basic_pattern() {
+    ColumnConfigInstanceVector col_instances;
+    col_instances.emplace_back(ColumnConfig{"factory_id", "VARCHAR(16)"});
+    col_instances.emplace_back(ColumnConfig{"device_id", "INT"});
+    TopicGenerator tg("factory/{factory_id}/device-{device_id}/data", col_instances);
+
+    MultiBatch batch;
+    std::vector<RowData> rows;
+    rows.push_back({1500000000000, {"f01", 101}});
+    rows.push_back({1500000000001, {"f02", 102}});
+    batch.table_batches.emplace_back("t1", std::move(rows));
+    batch.update_metadata();
+
+    MemoryPool pool(1, 1, 2, col_instances);
+    auto* block = pool.convert_to_memory_block(std::move(batch));
+    const auto& tb = block->tables[0];
+
+    std::string topic0 = tg.generate(tb, 0);
+    std::string topic1 = tg.generate(tb, 1);
+    assert(topic0 == "factory/f01/device-101/data");
+    assert(topic1 == "factory/f02/device-102/data");
+    std::cout << "test_basic_pattern passed." << std::endl;
+}
+
+void test_special_placeholders() {
+    ColumnConfigInstanceVector col_instances;
+    TopicGenerator tg("table/{table}/ts/{ts}", col_instances);
+
+    MultiBatch batch;
+    std::vector<RowData> rows;
+    rows.push_back({1500000000000, {}});
+    batch.table_batches.emplace_back("my_table", std::move(rows));
+    batch.update_metadata();
+
+    MemoryPool pool(1, 1, 1, col_instances);
+    auto* block = pool.convert_to_memory_block(std::move(batch));
+    auto& tb = block->tables[0];
+
+    std::string topic = tg.generate(tb, 0);
+    assert(topic == "table/my_table/ts/1500000000000");
+
+    tb.table_name = nullptr;
+    topic = tg.generate(tb, 0);
+    assert(topic.find("UNKNOWN_TABLE") != std::string::npos);
+
+    tb.timestamps = nullptr;
+    topic = tg.generate(tb, 0);
+    assert(topic.find("INVALID_TS") != std::string::npos);
+
+    std::cout << "test_special_placeholders passed." << std::endl;
+}
+
+void test_col_not_found() {
+    ColumnConfigInstanceVector col_instances;
+    col_instances.emplace_back(ColumnConfig{"a", "VARCHAR(16)"});
+    TopicGenerator tg("prefix/{b}/suffix", col_instances);
+
+    MultiBatch batch;
+    std::vector<RowData> rows;
+    rows.push_back({1500000000000, {"x"}});
+    batch.table_batches.emplace_back("my_table", std::move(rows));
+    batch.update_metadata();
+
+    MemoryPool pool(1, 1, 1, col_instances);
+    auto* block = pool.convert_to_memory_block(std::move(batch));
+    const auto& tb = block->tables[0];
+
+    std::string topic = tg.generate(tb, 0);
+    assert(topic == "prefix/{COL_NOT_FOUND}/suffix");
+    std::cout << "test_col_not_found passed." << std::endl;
+}
+
+void test_pattern_edge_cases() {
+    ColumnConfigInstanceVector col_instances;
+    col_instances.emplace_back(ColumnConfig{"x", "VARCHAR(16)"});
+
+    TopicGenerator tg1("{x}{x}", col_instances);
+    TopicGenerator tg2("plain/text", col_instances);
+    TopicGenerator tg3("{x}tail", col_instances);
+
+    MultiBatch batch;
+    std::vector<RowData> rows;
+    rows.push_back({1500000000000, {"A"}});
+    batch.table_batches.emplace_back("my_table", std::move(rows));
+    batch.update_metadata();
+
+    MemoryPool pool(1, 1, 1, col_instances);
+    auto* block = pool.convert_to_memory_block(std::move(batch));
+    const auto& tb = block->tables[0];
+
+    assert(tg1.generate(tb, 0) == "AA");
+    assert(tg2.generate(tb, 0) == "plain/text");
+    assert(tg3.generate(tb, 0) == "Atail");
+
+    std::cout << "test_pattern_edge_cases passed." << std::endl;
+}
+
+int main() {
+    test_basic_pattern();
+    test_special_placeholders();
+    test_col_not_found();
+    test_pattern_edge_cases();
+    std::cout << "All TopicGenerator tests passed." << std::endl;
+    return 0;
+}

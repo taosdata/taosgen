@@ -49,6 +49,10 @@ include(Utils)
 setup_colored_output()
 
 # Find dependencies
+find_package(ZLIB REQUIRED)
+find_package(LZ4 REQUIRED)
+find_package(zstd REQUIRED)
+find_package(Iconv REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(luajit REQUIRED)
 find_package(PahoMqttCpp REQUIRED)

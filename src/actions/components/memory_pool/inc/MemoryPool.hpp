@@ -21,20 +21,20 @@ public:
             bool is_fixed;
             size_t element_size;  // Fixed column: element size
             size_t max_length;    // Variable column: max length
-            
+
             // Fixed column data pointer
             void* fixed_data = nullptr;
-            
+
             // Variable column data
             char* var_data = nullptr;      // Continuous storage area
             int32_t* lengths = nullptr;    // Length per row
             size_t* var_offsets = nullptr; // Offset per row in variable data area
             size_t current_offset = 0;     // Current write offset
-            
+
             // NULL marker
             char* is_nulls = nullptr;
         };
-        
+
         const char* table_name;
         int64_t* timestamps = nullptr;  // Timestamp column continuous storage
         size_t max_rows = 0;
@@ -47,33 +47,33 @@ public:
         void add_row(const RowData& row) {
             // Write timestamp
             timestamps[used_rows] = row.timestamp;
-    
+
             // Process by column
             for (size_t col_idx = 0; col_idx < columns.size(); ++col_idx) {
                 auto& col_block = columns[col_idx];
                 const auto& col_value = row.columns[col_idx];
                 const auto& handler = (*col_handlers_ptr)[col_idx];
-                
+
                 // Handle NULL value
                 // if (std::holds_alternative<std::monostate>(col_value)) {
                 //     col_block.is_nulls[used_rows] = 1;
                 //     continue;
                 // }
-                
+
                 col_block.is_nulls[used_rows] = 0;
-                
+
                 if (col_block.is_fixed) {
                     // Fixed-length column
-                    void* dest = static_cast<char*>(col_block.fixed_data) 
+                    void* dest = static_cast<char*>(col_block.fixed_data)
                             + used_rows * col_block.element_size;
-                    
-                    handler.fixed_handler(col_value, dest, col_block.element_size);
+
+                    handler.to_fixed(col_value, dest, col_block.element_size);
                 } else {
                     // Variable-length column
                     char* dest = col_block.var_data + col_block.current_offset;
-                    
-                    size_t data_len = handler.var_handler(col_value, dest, col_block.max_length);
-                    
+
+                    size_t data_len = handler.to_var(col_value, dest, col_block.max_length);
+
                     // Update metadata
                     col_block.lengths[used_rows] = static_cast<int32_t>(data_len);
                     col_block.var_offsets[used_rows] = col_block.current_offset;
@@ -92,55 +92,55 @@ public:
             if (start_index + rows.size() > max_rows) {
                 throw std::out_of_range("Not enough space in table block");
             }
-            
+
             // Process all timestamps first
             for (size_t i = 0; i < rows.size(); ++i) {
                 timestamps[start_index + i] = rows[i].timestamp;
             }
-            
+
             // Process by column, improve cache utilization
             for (size_t col_idx = 0; col_idx < columns.size(); ++col_idx) {
                 auto& col_block = columns[col_idx];
                 const auto& handler = (*col_handlers_ptr)[col_idx];
-                
+
                 if (col_block.is_fixed) {
                     // Fixed-length column - batch copy
                     for (size_t i = 0; i < rows.size(); ++i) {
                         const auto& col_value = rows[i].columns[col_idx];
-                        
+
                         // Handle NULL value
                         // if (std::holds_alternative<std::monostate>(col_value)) {
                         //     col_block.is_nulls[start_index + i] = 1;
                         //     continue;
                         // }
-                        
+
                         col_block.is_nulls[start_index + i] = 0;
-                        
-                        void* dest = static_cast<char*>(col_block.fixed_data) 
+
+                        void* dest = static_cast<char*>(col_block.fixed_data)
                                 + (start_index + i) * col_block.element_size;
-                        
-                        handler.fixed_handler(col_value, dest, col_block.element_size);
+
+                        handler.to_fixed(col_value, dest, col_block.element_size);
                     }
                 } else {
                     // Batch copy data
                     for (size_t i = 0; i < rows.size(); ++i) {
                         if (col_block.is_nulls[start_index + i]) continue;
-                        
+
                         const auto& col_value = rows[i].columns[col_idx];
 
                         // if (std::holds_alternative<std::monostate>(col_value)) {
                         //     col_block.is_nulls[start_index + i] = 1;
                         //     continue;
                         // }
-                        
+
                         col_block.is_nulls[start_index + i] = 0;
 
                         char* dest = col_block.var_data + col_block.current_offset;
-                        
-                        size_t data_len = handler.var_handler(
+
+                        size_t data_len = handler.to_var(
                             col_value, dest, col_block.max_length
                         );
-                        
+
                         // Update metadata
                         col_block.lengths[start_index + i] = static_cast<int32_t>(data_len);
                         col_block.var_offsets[start_index + i] = col_block.current_offset;
@@ -148,10 +148,40 @@ public:
                     }
                 }
             }
-            
+
             // Update used row count
             used_rows += rows.size();
         }
+
+        ColumnType get_cell(size_t row_index, size_t col_index) const {
+            if (row_index >= used_rows)
+                throw std::out_of_range("row_index out of range");
+            if (col_index >= columns.size())
+                throw std::out_of_range("col_index out of range");
+
+            const auto& col = columns[col_index];
+            const auto& handler = (*col_handlers_ptr)[col_index];
+
+            if (col.is_nulls[row_index])
+                throw std::runtime_error("NULL value not supported");
+
+            if (col.is_fixed) {
+                // Fixed-length column handling
+                void* data_ptr = static_cast<char*>(col.fixed_data) + row_index * col.element_size;
+                return handler.to_column_fixed(data_ptr);
+            } else {
+                // Variable-length column handling
+                char* data_start = col.var_data + col.var_offsets[row_index];
+                return handler.to_column_var(data_start, col.lengths[row_index]);
+            }
+        }
+
+        std::string get_cell_as_string(size_t row_index, size_t col_index) const {
+            ColumnType cell = get_cell(row_index, col_index);
+            const auto& handler = (*col_handlers_ptr)[col_index];
+            return handler.to_string(cell);
+        }
+
     };
 
     struct MemoryBlock {
@@ -203,7 +233,7 @@ public:
                 bind_lists_[i].resize(1 + col_count);
                 bind_ptrs_[i] = bind_lists_[i].data();
                 auto& table = tables[i];
-                
+
                 // Initialize timestamp column binding
                 bind_lists_[i][0] = {
                     TSDB_DATA_TYPE_TIMESTAMP,
@@ -212,7 +242,7 @@ public:
                     nullptr,
                     static_cast<int>(table.max_rows)
                 };
-                
+
                 // Initialize data column binding
                 for (size_t col_idx = 0; col_idx < col_count; ++col_idx) {
                     auto& bind = bind_lists_[i][1 + col_idx];
@@ -233,7 +263,7 @@ public:
                     }
                 }
             }
-            
+
             // Set pointers
             bindv_.tbnames = const_cast<char**>(tbnames_.data());
             bindv_.bind_cols = bind_ptrs_.data();
@@ -241,15 +271,15 @@ public:
 
         void build_bindv() {
             bindv_.count = used_tables;
-            
+
             // Update table names and row counts
             for (size_t i = 0; i < used_tables; ++i) {
                 auto& table = tables[i];
                 tbnames_[i] = table.table_name;
-                
+
                 // Update timestamp row count
                 bind_lists_[i][0].num = table.used_rows;
-                
+
                 // Update data column row count
                 for (size_t col_idx = 0; col_idx < col_count; ++col_idx) {
                     bind_lists_[i][1 + col_idx].num = table.used_rows;
@@ -263,7 +293,7 @@ public:
             start_time = std::numeric_limits<int64_t>::max();
             end_time = std::numeric_limits<int64_t>::min();
             used_tables = 0;
-            
+
             for (auto& table : tables) {
                 table.used_rows = 0;
                 for (auto& col : table.columns) {
@@ -274,22 +304,22 @@ public:
                     // }
                 }
             }
-        
+
             // Reset bindv count
             bindv_.count = 0;
         }
     };
 
-    MemoryPool(size_t block_count, 
+    MemoryPool(size_t block_count,
                size_t max_tables_per_block,
                size_t max_rows_per_table,
                const ColumnConfigInstanceVector& col_instances);
-               
+
     ~MemoryPool();
-    
+
     // Get a free memory block (thread-safe)
     MemoryBlock* acquire_block();
-    
+
     // Return a memory block (thread-safe)
     void release_block(MemoryBlock* block);
 

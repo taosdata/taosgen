@@ -4,6 +4,7 @@
 #include "TagsConfig.hpp"
 #include "ColumnsConfig.hpp"
 #include "ConnectionInfo.hpp"
+#include "MqttInfo.hpp"
 #include "DatabaseInfo.hpp"
 #include "SuperTableInfo.hpp"
 #include "DataFormat.hpp"
@@ -37,6 +38,9 @@ struct InsertDataConfig {
             std::string tbname_col_alias = "device_id";
             std::string compression_level = "none";
         } file_system;
+
+        MqttInfo mqtt;
+
     } target;
 
     struct Control {

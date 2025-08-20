@@ -47,6 +47,7 @@ void test_pooled_connector_constructor_nullptr() {
     } catch (const std::invalid_argument&) {
         exception_thrown = true;
     }
+    (void)exception_thrown;
     assert(exception_thrown);
     std::cout << "test_pooled_connector_constructor_nullptr passed\n";
 }

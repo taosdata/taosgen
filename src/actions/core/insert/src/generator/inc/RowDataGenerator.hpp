@@ -14,36 +14,26 @@
 
 class RowDataGenerator {
 public:
-    RowDataGenerator(const std::string& table_name, 
+    RowDataGenerator(const std::string& table_name,
                     const ColumnsConfig& columns_config,
                     const ColumnConfigInstanceVector& instances,
                     const InsertDataConfig::Control& control,
                     const std::string& target_precision);
-    
+
     // Get next row data
     std::optional<RowData> next_row();
     int next_row(MemoryPool::TableBlock& table_block);
 
     // Check if there is more data
     bool has_more() const;
-    
+
     // Get the number of generated rows
     int generated_rows() const { return generated_rows_; }
-    
+
     // Reset generator state
     void reset();
 
 private:
-    // Type handler function type definitions
-    using FixedHandler = void(*)(const ColumnType&, void*, size_t);
-    using VarHandler = size_t(*)(const ColumnType&, char*, size_t);
-
-    // Column handler structure
-    struct ColumnHandler {
-        FixedHandler fixed_handler = nullptr;
-        VarHandler var_handler = nullptr;
-    };
-
     // Delayed queue element
     struct DelayedRow {
         int64_t deliver_timestamp;
@@ -64,7 +54,7 @@ private:
 
     // Initialize cache
     void init_cache();
-    
+
     // Initialize disorder
     void init_disorder();
 
@@ -73,22 +63,22 @@ private:
 
     // Apply disorder strategy
     bool apply_disorder(RowData& row);
-    
+
     // Process delay queue
     void process_delay_queue();
-    
+
     // Fetch a row from raw source
     std::optional<std::reference_wrapper<RowData>> fetch_raw_row();
 
     // Initialize generator components
     void init_generator();
-    
+
     // Initialize CSV reader
     void init_csv_reader();
-    
+
     // Get data from generator
     void generate_from_generator();
-    
+
     // Get data from CSV
     bool generate_from_csv();
 
@@ -106,12 +96,12 @@ private:
     std::unique_ptr<RowGenerator> row_generator_;
     std::unique_ptr<ColumnsCSV> columns_csv_;
     std::unique_ptr<TimestampGenerator> timestamp_generator_;
-    
+
     // CSV data
     std::vector<RowData> csv_rows_;
     size_t csv_row_index_ = 0;
     std::string csv_precision_;
-    
+
     // State management
     int generated_rows_ = 0;
     int total_rows_ = 0;
@@ -122,7 +112,7 @@ private:
     std::vector<RowData> cache_;
 
     std::vector<DisorderInterval> disorder_intervals_;
-    
+
     // Timestamp state
     int64_t current_timestamp_ = 0;
 };

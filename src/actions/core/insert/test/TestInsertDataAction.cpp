@@ -9,29 +9,29 @@
 
 InsertDataConfig create_test_config() {
     InsertDataConfig config;
-    
+
     // Configure columns for generator mode
     config.source.columns.source_type = "generator";
-    
+
     // Setup timestamp strategy
     auto& ts_config = config.source.columns.generator.timestamp_strategy.timestamp_config;
     ts_config.start_timestamp = Timestamp{1700000000000};
     ts_config.timestamp_step = 10;
     ts_config.timestamp_precision = "ms";
-    
+
     // Setup schema
     auto& schema = config.source.columns.generator.schema;
     schema = {
         {"col1", "INT", "random", 1, 100},
         {"col2", "DOUBLE", "random", 0.0, 1.0}
     };
-    
+
     // Setup table name generation
     config.source.table_name.source_type = "generator";
     config.source.table_name.generator.prefix = "d";
     config.source.table_name.generator.count = 10;
     config.source.table_name.generator.from = 0;
-    
+
     // Setup control parameters
     config.control.data_generation.per_table_rows = 100;
     config.control.data_generation.generate_threads = 2;
@@ -42,7 +42,7 @@ InsertDataConfig create_test_config() {
     config.control.insert_control.failure_handling.max_retries = 1;
     config.control.insert_control.failure_handling.retry_interval_ms = 1000;
     config.control.insert_control.failure_handling.on_failure = "exit";
-    
+
     // Data channel settings
     config.control.data_channel.channel_type = "websocket";
 
@@ -57,7 +57,7 @@ InsertDataConfig create_test_config() {
     config.target.tdengine.connection_info.port = 6041;
     config.target.tdengine.database_info.name = "test_action_db";
     config.target.tdengine.super_table_info.name = "test_super_table";
-    
+
     return config;
 }
 
@@ -65,7 +65,7 @@ void test_basic_initialization() {
     GlobalConfig global;
     auto config = create_test_config();
     config.source.columns.generator.schema.clear();  // Clear schema to test error handling
-    
+
     InsertDataAction action(global, config);
     try {
         action.execute();
@@ -80,22 +80,22 @@ void test_table_name_generation() {
     auto config = create_test_config();
     TableNameManager name_manager(config);
     auto names = name_manager.generate_table_names();
-    
+
     assert(names.size() == 10);
     assert(names[0] == "d0");
     assert(names[9] == "d9");
-    
+
     auto split_names = name_manager.split_for_threads();
     assert(split_names.size() == config.control.data_generation.generate_threads);
     assert(split_names[0].size() == 5);  // Even split for 10 tables across 2 threads
-    
+
     std::cout << "test_table_name_generation passed\n";
 }
 
 void test_data_pipeline() {
     auto config = create_test_config();
     DataPipeline<FormatResult> pipeline(1000);
-    
+
     std::atomic<bool> producer_done{false};
     std::atomic<size_t> rows_generated{0};
     std::atomic<size_t> rows_consumed{0};
@@ -110,7 +110,7 @@ void test_data_pipeline() {
         }
         producer_done = true;
     });
-    
+
     // Start consumer thread
     std::thread consumer([&]() {
         while (!producer_done || pipeline.total_queued() > 0) {
@@ -130,11 +130,11 @@ void test_data_pipeline() {
 
     producer.join();
     consumer.join();
-    
+
     assert(rows_generated == 5);
     assert(rows_consumed == 5);
     assert(pipeline.total_queued() == 0);
-    
+
     std::cout << "test_data_pipeline passed\n";
 }
 
@@ -142,20 +142,20 @@ void test_data_generation() {
     auto config = create_test_config();
     config.control.data_generation.per_table_rows = 5;
     config.control.data_generation.interlace_mode.enabled = false;
-    
+
     auto col_instances = ColumnConfigInstanceFactory::create(config.source.columns.generator.schema);
     MemoryPool pool(1, 1, 5, col_instances);
     TableDataManager manager(pool, config, col_instances);
-    
+
     std::vector<std::string> table_names = {"d0"};
     assert(manager.init(table_names));
-    
+
     int row_count = 0;
     while (auto block = manager.next_multi_batch()) {
         const auto* batch = block.value();
         assert(batch->used_tables == 1);
         row_count += batch->total_rows;
-        
+
         // Verify timestamp progression
         for (const auto& table : batch->tables) {
             for (size_t i = 0; i < table.used_rows; i++) {
@@ -164,7 +164,7 @@ void test_data_generation() {
         }
         block.value()->release();
     }
-    
+
     assert(row_count == 5);
     std::cout << "test_data_generation passed\n";
 }
@@ -205,7 +205,7 @@ void test_end_to_end_data_generation() {
             InsertDataAction action(global, config);
 
             action.execute();
-    
+
             // TODO: Verify contain correct data
             // int row_count = 0;
             // assert(row_count == 10 && "Each table should have 10 rows");
@@ -225,32 +225,32 @@ void test_concurrent_data_generation() {
     config.target.target_type = "tdengine";
     config.target.tdengine.database_info.name = "test_action_db";
     config.target.tdengine.super_table_info.name = "test_super_table";
-    
+
     InsertDataAction action(global, config);
-    
+
     // Measure execution time to verify concurrent operation
     auto start = std::chrono::steady_clock::now();
     action.execute();
     auto end = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    
+
     // TODO: Verify all data was generated
     size_t total_rows = 8000;
     (void)total_rows;
     assert(total_rows == 8000 && "Total rows should match configuration");
-    std::cout << "test_concurrent_data_generation passed (duration: " 
+    std::cout << "test_concurrent_data_generation passed (duration: "
               << duration.count() << "ms)\n";
 }
 
 void test_error_handling() {
     GlobalConfig global;
     auto config = create_test_config();
-    
+
     // Test case 1: Invalid target type
     {
         auto invalid_config = config;
         invalid_config.target.target_type = "invalid_target";
-        
+
         InsertDataAction action(global, invalid_config);
         try {
             action.execute();
@@ -259,12 +259,12 @@ void test_error_handling() {
             // Expected
         }
     }
-    
+
     // Test case 2: Invalid table configuration
     {
         auto invalid_config = config;
         invalid_config.source.table_name.generator.count = 0;
-        
+
         InsertDataAction action(global, invalid_config);
         try {
             action.execute();
@@ -273,12 +273,12 @@ void test_error_handling() {
             // Expected
         }
     }
-    
+
     // Test case 3: Invalid thread configuration
     {
         auto invalid_config = config;
         invalid_config.control.data_generation.generate_threads = 0;
-        
+
         InsertDataAction action(global, invalid_config);
         try {
             action.execute();
@@ -287,7 +287,7 @@ void test_error_handling() {
             // Expected
         }
     }
-    
+
     std::cout << "test_error_handling passed\n";
 }
 

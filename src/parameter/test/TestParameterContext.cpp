@@ -209,7 +209,7 @@ jobs:
           # source
           source:
             connection_info: *db_conn
-          
+
           # control
           control:
             data_format:

@@ -1,0 +1,81 @@
+#pragma once
+#include "IWriter.hpp"
+#include "TimeIntervalStrategy.hpp"
+#include "TimeRecorder.hpp"
+#include <functional>
+
+class BaseWriter : public IWriter {
+public:
+    explicit BaseWriter(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances);
+    virtual ~BaseWriter() = default;
+
+    // Public method implementations
+    std::string get_timestamp_precision() const override { return timestamp_precision_; }
+    const ActionMetrics& get_play_metrics() const override { return play_metrics_; }
+    const ActionMetrics& get_write_metrics() const override { return write_metrics_; }
+    std::chrono::steady_clock::time_point start_write_time() const noexcept override {
+        return start_write_time_;
+    }
+    std::chrono::steady_clock::time_point end_write_time() const noexcept override {
+        return end_write_time_;
+    }
+
+protected:
+    // Public member variables
+    const InsertDataConfig& config_;
+    ColumnConfigInstanceVector col_instances_;
+    std::string timestamp_precision_;
+    TimeIntervalStrategy time_strategy_;
+    std::chrono::steady_clock::time_point start_write_time_;
+    std::chrono::steady_clock::time_point end_write_time_;
+
+    // State tracking
+    bool first_write_ = true;
+    int64_t last_start_time_ = 0;
+    int64_t last_end_time_ = 0;
+
+    // Failure retry state
+    size_t current_retry_count_ = 0;
+
+    // Performance statistics
+    ActionMetrics play_metrics_;
+    ActionMetrics write_metrics_;
+
+    // Public utility methods
+    void apply_time_interval_strategy(int64_t current_start, int64_t current_end);
+    std::string get_format_description() const;
+    void update_write_state(const BaseInsertData& data, bool success);
+
+    template<typename Func>
+    bool execute_with_retry(Func&& operation, const std::string& error_context) {
+        const size_t MAX_RETRIES = config_.control.insert_control.failure_handling.max_retries;
+
+        do {
+            try {
+                bool success = operation();
+                if (success) return true;
+
+                // Failure handling strategy
+                if (config_.control.insert_control.failure_handling.on_failure == "exit") {
+                    throw std::runtime_error(error_context + " operation failed");
+                }
+
+            } catch (const std::exception& e) {
+                if (current_retry_count_ > MAX_RETRIES) {
+                    throw std::runtime_error(error_context + " failed after " +
+                        std::to_string(MAX_RETRIES) + " retries: " + e.what());
+                }
+            }
+
+            current_retry_count_++;
+            std::this_thread::sleep_for(
+                std::chrono::milliseconds(config_.control.insert_control.failure_handling.retry_interval_ms)
+            );
+
+        } while (current_retry_count_ <= MAX_RETRIES);
+
+        return false;
+    }
+
+    void update_play_metrics(const BaseInsertData& data);
+};
