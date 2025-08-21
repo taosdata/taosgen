@@ -4,7 +4,7 @@
 #include "FormatterFactory.hpp"
 #include "taos.h"
 #include <sstream>
-#include <limits> 
+#include <limits>
 
 class StmtInsertDataFormatter final : public IInsertDataFormatter {
 public:
@@ -38,7 +38,7 @@ public:
         else if (mode_ == InsertMode::SuperTable)
         {
             result << "INSERT INTO `"
-                << config.target.tdengine.database_info.name << "`.`" 
+                << config.target.tdengine.database_info.name << "`.`"
                 << config.target.tdengine.super_table_info.name << "`(tbname,ts";
 
             // Add column names
@@ -54,12 +54,12 @@ public:
             }
             result << ")";
         }
-        
+
         return result.str();
     }
 
-    FormatResult format(const InsertDataConfig& config, 
-                        const ColumnConfigInstanceVector& col_instances, 
+    FormatResult format(const InsertDataConfig& config,
+                        const ColumnConfigInstanceVector& col_instances,
                         MemoryPool::MemoryBlock* batch) const override {
         (void)config;
 

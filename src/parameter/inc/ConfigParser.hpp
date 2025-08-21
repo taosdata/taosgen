@@ -108,6 +108,68 @@ namespace YAML {
         }
     };
 
+    template<>
+    struct convert<MqttInfo> {
+        static bool decode(const Node& node, MqttInfo& rhs) {
+            // Detect unknown configuration keys
+            static const std::set<std::string> valid_keys = {
+                "host", "port", "user", "password", "client_id", "topic", "compression", "encoding",
+                "timestamp_precision", "qos", "keep_alive", "clean_session", "retain"
+            };
+            check_unknown_keys(node, valid_keys, "mqtt_info");
+
+            if (node["host"]) {
+                rhs.host = node["host"].as<std::string>();
+            }
+            if (node["port"]) {
+                rhs.port = node["port"].as<int>();
+            }
+            if (node["user"]) {
+                rhs.user = node["user"].as<std::string>();
+            }
+            if (node["password"]) {
+                rhs.password = node["password"].as<std::string>();
+            }
+            if (node["topic"]) {
+                rhs.topic = node["topic"].as<std::string>();
+            } else {
+                throw std::runtime_error("Missing required field 'topic' in mqtt_info.");
+            }
+
+            if (node["client_id"]) {
+                rhs.client_id = node["client_id"].as<std::string>();
+            }
+            if (node["compression"]) {
+                rhs.compression = node["compression"].as<std::string>();
+            }
+            if (node["encoding"]) {
+                rhs.encoding = node["encoding"].as<std::string>();
+            }
+            if (node["timestamp_precision"]) {
+                rhs.timestamp_precision = node["timestamp_precision"].as<std::string>();
+                // Validate time precision value
+                if (rhs.timestamp_precision != "ms" && rhs.timestamp_precision != "us" && rhs.timestamp_precision != "ns") {
+                    throw std::runtime_error("Invalid timestamp precision value: " + rhs.timestamp_precision + " in mqtt_info.");
+                }
+            }
+            if (node["qos"]) {
+                rhs.qos = node["qos"].as<size_t>();
+                if (rhs.qos > 2) {
+                    throw std::runtime_error("Invalid QoS value: " + std::to_string(rhs.qos));
+                }
+            }
+            if (node["keep_alive"]) {
+                rhs.keep_alive = node["keep_alive"].as<size_t>();
+            }
+            if (node["clean_session"]) {
+                rhs.clean_session = node["clean_session"].as<bool>();
+            }
+            if (node["retain"]) {
+                rhs.retain = node["retain"].as<bool>();
+            }
+            return true;
+        }
+    };
 
     template<>
     struct convert<DatabaseInfo> {
@@ -209,7 +271,22 @@ namespace YAML {
                 if (node["dec_max"]) rhs.dec_max = node["dec_max"].as<std::string>();
                 if (node["corpus"]) rhs.corpus = node["corpus"].as<std::string>();
                 if (node["chinese"]) rhs.chinese = node["chinese"].as<bool>();
-                if (node["values"]) rhs.values = node["values"].as<std::vector<std::string>>();
+                if (node["values"]) {
+                    if (rhs.type_tag == ColumnTypeTag::BOOL) {
+                        auto str_values = node["values"].as<std::vector<std::string>>();
+                        rhs.set_values_from_strings(str_values);
+                    } else if (rhs.is_var_length()) {
+                        auto str_values = node["values"].as<std::vector<std::string>>();
+                        rhs.set_values_from_strings(str_values);
+                    } else {
+                        auto dbl_values = node["values"].as<std::vector<double>>();
+                        rhs.set_values_from_doubles(dbl_values);
+                    }
+
+                    if (rhs.values_count < 1) {
+                        throw std::runtime_error("values must contain at least one element for column: " + rhs.name);
+                    }
+                }
             } else if (*rhs.gen_type == "order") {
                 // Detect forbidden keys in order
                 check_unknown_keys(node, merge_keys<std::string>({common_keys, order_allowed}), "columns or tags::order");
@@ -326,9 +403,7 @@ namespace YAML {
                 check_unknown_keys(generator, generator_keys, "tags::generator");
 
                 if (generator["schema"]) {
-                    for (const auto& item : generator["schema"]) {
-                        rhs.generator.schema.push_back(item.as<ColumnConfig>());
-                    }
+                    rhs.generator.schema = generator["schema"].as<ColumnConfigVector>();
                 }
             } else if (rhs.source_type == "csv") {
                 if (!node["csv"]) {
@@ -342,9 +417,7 @@ namespace YAML {
                 check_unknown_keys(csv, csv_keys, "tags::csv");
 
                 if (csv["schema"]) {
-                    for (const auto& item : csv["schema"]) {
-                        rhs.csv.schema.push_back(item.as<ColumnConfig>());
-                    }
+                    rhs.csv.schema = csv["schema"].as<ColumnConfigVector>();
                 }
 
                 if (csv["file_path"]) {
@@ -581,9 +654,7 @@ namespace YAML {
                 check_unknown_keys(csv, csv_keys, "columns::csv");
 
                 if (csv["schema"]) {
-                    for (const auto& item : csv["schema"]) {
-                        rhs.csv.schema.push_back(item.as<ColumnConfig>());
-                    }
+                    rhs.csv.schema = csv["schema"].as<ColumnConfigVector>();
                 } else {
                     throw std::runtime_error("Missing required 'schema' configuration for columns::csv");
                 }
@@ -697,7 +768,6 @@ namespace YAML {
         }
     };
 
-
     template<>
     struct convert<InsertDataConfig::Target::FileSystem> {
         static bool decode(const Node& node, InsertDataConfig::Target::FileSystem& rhs) {
@@ -748,7 +818,7 @@ namespace YAML {
         static bool decode(const Node& node, InsertDataConfig::Target& rhs) {
             // Detect unknown configuration keys
             static const std::set<std::string> valid_keys = {
-                "target_type", "tdengine", "file_system"
+                "target_type", "tdengine", "file_system", "mqtt"
             };
             check_unknown_keys(node, valid_keys, "insert-data::target");
 
@@ -768,6 +838,13 @@ namespace YAML {
                     rhs.file_system = node["file_system"].as<InsertDataConfig::Target::FileSystem>();
                 } else {
                     throw std::runtime_error("Missing required field 'file_system' in insert-data::target.");
+                }
+            } else if (rhs.target_type == "mqtt") {
+                if (node["mqtt"]) {
+                    rhs.mqtt = node["mqtt"].as<MqttInfo>();
+                    rhs.timestamp_precision = rhs.mqtt.timestamp_precision;
+                } else {
+                    throw std::runtime_error("Missing required field 'mqtt' in insert-data::target.");
                 }
             } else {
                 throw std::runtime_error("Invalid target_type in insert-data::target: " + rhs.target_type);
@@ -851,39 +928,44 @@ namespace YAML {
                 static const std::set<std::string> disorder_keys = {"enabled", "intervals"};
                 check_unknown_keys(disorder, disorder_keys, "insert-data::control::data_quality::data_disorder");
 
-                rhs.data_disorder.enabled = disorder["enabled"].as<bool>(false);
-                if (disorder["intervals"]) {
-                    for (const auto& interval : disorder["intervals"]) {
-                        // Detect unknown keys in each interval
-                        static const std::set<std::string> interval_keys = {"time_start", "time_end", "ratio", "latency_range"};
-                        check_unknown_keys(interval, interval_keys, "insert-data::control::data_quality::data_disorder::intervals");
+                if (disorder["enabled"]) {
+                    rhs.data_disorder.enabled = disorder["enabled"].as<bool>();
+                }
 
-                        InsertDataConfig::Control::DataQuality::DataDisorder::Interval i;
-                        if (interval["time_start"]) {
-                            i.time_start = interval["time_start"].as<std::string>();
-                        } else {
-                            throw std::runtime_error("Missing required field 'time_start' in data_disorder::intervals.");
+                if (rhs.data_disorder.enabled) {
+                    if (disorder["intervals"]) {
+                        for (const auto& interval : disorder["intervals"]) {
+                            // Detect unknown keys in each interval
+                            static const std::set<std::string> interval_keys = {"time_start", "time_end", "ratio", "latency_range"};
+                            check_unknown_keys(interval, interval_keys, "insert-data::control::data_quality::data_disorder::intervals");
+
+                            InsertDataConfig::Control::DataQuality::DataDisorder::Interval i;
+                            if (interval["time_start"]) {
+                                i.time_start = interval["time_start"].as<std::string>();
+                            } else {
+                                throw std::runtime_error("Missing required field 'time_start' in data_disorder::intervals.");
+                            }
+
+                            if (interval["time_end"]) {
+                                i.time_end = interval["time_end"].as<std::string>();
+                            } else {
+                                throw std::runtime_error("Missing required field 'time_end' in data_disorder::intervals.");
+                            }
+
+                            if (interval["ratio"]) {
+                                i.ratio = interval["ratio"].as<double>(0.0);
+                            } else {
+                                throw std::runtime_error("Missing required field 'ratio' in data_disorder::intervals.");
+                            }
+
+                            if (interval["latency_range"]) {
+                                i.latency_range = interval["latency_range"].as<int>(0);
+                            } else {
+                                throw std::runtime_error("Missing required field 'latency_range' in data_disorder::intervals.");
+                            }
+
+                            rhs.data_disorder.intervals.push_back(i);
                         }
-
-                        if (interval["time_end"]) {
-                            i.time_end = interval["time_end"].as<std::string>();
-                        } else {
-                            throw std::runtime_error("Missing required field 'time_end' in data_disorder::intervals.");
-                        }
-
-                        if (interval["ratio"]) {
-                            i.ratio = interval["ratio"].as<double>(0.0);
-                        } else {
-                            throw std::runtime_error("Missing required field 'ratio' in data_disorder::intervals.");
-                        }
-
-                        if (interval["latency_range"]) {
-                            i.latency_range = interval["latency_range"].as<int>(0);
-                        } else {
-                            throw std::runtime_error("Missing required field 'latency_range' in data_disorder::intervals.");
-                        }
-
-                        rhs.data_disorder.intervals.push_back(i);
                     }
                 }
             }
@@ -911,10 +993,11 @@ namespace YAML {
                     rhs.interlace_mode.enabled = interlace["enabled"].as<bool>();
                 }
 
-                if (interlace["rows"]) {
-                    rhs.interlace_mode.rows = interlace["rows"].as<size_t>();
+                if (rhs.interlace_mode.enabled) {
+                    if (interlace["rows"]) {
+                        rhs.interlace_mode.rows = interlace["rows"].as<size_t>();
+                    }
                 }
-
             }
             if (node["data_cache"]) {
                 const auto& data_cache = node["data_cache"];
@@ -927,8 +1010,10 @@ namespace YAML {
                     rhs.data_cache.enabled = data_cache["enabled"].as<bool>();
                 }
 
-                if (data_cache["cache_size"]) {
-                    rhs.data_cache.cache_size = data_cache["cache_size"].as<size_t>();
+                if (rhs.data_cache.enabled) {
+                    if (data_cache["cache_size"]) {
+                        rhs.data_cache.cache_size = data_cache["cache_size"].as<size_t>();
+                    }
                 }
             }
             if (node["flow_control"]) {
@@ -942,8 +1027,10 @@ namespace YAML {
                     rhs.flow_control.enabled = flow_control["enabled"].as<bool>();
                 }
 
-                if (flow_control["rate_limit"]) {
-                    rhs.flow_control.rate_limit = flow_control["rate_limit"].as<int64_t>();
+                if(rhs.flow_control.enabled) {
+                    if (flow_control["rate_limit"]) {
+                        rhs.flow_control.rate_limit = flow_control["rate_limit"].as<int64_t>();
+                    }
                 }
             }
             if (node["generate_threads"]) {
@@ -1028,46 +1115,51 @@ namespace YAML {
             if (node["enabled"]) {
                 rhs.enabled = node["enabled"].as<bool>(false);
             }
-            if (node["interval_strategy"]) {
-                rhs.interval_strategy = node["interval_strategy"].as<std::string>("fixed");
-            }
-            if (node["wait_strategy"]) {
-                rhs.wait_strategy = node["wait_strategy"].as<std::string>("sleep");
-            }
-            if (rhs.interval_strategy == "fixed") {
-                if (!node["fixed_interval"]) {
-                    throw std::runtime_error("Missing required field 'fixed_interval' in insert-data::control::time_interval.");
+
+            if (rhs.enabled == true) {
+                if (node["interval_strategy"]) {
+                    rhs.interval_strategy = node["interval_strategy"].as<std::string>();
                 }
-
-                const auto& fixed = node["fixed_interval"];
-
-                // Detect unknown keys in fixed_interval
-                static const std::set<std::string> fixed_keys = {"base_interval", "random_deviation"};
-                check_unknown_keys(fixed, fixed_keys, "insert-data::control::time_interval::fixed_interval");
-
-                if (fixed["base_interval"]) {
-                    rhs.fixed_interval.base_interval = fixed["base_interval"].as<int>(1000);
+                if (node["wait_strategy"]) {
+                    rhs.wait_strategy = node["wait_strategy"].as<std::string>();
                 }
-                if (fixed["random_deviation"]) {
-                    rhs.fixed_interval.random_deviation = fixed["random_deviation"].as<int>(0);
-                }
-            } else if (rhs.interval_strategy == "first_to_first" || rhs.interval_strategy == "last_to_first") {
-                // if (!node["dynamic_interval"]) {
-                //     throw std::runtime_error("Missing required field 'dynamic_interval' in insert-data::control::time_interval.");
-                // }
+                if (rhs.interval_strategy == "fixed") {
+                    // if (!node["fixed_interval"]) {
+                    //     throw std::runtime_error("Missing required field 'fixed_interval' in insert-data::control::time_interval.");
+                    // }
 
-                if (node["dynamic_interval"]) {
-                    const auto& dynamic = node["dynamic_interval"];
+                    if (node["fixed_interval"]) {
+                        const auto& fixed = node["fixed_interval"];
 
-                    // Detect unknown keys in dynamic_interval
-                    static const std::set<std::string> dynamic_keys = {"min_interval", "max_interval"};
-                    check_unknown_keys(dynamic, dynamic_keys, "insert-data::control::time_interval::dynamic_interval");
+                        // Detect unknown keys in fixed_interval
+                        static const std::set<std::string> fixed_keys = {"base_interval", "random_deviation"};
+                        check_unknown_keys(fixed, fixed_keys, "insert-data::control::time_interval::fixed_interval");
 
-                    if (dynamic["min_interval"]) {
-                        rhs.dynamic_interval.min_interval = dynamic["min_interval"].as<int>(-1);
+                        if (fixed["base_interval"]) {
+                            rhs.fixed_interval.base_interval = fixed["base_interval"].as<int>();
+                        }
+                        if (fixed["random_deviation"]) {
+                            rhs.fixed_interval.random_deviation = fixed["random_deviation"].as<int>();
+                        }
                     }
-                    if (dynamic["max_interval"]) {
-                        rhs.dynamic_interval.max_interval = dynamic["max_interval"].as<int>(-1);
+                } else if (rhs.interval_strategy == "first_to_first" || rhs.interval_strategy == "last_to_first") {
+                    // if (!node["dynamic_interval"]) {
+                    //     throw std::runtime_error("Missing required field 'dynamic_interval' in insert-data::control::time_interval.");
+                    // }
+
+                    if (node["dynamic_interval"]) {
+                        const auto& dynamic = node["dynamic_interval"];
+
+                        // Detect unknown keys in dynamic_interval
+                        static const std::set<std::string> dynamic_keys = {"min_interval", "max_interval"};
+                        check_unknown_keys(dynamic, dynamic_keys, "insert-data::control::time_interval::dynamic_interval");
+
+                        if (dynamic["min_interval"]) {
+                            rhs.dynamic_interval.min_interval = dynamic["min_interval"].as<int>(-1);
+                        }
+                        if (dynamic["max_interval"]) {
+                            rhs.dynamic_interval.max_interval = dynamic["max_interval"].as<int>(-1);
+                        }
                     }
                 }
             }

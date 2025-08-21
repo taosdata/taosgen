@@ -88,11 +88,15 @@ void test_connection_timeout() {
         timeout_thrown = std::string(e.what()).find("Timeout") != std::string::npos;
     }
     auto end = std::chrono::steady_clock::now();
+    (void)timeout_thrown;
     assert(timeout_thrown);
 
     auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
     int expected = info.pool.connection_timeout;
     int tolerance = 30;
+    (void)elapsed_ms;
+    (void)expected;
+    (void)tolerance;
     assert(std::abs(elapsed_ms - expected) < tolerance);
 
     // After returning the connection, it can be acquired again

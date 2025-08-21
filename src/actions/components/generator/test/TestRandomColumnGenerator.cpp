@@ -97,12 +97,75 @@ void test_generate_multiple_values() {
     std::cout << "test_generate_multiple_values passed.\n";
 }
 
+
+void test_generate_int_column_with_values() {
+    ColumnConfig config;
+    config.type = "int";
+    config.parse_type();
+    config.set_values_from_doubles(std::vector<double>{10, 20, 30});
+
+    ColumnConfigInstance instance(config);
+    RandomColumnGenerator generator(instance);
+
+    for (int i = 0; i < 100; ++i) {
+        ColumnType value = generator.generate();
+        assert(std::holds_alternative<int32_t>(value));
+        int32_t int_value = std::get<int32_t>(value);
+        (void)int_value;
+        assert(int_value == 10 || int_value == 20 || int_value == 30);
+    }
+
+    std::cout << "test_generate_int_column_with_values passed.\n";
+}
+
+void test_generate_bool_column_with_values() {
+    ColumnConfig config;
+    config.type = "bool";
+    config.parse_type();
+    config.set_values_from_strings(std::vector<std::string>{"true", "false"});
+
+    ColumnConfigInstance instance(config);
+    RandomColumnGenerator generator(instance);
+
+    for (int i = 0; i < 100; ++i) {
+        ColumnType value = generator.generate();
+        assert(std::holds_alternative<bool>(value));
+        bool bool_value = std::get<bool>(value);
+        (void)bool_value;
+        assert(bool_value == true || bool_value == false);
+    }
+
+    std::cout << "test_generate_bool_column_with_values passed.\n";
+}
+
+void test_generate_string_column_with_values() {
+    ColumnConfig config;
+    config.type = "varchar(10)";
+    config.parse_type();
+    config.set_values_from_strings(std::vector<std::string>{"foo", "bar", "baz"});
+
+    ColumnConfigInstance instance(config);
+    RandomColumnGenerator generator(instance);
+
+    for (int i = 0; i < 100; ++i) {
+        ColumnType value = generator.generate();
+        assert(std::holds_alternative<std::string>(value));
+        std::string str_value = std::get<std::string>(value);
+        assert(str_value == "foo" || str_value == "bar" || str_value == "baz");
+    }
+
+    std::cout << "test_generate_string_column_with_values passed.\n";
+}
+
 int main() {
     test_generate_int_column();
     test_generate_double_column();
     test_generate_bool_column();
     test_generate_string_column_with_corpus();
     test_generate_multiple_values();
+    test_generate_int_column_with_values();
+    test_generate_bool_column_with_values();
+    test_generate_string_column_with_values();
 
     std::cout << "All tests passed.\n";
     return 0;

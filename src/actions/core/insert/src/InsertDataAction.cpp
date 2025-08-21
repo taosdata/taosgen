@@ -72,6 +72,10 @@ void InsertDataAction::execute() {
                   << config_.target.tdengine.connection_info.port << std::endl;
     } else if (config_.target.target_type == "file_system") {
         std::cout << " @ " << config_.target.file_system.output_dir << std::endl;
+    } else if (config_.target.target_type == "mqtt") {
+        std::cout << " @ "
+                  << config_.target.mqtt.host << ":"
+                  << config_.target.mqtt.port << std::endl;
     } else {
         throw std::invalid_argument("Unsupported target type: " + config_.target.target_type);
     }
@@ -104,7 +108,7 @@ void InsertDataAction::execute() {
         }
 
         // 2. Create column config instances
-        auto col_instances = create_column_instances(config_);
+        auto col_instances = create_column_instances();
 
         // 3. Initialize data pipeline
         const size_t producer_thread_count = config_.control.data_generation.generate_threads;
@@ -153,7 +157,7 @@ void InsertDataAction::execute() {
         auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(config_.control.data_format);
         auto sql = formatter->prepare(config_, col_instances);
         for (size_t i = 0; i < consumer_thread_count; i++) {
-            writers.push_back(WriterFactory::create(config_));
+            writers.push_back(WriterFactory::create(config_, col_instances, i));
 
             // Connect to database
             if (!writers[i]->connect(conn_source)) {
@@ -407,7 +411,7 @@ void InsertDataAction::execute() {
                 << "Framework Overhead: " << std::fixed << std::setprecision(2) << framework_ratio << "%\n"
                 << "Idle Time After Finish: " << std::fixed << std::setprecision(2) << avg_wait_time << " seconds\n";
 
-        if (time_strategy.strategy_type() == IntervalStrategyType::Literal) {
+        if (time_strategy.is_literal_strategy()) {
             std::cout << "Play Latency Distribution: " << global_play_metrics.get_summary() << "\n";
         }
 
@@ -570,23 +574,12 @@ void InsertDataAction::consumer_thread_function(
     }
 }
 
-ColumnConfigInstanceVector InsertDataAction::create_column_instances(const InsertDataConfig& config) const {
+ColumnConfigInstanceVector InsertDataAction::create_column_instances() const {
     try {
-        const ColumnConfigVector& schema = [&]() -> const ColumnConfigVector& {
-            if (config_.source.columns.source_type == "generator") {
-                if (config_.source.columns.generator.schema.empty()) {
-                    throw std::invalid_argument("Schema configuration is empty");
-                }
-                return config_.source.columns.generator.schema;
-            } else if (config_.source.columns.source_type == "csv") {
-                if (config_.source.columns.csv.schema.empty()) {
-                    throw std::invalid_argument("CSV schema configuration is empty");
-                }
-                return config_.source.columns.csv.schema;
-            }
-            throw std::invalid_argument("Unsupported source type: " + config.source.columns.source_type);
-        }();
-
+        const auto& schema = config_.source.columns.get_schema();
+        if (schema.empty()) {
+            throw std::invalid_argument("Schema configuration is empty");
+        }
         return ColumnConfigInstanceFactory::create(schema);
     } catch (const std::exception& e) {
         throw std::runtime_error(std::string("Failed to create column instances: ") + e.what());

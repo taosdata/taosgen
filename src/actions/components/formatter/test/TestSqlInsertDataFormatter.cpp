@@ -20,32 +20,30 @@ void test_format_insert_data_single_table() {
     rows.push_back({1500000000000, {3.14f, 42, std::string("value1")}});
     rows.push_back({1500000000001, {2.71f, 43, std::string("value2")}});
     batch.table_batches.push_back({"table1", rows});
-    batch.start_time = 1500000000000;
-    batch.end_time = 1500000000001;
-    batch.total_rows = 2;
+    batch.update_metadata();
 
     MemoryPool pool(1, 1, 2, col_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
     if (block) {
         assert(block->used_tables == 1);
         auto& table_block = block->tables[0];
-        
+
         // Verify timestamps
         assert(table_block.timestamps[0] == 1500000000000);
         assert(table_block.timestamps[1] == 1500000000001);
-        
+
         // Verify float column
         float* f1_data = static_cast<float*>(table_block.columns[0].fixed_data);
         (void)f1_data;
         assert(f1_data[0] == 3.14f);
         assert(f1_data[1] == 2.71f);
-        
+
         // Verify integer column
         int32_t* i1_data = static_cast<int32_t*>(table_block.columns[1].fixed_data);
         (void)i1_data;
         assert(i1_data[0] == 42);
         assert(i1_data[1] == 43);
-        
+
         // Verify string column
         auto& s1_col = table_block.columns[2];
         assert(s1_col.lengths[0] == 6);
@@ -53,7 +51,7 @@ void test_format_insert_data_single_table() {
         assert(s1_col.var_offsets[0] == 0);
         assert(s1_col.var_offsets[1] == 6);
         assert(s1_col.current_offset == 12);
-        
+
         std::string value1(s1_col.var_data, 6);
         std::string value2(s1_col.var_data + 6, 6);
         assert(value1 == "value1");
@@ -64,7 +62,7 @@ void test_format_insert_data_single_table() {
     FormatResult result = formatter.format(config, col_instances, block);
 
     assert(std::holds_alternative<SqlInsertData>(result));
-    assert(std::get<SqlInsertData>(result).data.str() == 
+    assert(std::get<SqlInsertData>(result).data.str() ==
            "INSERT INTO `test_db`.`table1` VALUES "
            "(1500000000000,3.14,42,'value1')"
            "(1500000000001,2.71,43,'value2');");
@@ -95,9 +93,7 @@ void test_format_insert_data_multiple_tables() {
     rows2.push_back({1500000000003, {4.56f, 45}});
     batch.table_batches.push_back({"table2", rows2});
 
-    batch.start_time = 1500000000000;
-    batch.end_time = 1500000000003;
-    batch.total_rows = 4;
+    batch.update_metadata();
 
     MemoryPool pool(1, 2, 2, col_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
@@ -107,7 +103,7 @@ void test_format_insert_data_multiple_tables() {
     FormatResult result = formatter->format(config, col_instances, block);
 
     assert(std::holds_alternative<SqlInsertData>(result));
-    assert(std::get<SqlInsertData>(result).data.str() == 
+    assert(std::get<SqlInsertData>(result).data.str() ==
            "INSERT INTO `test_db`.`table1` VALUES "
            "(1500000000000,3.14,42)"
            "(1500000000001,2.71,43) "
@@ -157,11 +153,9 @@ void test_format_insert_data_different_types() {
 
     MultiBatch batch;
     std::vector<RowData> rows;
-    rows.push_back({1500000000000, {3.14f, true, std::u16string(u"测试"), std::string("{\"key\":\"value\"}")}});
+    rows.push_back({1500000000000, {3.14f, true, std::u16string(u"测试"), JsonValue{ std::string("{\"key\":\"value\"}") }}});
     batch.table_batches.push_back({"table1", rows});
-    batch.start_time = 1500000000000;
-    batch.end_time = 1500000000000;
-    batch.total_rows = 2;
+    batch.update_metadata();
 
     MemoryPool pool(1, 1, 1, col_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
@@ -170,7 +164,7 @@ void test_format_insert_data_different_types() {
     FormatResult result = formatter.format(config, col_instances, block);
 
     assert(std::holds_alternative<SqlInsertData>(result));
-    assert(std::get<SqlInsertData>(result).data.str() == 
+    assert(std::get<SqlInsertData>(result).data.str() ==
            "INSERT INTO `test_db`.`table1` VALUES "
            "(1500000000000,3.14,true,'测试','{\"key\":\"value\"}');");
     std::cout << "test_format_insert_data_different_types passed!" << std::endl;

@@ -44,6 +44,7 @@
       - [timestamp\_precision （时间戳精度，可选）](#timestamp_precision-时间戳精度可选)
       - [target\_type (目标类型，必需)](#target_type-目标类型必需)
       - [tdengine](#tdengine)
+      - [mqtt](#mqtt)
     - [control (必需)](#control-必需)
       - [data\_format（数据格式化，可选）](#data_format数据格式化可选)
       - [data\_channel (数据通道，可选)](#data_channel-数据通道可选)
@@ -53,6 +54,7 @@
 - [配置文件示例](#配置文件示例)
   - [生成器方式生成数据 stmt v2 写入 TDengine 示例](#生成器方式生成数据-stmt-v2-写入-tdengine-示例)
   - [CSV文件方式生成数据 stmt v2 写入 TDengine 实例](#csv文件方式生成数据-stmt-v2-写入-tdengine-实例)
+  - [生成器方式生成数据并写入 MQTT 示例](#生成器方式生成数据并写入-mqtt-示例)
 
 
 
@@ -236,6 +238,7 @@ jobs:
   - distribution (字符串，可选)：表示随机数的分别模型，目前仅支持均匀分布，后续按需扩充，默认值为 "uniform"。
   - min (浮点数，可选)：表示列的最小值，仅适用整数类型和浮点数类型，生成的值将大于或等于最小值。
   - max (浮点数，可选)：表示列的最大值，仅适用整数类型和浮点数类型，生成的值将小于最大值。
+  - values（列表，可选）：指定随机数据的取值范围，生成的数据将从中随机选取。
 
 - order：按自然数顺序增长，仅适用整数类型，达到最大值后会自动翻转到最小值
   - min (整数，可选)：表示列的最小值，生成的值将大于或等于最小值。
@@ -433,25 +436,34 @@ jobs:
 ##### target_type (目标类型，必需)
 字符串类型，目标数据类型支持以下几种方式：
 - tdengine：TDengine 数据库。
+- mqtt：轻量级的物联网通信协议。
 
 ##### tdengine
 仅在 target_type="tdengine" 时生效，包含如下属性：
-- connection_info (必需)：
-数据库连接信息。
-- database_info (对象类型，必需)：
-包含目标数据库的相关信息：
-  - name (字符串，必需)：
-数据库名称。
-  - precision (字符串，可选)：
-数据库的时间精度，与上边 timestamp_precision 的值保持一致。
-- super_table_info (必需)：
-包含超级表的信息：
-  - name (字符串，必需)：
-超级表名称。
-  - columns (可选)：
-引用预定义的普通列 Schema。
-  - tags (可选)：
-引用预定义的标签列 Schema。
+- connection_info (必需)：数据库连接信息。
+- database_info (对象类型，必需)：包含目标数据库的相关信息：
+  - name (字符串，必需)：数据库名称。
+  - precision (字符串，可选)：数据库的时间精度，与上边 timestamp_precision 的值保持一致。
+- super_table_info (必需)：包含超级表的信息：
+  - name (字符串，必需)：超级表名称。
+  - columns (可选)：引用预定义的普通列 Schema。
+  - tags (可选)：引用预定义的标签列 Schema。
+
+##### mqtt
+仅在 target_type="mqtt" 时生效，包含如下属性：
+- host (字符串，可选)： MQTT Broker 主机地址，默认值为 localhost。
+- port (整数，可选)： MQTT Broker 端口，默认值为 1883。
+- username (字符串，可选)： 登录 Broker 的用户名。
+- password (字符串，可选)： 登录 Broker 的密码。
+- client_id (字符串，可选)： 客户端唯一标识符，若未指定则自动生成；
+- topic (字符串，必需)： 要发布消息的 MQTT Topic，支持通过占位符语法发布到动态主题，占位符语法如下：
+  - `{table}`：表示表名数据
+  - `{column}`：表示列数据，column 是列字段名称
+- timestamp_precision (字符串，可选)： 表示消息时间戳的精度，可选值为："ms"、"us"、"ns"，默认为 "ms"。
+- qos (整数，可选)： QoS 等级，取值范围为 0、1、2，默认为 0。
+- keep_alive (整数，可选)： 超时没有消息发送后会发送心跳，单位为秒，默认值为 5。
+- clean_session（布尔，可选）：是否清除就会话状态，默认值为 true。
+- retain （布尔，可选）：MQTT Broker 是否保留最后一条消息，默认值为 false。
 
 #### control (必需)
 定义数据写入过程中的行为策略，包括数据格式化（data_format）、数据通道（data_channel）、数据生成策略（data_generation）、写入控制策略（insert_control）、时间间隔策略（time_interval）等部分。
@@ -848,4 +860,99 @@ d2,12,202,2001
 d3,23,203,3002
 d2,22,204,2002
 d1,21,205,1002
+```
+
+### 生成器方式生成数据并写入 MQTT 示例
+
+```yaml
+global:
+  confirm_prompt: false
+
+  super_table_info: &stb_info
+    name: meters
+    columns: &columns_info
+      - name: current
+        type: float
+        min: 0
+        max: 100
+      - name: voltage
+        type: int
+        min: 200
+        max: 240
+      - name: phase
+        type: float
+        min: 0
+        max: 360
+      - name: state
+        type: varchar(20)
+        values:
+          - "normal"
+          - "warning"
+          - "critical"
+
+  tbname_generator: &tbname_generator
+    prefix: d
+    count: 10000
+    from: 0
+
+concurrency: 1
+
+jobs:
+  # Insert data job
+  insert-into-mqtt:
+    name: Insert Data Into MQTT
+    needs: []
+    steps:
+      - name: Insert Data Into MQTT
+        uses: actions/insert-data
+        with:
+          # source
+          source:
+            table_name:
+              source_type: generator
+              generator: *tbname_generator
+            columns:
+              source_type: generator
+              generator:
+                schema: *columns_info
+
+                timestamp_strategy:
+                  generator:
+                    start_timestamp: 1700000000000
+                    timestamp_precision : ms
+                    timestamp_step: 1
+
+          # target
+          target:
+            target_type: mqtt
+            mqtt:
+              host: localhost
+              port: 1883
+              user: testuser
+              password: testpassword
+              client_id: mqtt_client
+              keep_alive: 60
+              clean_session: true
+              qos: 1
+              topic: factory/{table}/{state}/data
+
+          # control
+          control:
+            data_format:
+              format_type: stmt
+              stmt:
+                version: v2
+            data_channel:
+              channel_type: native
+            data_generation:
+              interlace_mode:
+                enabled: true
+                rows: 1
+              generate_threads: 1
+              per_table_rows: 1000
+              queue_capacity: 10
+              queue_warmup_ratio: 0.00
+            insert_control:
+              per_request_rows: 10
+              insert_threads: 8
 ```

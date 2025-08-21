@@ -348,3 +348,27 @@ int ColumnConfig::get_taos_type() const noexcept {
     }
     return TSDB_DATA_TYPE_NULL;
 }
+
+void ColumnConfig::set_values_from_strings(const std::vector<std::string>& values) {
+    str_values = values;
+    values_count = str_values.size();
+    dbl_values.clear();
+
+    if (type_tag == ColumnTypeTag::BOOL) {
+        for (const auto& val : str_values) {
+            std::string lower = StringUtils::to_lower(val);
+
+            if (lower != "true" && lower != "false" && lower != "0" && lower != "1") {
+                throw std::runtime_error("Invalid boolean value in 'values' for column: " + name);
+            }
+
+            dbl_values.push_back((lower == "true" || lower == "1") ? 1.0 : 0.0);
+        }
+    }
+}
+
+void ColumnConfig::set_values_from_doubles(const std::vector<double>& values) {
+    dbl_values = values;
+    values_count = dbl_values.size();
+    str_values.clear();
+}

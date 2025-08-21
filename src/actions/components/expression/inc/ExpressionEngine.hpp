@@ -5,18 +5,18 @@
 #include <variant>
 #include <unordered_map>
 #include <mutex>
-#include <lua.hpp>
+#include <luajit-2.1/lua.hpp>
 #include <thread>
 
 class ExpressionEngine {
 public:
     using Result = ColumnType;
-    
+
     explicit ExpressionEngine(const std::string& expression);
     ~ExpressionEngine() = default;
-    
+
     Result evaluate();
-    
+
     // Disable copy and move
     ExpressionEngine(const ExpressionEngine&) = delete;
     ExpressionEngine& operator=(const ExpressionEngine&) = delete;
@@ -26,28 +26,28 @@ private:
     struct ThreadLocalContext {
         lua_State* lua_vm = nullptr;
         std::unordered_map<std::string, int> template_cache;
-        
+
         ThreadLocalContext();
         ~ThreadLocalContext();
     };
-    
+
     // Expression template
     struct ExpressionTemplate {
         std::string expression;
         int function_ref = LUA_NOREF;
     };
-    
+
     // Execution state
     struct ExpressionState {
         std::shared_ptr<ExpressionTemplate> template_;
         int call_index = 0;
     };
-    
+
     std::unique_ptr<ExpressionState> state_;
-    
+
     // Get thread-local context
     static ThreadLocalContext& get_thread_context();
-    
+
     // Get or create expression template
     std::shared_ptr<ExpressionTemplate> get_template(
         const std::string& expression,

@@ -4,7 +4,6 @@
 #include "ConfigData.hpp"
 // #include "ParamDescriptor.hpp"
 
-#include <yaml-cpp/yaml.h>
 #include <unordered_map>
 #include <vector>
 #include <string>
@@ -25,7 +24,7 @@ public:
     void merge_commandline(int argc, char* argv[]);
     void merge_environment_vars();
     void merge_yaml();
-    void merge_yaml(const YAML::Node& config); 
+    void merge_yaml(const YAML::Node& config);
     void merge_yaml(const std::string& file_path);
 
     // Get parameter

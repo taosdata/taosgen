@@ -44,8 +44,7 @@
 在安装和使用 `tsgen` 之前，请确保您已满足特定平台的以下前置条件。
 
 - cmake，3.0 或以上版本，请参阅 [cmake](https://cmake.org)。
-- yaml-cpp，0.6.2 或以上版本，请参阅 [yaml-cpp](https://github.com/jbeder/yaml-cpp)。
-- LuaJIT，2.1 或以上版本，请参阅 [LuaJIT](https://github.com/LuaJIT/LuaJIT)。
+- conan，2.19 或以上版本，请参阅 [conan](https://conan.io/)。
 
 ## 4. 构建
 本节提供了在 Linux 平台构建 `tsgen` 的详细说明。
@@ -53,8 +52,9 @@
 
 ```shell
 mkdir build && cd build
+conan install .. --build=missing --output-folder=./conan --settings=build_type=Release
 cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build . 
+cmake --build .
 ```
 
 ## 5. 测试
@@ -101,8 +101,8 @@ cmake --build .
 7. 提交 PR 后，如果 CI 通过，可以在 [codecov](https://app.codecov.io/gh/taosdata/tsgen/pulls) 页面找到自己 PR，看单测覆盖率。
 
 ## 9. 引用
-- [TDengine Official Website](https://www.tdengine.com/) 
-- [TDengine GitHub](https://github.com/taosdata/TDengine) 
+- [TDengine Official Website](https://www.tdengine.com/)
+- [TDengine GitHub](https://github.com/taosdata/TDengine)
 
 ## 10. 附录
 项目源代码布局，仅目录：

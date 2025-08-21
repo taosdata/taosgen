@@ -11,13 +11,12 @@ target_include_directories(components_expression
     ${CMAKE_CURRENT_SOURCE_DIR}/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../config/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../utils/inc
-    ${LUAJIT_INCLUDE_DIRS}
 )
 
 # Link dependencies
 target_link_libraries(components_expression
   PUBLIC
-    ${LUAJIT_LIBRARIES}
+    luajit::luajit
     m
     dl
 )

@@ -1,8 +1,6 @@
 # Include directories
 include_directories(
   ${CMAKE_SOURCE_DIR}/inc
-  ${YAML_CPP_INCLUDE_DIRS}
-  ${TAOS_INCLUDE_DIRS}
 )
 
 # Add subdirectories (in dependency order)
@@ -30,8 +28,9 @@ target_link_libraries(tsgen
     workflow
     parameter
     utils
-    ${YAML_CPP_LIBRARIES}
-    ${TAOS_LIBRARIES}
+    yaml-cpp::yaml-cpp
+    luajit::luajit
+    TAOS::TAOS
     Threads::Threads
 )
 

@@ -1,29 +1,7 @@
 #include "ColumnConverter.hpp"
+#include <sstream>
 
 namespace ColumnConverter {
-    template<typename T>
-    void fixed_type_handler(const ColumnType& value, void* dest, size_t size) {
-        const T& val = std::get<T>(value);
-        (void)size;
-        // if (sizeof(T) != size) {
-        //     throw std::runtime_error("Fixed-length type size mismatch");
-        // }
-        memcpy(dest, &val, sizeof(T));
-    }
-
-    // Explicit instantiation for all supported types
-    template void fixed_type_handler<bool>(const ColumnType&, void*, size_t);
-    template void fixed_type_handler<int8_t>(const ColumnType&, void*, size_t);
-    template void fixed_type_handler<uint8_t>(const ColumnType&, void*, size_t);
-    template void fixed_type_handler<int16_t>(const ColumnType&, void*, size_t);
-    template void fixed_type_handler<uint16_t>(const ColumnType&, void*, size_t);
-    template void fixed_type_handler<int32_t>(const ColumnType&, void*, size_t);
-    template void fixed_type_handler<uint32_t>(const ColumnType&, void*, size_t);
-    template void fixed_type_handler<int64_t>(const ColumnType&, void*, size_t);
-    template void fixed_type_handler<uint64_t>(const ColumnType&, void*, size_t);
-    template void fixed_type_handler<float>(const ColumnType&, void*, size_t);
-    template void fixed_type_handler<double>(const ColumnType&, void*, size_t);
-    template void fixed_type_handler<Decimal>(const ColumnType&, void*, size_t);
 
     size_t string_type_handler(const ColumnType& value, char* dest, size_t max_len) {
         const auto& str = std::get<std::string>(value);
@@ -40,6 +18,13 @@ namespace ColumnConverter {
         return len;
     }
 
+    size_t json_type_handler(const ColumnType& value, char* dest, size_t max_len) {
+        const auto& json = std::get<JsonValue>(value);
+        size_t len = std::min(json.raw_json.size(), max_len);
+        memcpy(dest, json.raw_json.data(), len);
+        return len;
+    }
+
     size_t binary_type_handler(const ColumnType& value, char* dest, size_t max_len) {
         const auto& bin = std::get<std::vector<uint8_t>>(value);
         size_t len = std::min(bin.size(), max_len);
@@ -47,72 +32,122 @@ namespace ColumnConverter {
         return len;
     }
 
+    ColumnType string_to_column(const char* src, size_t len) {
+        return std::string(src, len);
+    }
+
+    ColumnType u16string_to_column(const char* src, size_t len) {
+        size_t char_count = len / sizeof(char16_t);
+        return std::u16string(
+            reinterpret_cast<const char16_t*>(src),
+            char_count
+        );
+    }
+
+    ColumnType json_to_column(const char* src, size_t len) {
+        return JsonValue{std::string(src, len)};
+    }
+
+    ColumnType binary_to_column(const char* src, size_t len) {
+        const uint8_t* byte_ptr = reinterpret_cast<const uint8_t*>(src);
+        return std::vector<uint8_t>(byte_ptr, byte_ptr + len);
+    }
+
+    std::string column_to_string(const ColumnType& value) {
+        std::ostringstream oss;
+        oss << value;
+        return oss.str();
+    }
+
     ColumnHandler create_handler_for_column(const ColumnConfigInstance& col_instance) {
         ColumnHandler handler;
         const auto& config = col_instance.config();
         ColumnTypeTag tag = config.type_tag;
-        
+
+        handler.to_string = column_to_string;
+
         if (!config.is_var_length()) {
-            // Fixed-length column processing
+            // Fixed-length column handling
             switch (tag) {
                 case ColumnTypeTag::BOOL:
-                    handler.fixed_handler = fixed_type_handler<bool>;
+                    handler.to_fixed = fixed_type_handler<bool>;
+                    handler.to_column_fixed = fixed_to_column<bool>;
                     break;
                 case ColumnTypeTag::TINYINT:
-                    handler.fixed_handler = fixed_type_handler<int8_t>;
+                    handler.to_fixed = fixed_type_handler<int8_t>;
+                    handler.to_column_fixed = fixed_to_column<int8_t>;
                     break;
                 case ColumnTypeTag::TINYINT_UNSIGNED:
-                    handler.fixed_handler = fixed_type_handler<uint8_t>;
+                    handler.to_fixed = fixed_type_handler<uint8_t>;
+                    handler.to_column_fixed = fixed_to_column<uint8_t>;
                     break;
                 case ColumnTypeTag::SMALLINT:
-                    handler.fixed_handler = fixed_type_handler<int16_t>;
+                    handler.to_fixed = fixed_type_handler<int16_t>;
+                    handler.to_column_fixed = fixed_to_column<int16_t>;
                     break;
                 case ColumnTypeTag::SMALLINT_UNSIGNED:
-                    handler.fixed_handler = fixed_type_handler<uint16_t>;
+                    handler.to_fixed = fixed_type_handler<uint16_t>;
+                    handler.to_column_fixed = fixed_to_column<uint16_t>;
                     break;
                 case ColumnTypeTag::INT:
-                    handler.fixed_handler = fixed_type_handler<int32_t>;
+                    handler.to_fixed = fixed_type_handler<int32_t>;
+                    handler.to_column_fixed = fixed_to_column<int32_t>;
                     break;
                 case ColumnTypeTag::INT_UNSIGNED:
-                    handler.fixed_handler = fixed_type_handler<uint32_t>;
+                    handler.to_fixed = fixed_type_handler<uint32_t>;
+                    handler.to_column_fixed = fixed_to_column<uint32_t>;
                     break;
                 case ColumnTypeTag::BIGINT:
-                    handler.fixed_handler = fixed_type_handler<int64_t>;
+                    handler.to_fixed = fixed_type_handler<int64_t>;
+                    handler.to_column_fixed = fixed_to_column<int64_t>;
                     break;
                 case ColumnTypeTag::BIGINT_UNSIGNED:
-                    handler.fixed_handler = fixed_type_handler<uint64_t>;
+                    handler.to_fixed = fixed_type_handler<uint64_t>;
+                    handler.to_column_fixed = fixed_to_column<uint64_t>;
                     break;
                 case ColumnTypeTag::FLOAT:
-                    handler.fixed_handler = fixed_type_handler<float>;
+                    handler.to_fixed = fixed_type_handler<float>;
+                    handler.to_column_fixed = fixed_to_column<float>;
                     break;
                 case ColumnTypeTag::DOUBLE:
-                    handler.fixed_handler = fixed_type_handler<double>;
+                    handler.to_fixed = fixed_type_handler<double>;
+                    handler.to_column_fixed = fixed_to_column<double>;
                     break;
                 case ColumnTypeTag::DECIMAL:
-                    handler.fixed_handler = fixed_type_handler<Decimal>;
+                    handler.to_fixed = fixed_type_handler<Decimal>;
+                    handler.to_column_fixed = fixed_to_column<Decimal>;
                     break;
                 default:
                     throw std::runtime_error("Unsupported fixed-length type");
             }
         } else {
-            // Variable-length column processing
+            // Variable-length column handling
             switch (tag) {
                 case ColumnTypeTag::VARCHAR:
                 case ColumnTypeTag::BINARY:
-                case ColumnTypeTag::JSON:
-                    handler.var_handler = string_type_handler;
+                    handler.to_var = string_type_handler;
+                    handler.to_column_var = string_to_column;
                     break;
+
                 case ColumnTypeTag::NCHAR:
-                    handler.var_handler = u16string_type_handler;
+                    handler.to_var = u16string_type_handler;
+                    handler.to_column_var = u16string_to_column;
                     break;
+
+                case ColumnTypeTag::JSON:
+                    handler.to_var = json_type_handler;
+                    handler.to_column_var = json_to_column;
+                    break;
+
                 case ColumnTypeTag::VARBINARY:
-                    handler.var_handler = binary_type_handler;
+                    handler.to_var = binary_type_handler;
+                    handler.to_column_var = binary_to_column;
                     break;
+
                 default:
                     throw std::runtime_error("Unsupported var-length type");
             }
         }
-        
         return handler;
     }
 

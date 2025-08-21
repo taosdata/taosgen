@@ -3,6 +3,8 @@
 #include <cctype>
 #include <string>
 #include <iterator>
+#include <codecvt>
+#include <locale>
 
 
 std::string StringUtils::to_lower(const std::string& str) {
@@ -23,7 +25,7 @@ void StringUtils::trim(std::string& str) {
     str.erase(str.begin(), std::find_if(str.begin(), str.end(), [](unsigned char ch) {
         return !std::isspace(ch);
     }));
-    
+
     str.erase(std::find_if(str.rbegin(), str.rend(), [](unsigned char ch) {
         return !std::isspace(ch);
     }).base(), str.end());
@@ -33,4 +35,14 @@ void StringUtils::remove_all_spaces(std::string& str) {
     str.erase(std::remove_if(str.begin(), str.end(),
         [](unsigned char ch) { return std::isspace(ch); }),
         str.end());
+}
+
+std::u16string StringUtils::utf8_to_u16string(const std::string& str) {
+    thread_local std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> conv;
+    return conv.from_bytes(str);
+}
+
+std::string StringUtils::u16string_to_utf8(const std::u16string& str) {
+    thread_local std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> conv;
+    return conv.to_bytes(str);
 }

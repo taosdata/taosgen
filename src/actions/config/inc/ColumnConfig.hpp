@@ -31,7 +31,10 @@ struct ColumnConfig {
     std::optional<std::string> dec_max;
     std::optional<std::string> corpus;
     std::optional<bool> chinese;
-    std::optional<std::vector<std::string>> values;
+
+    int values_count = -1;
+    std::vector<double> dbl_values;
+    std::vector<std::string> str_values;
 
     // Attributes for gen_type=order
     std::optional<int64_t> order_min;
@@ -63,6 +66,9 @@ struct ColumnConfig {
 
     // Convert to TDengine internal type
     int get_taos_type() const noexcept;
+
+    void set_values_from_strings(const std::vector<std::string>& values);
+    void set_values_from_doubles(const std::vector<double>& values);
 };
 
 using ColumnConfigVector = std::vector<ColumnConfig>;

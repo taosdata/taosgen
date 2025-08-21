@@ -1,0 +1,90 @@
+global:
+  confirm_prompt: false
+
+  super_table_info: &stb_info
+    name: meters
+    columns: &columns_info
+      - name: current
+        type: float
+        min: 0
+        max: 100
+      - name: voltage
+        type: int
+        min: 200
+        max: 240
+      - name: phase
+        type: float
+        min: 0
+        max: 360
+      - name: state
+        type: varchar(20)
+        values:
+          - "normal"
+          - "warning"
+          - "critical"
+
+  tbname_generator: &tbname_generator
+    prefix: d
+    count: 10000
+    from: 0
+
+concurrency: 1
+
+jobs:
+  # Insert data job
+  insert-into-mqtt:
+    name: Insert Data Into MQTT
+    needs: []
+    steps:
+      - name: Insert Data Into MQTT
+        uses: actions/insert-data
+        with:
+          # source
+          source:
+            table_name:
+              source_type: generator
+              generator: *tbname_generator
+            columns:
+              source_type: generator
+              generator:
+                schema: *columns_info
+
+                timestamp_strategy:
+                  generator:
+                    start_timestamp: 1700000000000
+                    timestamp_precision : ms
+                    timestamp_step: 1
+
+          # target
+          target:
+            target_type: mqtt
+            mqtt:
+              host: localhost
+              port: 1883
+              user: testuser
+              password: testpassword
+              client_id: mqtt_client
+              keep_alive: 60
+              clean_session: true
+              qos: 1
+              topic: factory/{table}/{state}/data
+
+          # control
+          control:
+            data_format:
+              format_type: stmt
+              stmt:
+                version: v2
+            data_channel:
+              channel_type: native
+            data_generation:
+              interlace_mode:
+                enabled: true
+                rows: 1
+              generate_threads: 1
+              per_table_rows: 1000
+              queue_capacity: 10
+              queue_warmup_ratio: 0.00
+            insert_control:
+              per_request_rows: 10
+              insert_threads: 8

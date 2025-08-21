@@ -37,10 +37,10 @@ find_library(TAOS_LIBRARY
 if(TAOS_INCLUDE_DIR AND TAOS_LIBRARY)
     set(CMAKE_REQUIRED_INCLUDES ${TAOS_INCLUDE_DIR})
     set(CMAKE_REQUIRED_LIBRARIES ${TAOS_LIBRARY})
-    
+
     include(CheckSymbolExists)
     check_symbol_exists(taos_query "taos.h" HAVE_TAOS_QUERY)
-    
+
     if(NOT HAVE_TAOS_QUERY)
         message(FATAL_ERROR "${Red}Found TDengine files but symbols are missing${ColorReset}")
     endif()
@@ -49,7 +49,7 @@ endif()
 # Handle REQUIRED and QUIET arguments
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(TAOS
-    REQUIRED_VARS 
+    REQUIRED_VARS
         TAOS_LIBRARY
         TAOS_INCLUDE_DIR
         HAVE_TAOS_QUERY
@@ -59,6 +59,15 @@ find_package_handle_standard_args(TAOS
 if(TAOS_FOUND)
     set(TAOS_LIBRARIES ${TAOS_LIBRARY})
     set(TAOS_INCLUDE_DIRS ${TAOS_INCLUDE_DIR})
+
+    if(NOT TARGET TAOS::TAOS)
+        add_library(TAOS::TAOS UNKNOWN IMPORTED)
+        set_target_properties(TAOS::TAOS PROPERTIES
+            IMPORTED_LOCATION "${TAOS_LIBRARY}"
+            INTERFACE_INCLUDE_DIRECTORIES "${TAOS_INCLUDE_DIR}"
+        )
+    endif()
+
     message(STATUS "${Green}Found TDengine: ${TAOS_LIBRARY}${ColorReset}")
 endif()
 
