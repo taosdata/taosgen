@@ -456,7 +456,9 @@ jobs:
 - username (字符串，可选)： 登录 Broker 的用户名。
 - password (字符串，可选)： 登录 Broker 的密码。
 - client_id (字符串，可选)： 客户端唯一标识符，若未指定则自动生成；
-- topic (字符串，必需)： 要发布消息的 MQTT Topic。
+- topic (字符串，必需)： 要发布消息的 MQTT Topic，支持通过占位符语法发布到动态主题，占位符语法如下：
+  - `{table}`：表示表名数据
+  - `{column}`：表示列数据，column 是列字段名称
 - timestamp_precision (字符串，可选)： 表示消息时间戳的精度，可选值为："ms"、"us"、"ns"，默认为 "ms"。
 - qos (整数，可选)： QoS 等级，取值范围为 0、1、2，默认为 0。
 - keep_alive (整数，可选)： 超时没有消息发送后会发送心跳，单位为秒，默认值为 5。
@@ -932,7 +934,7 @@ jobs:
               keep_alive: 60
               clean_session: true
               qos: 1
-              topic: "test/topic"
+              topic: factory/{table}/{state}/data
 
           # control
           control:
@@ -952,5 +954,5 @@ jobs:
               queue_warmup_ratio: 0.00
             insert_control:
               per_request_rows: 10
-              insert_threads: 1
+              insert_threads: 8
 ```

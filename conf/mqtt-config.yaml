@@ -67,7 +67,7 @@ jobs:
               keep_alive: 60
               clean_session: true
               qos: 1
-              topic: "test/topic"
+              topic: factory/{table}/{state}/data
 
           # control
           control:
@@ -87,4 +87,4 @@ jobs:
               queue_warmup_ratio: 0.00
             insert_control:
               per_request_rows: 10
-              insert_threads: 1
+              insert_threads: 8
