@@ -31,6 +31,7 @@ target_link_libraries(insert_writer
     components_encoding
     utils
     TAOS::TAOS
+    nlohmann_json::nlohmann_json
     PahoMqttCpp::paho-mqttpp3-static
 )
 

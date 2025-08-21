@@ -70,11 +70,51 @@ void test_evaluate_mixed_expression() {
     std::cout << "test_evaluate_mixed_expression passed.\n";
 }
 
+void test_evaluate_table_env() {
+    // Test the availability of the _table environment variable
+    std::string table_name = "my_table";
+    ExpressionEngine engine(table_name, "_table");
+    auto result = engine.evaluate();
+    assert(std::holds_alternative<std::string>(result));
+    assert(std::get<std::string>(result) == table_name);
+
+    // When the table name is empty, _table should be an empty string
+    ExpressionEngine engine2("", "_table");
+    auto result2 = engine2.evaluate();
+    assert(std::holds_alternative<std::string>(result2));
+    assert(std::get<std::string>(result2).empty());
+
+    std::cout << "test_evaluate_table_env passed.\n";
+}
+
+void test_evaluate_last_value_env() {
+    // Test the _last environment variable for numeric expressions
+    ExpressionEngine engine("(_last or 0) + 1");
+    // First call: _last is 0 (default), so result should be 1
+    auto result1 = engine.evaluate();
+    assert(std::holds_alternative<double>(result1));
+    assert(std::get<double>(result1) == 1.0);
+
+    // Second call: _last is 1, so result should be 2
+    auto result2 = engine.evaluate();
+    assert(std::holds_alternative<double>(result2));
+    assert(std::get<double>(result2) == 2.0);
+
+    // Third call: _last is 2, so result should be 3
+    auto result3 = engine.evaluate();
+    assert(std::holds_alternative<double>(result3));
+    assert(std::get<double>(result3) == 3.0);
+
+    std::cout << "test_evaluate_last_value_env passed.\n";
+}
+
 int main() {
     test_evaluate_bool_expression();
     test_evaluate_square_wave();
     test_evaluate_random_ipv4();
     test_evaluate_mixed_expression();
+    test_evaluate_table_env();
+    test_evaluate_last_value_env();
     std::cout << "All ExpressionEngine tests passed.\n";
     return 0;
 }

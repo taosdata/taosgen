@@ -59,10 +59,12 @@ namespace {
     };
 }
 
-ExprColumnGenerator::ExprColumnGenerator(const ColumnConfigInstance& instance)
+ExprColumnGenerator::ExprColumnGenerator(const std::string& table_name, const ColumnConfigInstance& instance)
     : ColumnGenerator(instance),
-      engine_(*instance.config().formula)
-{}
+      engine_(table_name, *instance.config().formula) {}
+
+ExprColumnGenerator::ExprColumnGenerator(const ColumnConfigInstance& instance)
+    : ExprColumnGenerator("", instance) {}
 
 ColumnType ExprColumnGenerator::generate() const {
     ColumnType value = engine_.evaluate();
@@ -97,10 +99,10 @@ ColumnType ExprColumnGenerator::generate() const {
 ColumnTypeVector ExprColumnGenerator::generate(size_t count) const {
     ColumnTypeVector values;
     values.reserve(count);
-    
+
     for (size_t i = 0; i < count; ++i) {
         values.push_back(generate());
     }
-    
+
     return values;
 }

@@ -5,5 +5,5 @@
 
 class ColumnGeneratorFactory {
 public:
-    static std::unique_ptr<ColumnGenerator> create(const ColumnConfigInstance& instance);
+    static std::unique_ptr<ColumnGenerator> create(const std::string& table_name, const ColumnConfigInstance& instance);
 };
