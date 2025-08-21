@@ -176,7 +176,7 @@ nlohmann::ordered_json MqttClient::serialize_row_to_json(
 
     // Add timestamp
     if (table.timestamps && row_index < table.used_rows) {
-        json_data["timestamp"] = table.timestamps[row_index];
+        json_data["ts"] = table.timestamps[row_index];
     }
 
     // Add data columns

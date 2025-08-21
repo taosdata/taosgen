@@ -1,4 +1,3 @@
-
 #include "MqttClient.hpp"
 
 #include <vector>
@@ -182,8 +181,8 @@ void test_serialize_row_to_json() {
 
     // Serialize to JSON
     auto json = client.serialize_row_to_json(block->tables[0], 0);
-    assert(json["timestamp"] == 1500000000000);
     assert(json["table"] == "tb1");
+    assert(json["ts"] == 1500000000000);
     assert(json["factory_id"] == "f01");
     assert(json["device_id"] == "d01");
 
