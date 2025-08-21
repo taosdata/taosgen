@@ -12,7 +12,7 @@ void test_factory_create_random_column_generator() {
 
     ColumnConfigInstance instance(config);
 
-    auto generator = ColumnGeneratorFactory::create(instance);
+    auto generator = ColumnGeneratorFactory::create("", instance);
     assert(generator != nullptr); // Ensure the generator is created successfully
 
     for (int i = 0; i < 100; ++i) {

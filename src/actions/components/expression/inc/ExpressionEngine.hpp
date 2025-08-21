@@ -13,6 +13,7 @@ public:
     using Result = ColumnType;
 
     explicit ExpressionEngine(const std::string& expression);
+    ExpressionEngine(const std::string& table_name, const std::string& expression);
     ~ExpressionEngine() = default;
 
     Result evaluate();
@@ -41,6 +42,11 @@ private:
     struct ExpressionState {
         std::shared_ptr<ExpressionTemplate> template_;
         int call_index = 0;
+        std::string table_name;
+        double last_value = 0.0;
+
+        ExpressionState(std::shared_ptr<ExpressionTemplate> tpl, const std::string& tbl_name)
+            : template_(std::move(tpl)), call_index(0), table_name(tbl_name) {}
     };
 
     std::unique_ptr<ExpressionState> state_;

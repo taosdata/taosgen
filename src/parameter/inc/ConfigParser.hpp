@@ -1037,7 +1037,15 @@ namespace YAML {
                 rhs.generate_threads = node["generate_threads"].as<size_t>();
             }
             if (node["per_table_rows"]) {
-                rhs.per_table_rows = node["per_table_rows"].as<int64_t>();
+                int64_t val = node["per_table_rows"].as<int64_t>();
+                if (val == -1) {
+                    // rhs.per_table_rows = std::numeric_limits<int64_t>::max();
+                    rhs.per_table_rows = 100000000L;
+                } else if (val <= 0) {
+                    throw std::runtime_error("per_table_rows must be positive or -1 (for unlimited).");
+                } else {
+                    rhs.per_table_rows = val;
+                }
             }
             if (node["queue_capacity"]) {
                 rhs.queue_capacity = node["queue_capacity"].as<int>();

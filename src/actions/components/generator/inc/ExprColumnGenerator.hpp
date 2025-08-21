@@ -6,7 +6,8 @@
 class ExprColumnGenerator : public ColumnGenerator {
 public:
     // using ColumnGenerator::ColumnGenerator;
-    ExprColumnGenerator(const ColumnConfigInstance& instance);
+    explicit ExprColumnGenerator(const ColumnConfigInstance& instance);
+    ExprColumnGenerator(const std::string& table_name, const ColumnConfigInstance& instance);
     ~ExprColumnGenerator() override = default;
 
     ColumnType generate() const override;
