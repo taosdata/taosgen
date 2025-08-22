@@ -15,6 +15,7 @@ const std::vector<ParameterContext::CommandOption> ParameterContext::valid_optio
     {"--password", 'p', "The password to use when connecting to the server", true},
     {"--config-file", 'c', "Specify config file path", true},
     {"--verbose", 'v', "Increase output verbosity", false},
+    {"--version", 'V', "Output version information", false},
     {"--help", '?', "Display this help message", false}
     // Add more command options here
 };
@@ -38,20 +39,20 @@ void ParameterContext::show_help() {
     for (const auto& opt : valid_options) {
         // Output short and long option
         std::cout << "  -" << opt.short_opt << ", " << opt.long_opt;
-        
+
         // Calculate current output length
         size_t current_len = 4 + opt.long_opt.length();
-        
+
         // Output VALUE (if needed) and spaces
         if (opt.requires_value) {
             std::cout << "=VALUE";
             current_len += 6;
         }
-        
+
         // Calculate padding for alignment
         size_t padding = desc_offset - current_len;
         std::cout << std::string(padding, ' ');
-        
+
         // Output description
         std::cout << opt.description << "\n";
     }
@@ -60,6 +61,12 @@ void ParameterContext::show_help() {
               << "  tsgen --config-file=example.yaml\n"
               << "  tsgen -h localhost -P 6030 -u root -p taosdata\n"
               << "\nFor more information, visit: https://docs.taosdata.com/\n\n";
+}
+
+void ParameterContext::show_version() {
+    std::cout << "tsgen version: 0.3.0" << std::endl;
+    std::cout << "git: 8cd2b390ca6e10b7b42d6972d86e50a7fe4d4601" << std::endl;
+    std::cout << "build: Linux-x64 2025-08-21 21:51:41 +0800" << std::endl;
 }
 
 // Parse global config
@@ -228,7 +235,7 @@ void ParameterContext::parse_create_super_table_action(Step& step) {
 
     // Validate columns and tags in super_table_info
     if (create_stb_config.super_table_info.columns.empty()) {
-        throw std::runtime_error("Missing required 'columns' in super_table_info.");    
+        throw std::runtime_error("Missing required 'columns' in super_table_info.");
     }
 
     // Print parse result
@@ -434,7 +441,7 @@ void ParameterContext::parse_commandline(int argc, char* argv[]) {
             // Validate long option
             auto it = std::find_if(valid_options.begin(), valid_options.end(),
                 [&key](const CommandOption& opt) { return opt.long_opt == key; });
-            
+
             if (it == valid_options.end()) {
                 throw std::runtime_error("Unknown option: " + key);
             }
@@ -462,11 +469,11 @@ void ParameterContext::parse_commandline(int argc, char* argv[]) {
             char short_opt = arg[1];
             auto it = std::find_if(valid_options.begin(), valid_options.end(),
                 [short_opt](const CommandOption& opt) { return opt.short_opt == short_opt; });
-            
+
             if (it == valid_options.end()) {
                 throw std::runtime_error("Unknown option: " + arg);
             }
-            
+
             if (it->requires_value) {
                 if (i + 1 >= argc) {
                     throw std::runtime_error("Option requires a value: " + key);
@@ -476,11 +483,11 @@ void ParameterContext::parse_commandline(int argc, char* argv[]) {
             } else {
                 key = it->long_opt;
                 value = "";
-            }   
+            }
 
             cli_params[key] = value;
         }
-    } 
+    }
 }
 
 void ParameterContext::merge_commandline(int argc, char* argv[]) {
@@ -535,6 +542,9 @@ bool ParameterContext::init(int argc, char* argv[]) {
     if (cli_params.count("--help")) {
         show_help();
         return false;
+    } else if (cli_params.count("--version")) {
+        show_version();
+        return false;
     }
 
     // Merge by priority from low to high
@@ -583,16 +593,16 @@ const SuperTableInfo& ParameterContext::get_super_table_info() const {
 // void validate() {
 //     // Scope validation
 //     validate_scope_constraints();
-//     
+//
 //     // Type validation
 //     validate_type_compatibility();
-//     
+//
 //     // Dependency validation
 //     validate_dependencies();
-//     
+//
 //     // Conflict validation
 //     validate_conflicts();
-//     
+//
 //     // Custom business rules
 //     validate_business_rules();
 //   }

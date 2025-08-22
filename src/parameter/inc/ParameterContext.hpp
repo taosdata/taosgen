@@ -17,6 +17,7 @@ public:
 
     bool init(int argc, char* argv[]);
     void show_help();
+    void show_version();
 
     // Merge parameter sources
     void parse_commandline(int argc, char* argv[]);
