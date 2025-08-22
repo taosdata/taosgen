@@ -11,17 +11,17 @@ add_subdirectory(workflow)
 add_subdirectory(engine)
 
 # Main executable
-add_executable(tsgen benchmark.cpp)
+add_executable(taosgen benchmark.cpp)
 
 # Set include directories
-target_include_directories(tsgen
+target_include_directories(taosgen
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/parameter/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/engine/inc
 )
 
 # Link all dependent libraries
-target_link_libraries(tsgen
+target_link_libraries(taosgen
   PRIVATE
     actions
     engine
@@ -35,6 +35,6 @@ target_link_libraries(tsgen
 )
 
 # Install target
-install(TARGETS tsgen
+install(TARGETS taosgen
   RUNTIME DESTINATION bin
 )
