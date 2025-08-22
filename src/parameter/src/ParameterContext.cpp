@@ -21,7 +21,7 @@ const std::vector<ParameterContext::CommandOption> ParameterContext::valid_optio
 };
 
 void ParameterContext::show_help() {
-    std::cout << "Usage: tsgen [OPTIONS]...\n\n"
+    std::cout << "Usage: taosgen [OPTIONS]...\n\n"
               << "Options:\n";
 
     // Calculate the longest option length for alignment
@@ -58,13 +58,13 @@ void ParameterContext::show_help() {
     }
 
     std::cout << "\nExamples:\n"
-              << "  tsgen --config-file=example.yaml\n"
-              << "  tsgen -h localhost -P 6030 -u root -p taosdata\n"
+              << "  taosgen --config-file=example.yaml\n"
+              << "  taosgen -h localhost -P 6030 -u root -p taosdata\n"
               << "\nFor more information, visit: https://docs.taosdata.com/\n\n";
 }
 
 void ParameterContext::show_version() {
-    std::cout << "tsgen version: 0.3.0" << std::endl;
+    std::cout << "taosgen version: 0.3.0" << std::endl;
     std::cout << "git: 8cd2b390ca6e10b7b42d6972d86e50a7fe4d4601" << std::endl;
     std::cout << "build: Linux-x64 2025-08-21 21:51:41 +0800" << std::endl;
 }

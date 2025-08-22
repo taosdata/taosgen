@@ -21,7 +21,7 @@ struct MqttInfo {
     bool retain = false;
 
     static constexpr int CLIENT_ID_SUFFIX_LEN = 10;
-    static constexpr const char* CLIENT_ID_PREFIX = "tsgen-publisher-";
+    static constexpr const char* CLIENT_ID_PREFIX = "taosgen-publisher-";
     static constexpr const char* CLIENT_ID_CHARSET = "0123456789abcdefghijklmnopqrstuvwxyz";
     static constexpr int CLIENT_ID_CHARSET_LEN = static_cast<int>(std::char_traits<char>::length(CLIENT_ID_CHARSET));
 
