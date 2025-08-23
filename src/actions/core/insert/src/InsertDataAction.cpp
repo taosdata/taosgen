@@ -211,7 +211,7 @@ void InsertDataAction::execute() {
                     producer_thread_function(i, split_names[i], col_instances, pipeline, data_manager);
                     producer_finished[i].store(true);
                 } catch (const std::exception& e) {
-                    std::cerr << "Producer thread " << i << " failed: " << e.what() << std::endl;
+                    throw std::runtime_error("Producer thread " + std::to_string(i) + " failed: " + e.what());
                 }
                 active_producers--;
             });
