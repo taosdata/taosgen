@@ -34,11 +34,7 @@ add_compile_options(
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   add_compile_options(-O0 -g)
 else()
-  if(NOT (CMAKE_SYSTEM_PROCESSOR MATCHES "arm" OR CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64"))
-    add_compile_options(-O3 -flto=auto)
-  else()
-    add_compile_options(-O3)
-  endif()
+  add_compile_options(-O3)
 endif()
 
 # Add cmake modules path

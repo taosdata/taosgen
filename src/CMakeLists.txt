@@ -34,6 +34,8 @@ target_link_libraries(taosgen
     Threads::Threads
 )
 
+target_link_libraries(taosgen PRIVATE -static-libstdc++ -static-libgcc)
+
 # Install target
 install(TARGETS taosgen
   RUNTIME DESTINATION bin

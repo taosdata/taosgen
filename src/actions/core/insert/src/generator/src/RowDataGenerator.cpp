@@ -273,8 +273,7 @@ std::optional<std::reference_wrapper<RowData>> RowDataGenerator::fetch_raw_row()
 
         return cached_row_;
     } catch (const std::exception& e) {
-        std::cerr << "Error generating row: " << e.what() << std::endl;
-        return std::nullopt;
+        throw std::runtime_error(std::string("Error generating row: ") + e.what());
     }
 }
 

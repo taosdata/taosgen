@@ -150,7 +150,9 @@ ExpressionEngine::Result ExpressionEngine::evaluate() {
         state_->last_value = number;
         result = number;
     } else if (lua_isstring(L, -1)) {
-        result = lua_tostring(L, -1);
+        size_t len = 0;
+        const char* str = lua_tostring(L, -1);
+        result = std::string(str, len);
     } else if (lua_isboolean(L, -1)) {
         result = static_cast<bool>(lua_toboolean(L, -1));
     } else {
