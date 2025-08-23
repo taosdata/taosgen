@@ -75,7 +75,6 @@ ColumnType ExprColumnGenerator::generate() const {
         return value;
     }
 
-
     return std::visit([source_index, target_index](auto&& v) -> ColumnType {
         using T = std::decay_t<decltype(v)>;
         // double
@@ -95,7 +94,6 @@ ColumnType ExprColumnGenerator::generate() const {
             "ExprColumnGenerator: Unsupported type conversion from source index(" + std::to_string(source_index) +
             ") to target index(" + std::to_string(target_index) + ")");
     }, value);
-
 }
 
 ColumnTypeVector ExprColumnGenerator::generate(size_t count) const {
