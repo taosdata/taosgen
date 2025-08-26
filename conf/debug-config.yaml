@@ -92,7 +92,7 @@ jobs:
             table_name:
               source_type: generator
               generator: *tbname_generator
-            tags: 
+            tags:
               source_type: generator
               generator:
                 schema: *tags_info
