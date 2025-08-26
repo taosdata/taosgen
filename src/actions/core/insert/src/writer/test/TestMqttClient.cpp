@@ -39,9 +39,8 @@ public:
         published_retain.push_back(retain);
     }
 
-    void publish_batch(const std::string& topic, const std::vector<std::string>& payloads,
-                int qos, bool retain) override {
-        for (const auto& payload : payloads) {
+    void publish_batch(const std::vector<std::pair<std::string, std::string>>& batch_msgs, int qos, bool retain) override {
+        for (const auto& [topic, payload] : batch_msgs) {
             publish(topic, payload, qos, retain);
         }
     }

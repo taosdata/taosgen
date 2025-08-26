@@ -35,13 +35,8 @@ public:
                        int keep_alive, bool clean_session) = 0;
     virtual bool is_connected() const = 0;
     virtual void disconnect() = 0;
-    virtual void publish(const std::string& topic, const std::string& payload,
-                        int qos, bool retain) = 0;
-
-    virtual void publish_batch(const std::string& topic,
-                        const std::vector<std::string>& payloads,
-                        int qos, bool retain) = 0;
-
+    virtual void publish(const std::string& topic, const std::string& payload, int qos, bool retain) = 0;
+    virtual void publish_batch(const std::vector<std::pair<std::string, std::string>>& batch_msgs, int qos, bool retain) = 0;
 };
 
 // MQTT client implementation wrapper
@@ -57,10 +52,7 @@ public:
     bool is_connected() const override;
     void disconnect() override;
     void publish(const std::string& topic, const std::string& payload, int qos, bool retain) override;
-
-    void publish_batch(const std::string& topic,
-                const std::vector<std::string>& payloads,
-                int qos, bool retain) override;
+    void publish_batch(const std::vector<std::pair<std::string, std::string>>& batch_msgs, int qos, bool retain) override;
 
 private:
     std::unique_ptr<mqtt::async_client> client_;

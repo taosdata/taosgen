@@ -102,12 +102,9 @@ void PahoMqttClient::publish(const std::string& topic, const std::string& payloa
     }
 }
 
-void PahoMqttClient::publish_batch(const std::string& topic,
-                                   const std::vector<std::string>& payloads,
-                                   int qos, bool retain) {
+void PahoMqttClient::publish_batch(const std::vector<std::pair<std::string, std::string>>& batch_msgs, int qos, bool retain) {
     std::vector<mqtt::delivery_token_ptr> tokens;
-
-    for (const auto& payload : payloads) {
+    for (const auto& [topic, payload] : batch_msgs) {
         auto pubmsg = mqtt::make_message(
             topic,
             payload.data(),
@@ -116,10 +113,8 @@ void PahoMqttClient::publish_batch(const std::string& topic,
             retain,
             default_props_
         );
-
         tokens.push_back(client_->publish(pubmsg));
     }
-
     for (auto& tok : tokens) {
         tok->wait();
     }
@@ -184,51 +179,44 @@ bool MqttClient::execute(const StmtV2InsertData& data) {
     }
 
     MemoryPool::MemoryBlock* block = data.data.get_block();
-    if (!block) {
-        return false;
-    }
+    if (!block) return false;
+
+    std::vector<std::pair<std::string, std::string>> batch_msgs;
+    batch_msgs.reserve(config_.batch_messages);
 
     // Iterate over all subtables
     for (size_t table_idx = 0; table_idx < block->used_tables; table_idx++) {
         auto& table_block = block->tables[table_idx];
 
-        // Batch publish by config_.batch_messages
-        for (size_t row_idx = 0; row_idx < table_block.used_rows; row_idx += config_.batch_messages) {
-            // 1. Generate topic
+        // Iterate over all rows
+        for (size_t row_idx = 0; row_idx < table_block.used_rows; ++row_idx) {
             std::string topic = topic_generator_.generate(table_block, row_idx);
+            nlohmann::ordered_json json_data = serialize_row_to_json(table_block, row_idx);
 
-            // 2. Collect batch payloads
-            std::vector<std::string> payloads;
-            size_t batch_end = std::min(row_idx + config_.batch_messages, table_block.used_rows);
-            for (size_t i = row_idx; i < batch_end; ++i) {
-                nlohmann::ordered_json json_data = serialize_row_to_json(table_block, i);
-
-                // Encoding conversion
-                std::string payload = json_data.dump();
-                if (encoding_type_ != EncodingType::UTF8) {
-                    payload = EncodingConverter::convert(
-                        payload,
-                        EncodingType::UTF8,
-                        encoding_type_
-                    );
-                }
-                // Compression
-                if (compression_type_ != CompressionType::NONE) {
-                    payload = Compressor::compress(payload, compression_type_);
-                }
-                payloads.push_back(std::move(payload));
+            // Encoding conversion
+            std::string payload = json_data.dump();
+            if (encoding_type_ != EncodingType::UTF8) {
+                payload = EncodingConverter::convert(payload, EncodingType::UTF8, encoding_type_);
             }
 
-            // 3. Batch publish
-            client_->publish_batch(
-                topic,
-                payloads,
-                config_.qos,
-                config_.retain
-            );
+            // Compression
+            if (compression_type_ != CompressionType::NONE) {
+                payload = Compressor::compress(payload, compression_type_);
+            }
+            batch_msgs.emplace_back(std::move(topic), std::move(payload));
+
+            // Batch publish when reaching batch size
+            if (batch_msgs.size() >= config_.batch_messages) {
+                client_->publish_batch(batch_msgs, config_.qos, config_.retain);
+                batch_msgs.clear();
+            }
         }
     }
 
+    // Publish any remaining messages
+    if (!batch_msgs.empty()) {
+        client_->publish_batch(batch_msgs, config_.qos, config_.retain);
+    }
     return true;
 }
 

@@ -19,8 +19,8 @@ public:
     void publish(const std::string&, const std::string&, int, bool) override {
         ++publish_count;
     }
-    void publish_batch(const std::string&, const std::vector<std::string>& payloads, int, bool) override {
-        publish_count += payloads.size();
+    void publish_batch(const std::vector<std::pair<std::string, std::string>>& batch_msgs, int, bool) override {
+        publish_count += batch_msgs.size();
     }
 };
 
