@@ -8,7 +8,7 @@
 class MockMqttClient : public IMqttClient {
 public:
     bool connected = false;
-    int publish_count = 0;
+    size_t publish_count = 0;
 
     bool connect(const std::string&, const std::string&, int, bool) override {
         connected = true;
@@ -16,8 +16,11 @@ public:
     }
     bool is_connected() const override { return connected; }
     void disconnect() override { connected = false; }
-    void publish(const std::string&, const std::string&, int, bool, const std::string&, const std::string&, const std::string&) override {
+    void publish(const std::string&, const std::string&, int, bool) override {
         ++publish_count;
+    }
+    void publish_batch(const std::string&, const std::vector<std::string>& payloads, int, bool) override {
+        publish_count += payloads.size();
     }
 };
 

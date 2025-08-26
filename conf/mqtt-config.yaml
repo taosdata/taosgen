@@ -68,6 +68,8 @@ jobs:
               clean_session: true
               qos: 1
               topic: factory/{table}/{state}/data
+              max_buffered_messages: 10000
+              batch_messages: 10000
 
           # control
           control:
@@ -86,5 +88,5 @@ jobs:
               queue_capacity: 10
               queue_warmup_ratio: 0.00
             insert_control:
-              per_request_rows: 10
+              per_request_rows: 2000
               insert_threads: 8

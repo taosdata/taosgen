@@ -114,7 +114,8 @@ namespace YAML {
             // Detect unknown configuration keys
             static const std::set<std::string> valid_keys = {
                 "host", "port", "user", "password", "client_id", "topic", "compression", "encoding",
-                "timestamp_precision", "qos", "keep_alive", "clean_session", "retain"
+                "timestamp_precision", "qos", "keep_alive", "clean_session", "retain",
+                "max_buffered_messages", "batch_messages"
             };
             check_unknown_keys(node, valid_keys, "mqtt_info");
 
@@ -166,6 +167,16 @@ namespace YAML {
             }
             if (node["retain"]) {
                 rhs.retain = node["retain"].as<bool>();
+            }
+            if (node["max_buffered_messages"]) {
+                rhs.max_buffered_messages = node["max_buffered_messages"].as<size_t>();
+            }
+            if (node["batch_messages"]) {
+                rhs.batch_messages = node["batch_messages"].as<size_t>();
+            }
+
+            if (rhs.batch_messages > rhs.max_buffered_messages) {
+                throw std::runtime_error("batch_messages cannot be greater than max_buffered_messages in mqtt_info.");
             }
             return true;
         }

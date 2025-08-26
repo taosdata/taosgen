@@ -32,13 +32,18 @@ public:
     }
 
     void publish(const std::string& topic, const std::string& payload,
-                int qos, bool retain, const std::string& content_type,
-                const std::string& compression, const std::string& encoding) override {
-        (void)content_type; (void)compression; (void)encoding;
+                int qos, bool retain) override {
         published_topics.push_back(topic);
         published_payloads.push_back(payload);
         published_qos.push_back(qos);
         published_retain.push_back(retain);
+    }
+
+    void publish_batch(const std::string& topic, const std::vector<std::string>& payloads,
+                int qos, bool retain) override {
+        for (const auto& payload : payloads) {
+            publish(topic, payload, qos, retain);
+        }
     }
 };
 

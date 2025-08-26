@@ -468,7 +468,9 @@ jobs:
 - qos (整数，可选)： QoS 等级，取值范围为 0、1、2，默认为 0。
 - keep_alive (整数，可选)： 超时没有消息发送后会发送心跳，单位为秒，默认值为 5。
 - clean_session（布尔，可选）：是否清除就会话状态，默认值为 true。
-- retain （布尔，可选）：MQTT Broker 是否保留最后一条消息，默认值为 false。
+- retain（布尔，可选）：MQTT Broker 是否保留最后一条消息，默认值为 false。
+- max_buffered_messages (整数，可选)： 客户端的最大缓冲消息数，默认值为 1000。
+- batch_messages (整数，可选)： 客户端的每次批量发送的消息数，默认值为 500。
 
 #### control (必需)
 定义数据写入过程中的行为策略，包括数据格式化（data_format）、数据通道（data_channel）、数据生成策略（data_generation）、写入控制策略（insert_control）、时间间隔策略（time_interval）等部分。

@@ -19,6 +19,8 @@ struct MqttInfo {
     size_t keep_alive = 5;
     bool clean_session = true;
     bool retain = false;
+    size_t max_buffered_messages = 10000;
+    size_t batch_messages = 10000;
 
     static constexpr int CLIENT_ID_SUFFIX_LEN = 10;
     static constexpr const char* CLIENT_ID_PREFIX = "taosgen-publisher-";
