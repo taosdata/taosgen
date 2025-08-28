@@ -9,7 +9,7 @@ struct StmtV2InsertData : public BaseInsertData {
     BlockStmtV2Data data;
 
     StmtV2InsertData(MemoryPool::MemoryBlock* block, const ColumnConfigInstanceVector& col_instances)
-        : BaseInsertData(DataType::STMT_V2,
+        : BaseInsertData(DataType::STMT,
                          block->start_time,
                          block->end_time,
                          block->total_rows),

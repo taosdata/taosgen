@@ -102,8 +102,8 @@ void PahoMqttClient::publish(const std::string& topic, const std::string& payloa
     }
 }
 
-void PahoMqttClient::publish_batch(const std::vector<std::pair<std::string, std::string>>& batch_msgs, int qos, bool retain) {
-    std::vector<mqtt::delivery_token_ptr> tokens;
+void PahoMqttClient::publish_batch(const MessageBatch& batch_msgs, int qos, bool retain) {
+    // std::vector<mqtt::delivery_token_ptr> tokens;
     for (const auto& [topic, payload] : batch_msgs) {
         auto pubmsg = mqtt::make_message(
             topic,
@@ -113,11 +113,13 @@ void PahoMqttClient::publish_batch(const std::vector<std::pair<std::string, std:
             retain,
             default_props_
         );
-        tokens.push_back(client_->publish(pubmsg));
+        auto token = client_->publish(pubmsg);
+        token->wait();
+        // tokens.push_back(client_->publish(pubmsg));
     }
-    for (auto& tok : tokens) {
-        tok->wait();
-    }
+    // for (auto& tok : tokens) {
+    //     tok->wait();
+    // }
 }
 
 // MqttClient implementation
@@ -126,8 +128,7 @@ MqttClient::MqttClient(const MqttInfo& config,
     : config_(config),
       col_instances_(col_instances),
       compression_type_(string_to_compression(config.compression)),
-      encoding_type_(string_to_encoding(config.encoding)),
-      topic_generator_(config.topic, col_instances)
+      encoding_type_(string_to_encoding(config.encoding))
 {
     std::string client_id;
     if (config.client_id.empty()) {
@@ -173,101 +174,17 @@ bool MqttClient::prepare(const std::string& sql) {
     return true;
 }
 
-bool MqttClient::execute(const StmtV2InsertData& data) {
+bool MqttClient::execute(const MsgInsertData& data) {
     if (!is_connected()) {
         return false;
     }
 
-    MemoryPool::MemoryBlock* block = data.data.get_block();
-    if (!block) return false;
-
-    std::vector<std::pair<std::string, std::string>> batch_msgs;
-    batch_msgs.reserve(config_.batch_messages);
-
-    // Iterate over all subtables
-    for (size_t table_idx = 0; table_idx < block->used_tables; table_idx++) {
-        auto& table_block = block->tables[table_idx];
-
-        // Iterate over all rows
-        for (size_t row_idx = 0; row_idx < table_block.used_rows; ++row_idx) {
-            std::string topic = topic_generator_.generate(table_block, row_idx);
-            nlohmann::ordered_json json_data = serialize_row_to_json(table_block, row_idx);
-
-            // Encoding conversion
-            std::string payload = json_data.dump();
-            if (encoding_type_ != EncodingType::UTF8) {
-                payload = EncodingConverter::convert(payload, EncodingType::UTF8, encoding_type_);
-            }
-
-            // Compression
-            if (compression_type_ != CompressionType::NONE) {
-                payload = Compressor::compress(payload, compression_type_);
-            }
-            batch_msgs.emplace_back(std::move(topic), std::move(payload));
-
-            // Batch publish when reaching batch size
-            if (batch_msgs.size() >= config_.batch_messages) {
-                client_->publish_batch(batch_msgs, config_.qos, config_.retain);
-                batch_msgs.clear();
-            }
-        }
+    const auto& msg_batches = data.data;
+    for (const auto& batch : msg_batches) {
+        client_->publish_batch(batch, config_.qos, config_.retain);
     }
 
-    // Publish any remaining messages
-    if (!batch_msgs.empty()) {
-        client_->publish_batch(batch_msgs, config_.qos, config_.retain);
-    }
     return true;
-}
-
-nlohmann::ordered_json MqttClient::serialize_row_to_json(
-    const MemoryPool::TableBlock& table,
-    size_t row_index
-) const {
-    nlohmann::ordered_json json_data;
-
-    // Add table name
-    if (table.table_name) {
-        json_data["table"] = table.table_name;
-    }
-
-    // Add timestamp
-    if (table.timestamps && row_index < table.used_rows) {
-        json_data["ts"] = table.timestamps[row_index];
-    }
-
-    // Add data columns
-    for (size_t col_idx = 0; col_idx < col_instances_.size(); col_idx++) {
-        const auto& col_inst = col_instances_[col_idx];
-        try {
-            const auto& cell = table.get_cell(row_index, col_idx);
-
-            std::visit([&](const auto& value) {
-                using T = std::decay_t<decltype(value)>;
-                if constexpr (std::is_same_v<T, Decimal>) {
-                    json_data[col_inst.name()] = value.value;
-                } else if constexpr (std::is_same_v<T, JsonValue>) {
-                    json_data[col_inst.name()] = value.raw_json;
-                } else if constexpr (std::is_same_v<T, Geometry>) {
-                    json_data[col_inst.name()] = value.wkt;
-                } else if constexpr (std::is_same_v<T, std::u16string>) {
-                    // Convert to utf8 string
-                    json_data[col_inst.name()] = std::string(value.begin(), value.end());
-                } else if constexpr (std::is_same_v<T, std::vector<uint8_t>>) {
-                    // Can be base64 or hex encoded, here simply convert to string
-                    json_data[col_inst.name()] = std::string(value.begin(), value.end());
-                } else {
-                    json_data[col_inst.name()] = value;
-                }
-            }, cell);
-
-        } catch (const std::exception& e) {
-            // json_data[col_inst.name()] = "ERROR: " + std::string(e.what());
-            throw std::runtime_error("serialize_row_to_json failed for column '" + col_inst.name() + "': " + e.what());
-        }
-    }
-
-    return json_data;
 }
 
 void MqttClient::publish_message(

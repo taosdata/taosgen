@@ -66,8 +66,8 @@ void test_basic_initialization() {
     auto config = create_test_config();
     config.source.columns.generator.schema.clear();  // Clear schema to test error handling
 
-    InsertDataAction action(global, config);
     try {
+        InsertDataAction action(global, config);
         action.execute();
         assert(false && "Should throw exception for missing schema configuration");
     } catch (const std::exception& e) {

@@ -55,10 +55,10 @@ void MqttWriter::write(const BaseInsertData& data) {
     bool success = false;
     try {
         switch(data.type) {
-            case BaseInsertData::DataType::STMT_V2:
+            case BaseInsertData::DataType::MSG:
                 success = execute_with_retry([&] {
-                    return handle_insert(static_cast<const StmtV2InsertData&>(data));
-                }, "STMT v2 insert");
+                    return handle_insert(static_cast<const MsgInsertData&>(data));
+                }, "message insert");
                 break;
             default:
                 throw std::runtime_error("Unsupported data type: " + std::to_string(static_cast<int>(data.type)));

@@ -18,16 +18,6 @@ target_link_libraries(TestTDengineWriter
 )
 add_test(NAME TestTDengineWriter COMMAND TestTDengineWriter)
 
-# Test TopicGenerator
-add_executable(TestTopicGenerator
-  TestTopicGenerator.cpp
-)
-target_link_libraries(TestTopicGenerator
-  PRIVATE
-    insert_writer
-)
-add_test(NAME TestTopicGenerator COMMAND TestTopicGenerator)
-
 # Test MqttClient
 add_executable(TestMqttClient
   TestMqttClient.cpp

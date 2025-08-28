@@ -1,5 +1,5 @@
 #pragma once
-#include <luajit-2.1/lua.hpp>
+#include <lua.hpp>
 #include <functional>
 #include <vector>
 #include <string>

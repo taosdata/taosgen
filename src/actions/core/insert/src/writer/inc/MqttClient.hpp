@@ -1,10 +1,10 @@
 #pragma once
 
 #include "BaseInsertData.hpp"
-#include "StmtV2InsertData.hpp"
+#include "MsgInsertData.hpp"
 #include "InsertDataConfig.hpp"
+#include "FormatResult.hpp"
 #include "MqttInfo.hpp"
-#include "TopicGenerator.hpp"
 #include "Compressor.hpp"
 #include "CompressionType.hpp"
 #include "EncodingConverter.hpp"
@@ -36,7 +36,7 @@ public:
     virtual bool is_connected() const = 0;
     virtual void disconnect() = 0;
     virtual void publish(const std::string& topic, const std::string& payload, int qos, bool retain) = 0;
-    virtual void publish_batch(const std::vector<std::pair<std::string, std::string>>& batch_msgs, int qos, bool retain) = 0;
+    virtual void publish_batch(const MessageBatch& batch_msgs, int qos, bool retain) = 0;
 };
 
 // MQTT client implementation wrapper
@@ -52,7 +52,7 @@ public:
     bool is_connected() const override;
     void disconnect() override;
     void publish(const std::string& topic, const std::string& payload, int qos, bool retain) override;
-    void publish_batch(const std::vector<std::pair<std::string, std::string>>& batch_msgs, int qos, bool retain) override;
+    void publish_batch(const MessageBatch& batch_msgs, int qos, bool retain) override;
 
 private:
     std::unique_ptr<mqtt::async_client> client_;
@@ -70,7 +70,7 @@ public:
     void close();
     bool select_db(const std::string& db_name);
     bool prepare(const std::string& sql);
-    bool execute(const StmtV2InsertData& data);
+    bool execute(const MsgInsertData& data);
 
     void set_client(std::unique_ptr<IMqttClient> client) {
         client_ = std::move(client);
@@ -88,11 +88,6 @@ public:
         const nlohmann::ordered_json& json_data
     );
 
-    void publish_message_batch(
-        const std::string& topic,
-        const std::vector<nlohmann::ordered_json>& json_data_vec
-    );
-
 private:
     const MqttInfo& config_;
     const ColumnConfigInstanceVector& col_instances_;
@@ -102,7 +97,6 @@ private:
     std::string compression_str_;
     std::string encoding_str_;
 
-    TopicGenerator topic_generator_;
     std::unique_ptr<IMqttClient> client_;
 
     std::string current_db_;

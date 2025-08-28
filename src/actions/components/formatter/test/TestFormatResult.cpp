@@ -40,15 +40,15 @@ void test_base_insert_data() {
     assert(data.end_time == 1500000001000);
     assert(data.total_rows == 100);
 
-    // Test STMT_V2 type
+    // Test STMT type
     BaseInsertData stmt_data(
-        BaseInsertData::DataType::STMT_V2,
+        BaseInsertData::DataType::STMT,
         1500000002000,
         1500000003000,
         200
     );
 
-    assert(stmt_data.type == BaseInsertData::DataType::STMT_V2);
+    assert(stmt_data.type == BaseInsertData::DataType::STMT);
     assert(stmt_data.start_time == 1500000002000);
     assert(stmt_data.end_time == 1500000003000);
     assert(stmt_data.total_rows == 200);

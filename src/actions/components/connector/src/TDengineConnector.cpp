@@ -85,6 +85,10 @@ bool TDengineConnector::select_db(const std::string& db_name) {
 }
 
 bool TDengineConnector::prepare(const std::string& sql) {
+    if (sql.empty()) {
+        return true;
+    }
+
     if (stmt_) {
         taos_stmt2_close(stmt_);
         stmt_ = nullptr;

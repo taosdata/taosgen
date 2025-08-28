@@ -170,9 +170,15 @@ namespace YAML {
             }
             if (node["max_buffered_messages"]) {
                 rhs.max_buffered_messages = node["max_buffered_messages"].as<size_t>();
+                if (rhs.max_buffered_messages == 0) {
+                    throw std::runtime_error("max_buffered_messages must be greater than 0 in mqtt_info.");
+                }
             }
             if (node["batch_messages"]) {
                 rhs.batch_messages = node["batch_messages"].as<size_t>();
+                if (rhs.batch_messages == 0) {
+                    throw std::runtime_error("batch_messages must be greater than 0 in mqtt_info.");
+                }
             }
 
             if (rhs.batch_messages > rhs.max_buffered_messages) {
@@ -883,48 +889,67 @@ namespace YAML {
                 rhs.format_type = node["format_type"].as<std::string>();
             }
 
-            if (rhs.format_type == "stmt" && node["stmt"]) {
-                const auto& stmt = node["stmt"];
+            if (rhs.format_type == "sql") {
 
-                // Detect unknown keys in stmt
-                static const std::set<std::string> stmt_keys = {"version"};
-                check_unknown_keys(stmt, stmt_keys, "data_format::stmt");
+            }
+            else if (rhs.format_type == "stmt") {
+                if (node["stmt"]) {
+                    const auto& stmt = node["stmt"];
 
-                if (stmt["version"]) {
-                    rhs.stmt_config.version = stmt["version"].as<std::string>();
+                    // Detect unknown keys in stmt
+                    static const std::set<std::string> stmt_keys = {"version"};
+                    check_unknown_keys(stmt, stmt_keys, "data_format::stmt");
+
+                    if (stmt["version"]) {
+                        rhs.stmt_config.version = stmt["version"].as<std::string>();
+                    }
+                } else {
+                    throw std::runtime_error("Missing required 'stmt' configuration for format_type 'stmt' in data_format.");
                 }
             }
+            else if (rhs.format_type == "schemaless") {
+                if (node["schemaless"]) {
+                    const auto& sl = node["schemaless"];
 
-            if (rhs.format_type == "schemaless" && node["schemaless"]) {
-                const auto& sl = node["schemaless"];
+                    // Detect unknown keys in schemaless
+                    static const std::set<std::string> sl_keys = {"protocol"};
+                    check_unknown_keys(sl, sl_keys, "data_format::schemaless");
 
-                // Detect unknown keys in schemaless
-                static const std::set<std::string> sl_keys = {"protocol"};
-                check_unknown_keys(sl, sl_keys, "data_format::schemaless");
-
-                if (sl["protocol"]) {
-                    rhs.schemaless_config.protocol = sl["protocol"].as<std::string>();
+                    if (sl["protocol"]) {
+                        rhs.schemaless_config.protocol = sl["protocol"].as<std::string>();
+                    }
+                } else {
+                    throw std::runtime_error("Missing required 'schemaless' configuration for format_type 'schemaless' in data_format.");
                 }
             }
+            else if (rhs.format_type == "csv") {
+                if (node["csv"]) {
+                    const auto& csv = node["csv"];
 
-            if (rhs.format_type == "csv" && node["csv"]) {
-                const auto& csv = node["csv"];
+                    // Detect unknown keys in csv
+                    static const std::set<std::string> csv_keys = {"delimiter", "quote_character", "escape_character"};
+                    check_unknown_keys(csv, csv_keys, "data_format::csv");
 
-                // Detect unknown keys in csv
-                static const std::set<std::string> csv_keys = {"delimiter", "quote_character", "escape_character"};
-                check_unknown_keys(csv, csv_keys, "data_format::csv");
+                    if (csv["delimiter"]) {
+                        rhs.csv_config.delimiter = csv["delimiter"].as<std::string>();
+                    }
 
-                if (csv["delimiter"]) {
-                    rhs.csv_config.delimiter = csv["delimiter"].as<std::string>();
+                    if (csv["quote_character"]) {
+                        rhs.csv_config.quote_character = csv["quote_character"].as<std::string>();
+                    }
+
+                    if (csv["escape_character"]) {
+                        rhs.csv_config.escape_character = csv["escape_character"].as<std::string>();
+                    }
+                } else {
+                    throw std::runtime_error("Missing required 'csv' configuration for format_type 'csv' in data_format.");
                 }
+            }
+            else if (rhs.format_type == "msg") {
 
-                if (csv["quote_character"]) {
-                    rhs.csv_config.quote_character = csv["quote_character"].as<std::string>();
-                }
-
-                if (csv["escape_character"]) {
-                    rhs.csv_config.escape_character = csv["escape_character"].as<std::string>();
-                }
+            }
+            else {
+                throw std::runtime_error("Invalid format_type in data_format: " + rhs.format_type);
             }
             return true;
         }

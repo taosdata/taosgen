@@ -1,4 +1,5 @@
 #include "MqttWriter.hpp"
+#include "MsgInsertDataFormatter.hpp"
 #include "MqttClient.hpp"
 #include <cassert>
 #include <iostream>
@@ -19,7 +20,7 @@ public:
     void publish(const std::string&, const std::string&, int, bool) override {
         ++publish_count;
     }
-    void publish_batch(const std::vector<std::pair<std::string, std::string>>& batch_msgs, int, bool) override {
+    void publish_batch(const MessageBatch& batch_msgs, int, bool) override {
         publish_count += batch_msgs.size();
     }
 };
@@ -134,7 +135,7 @@ void test_write_operations() {
     (void)connected;
     assert(connected);
 
-    // Construct STMT_V2 data
+    // Construct STMT data
     MultiBatch batch;
     std::vector<RowData> rows;
     rows.push_back({1500000000000, {"f01", "d01"}});
@@ -143,9 +144,9 @@ void test_write_operations() {
 
     MemoryPool pool(1, 1, 1, col_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
-    StmtV2InsertData stmt(block, col_instances);
+    MsgInsertData msg = MsgInsertDataFormatter::format_mqtt(config.target.mqtt, col_instances, block);
 
-    writer.write(stmt);
+    writer.write(msg);
     (void)mock_ptr;
     assert(mock_ptr->publish_count == 1);
 
