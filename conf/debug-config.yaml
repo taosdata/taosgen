@@ -136,7 +136,7 @@ jobs:
           # control
           control:
             data_format:
-              format_type: sql
+              format_type: stmt
               stmt:
                 version: v2
             data_channel:

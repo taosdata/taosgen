@@ -10,7 +10,7 @@ public:
     FormatResult format(const CreateDatabaseConfig& config) const override {
         std::vector<std::string> stmts;
         if (config.database_info.drop_if_exists) {
-            stmts.push_back("DROP DATABASE IF EXISTS `" + config.database_info.name + "`");
+            stmts.push_back("DROP DATABASE IF EXISTS `" + config.database_info.name + "` FORCE");
         }
         std::string create_stmt = "CREATE DATABASE IF NOT EXISTS `" + config.database_info.name + "`";
         if (config.database_info.properties.has_value()) {
