@@ -25,7 +25,7 @@ void test_create_super_table_action() {
     config.connection_info = conn_info;
     config.data_format = format;
     config.data_channel = channel;
-    config.database_info.name = "test_action_db";
+    config.database_info.name = "test_action";
     config.super_table_info.name = "test_super_table";
 
     // Add columns

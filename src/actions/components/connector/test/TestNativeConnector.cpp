@@ -25,7 +25,7 @@ void test_native_connector_create_database() {
     std::cout << "Connected to TDengine successfully." << std::endl;
 
     // Test SQL execution
-    std::string sql = "DROP DATABASE IF EXISTS `test_native_connector`";
+    std::string sql = "DROP DATABASE IF EXISTS `test_connector`";
     if (!connector->execute(sql)) {
         std::cerr << "Failed to execute SQL: " << sql << std::endl;
         connector->close();
@@ -33,7 +33,7 @@ void test_native_connector_create_database() {
     }
     std::cout << "SQL executed successfully: " << sql << std::endl;
 
-    sql = "CREATE DATABASE IF NOT EXISTS `test_native_connector`";
+    sql = "CREATE DATABASE IF NOT EXISTS `test_connector`";
     if (!connector->execute(sql)) {
         std::cerr << "Failed to execute SQL: " << sql << std::endl;
         connector->close();

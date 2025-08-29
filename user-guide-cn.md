@@ -542,7 +542,7 @@ global:
     channel_type: native
 
   database_info: &db_info
-    name: benchdebug
+    name: tsbench
     drop_if_exists: true
     properties: precision 'ms' vgroups 4
 
@@ -704,7 +704,7 @@ global:
     channel_type: native
 
   database_info: &db_info
-    name: benchdebug
+    name: tsbench
     drop_if_exists: true
     properties: precision 'ms' vgroups 4
 

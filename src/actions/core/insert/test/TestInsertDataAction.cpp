@@ -55,7 +55,7 @@ InsertDataConfig create_test_config() {
     config.target.target_type = "tdengine";
     config.target.tdengine.connection_info.host = "localhost";
     config.target.tdengine.connection_info.port = 6041;
-    config.target.tdengine.database_info.name = "test_action_db";
+    config.target.tdengine.database_info.name = "test_action";
     config.target.tdengine.super_table_info.name = "test_super_table";
 
     return config;
@@ -100,11 +100,25 @@ void test_data_pipeline() {
     std::atomic<size_t> rows_generated{0};
     std::atomic<size_t> rows_consumed{0};
 
+    ColumnConfigInstanceVector col_instances;
+    col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
+    col_instances.emplace_back(ColumnConfig{"i1", "INT"});
+    MemoryPool pool(1, 5, 2, col_instances);
+
     // Start producer thread
     std::thread producer([&]() {
         for(int i = 0; i < 5; i++) {
+            MultiBatch batch;
+            std::vector<RowData> rows;
+            rows.push_back({1500000000000, {3.14f, 42}});
+            rows.push_back({1500000000001, {2.71f, 43}});
+            batch.table_batches.emplace_back("table1", std::move(rows));
+            batch.update_metadata();
+
+            auto* block = pool.convert_to_memory_block(std::move(batch));
+
             pipeline.push_data(FormatResult{
-                SqlInsertData(1700000000000, 1700000000100, 10, "INSERT INTO test_table VALUES (...)")
+                SqlInsertData(block, col_instances, "INSERT INTO test_table VALUES (...)")
             });
             rows_generated++;
         }
@@ -119,7 +133,7 @@ void test_data_pipeline() {
                 std::visit([&](const auto& data) {
                     using T = std::decay_t<decltype(data)>;
                     if constexpr (std::is_same_v<T, SqlInsertData>) {
-                        assert(data.total_rows == 10);
+                        assert(data.total_rows == 2);
                         rows_consumed++;
                     }
                 }, *result.data);
@@ -199,7 +213,7 @@ void test_end_to_end_data_generation() {
             config.control.insert_control.insert_threads = 1;
             config.source.table_name.generator.count = 4;           // 4 tables total
             config.target.target_type = "tdengine";
-            config.target.tdengine.database_info.name = "test_action_db";
+            config.target.tdengine.database_info.name = "test_action";
             config.target.tdengine.super_table_info.name = "test_super_table";
 
             InsertDataAction action(global, config);
@@ -223,7 +237,7 @@ void test_concurrent_data_generation() {
     config.control.insert_control.insert_threads = 4;
     config.source.table_name.generator.count = 8;             // 8 tables
     config.target.target_type = "tdengine";
-    config.target.tdengine.database_info.name = "test_action_db";
+    config.target.tdengine.database_info.name = "test_action";
     config.target.tdengine.super_table_info.name = "test_super_table";
 
     InsertDataAction action(global, config);

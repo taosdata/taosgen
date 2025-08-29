@@ -17,7 +17,7 @@ global:
     channel_type: native
 
   database_info: &db_info
-    name: benchdebug
+    name: tsbench
     drop_if_exists: true
     properties: precision 'ms' vgroups 4
 
@@ -136,7 +136,7 @@ jobs:
           # control
           control:
             data_format:
-              format_type: stmt
+              format_type: sql
               stmt:
                 version: v2
             data_channel:

@@ -36,7 +36,7 @@ public:
                                     const ColumnConfigInstanceVector& col_instances,
                                     MemoryPool::MemoryBlock* batch) {
         if (!batch || batch->total_rows == 0) {
-            return MsgInsertData(0, 0, 0, {});
+            return MsgInsertData(batch, col_instances, {});
         }
 
         CompressionType compression_type = string_to_compression(mqtt_info.compression);
@@ -86,17 +86,7 @@ public:
             msg_batches.emplace_back(std::move(msg_batch));
         }
 
-        int64_t start_time = batch->start_time;
-        int64_t end_time = batch->end_time;
-        size_t total_rows = batch->total_rows;
-        batch->release();
-
-        return MsgInsertData(
-            start_time,
-            end_time,
-            total_rows,
-            std::move(msg_batches)
-        );
+        return MsgInsertData(batch, col_instances, std::move(msg_batches));
     }
 
 

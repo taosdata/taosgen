@@ -118,6 +118,7 @@ void test_msg_format_insert_data_empty_batch() {
 
     assert(std::holds_alternative<MsgInsertData>(result));
     const auto& msg_data = std::get<MsgInsertData>(result);
+    (void)msg_data;
     assert(msg_data.total_rows == 1);
     std::cout << "test_msg_format_insert_data_empty_batch passed!" << std::endl;
 }

@@ -25,6 +25,7 @@ target_link_libraries(components_formatter
     actions_config
     utils
     TAOS::TAOS
+    nlohmann_json::nlohmann_json
 )
 
 # Enable tests
