@@ -96,7 +96,11 @@ void RowDataGenerator::init_raw_source() {
         total_rows_ = control_.data_generation.per_table_rows;
     } else if (columns_config_.source_type == "csv") {
         init_csv_reader();
-        total_rows_ = csv_rows_.size();
+        if (columns_config_.csv.repeat_read) {
+            total_rows_ = control_.data_generation.per_table_rows;
+        } else {
+            total_rows_ = std::min(static_cast<int64_t>(csv_rows_.size()), control_.data_generation.per_table_rows);
+        }
     } else {
         throw std::invalid_argument("Unsupported source_type: " + columns_config_.source_type);
     }
@@ -135,7 +139,7 @@ void RowDataGenerator::init_csv_reader() {
     // Find current table data
     bool found = false;
     for (const auto& table_data : all_tables) {
-        if (table_data.table_name == table_name_) {
+        if (table_data.table_name == table_name_ || table_data.table_name == "default_table") {
             found = true;
 
             for (size_t i = 0; i < table_data.rows.size(); i++) {
@@ -304,6 +308,6 @@ void RowDataGenerator::generate_from_generator() {
 bool RowDataGenerator::generate_from_csv() {
     cached_row_.timestamp =  csv_rows_[csv_row_index_].timestamp;
     cached_row_.columns = csv_rows_[csv_row_index_].columns;
-    csv_row_index_++;
+    csv_row_index_ = (csv_row_index_ + 1) % csv_rows_.size();
     return true;
 }

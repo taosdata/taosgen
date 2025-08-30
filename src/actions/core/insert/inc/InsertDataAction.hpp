@@ -15,7 +15,10 @@
 
 class InsertDataAction : public ActionBase {
 public:
-    explicit InsertDataAction(const GlobalConfig& global, const InsertDataConfig& config) : global_(global), config_(config) {}
+    explicit InsertDataAction(const GlobalConfig& global, const InsertDataConfig& config)
+            : global_(global), config_(config) {
+        col_instances_ = create_column_instances();
+    }
 
     void execute() override;
 
@@ -23,6 +26,7 @@ public:
 private:
     const GlobalConfig& global_;
     InsertDataConfig config_;
+    ColumnConfigInstanceVector col_instances_;
 
     void set_realtime_priority();
     void set_thread_affinity(size_t thread_id, bool reverse = false, const std::string& purpose = "");
@@ -33,7 +37,6 @@ private:
     void producer_thread_function(
         size_t producer_id,
         const std::vector<std::string>& assigned_tables,
-        const ColumnConfigInstanceVector& col_instances,
         DataPipeline<FormatResult>& pipeline,
         std::shared_ptr<TableDataManager> data_manager);
 
@@ -42,6 +45,7 @@ private:
         DataPipeline<FormatResult>& pipeline,
         std::atomic<bool>& running,
         IWriter* writer,
+        std::optional<ConnectorSource>& conn_source,
         GarbageCollector<FormatResult>& gc,
         Barrier& sync_barrier);
 

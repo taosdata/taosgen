@@ -4,7 +4,7 @@
 #include "FormatterFactory.hpp"
 #include "taos.h"
 #include <sstream>
-#include <limits> 
+#include <limits>
 
 class SqlInsertDataFormatter final : public IInsertDataFormatter {
 public:
@@ -17,8 +17,8 @@ public:
         return "";
     }
 
-    FormatResult format(const InsertDataConfig& config, 
-                        const ColumnConfigInstanceVector& col_instances, 
+    FormatResult format(const InsertDataConfig& config,
+                        const ColumnConfigInstanceVector& col_instances,
                         MemoryPool::MemoryBlock* batch) const override{
         if (!batch || batch->total_rows == 0) {
             return FormatResult("");
@@ -35,7 +35,7 @@ public:
             if (table_block.used_rows == 0) continue;
 
             // Write table name
-            result << " `" << db_info.name 
+            result << " `" << db_info.name
                 << "`.`" << table_block.table_name << "` VALUES ";
 
             // Iterate all rows in the table
@@ -47,9 +47,9 @@ public:
                     auto& col_instance = col_instances[col_idx];
                     auto& col_block = table_block.columns[col_idx];
                     ColumnTypeTag tag = col_instance.config().type_tag;
-                    
+
                     result << ",";
-                    
+
                     // Handle NULL value
                     if (col_block.is_nulls[row_idx]) {
                         result << "NULL";
@@ -70,9 +70,9 @@ public:
 
                     if (col_block.is_fixed) {
                         // Fixed-length column processing
-                        void* data_ptr = static_cast<char*>(col_block.fixed_data) 
+                        void* data_ptr = static_cast<char*>(col_block.fixed_data)
                                     + row_idx * col_block.element_size;
-                        
+
                         switch (tag) {
                             case ColumnTypeTag::BOOL: {
                                 bool value = *static_cast<bool*>(data_ptr);
@@ -121,7 +121,7 @@ public:
                         // Variable-length column processing
                         char* data_start = col_block.var_data + col_block.var_offsets[row_idx];
                         int32_t data_len = col_block.lengths[row_idx];
-                        
+
                         if (needs_quotes) {
                             result << "'";
 
@@ -174,20 +174,10 @@ public:
                 result << ")";
             }
         }
-        
+
         result << ";";
 
-        int64_t start_time = batch->start_time;
-        int64_t end_time = batch->end_time;
-        size_t total_rows = batch->total_rows;
-        batch->release();
-
-        return SqlInsertData(
-            start_time,
-            end_time,
-            total_rows,
-            result.str()
-        );
+        return SqlInsertData(batch, col_instances, result.str());
     }
 
 private:

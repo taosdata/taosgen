@@ -24,7 +24,7 @@ void InsertDataAction::set_realtime_priority() {
 
     if (pthread_setschedparam(pthread_self(), SCHED_FIFO, &param) != 0) {
         std::cerr << "Warning: Failed to set real-time priority. "
-                  << "Requires root privileges or CAP_SYS_NICE capability.";
+                  << "Requires root privileges or CAP_SYS_NICE capability." << std::endl;
     }
 #endif
 }
@@ -81,7 +81,7 @@ void InsertDataAction::execute() {
     }
 
     try {
-        // 1. Generate all child table names and split by producer thread count
+        // Generate all child table names and split by producer thread count
         TableNameManager name_manager(config_);
         auto all_names = name_manager.generate_table_names();
 
@@ -107,10 +107,7 @@ void InsertDataAction::execute() {
                      << split_names[i].size() << " tables" << std::endl;
         }
 
-        // 2. Create column config instances
-        auto col_instances = create_column_instances();
-
-        // 3. Initialize data pipeline
+        // Initialize data pipeline
         const size_t producer_thread_count = config_.control.data_generation.generate_threads;
         const size_t consumer_thread_count = config_.control.insert_control.insert_threads;
         const size_t queue_capacity = config_.control.data_generation.queue_capacity;
@@ -121,7 +118,7 @@ void InsertDataAction::execute() {
 
         size_t block_count = queue_capacity;
         size_t max_tables_per_block = std::min(name_manager.chunk_size(), per_request_rows);
-        size_t max_rows_per_table = per_table_rows;
+        size_t max_rows_per_table = std::min(static_cast<size_t>(per_table_rows), per_request_rows);
 
         if (config_.control.data_generation.interlace_mode.enabled) {
             max_tables_per_block = (per_request_rows + interlace_rows - 1) / interlace_rows;
@@ -129,21 +126,15 @@ void InsertDataAction::execute() {
 
         } else {
             max_tables_per_block = (per_request_rows + per_table_rows - 1) / per_table_rows;
-            max_rows_per_table = per_table_rows;
         }
 
-        MemoryPool pool(block_count, max_tables_per_block, max_rows_per_table, col_instances);
+        MemoryPool pool(block_count, max_tables_per_block, max_rows_per_table, col_instances_);
 
         // Create data pipeline
         DataPipeline<FormatResult> pipeline(queue_capacity);
         Barrier sync_barrier(consumer_thread_count + 1);
 
-        // 4. Start consumer threads
-        std::optional<ConnectorSource> conn_source;
-        if (config_.target.target_type == "tdengine") {
-            conn_source.emplace(config_.control.data_channel, config_.target.tdengine.connection_info);
-        }
-
+        // Start consumer threads
         std::vector<std::thread> consumer_threads;
         consumer_threads.reserve(consumer_thread_count);
 
@@ -154,31 +145,8 @@ void InsertDataAction::execute() {
         GarbageCollector<FormatResult> gc((consumer_thread_count + group_size - 1) / group_size);
 
         // Create all writer instances
-        auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(config_.control.data_format);
-        auto sql = formatter->prepare(config_, col_instances);
         for (size_t i = 0; i < consumer_thread_count; i++) {
-            writers.push_back(WriterFactory::create(config_, col_instances, i));
-
-            // Connect to database
-            if (!writers[i]->connect(conn_source)) {
-                throw std::runtime_error("Failed to connect writer for thread " + std::to_string(i));
-            }
-
-            if (config_.target.target_type == "tdengine") {
-                if (!writers[i]->select_db(config_.target.tdengine.database_info.name)) {
-                    throw std::runtime_error("Failed to select database for writer thread " + std::to_string(i) + \
-                        " with database name: " + config_.target.tdengine.database_info.name);
-                }
-            }
-
-            // For stmt v2 format, need to prepare
-            if (config_.control.data_format.format_type == "stmt" &&
-                config_.control.data_format.stmt_config.version == "v2") {
-                if (!writers[i]->prepare(sql)) {
-                    throw std::runtime_error("Failed to prepare writer for thread " + std::to_string(i) + \
-                        " with SQL: " + sql);
-                }
-            }
+            writers.push_back(WriterFactory::create(config_, col_instances_, i));
         }
 
         auto consumer_running = std::make_unique<std::atomic<bool>[]>(consumer_thread_count);
@@ -186,7 +154,7 @@ void InsertDataAction::execute() {
             consumer_running[i].store(true);
         }
 
-        // 5. Start producer threads
+        // Start producer threads
         std::vector<std::shared_ptr<TableDataManager>> data_managers;
         data_managers.reserve(producer_thread_count);
 
@@ -201,14 +169,14 @@ void InsertDataAction::execute() {
         std::atomic<size_t> active_producers(producer_thread_count);
 
         for (size_t i = 0; i < producer_thread_count; i++) {
-            auto data_manager = std::make_shared<TableDataManager>(pool, config_, col_instances);
+            auto data_manager = std::make_shared<TableDataManager>(pool, config_, col_instances_);
             data_managers.push_back(data_manager);
 
-            producer_threads.emplace_back([this, i, &split_names, &col_instances, &pipeline, data_manager, &active_producers, &producer_finished] {
+            producer_threads.emplace_back([this, i, &split_names, &pipeline, data_manager, &active_producers, &producer_finished] {
                 try {
                     set_thread_affinity(i, false, "Producer");
                     set_realtime_priority();
-                    producer_thread_function(i, split_names[i], col_instances, pipeline, data_manager);
+                    producer_thread_function(i, split_names[i], pipeline, data_manager);
                     producer_finished[i].store(true);
                 } catch (const std::exception& e) {
                     throw std::runtime_error("Producer thread " + std::to_string(i) + " failed: " + e.what());
@@ -232,19 +200,24 @@ void InsertDataAction::execute() {
         }
 
         // Start consumer threads
+        std::optional<ConnectorSource> conn_source;
+        if (config_.target.target_type == "tdengine") {
+            conn_source.emplace(config_.control.data_channel, config_.target.tdengine.connection_info);
+        }
+
         for (size_t i = 0; i < consumer_thread_count; i++) {
 
-            consumer_threads.emplace_back([this, i, &pipeline, &consumer_running, &writers, &gc, &sync_barrier] {
+            consumer_threads.emplace_back([this, i, &pipeline, &consumer_running, &writers, &conn_source, &gc, &sync_barrier] {
                 set_thread_affinity(i, true, "Consumer");
                 set_realtime_priority();
-                consumer_thread_function(i, pipeline, consumer_running[i], writers[i].get(), gc, sync_barrier);
+                consumer_thread_function(i, pipeline, consumer_running[i], writers[i].get(), conn_source, gc, sync_barrier);
             });
         }
 
         sync_barrier.arrive_and_wait();
         const auto start_time = std::chrono::steady_clock::now();
 
-        // 6. Monitor
+        // Monitor
         size_t last_total_rows = 0;
         auto last_time = start_time;
         size_t max_total_rows = all_names.size() * per_table_rows;
@@ -274,9 +247,9 @@ void InsertDataAction::execute() {
             last_time = now;
 
             // Calculate total runtime
-            const auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - start_time);
+            auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - start_time).count();
 
-            std::cout << "Runtime: " << std::setw(4) << std::setfill(' ') << duration.count() << "s | "
+            std::cout << "Runtime: " << std::setw(4) << std::setfill(' ') << duration << "s | "
                     << "Rate: " << std::setw(8) << std::setfill(' ') << static_cast<long long>(rows_per_sec) << " rows/s | "
                     << "Total: " << std::setw(total_col_width) << std::setfill(' ') << total_rows << " rows | "
                     << "Queue: " << std::setw(3) << std::setfill(' ') << pipeline.total_queued() << " items | "
@@ -295,12 +268,14 @@ void InsertDataAction::execute() {
 
             auto current_time = std::chrono::steady_clock::now();
             auto interval = std::chrono::duration<double>(current_time - last_check_time).count();
+            auto duration = std::chrono::duration_cast<std::chrono::seconds>(current_time - start_time).count();
 
             if (interval >= 1.0) {
                 size_t current_queue_size = pipeline.total_queued();
                 double process_rate = (last_queue_size - current_queue_size) / interval;
 
-                std::cout << "Remaining Queue: " << std::setw(3) << std::setfill(' ') << current_queue_size << " items | "
+                std::cout << "Runtime: " << std::setw(4) << std::setfill(' ') << duration << "s | "
+                          << "Remaining Queue: " << std::setw(3) << std::setfill(' ') << current_queue_size << " items | "
                           << "Processing Rate: " << std::setw(6) << std::fixed << std::setprecision(2) << process_rate << " items/s | "
                           << "CPU Usage: " << std::setw(7) << std::fixed << std::setprecision(2) << ProcessUtils::get_cpu_usage_percent() << "% | "
                           << "Memory Usage: " << ProcessUtils::get_memory_usage_human_readable() << " | "
@@ -314,7 +289,7 @@ void InsertDataAction::execute() {
         const auto end_time = std::chrono::steady_clock::now();
         (void)end_time;
 
-        // 7. Wait for producers to finish
+        // Wait for producers to finish
         for (auto& t : producer_threads) {
             if (t.joinable()) t.join();
         }
@@ -322,7 +297,7 @@ void InsertDataAction::execute() {
         // Terminate pipeline (notify consumers)
         pipeline.terminate();
 
-        // 8. Wait for consumers to finish
+        // Wait for consumers to finish
         // for (size_t i = 0; i < consumer_thread_count; i++) {
         //     consumer_running[i] = false;
         // }
@@ -436,7 +411,6 @@ void InsertDataAction::execute() {
 void InsertDataAction::producer_thread_function(
     size_t producer_id,
     const std::vector<std::string>& assigned_tables,
-    const ColumnConfigInstanceVector& col_instances,
     DataPipeline<FormatResult>& pipeline,
     std::shared_ptr<TableDataManager> data_manager)
 {
@@ -454,7 +428,7 @@ void InsertDataAction::producer_thread_function(
         // size_t total_rows = batch->total_rows;
 
         // Format data
-        FormatResult formatted_result = formatter->format(config_, col_instances, std::move(batch.value()));
+        FormatResult formatted_result = formatter->format(config_, col_instances_, std::move(batch.value()));
 
         // Debug: print formatted result info
         // std::visit([producer_id](const auto& result) {
@@ -501,6 +475,7 @@ void InsertDataAction::consumer_thread_function(
     DataPipeline<FormatResult>& pipeline,
     std::atomic<bool>& running,
     IWriter* writer,
+    std::optional<ConnectorSource>& conn_source,
     GarbageCollector<FormatResult>& gc,
     Barrier& sync_barrier)
 {
@@ -508,6 +483,25 @@ void InsertDataAction::consumer_thread_function(
     const auto& failure_cfg = config_.control.insert_control.failure_handling;
     size_t retry_count = 0;
 
+    // Connect to writer
+    if (!writer->connect(conn_source)) {
+        throw std::runtime_error("Failed to connect writer for consumer " + std::to_string(consumer_id));
+    }
+
+    if (config_.target.target_type == "tdengine") {
+        if (!writer->select_db(config_.target.tdengine.database_info.name)) {
+            throw std::runtime_error("Failed to select database for writer thread " + std::to_string(consumer_id) + \
+                " with database name: " + config_.target.tdengine.database_info.name);
+        }
+
+        auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(config_.control.data_format);
+        auto sql = formatter->prepare(config_, col_instances_);
+
+        if (!writer->prepare(sql)) {
+            throw std::runtime_error("Failed to prepare writer for thread " + std::to_string(consumer_id) + \
+                " with SQL: " + sql);
+        }
+    }
 
     sync_barrier.arrive_and_wait();
 

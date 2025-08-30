@@ -85,6 +85,10 @@ bool TDengineConnector::select_db(const std::string& db_name) {
 }
 
 bool TDengineConnector::prepare(const std::string& sql) {
+    if (sql.empty()) {
+        return true;
+    }
+
     if (stmt_) {
         taos_stmt2_close(stmt_);
         stmt_ = nullptr;
@@ -156,7 +160,7 @@ bool TDengineConnector::execute(const StmtV2InsertData& data) {
     // Bind data
     int code = taos_stmt2_bind_param(
         stmt_,
-        const_cast<TAOS_STMT2_BINDV*>(data.data.bindv_ptr()),
+        const_cast<TAOS_STMT2_BINDV*>(data.bindv_ptr()),
         -1
     );
     if (code != 0) {

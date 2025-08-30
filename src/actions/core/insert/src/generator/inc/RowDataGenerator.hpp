@@ -28,7 +28,7 @@ public:
     bool has_more() const;
 
     // Get the number of generated rows
-    int generated_rows() const { return generated_rows_; }
+    int64_t generated_rows() const { return generated_rows_; }
 
     // Reset generator state
     void reset();
@@ -103,8 +103,8 @@ private:
     std::string csv_precision_;
 
     // State management
-    int generated_rows_ = 0;
-    int total_rows_ = 0;
+    int64_t generated_rows_ = 0;
+    int64_t total_rows_ = 0;
     bool use_generator_ = false;
 
     // Disorder management

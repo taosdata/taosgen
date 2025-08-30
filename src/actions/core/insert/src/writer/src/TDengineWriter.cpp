@@ -65,13 +65,13 @@ void TDengineWriter::write(const BaseInsertData& data) {
             case BaseInsertData::DataType::SQL:
                 success = execute_with_retry([&] {
                     return handle_insert(static_cast<const SqlInsertData&>(data));
-                }, "SQL insert");
+                }, "sql insert");
                 break;
 
-            case BaseInsertData::DataType::STMT_V2:
+            case BaseInsertData::DataType::STMT:
                 success = execute_with_retry([&] {
                     return handle_insert(static_cast<const StmtV2InsertData&>(data));
-                }, "STMT v2 insert");
+                }, "stmt insert");
                 break;
             default:
                 throw std::runtime_error("Unsupported data type: " + std::to_string(static_cast<int>(data.type)));

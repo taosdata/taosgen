@@ -17,7 +17,7 @@ global:
     channel_type: native
 
   database_info: &db_info
-    name: benchdebug
+    name: tsbench
     drop_if_exists: true
     properties: precision 'ms' vgroups 4
 
@@ -92,13 +92,13 @@ jobs:
             table_name:
               source_type: csv
               csv:
-                file_path: ../src/parameter/conf/ctb-tags.csv
+                file_path: ../conf/ctb-tags.csv
                 tbname_index: 2
-            tags: 
+            tags:
               source_type: csv
               csv:
                 schema: *tags_info
-                file_path: ../src/parameter/conf/ctb-tags.csv
+                file_path: ../conf/ctb-tags.csv
                 exclude_indices: 2
           batch:
             size: 1000
@@ -118,14 +118,15 @@ jobs:
             table_name:
               source_type: csv
               csv:
-                file_path: ../src/parameter/conf/ctb-tags.csv
+                file_path: ../conf/ctb-tags.csv
                 tbname_index: 2
             columns:
               source_type: csv
               csv:
                 schema: *columns_info
-                file_path: ../src/parameter/conf/ctb-data.csv
+                file_path: ../conf/ctb-data.csv
                 tbname_index : 0
+                repeat_read: true
 
                 timestamp_strategy:
                   strategy_type: generator
@@ -152,10 +153,10 @@ jobs:
               channel_type: native
             data_generation:
               interlace_mode:
-                enabled: true
+                enabled: false
                 rows: 1
               generate_threads: 1
-              per_table_rows: 100
+              per_table_rows: 10000000
               queue_capacity: 100
               queue_warmup_ratio: 0.0
             insert_control:

@@ -5,7 +5,7 @@
 #include <variant>
 #include <unordered_map>
 #include <mutex>
-#include <luajit-2.1/lua.hpp>
+#include <lua.hpp>
 #include <thread>
 
 class ExpressionEngine {

@@ -1,4 +1,5 @@
 #include "MqttWriter.hpp"
+#include "MsgInsertDataFormatter.hpp"
 #include "MqttClient.hpp"
 #include <cassert>
 #include <iostream>
@@ -8,7 +9,7 @@
 class MockMqttClient : public IMqttClient {
 public:
     bool connected = false;
-    int publish_count = 0;
+    size_t publish_count = 0;
 
     bool connect(const std::string&, const std::string&, int, bool) override {
         connected = true;
@@ -16,8 +17,11 @@ public:
     }
     bool is_connected() const override { return connected; }
     void disconnect() override { connected = false; }
-    void publish(const std::string&, const std::string&, int, bool, const std::string&, const std::string&, const std::string&) override {
+    void publish(const std::string&, const std::string&, int, bool) override {
         ++publish_count;
+    }
+    void publish_batch(const MessageBatch& batch_msgs, int, bool) override {
+        publish_count += batch_msgs.size();
     }
 };
 
@@ -131,28 +135,41 @@ void test_write_operations() {
     (void)connected;
     assert(connected);
 
-    // Construct STMT_V2 data
-    MultiBatch batch;
-    std::vector<RowData> rows;
-    rows.push_back({1500000000000, {"f01", "d01"}});
-    batch.table_batches.emplace_back("tb1", std::move(rows));
-    batch.update_metadata();
+    // Construct STMT data
+    {
+        MultiBatch batch;
+        std::vector<RowData> rows;
+        rows.push_back({1500000000000, {"f01", "d01"}});
+        batch.table_batches.emplace_back("tb1", std::move(rows));
+        batch.update_metadata();
 
-    MemoryPool pool(1, 1, 1, col_instances);
-    auto* block = pool.convert_to_memory_block(std::move(batch));
-    StmtV2InsertData stmt(block, col_instances);
+        MemoryPool pool(1, 1, 1, col_instances);
+        auto* block = pool.convert_to_memory_block(std::move(batch));
+        MsgInsertData msg = MsgInsertDataFormatter::format_mqtt(config.target.mqtt, col_instances, block);
 
-    writer.write(stmt);
-    (void)mock_ptr;
-    assert(mock_ptr->publish_count == 1);
+        writer.write(msg);
+        (void)mock_ptr;
+        assert(mock_ptr->publish_count == 1);
+    }
 
     // Unsupported data type
-    BaseInsertData invalid_data(static_cast<BaseInsertData::DataType>(999), 0, 0, 0);
-    try {
-        writer.write(invalid_data);
-        assert(false);
-    } catch (const std::runtime_error& e) {
-        assert(std::string(e.what()).find("Unsupported data type") != std::string::npos);
+    {
+        MultiBatch batch;
+        std::vector<RowData> rows;
+        rows.push_back({1500000000000, {"f01", "d01"}});
+        batch.table_batches.emplace_back("tb2", std::move(rows));
+        batch.update_metadata();
+
+        MemoryPool pool(1, 1, 1, col_instances);
+        auto* block = pool.convert_to_memory_block(std::move(batch));
+        BaseInsertData invalid_data(static_cast<BaseInsertData::DataType>(999), block, col_instances);
+
+        try {
+            writer.write(invalid_data);
+            assert(false);
+        } catch (const std::runtime_error& e) {
+            assert(std::string(e.what()).find("Unsupported data type") != std::string::npos);
+        }
     }
 
     std::cout << "test_write_operations passed." << std::endl;
@@ -168,9 +185,20 @@ void test_write_without_connection() {
     mqtt_client->set_client(std::make_unique<MockMqttClient>());
     writer.set_client(std::move(mqtt_client));
 
-    BaseInsertData invalid_data(static_cast<BaseInsertData::DataType>(1), 0, 0, 0);
+
+    MultiBatch batch;
+    std::vector<RowData> rows;
+    rows.push_back({1500000010000, {"f0", "d0"}});
+    rows.push_back({1500000010001, {"f1", "d1"}});
+    batch.table_batches.emplace_back("d2", std::move(rows));
+    batch.update_metadata();
+
+    MemoryPool pool(1, 1, 2, col_instances);
+    auto* block = pool.convert_to_memory_block(std::move(batch));
+    BaseInsertData data(block, col_instances);
+
     try {
-        writer.write(invalid_data);
+        writer.write(data);
         assert(false);
     } catch (const std::runtime_error& e) {
         assert(std::string(e.what()) == "MqttWriter is not connected");

@@ -22,6 +22,7 @@ struct ColumnsConfig {
 
         std::string file_path;
         bool has_header = true;
+        bool repeat_read = false;
         std::string delimiter = ",";
         int tbname_index = -1;
 

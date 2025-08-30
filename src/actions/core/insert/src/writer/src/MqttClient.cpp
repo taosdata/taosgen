@@ -7,13 +7,29 @@
 #include <mqtt/connect_options.h>
 #include <mqtt/properties.h>
 
-PahoMqttClient::PahoMqttClient(const std::string& host, int port, const std::string& client_id) {
+PahoMqttClient::PahoMqttClient(const std::string& host, int port, const std::string& client_id, size_t max_buffered_messages,
+                               const std::string& content_type,
+                               const std::string& compression,
+                               const std::string& encoding) {
     // Example: "tcp://localhost:1883"
     std::ostringstream oss;
     oss << "tcp://" << host << ":" << port;
     std::string uri = oss.str();
 
-    client_ = std::make_unique<mqtt::async_client>(uri, client_id);
+    mqtt::create_options create_opts;
+    create_opts.set_server_uri(uri);
+    create_opts.set_client_id(client_id);
+    create_opts.set_max_buffered_messages(static_cast<int>(max_buffered_messages));
+
+    client_ = std::make_unique<mqtt::async_client>(create_opts);
+
+    default_props_.add(mqtt::property(mqtt::property::USER_PROPERTY, "content-type", content_type));
+    if (!compression.empty()) {
+        default_props_.add(mqtt::property(mqtt::property::USER_PROPERTY, "compression", compression));
+    }
+    if (!encoding.empty()) {
+        default_props_.add(mqtt::property(mqtt::property::USER_PROPERTY, "encoding", encoding));
+    }
 }
 
 PahoMqttClient::~PahoMqttClient() {
@@ -52,21 +68,7 @@ void PahoMqttClient::disconnect() {
     }
 }
 
-void PahoMqttClient::publish(const std::string& topic, const std::string& payload,
-                            int qos, bool retain, const std::string& content_type,
-                            const std::string& compression, const std::string& encoding) {
-    // Set message properties
-    mqtt::properties props;
-    props.add(mqtt::property(mqtt::property::USER_PROPERTY, "content-type", content_type));
-
-    if (!compression.empty()) {
-        props.add(mqtt::property(mqtt::property::USER_PROPERTY, "compression", compression));
-    }
-
-    if (!encoding.empty()) {
-        props.add(mqtt::property(mqtt::property::USER_PROPERTY, "encoding", encoding));
-    }
-
+void PahoMqttClient::publish(const std::string& topic, const std::string& payload, int qos, bool retain) {
     // Create MQTT message
     auto pubmsg = mqtt::make_message(
         topic,
@@ -74,16 +76,50 @@ void PahoMqttClient::publish(const std::string& topic, const std::string& payloa
         payload.size(),
         qos,
         retain,
-        props
+        default_props_
     );
 
-    // Asynchronous publish
-    try {
+    // Asynchronous publish with retry on buffer full
+    while (true) {
+        try {
+            auto token = client_->publish(pubmsg);
+            // token->wait();
+            break;
+
+        } catch (const mqtt::exception& e) {
+            std::string msg = e.what();
+            // std::cerr << "MQTT publish error: " << msg << std::endl;
+            // std::cerr << "Reason code: " << e.get_reason_code() << std::endl;
+
+            if (msg.find("No more messages can be buffered") != std::string::npos ||
+                msg.find("MQTT error [-12]") != std::string::npos) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                continue;
+            } else {
+                throw std::runtime_error(std::string("MQTT publish failed: ") + msg);
+            }
+        }
+    }
+}
+
+void PahoMqttClient::publish_batch(const MessageBatch& batch_msgs, int qos, bool retain) {
+    // std::vector<mqtt::delivery_token_ptr> tokens;
+    for (const auto& [topic, payload] : batch_msgs) {
+        auto pubmsg = mqtt::make_message(
+            topic,
+            payload.data(),
+            payload.size(),
+            qos,
+            retain,
+            default_props_
+        );
         auto token = client_->publish(pubmsg);
         token->wait();
-    } catch (const mqtt::exception& e) {
-        throw std::runtime_error(std::string("MQTT publish failed: ") + e.what());
+        // tokens.push_back(client_->publish(pubmsg));
     }
+    // for (auto& tok : tokens) {
+    //     tok->wait();
+    // }
 }
 
 // MqttClient implementation
@@ -92,8 +128,7 @@ MqttClient::MqttClient(const MqttInfo& config,
     : config_(config),
       col_instances_(col_instances),
       compression_type_(string_to_compression(config.compression)),
-      encoding_type_(string_to_encoding(config.encoding)),
-      topic_generator_(config.topic, col_instances)
+      encoding_type_(string_to_encoding(config.encoding))
 {
     std::string client_id;
     if (config.client_id.empty()) {
@@ -102,8 +137,14 @@ MqttClient::MqttClient(const MqttInfo& config,
         client_id = config.client_id + "-" + std::to_string(no);
     }
 
+    compression_str_ = (compression_type_ != CompressionType::NONE)
+        ? compression_to_string(compression_type_) : "";
+    encoding_str_ = (encoding_type_ != EncodingType::UTF8)
+        ? encoding_to_string(encoding_type_) : "";
+
     // Initialize MQTT client
-    client_ = std::make_unique<PahoMqttClient>(config.host, config.port, client_id);
+    client_ = std::make_unique<PahoMqttClient>(config.host, config.port, client_id, config.max_buffered_messages,
+        "application/json", compression_str_, encoding_str_);
 }
 
 MqttClient::~MqttClient() = default;
@@ -133,84 +174,17 @@ bool MqttClient::prepare(const std::string& sql) {
     return true;
 }
 
-bool MqttClient::execute(const StmtV2InsertData& data) {
+bool MqttClient::execute(const MsgInsertData& data) {
     if (!is_connected()) {
         return false;
     }
 
-    MemoryPool::MemoryBlock* block = data.data.get_block();
-    if (!block) {
-        return false;
-    }
-
-    // Iterate over all subtables
-    for (size_t table_idx = 0; table_idx < block->used_tables; table_idx++) {
-        auto& table_block = block->tables[table_idx];
-
-        // Iterate over each row in the table
-        for (size_t row_idx = 0; row_idx < table_block.used_rows; row_idx++) {
-            // Generate topic
-            std::string topic = topic_generator_.generate(table_block, row_idx);
-
-            // Serialize to JSON
-            nlohmann::ordered_json json_data = serialize_row_to_json(table_block, row_idx);
-
-            // Publish message
-            publish_message(topic, json_data);
-        }
+    const auto& msg_batches = data.data;
+    for (const auto& batch : msg_batches) {
+        client_->publish_batch(batch, config_.qos, config_.retain);
     }
 
     return true;
-}
-
-nlohmann::ordered_json MqttClient::serialize_row_to_json(
-    const MemoryPool::TableBlock& table,
-    size_t row_index
-) const {
-    nlohmann::ordered_json json_data;
-
-    // Add table name
-    if (table.table_name) {
-        json_data["table"] = table.table_name;
-    }
-
-    // Add timestamp
-    if (table.timestamps && row_index < table.used_rows) {
-        json_data["ts"] = table.timestamps[row_index];
-    }
-
-    // Add data columns
-    for (size_t col_idx = 0; col_idx < col_instances_.size(); col_idx++) {
-        const auto& col_inst = col_instances_[col_idx];
-        try {
-            const auto& cell = table.get_cell(row_index, col_idx);
-
-            std::visit([&](const auto& value) {
-                using T = std::decay_t<decltype(value)>;
-                if constexpr (std::is_same_v<T, Decimal>) {
-                    json_data[col_inst.name()] = value.value;
-                } else if constexpr (std::is_same_v<T, JsonValue>) {
-                    json_data[col_inst.name()] = value.raw_json;
-                } else if constexpr (std::is_same_v<T, Geometry>) {
-                    json_data[col_inst.name()] = value.wkt;
-                } else if constexpr (std::is_same_v<T, std::u16string>) {
-                    // Convert to utf8 string
-                    json_data[col_inst.name()] = std::string(value.begin(), value.end());
-                } else if constexpr (std::is_same_v<T, std::vector<uint8_t>>) {
-                    // Can be base64 or hex encoded, here simply convert to string
-                    json_data[col_inst.name()] = std::string(value.begin(), value.end());
-                } else {
-                    json_data[col_inst.name()] = value;
-                }
-            }, cell);
-
-        } catch (const std::exception& e) {
-            // json_data[col_inst.name()] = "ERROR: " + std::string(e.what());
-            throw std::runtime_error("serialize_row_to_json failed for column '" + col_inst.name() + "': " + e.what());
-        }
-    }
-
-    return json_data;
 }
 
 void MqttClient::publish_message(
@@ -230,16 +204,10 @@ void MqttClient::publish_message(
     }
 
     // 3. Compression
-    std::string compression_str;
     if (compression_type_ != CompressionType::NONE) {
         payload = Compressor::compress(payload, compression_type_);
-        compression_str = compression_to_string(compression_type_);
     }
 
     // 4. Publish message
-    std::string encoding_str = (encoding_type_ != EncodingType::UTF8) ?
-                              encoding_to_string(encoding_type_) : "";
-
-    client_->publish(topic, payload, config_.qos, config_.retain,
-                    "application/json", compression_str, encoding_str);
+    client_->publish(topic, payload, config_.qos, config_.retain);
 }

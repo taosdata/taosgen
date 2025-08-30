@@ -404,6 +404,8 @@ jobs:
     CSV 文件路径，支持单个文件或目录路径。
   - has_header (布尔，可选)：
     是否包含表头行，默认为 true。
+  - repeat_read (布尔，可选)：
+    是否是否重复读取数据，默认为 false。
   - tbname_index （整数，可选）：
     指定子表名称所在的列索引（从 0 开始）。
   - timestamp_strategy (时间戳列策略，必需)：用于控制时间戳的生成逻辑。
@@ -466,7 +468,9 @@ jobs:
 - qos (整数，可选)： QoS 等级，取值范围为 0、1、2，默认为 0。
 - keep_alive (整数，可选)： 超时没有消息发送后会发送心跳，单位为秒，默认值为 5。
 - clean_session（布尔，可选）：是否清除就会话状态，默认值为 true。
-- retain （布尔，可选）：MQTT Broker 是否保留最后一条消息，默认值为 false。
+- retain（布尔，可选）：MQTT Broker 是否保留最后一条消息，默认值为 false。
+- max_buffered_messages (整数，可选)： 客户端的最大缓冲消息数，默认值为 1000。
+- batch_messages (整数，可选)： 客户端的每次批量发送的消息数，默认值为 500。
 
 #### control (必需)
 定义数据写入过程中的行为策略，包括数据格式化（data_format）、数据通道（data_channel）、数据生成策略（data_generation）、写入控制策略（insert_control）、时间间隔策略（time_interval）等部分。
@@ -483,7 +487,7 @@ jobs:
   - enabled (布尔，可选)：表示是否启用交错模式，默认值为 false。
   - rows (整数，可选)：表示每个子表单次生成的行数，默认值为 1。
 - generate_threads (整数，可选)，表示生成数据的线程数量，默认值为 1。
-- per_table_rows (整数，可选)，每个子表插入的行数，默认值为 10000。
+- per_table_rows (整数，可选)，每个子表插入的行数，默认值为 10000，-1 表示无限数据。
 - queue_capacity (整数，可选)，表示存放生成数据的队列的容量，默认值为 100。
 - queue_warmup_ratio（浮点，可选），表示队列中数据预热生成的比例，默认值为 0.5，表示提前生成队列容量 50%的数据。
 
@@ -538,7 +542,7 @@ global:
     channel_type: native
 
   database_info: &db_info
-    name: benchdebug
+    name: tsbench
     drop_if_exists: true
     properties: precision 'ms' vgroups 4
 
@@ -700,7 +704,7 @@ global:
     channel_type: native
 
   database_info: &db_info
-    name: benchdebug
+    name: tsbench
     drop_if_exists: true
     properties: precision 'ms' vgroups 4
 

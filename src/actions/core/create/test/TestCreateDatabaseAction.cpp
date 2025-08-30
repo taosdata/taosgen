@@ -25,7 +25,7 @@ void test_create_database_action() {
     config.connection_info = conn_info;
     config.data_format = format;
     config.data_channel = channel;
-    config.database_info.name = "test_action_db";
+    config.database_info.name = "test_action";
     config.database_info.drop_if_exists = true;
 
     // Create action instance

@@ -114,7 +114,8 @@ namespace YAML {
             // Detect unknown configuration keys
             static const std::set<std::string> valid_keys = {
                 "host", "port", "user", "password", "client_id", "topic", "compression", "encoding",
-                "timestamp_precision", "qos", "keep_alive", "clean_session", "retain"
+                "timestamp_precision", "qos", "keep_alive", "clean_session", "retain",
+                "max_buffered_messages", "batch_messages"
             };
             check_unknown_keys(node, valid_keys, "mqtt_info");
 
@@ -166,6 +167,22 @@ namespace YAML {
             }
             if (node["retain"]) {
                 rhs.retain = node["retain"].as<bool>();
+            }
+            if (node["max_buffered_messages"]) {
+                rhs.max_buffered_messages = node["max_buffered_messages"].as<size_t>();
+                if (rhs.max_buffered_messages == 0) {
+                    throw std::runtime_error("max_buffered_messages must be greater than 0 in mqtt_info.");
+                }
+            }
+            if (node["batch_messages"]) {
+                rhs.batch_messages = node["batch_messages"].as<size_t>();
+                if (rhs.batch_messages == 0) {
+                    throw std::runtime_error("batch_messages must be greater than 0 in mqtt_info.");
+                }
+            }
+
+            if (rhs.batch_messages > rhs.max_buffered_messages) {
+                throw std::runtime_error("batch_messages cannot be greater than max_buffered_messages in mqtt_info.");
             }
             return true;
         }
@@ -516,13 +533,13 @@ namespace YAML {
             check_unknown_keys(node, valid_keys, "timestamp_strategy");
 
             if (node["start_timestamp"]) {
-                rhs.start_timestamp = node["start_timestamp"].as<std::string>("now");
+                rhs.start_timestamp = node["start_timestamp"].as<std::string>();
             }
             if (node["timestamp_precision"]) {
-                rhs.timestamp_precision = node["timestamp_precision"].as<std::string>("ms");
+                rhs.timestamp_precision = node["timestamp_precision"].as<std::string>();
             }
             if (node["timestamp_step"]) {
-                rhs.timestamp_step = node["timestamp_step"].as<int>(1);
+                rhs.timestamp_step = node["timestamp_step"].as<int>();
             }
             return true;
         }
@@ -650,7 +667,9 @@ namespace YAML {
                 const auto& csv = node["csv"];
 
                 // Detect unknown keys in csv
-                static const std::set<std::string> csv_keys = {"schema", "file_path", "has_header", "delimiter", "tbname_index", "timestamp_strategy"};
+                static const std::set<std::string> csv_keys = {
+                    "schema", "file_path", "has_header", "repeat_read", "delimiter", "tbname_index", "timestamp_strategy"
+                };
                 check_unknown_keys(csv, csv_keys, "columns::csv");
 
                 if (csv["schema"]) {
@@ -667,6 +686,9 @@ namespace YAML {
 
                 if (csv["has_header"]) {
                     rhs.csv.has_header = csv["has_header"].as<bool>();
+                }
+                if (csv["repeat_read"]) {
+                    rhs.csv.repeat_read = csv["repeat_read"].as<bool>();
                 }
                 if (csv["delimiter"]) {
                     rhs.csv.delimiter = csv["delimiter"].as<std::string>();
@@ -685,7 +707,7 @@ namespace YAML {
                         throw std::runtime_error("Missing required field 'strategy_type' in columns::csv::timestamp_strategy");
                     }
 
-                    rhs.csv.timestamp_strategy.strategy_type = ts["strategy_type"].as<std::string>("original");
+                    rhs.csv.timestamp_strategy.strategy_type = ts["strategy_type"].as<std::string>();
 
                     if (rhs.csv.timestamp_strategy.strategy_type == "original") {
                         if (!ts["original"]) {
@@ -785,7 +807,7 @@ namespace YAML {
             }
 
             if (node["file_prefix"]) {
-                rhs.file_prefix = node["file_prefix"].as<std::string>("data");
+                rhs.file_prefix = node["file_prefix"].as<std::string>();
             }
             if (node["timestamp_format"]) {
                 rhs.timestamp_format = node["timestamp_format"].as<std::string>();
@@ -794,19 +816,19 @@ namespace YAML {
             }
 
             if (node["timestamp_interval"]) {
-                rhs.timestamp_interval = node["timestamp_interval"].as<std::string>("1d");
+                rhs.timestamp_interval = node["timestamp_interval"].as<std::string>();
             }
 
             if (node["include_header"]) {
-                rhs.include_header = node["include_header"].as<bool>(true);
+                rhs.include_header = node["include_header"].as<bool>();
             }
 
             if (node["tbname_col_alias"]) {
-                rhs.tbname_col_alias = node["tbname_col_alias"].as<std::string>("device_id");
+                rhs.tbname_col_alias = node["tbname_col_alias"].as<std::string>();
             }
 
             if (node["compression_level"]) {
-                rhs.compression_level = node["compression_level"].as<std::string>("none");
+                rhs.compression_level = node["compression_level"].as<std::string>();
             }
             return true;
         }
@@ -864,35 +886,70 @@ namespace YAML {
             check_unknown_keys(node, valid_keys, "data_format");
 
             if (node["format_type"]) {
-                rhs.format_type = node["format_type"].as<std::string>("sql");
+                rhs.format_type = node["format_type"].as<std::string>();
             }
 
-            if (rhs.format_type == "stmt" && node["stmt"]) {
-                rhs.stmt_config.version = node["stmt"]["version"].as<std::string>("v2");
+            if (rhs.format_type == "sql") {
+
             }
+            else if (rhs.format_type == "stmt") {
+                if (node["stmt"]) {
+                    const auto& stmt = node["stmt"];
 
-            if (rhs.format_type == "schemaless" && node["schemaless"]) {
-                rhs.schemaless_config.protocol = node["schemaless"]["protocol"].as<std::string>("line");
+                    // Detect unknown keys in stmt
+                    static const std::set<std::string> stmt_keys = {"version"};
+                    check_unknown_keys(stmt, stmt_keys, "data_format::stmt");
+
+                    if (stmt["version"]) {
+                        rhs.stmt_config.version = stmt["version"].as<std::string>();
+                    }
+                } else {
+                    throw std::runtime_error("Missing required 'stmt' configuration for format_type 'stmt' in data_format.");
+                }
             }
+            else if (rhs.format_type == "schemaless") {
+                if (node["schemaless"]) {
+                    const auto& sl = node["schemaless"];
 
-            if (rhs.format_type == "csv" && node["csv"]) {
-                const auto& csv = node["csv"];
+                    // Detect unknown keys in schemaless
+                    static const std::set<std::string> sl_keys = {"protocol"};
+                    check_unknown_keys(sl, sl_keys, "data_format::schemaless");
 
-                // Detect unknown keys in csv
-                static const std::set<std::string> csv_keys = {"delimiter", "quote_character", "escape_character"};
-                check_unknown_keys(csv, csv_keys, "data_format::csv");
-
-                if (csv["delimiter"]) {
-                    rhs.csv_config.delimiter = csv["delimiter"].as<std::string>(",");
+                    if (sl["protocol"]) {
+                        rhs.schemaless_config.protocol = sl["protocol"].as<std::string>();
+                    }
+                } else {
+                    throw std::runtime_error("Missing required 'schemaless' configuration for format_type 'schemaless' in data_format.");
                 }
+            }
+            else if (rhs.format_type == "csv") {
+                if (node["csv"]) {
+                    const auto& csv = node["csv"];
 
-                if (csv["quote_character"]) {
-                    rhs.csv_config.quote_character = csv["quote_character"].as<std::string>("\"");
-                }
+                    // Detect unknown keys in csv
+                    static const std::set<std::string> csv_keys = {"delimiter", "quote_character", "escape_character"};
+                    check_unknown_keys(csv, csv_keys, "data_format::csv");
 
-                if (csv["escape_character"]) {
-                    rhs.csv_config.escape_character = csv["escape_character"].as<std::string>("\\");
+                    if (csv["delimiter"]) {
+                        rhs.csv_config.delimiter = csv["delimiter"].as<std::string>();
+                    }
+
+                    if (csv["quote_character"]) {
+                        rhs.csv_config.quote_character = csv["quote_character"].as<std::string>();
+                    }
+
+                    if (csv["escape_character"]) {
+                        rhs.csv_config.escape_character = csv["escape_character"].as<std::string>();
+                    }
+                } else {
+                    throw std::runtime_error("Missing required 'csv' configuration for format_type 'csv' in data_format.");
                 }
+            }
+            else if (rhs.format_type == "msg") {
+
+            }
+            else {
+                throw std::runtime_error("Invalid format_type in data_format: " + rhs.format_type);
             }
             return true;
         }
@@ -907,7 +964,7 @@ namespace YAML {
             check_unknown_keys(node, valid_keys, "data_channel");
 
             if (node["channel_type"]) {
-                rhs.channel_type = node["channel_type"].as<std::string>("native");
+                rhs.channel_type = node["channel_type"].as<std::string>();
             }
             return true;
         }
@@ -953,13 +1010,13 @@ namespace YAML {
                             }
 
                             if (interval["ratio"]) {
-                                i.ratio = interval["ratio"].as<double>(0.0);
+                                i.ratio = interval["ratio"].as<double>();
                             } else {
                                 throw std::runtime_error("Missing required field 'ratio' in data_disorder::intervals.");
                             }
 
                             if (interval["latency_range"]) {
-                                i.latency_range = interval["latency_range"].as<int>(0);
+                                i.latency_range = interval["latency_range"].as<int>();
                             } else {
                                 throw std::runtime_error("Missing required field 'latency_range' in data_disorder::intervals.");
                             }
@@ -1039,8 +1096,7 @@ namespace YAML {
             if (node["per_table_rows"]) {
                 int64_t val = node["per_table_rows"].as<int64_t>();
                 if (val == -1) {
-                    // rhs.per_table_rows = std::numeric_limits<int64_t>::max();
-                    rhs.per_table_rows = 100000000L;
+                    rhs.per_table_rows = std::numeric_limits<int64_t>::max();
                 } else if (val <= 0) {
                     throw std::runtime_error("per_table_rows must be positive or -1 (for unlimited).");
                 } else {
@@ -1069,25 +1125,25 @@ namespace YAML {
             check_unknown_keys(node, valid_keys, "insert-data::control::insert_control");
 
             if (node["per_request_rows"]) {
-                rhs.per_request_rows = node["per_request_rows"].as<size_t>(30000);
+                rhs.per_request_rows = node["per_request_rows"].as<size_t>();
             }
             if (node["auto_create_table"]) {
-                rhs.auto_create_table = node["auto_create_table"].as<bool>(false);
+                rhs.auto_create_table = node["auto_create_table"].as<bool>();
             }
             if (node["insert_threads"]) {
-                rhs.insert_threads = node["insert_threads"].as<int>(8);
+                rhs.insert_threads = node["insert_threads"].as<int>();
             }
             if (node["thread_allocation"]) {
-                rhs.thread_allocation = node["thread_allocation"].as<std::string>("index_range");
+                rhs.thread_allocation = node["thread_allocation"].as<std::string>();
             }
             if (node["log_path"]) {
-                rhs.log_path = node["log_path"].as<std::string>("result.txt");
+                rhs.log_path = node["log_path"].as<std::string>();
             }
             if (node["enable_dryrun"]) {
-                rhs.enable_dryrun = node["enable_dryrun"].as<bool>(false);
+                rhs.enable_dryrun = node["enable_dryrun"].as<bool>();
             }
             if (node["preload_table_meta"]) {
-                rhs.preload_table_meta = node["preload_table_meta"].as<bool>(false);
+                rhs.preload_table_meta = node["preload_table_meta"].as<bool>();
             }
             if (node["failure_handling"]) {
                 const auto& failure = node["failure_handling"];
@@ -1097,13 +1153,13 @@ namespace YAML {
                 check_unknown_keys(failure, failure_keys, "insert-data::control::insert_control::failure_handling");
 
                 if (failure["max_retries"]) {
-                    rhs.failure_handling.max_retries = failure["max_retries"].as<size_t>(0);
+                    rhs.failure_handling.max_retries = failure["max_retries"].as<size_t>();
                 }
                 if (failure["retry_interval_ms"]) {
-                    rhs.failure_handling.retry_interval_ms = failure["retry_interval_ms"].as<int>(1000);
+                    rhs.failure_handling.retry_interval_ms = failure["retry_interval_ms"].as<int>();
                 }
                 if (failure["on_failure"]) {
-                    rhs.failure_handling.on_failure = failure["on_failure"].as<std::string>("exit");
+                    rhs.failure_handling.on_failure = failure["on_failure"].as<std::string>();
                 }
             }
             return true;
@@ -1121,7 +1177,7 @@ namespace YAML {
             check_unknown_keys(node, valid_keys, "insert-data::control::time_interval");
 
             if (node["enabled"]) {
-                rhs.enabled = node["enabled"].as<bool>(false);
+                rhs.enabled = node["enabled"].as<bool>();
             }
 
             if (rhs.enabled == true) {
@@ -1163,10 +1219,10 @@ namespace YAML {
                         check_unknown_keys(dynamic, dynamic_keys, "insert-data::control::time_interval::dynamic_interval");
 
                         if (dynamic["min_interval"]) {
-                            rhs.dynamic_interval.min_interval = dynamic["min_interval"].as<int>(-1);
+                            rhs.dynamic_interval.min_interval = dynamic["min_interval"].as<int>();
                         }
                         if (dynamic["max_interval"]) {
-                            rhs.dynamic_interval.max_interval = dynamic["max_interval"].as<int>(-1);
+                            rhs.dynamic_interval.max_interval = dynamic["max_interval"].as<int>();
                         }
                     }
                 }
@@ -1249,16 +1305,16 @@ namespace YAML {
             check_unknown_keys(node, valid_keys, "query-data::control::query_control::execution");
 
             if (node["mode"]) {
-                rhs.mode = node["mode"].as<std::string>("sequential_per_thread");
+                rhs.mode = node["mode"].as<std::string>();
             }
             if (node["threads"]) {
-                rhs.threads = node["threads"].as<int>(1);
+                rhs.threads = node["threads"].as<int>();
             }
             if (node["times"]) {
-                rhs.times = node["times"].as<int>(1);
+                rhs.times = node["times"].as<int>();
             }
             if (node["interval"]) {
-                rhs.interval = node["interval"].as<int>(0);
+                rhs.interval = node["interval"].as<int>();
             }
             return true;
         }
@@ -1364,10 +1420,10 @@ namespace YAML {
             check_unknown_keys(node, valid_keys, "query-data::control::query_control");
 
             if (node["log_path"]) {
-                rhs.log_path = node["log_path"].as<std::string>("result.txt");
+                rhs.log_path = node["log_path"].as<std::string>();
             }
             if (node["enable_dryrun"]) {
-                rhs.enable_dryrun = node["enable_dryrun"].as<bool>(false);
+                rhs.enable_dryrun = node["enable_dryrun"].as<bool>();
             }
             if (node["execution"]) {
                 rhs.execution = node["execution"].as<QueryDataConfig::Control::QueryControl::Execution>();
@@ -1450,10 +1506,10 @@ namespace YAML {
             check_unknown_keys(node, valid_keys, "subscribe-data::control::subscribe_control::execution");
 
             if (node["consumer_concurrency"]) {
-                rhs.consumer_concurrency = node["consumer_concurrency"].as<int>(1);
+                rhs.consumer_concurrency = node["consumer_concurrency"].as<int>();
             }
             if (node["poll_timeout"]) {
-                rhs.poll_timeout = node["poll_timeout"].as<int>(1000);
+                rhs.poll_timeout = node["poll_timeout"].as<int>();
             }
             return true;
         }
@@ -1491,7 +1547,7 @@ namespace YAML {
             check_unknown_keys(node, valid_keys, "subscribe-data::control::subscribe_control::commit");
 
             if (node["mode"]) {
-                rhs.mode = node["mode"].as<std::string>("auto");
+                rhs.mode = node["mode"].as<std::string>();
             }
             return true;
         }
@@ -1562,11 +1618,11 @@ namespace YAML {
             check_unknown_keys(node, valid_keys, "subscribe-data::control::subscribe_control");
 
             if (node["log_path"]) {
-                rhs.log_path = node["log_path"].as<std::string>("result.txt");
+                rhs.log_path = node["log_path"].as<std::string>();
             }
 
             if (node["enable_dryrun"]) {
-                rhs.enable_dryrun = node["enable_dryrun"].as<bool>(false);
+                rhs.enable_dryrun = node["enable_dryrun"].as<bool>();
             }
 
             if (node["execution"]) {

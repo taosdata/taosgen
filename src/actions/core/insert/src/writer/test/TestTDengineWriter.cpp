@@ -23,7 +23,7 @@ InsertDataConfig create_test_config() {
         "root",
         "taosdata"
     };
-    config.target.tdengine.database_info.name = "test_action_db";
+    config.target.tdengine.database_info.name = "test_action";
     config.target.tdengine.super_table_info.name = "test_super_table";
 
     // Control config
@@ -130,41 +130,66 @@ void test_write_operations() {
     (void)connected;
     assert(connected);
 
-
     // Test SQL write
-    SqlInsertData sql_data(1000, 2000, 1, "INSERT INTO `test_action_db`.`d0` VALUES (1700000000000, 105, 3.1415926)");
-    writer.write(sql_data);
+    {
+        MultiBatch batch;
+        std::vector<RowData> rows;
+        rows.push_back({1500000010000, {10000, 108.00}});
+        rows.push_back({1500000010001, {10001, 108.01}});
+        batch.table_batches.emplace_back("d0", std::move(rows));
+        batch.update_metadata();
+
+        MemoryPool pool(1, 1, 2, col_instances);
+        auto* block = pool.convert_to_memory_block(std::move(batch));
+
+        SqlInsertData sql_data(block, col_instances, "INSERT INTO `test_action`.`d0` VALUES (1700000000000, 105, 3.1415926)");
+        writer.write(sql_data);
+    }
 
     // Test STMT write
-    std::string sql = "INSERT INTO `"
-        + config.target.tdengine.database_info.name + "`.`"
-        + config.target.tdengine.super_table_info.name + "`(tbname,ts,col1,col2) VALUES(?,?,?,?)";
+    {
+        std::string sql = "INSERT INTO `"
+            + config.target.tdengine.database_info.name + "`.`"
+            + config.target.tdengine.super_table_info.name + "`(tbname,ts,col1,col2) VALUES(?,?,?,?)";
 
-    auto prepared = writer.prepare(sql);
-    (void)prepared;
-    assert(prepared);
+        auto prepared = writer.prepare(sql);
+        (void)prepared;
+        assert(prepared);
 
-    MultiBatch batch;
-    std::vector<RowData> rows;
-    rows.push_back({1500000010000, {10000, 108.00}});
-    rows.push_back({1500000010001, {10001, 108.01}});
-    batch.table_batches.emplace_back("d2", std::move(rows));
-    batch.update_metadata();
+        MultiBatch batch;
+        std::vector<RowData> rows;
+        rows.push_back({1500000010000, {10000, 108.00}});
+        rows.push_back({1500000010001, {10001, 108.01}});
+        batch.table_batches.emplace_back("d1", std::move(rows));
+        batch.update_metadata();
 
-    MemoryPool pool(1, 1, 2, col_instances);
-    auto* block = pool.convert_to_memory_block(std::move(batch));
+        MemoryPool pool(1, 1, 2, col_instances);
+        auto* block = pool.convert_to_memory_block(std::move(batch));
 
-    StmtV2InsertData stmt_data(block, col_instances);
-    writer.write(stmt_data);
+        StmtV2InsertData stmt_data(block, col_instances);
+        writer.write(stmt_data);
+    }
 
     // Test unsupported data type
-    BaseInsertData invalid_data(static_cast<BaseInsertData::DataType>(999), 1000, 2000, 1);
+    {
+        MultiBatch batch;
+        std::vector<RowData> rows;
+        rows.push_back({1500000010000, {10000, 108.00}});
+        rows.push_back({1500000010001, {10001, 108.01}});
+        batch.table_batches.emplace_back("d2", std::move(rows));
+        batch.update_metadata();
 
-    try {
-        writer.write(invalid_data);
-        assert(false); // Should not reach here
-    } catch (const std::runtime_error& e) {
-        assert(std::string(e.what()).find("Unsupported data type") != std::string::npos);
+        MemoryPool pool(1, 1, 2, col_instances);
+        auto* block = pool.convert_to_memory_block(std::move(batch));
+
+        BaseInsertData invalid_data(static_cast<BaseInsertData::DataType>(999), block, col_instances);
+
+        try {
+            writer.write(invalid_data);
+            assert(false); // Should not reach here
+        } catch (const std::runtime_error& e) {
+            assert(std::string(e.what()).find("Unsupported data type") != std::string::npos);
+        }
     }
 
     std::cout << "test_write_operations passed." << std::endl;
@@ -175,7 +200,17 @@ void test_write_without_connection() {
     auto col_instances = ColumnConfigInstanceFactory::create(config.source.columns.get_schema());
     TDengineWriter writer(config, col_instances);
 
-    SqlInsertData sql_data(0, 0, 0, "test");
+    MultiBatch batch;
+    std::vector<RowData> rows;
+    rows.push_back({1500000000000, {42, 3.14}});
+    rows.push_back({1500000000001, {43, 2.71}});
+    batch.table_batches.emplace_back("table1", std::move(rows));
+    batch.update_metadata();
+
+    MemoryPool pool(1, 1, 2, col_instances);
+    auto* block = pool.convert_to_memory_block(std::move(batch));
+
+    SqlInsertData sql_data(block, col_instances, "test");
     try {
         writer.write(sql_data);
         assert(false);
@@ -198,7 +233,18 @@ void test_retry_mechanism() {
     auto connected = writer.connect(conn_src);
     (void)connected;
     assert(connected);
-    SqlInsertData sql_data(1000, 2000, 1, "show databases");
+
+    MultiBatch batch;
+    std::vector<RowData> rows;
+    rows.push_back({1500000000000, {42, 3.14}});
+    rows.push_back({1500000000001, {43, 2.71}});
+    batch.table_batches.emplace_back("table1", std::move(rows));
+    batch.update_metadata();
+
+    MemoryPool pool(1, 1, 2, col_instances);
+    auto* block = pool.convert_to_memory_block(std::move(batch));
+
+    SqlInsertData sql_data(block, col_instances, "show databases");
     writer.write(sql_data);
 
     std::cout << "test_retry_mechanism skipped (not implemented)." << std::endl;

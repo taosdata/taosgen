@@ -7,8 +7,8 @@
 struct SqlInsertData : public BaseInsertData {
     SqlData data;
 
-    SqlInsertData(int64_t start, int64_t end, size_t rows, std::string&& sql)
-        : BaseInsertData(DataType::SQL, start, end, rows), data(std::move(sql)) {}
+    SqlInsertData(MemoryPool::MemoryBlock* block, const ColumnConfigInstanceVector& col_instances, std::string&& sql)
+        : BaseInsertData(DataType::SQL, block, col_instances), data(std::move(sql)) {}
 
     SqlInsertData(SqlInsertData&& other) noexcept
         : BaseInsertData(std::move(other))
@@ -17,15 +17,10 @@ struct SqlInsertData : public BaseInsertData {
         this->type = DataType::SQL;
     }
 
-    SqlInsertData& operator=(SqlInsertData&& other) noexcept {
-        if (this != &other) {
-            BaseInsertData::operator=(std::move(other));
-            data = std::move(other.data);
-            this->type = DataType::SQL;
-        }
-        return *this;
-    }
-
+    // Disable copy
     SqlInsertData(const SqlInsertData&) = delete;
     SqlInsertData& operator=(const SqlInsertData&) = delete;
+    SqlInsertData& operator=(SqlInsertData&&) = delete;
+
+    ~SqlInsertData() = default;
 };
