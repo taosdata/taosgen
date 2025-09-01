@@ -153,5 +153,5 @@ jobs:
               insert_threads: 1
               failure_handling:
                 on_failure: continue
-                max_retries: 1800
+                max_retries: 18
                 retry_interval_ms: 1000

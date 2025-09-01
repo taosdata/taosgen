@@ -43,7 +43,7 @@ bool MqttWriter::prepare(const std::string& sql) {
     return client_->prepare(sql);
 }
 
-void MqttWriter::write(const BaseInsertData& data) {
+bool MqttWriter::write(const BaseInsertData& data) {
     if (!client_ || !client_->is_connected()) {
         throw std::runtime_error("MqttWriter is not connected");
     }
@@ -72,6 +72,8 @@ void MqttWriter::write(const BaseInsertData& data) {
     }
 
     update_write_state(data, success);
+
+    return success;
 }
 
 template<typename T>

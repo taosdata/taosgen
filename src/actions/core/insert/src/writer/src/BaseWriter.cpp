@@ -36,14 +36,11 @@ std::string BaseWriter::get_format_description() const {
     return config_.control.data_format.format_type;
 }
 
-void BaseWriter::update_write_state(const BaseInsertData& data, bool success) {
-    if (success) {
-        end_write_time_ = std::chrono::steady_clock::now();
-        last_start_time_ = data.start_time;
-        last_end_time_ = data.end_time;
-        current_retry_count_ = 0;
-        first_write_ = false;
-    }
+void BaseWriter::update_write_state(const BaseInsertData& data, bool /* success */ ) {
+    end_write_time_ = std::chrono::steady_clock::now();
+    last_start_time_ = data.start_time;
+    last_end_time_ = data.end_time;
+    first_write_ = false;
 }
 
 void BaseWriter::update_play_metrics(const BaseInsertData& data) {

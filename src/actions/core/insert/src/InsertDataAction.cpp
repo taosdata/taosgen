@@ -517,7 +517,11 @@ void InsertDataAction::consumer_thread_function(
                 std::visit([&](const auto& formatted_result) {
                     // using T = std::decay_t<decltype(formatted_result)>;
                     if constexpr (std::is_base_of_v<BaseInsertData, std::decay_t<decltype(formatted_result)>>) {
-                        writer->write(formatted_result);
+                        auto success = writer->write(formatted_result);
+                        if (!success) {
+                            failed_count++;
+                        }
+
                         // retry_count = 0;
 
                         // if constexpr (std::is_same_v<T, SqlInsertData> || std::is_same_v<T, StmtV2InsertData>) {
