@@ -55,15 +55,16 @@ protected:
                 bool success = operation();
                 if (success) return true;
 
-                // Failure handling strategy
-                if (config_.control.insert_control.failure_handling.on_failure == "exit") {
-                    throw std::runtime_error(error_context + " operation failed");
+                if (current_retry_count_ > MAX_RETRIES) {
+                    std::cerr << error_context << " failed after "
+                              << MAX_RETRIES << " retries" << std::endl;
+                    break;
                 }
-
             } catch (const std::exception& e) {
                 if (current_retry_count_ > MAX_RETRIES) {
-                    throw std::runtime_error(error_context + " failed after " +
-                        std::to_string(MAX_RETRIES) + " retries: " + e.what());
+                    std::cerr << error_context << " failed after "
+                              << MAX_RETRIES << " retries: " << e.what() << std::endl;
+                    break;
                 }
             }
 
@@ -73,6 +74,11 @@ protected:
             );
 
         } while (current_retry_count_ <= MAX_RETRIES);
+
+        // Failure handling strategy
+        if (config_.control.insert_control.failure_handling.on_failure == "exit") {
+            throw std::runtime_error(error_context + " operation failed");
+        }
 
         return false;
     }

@@ -481,7 +481,7 @@ void InsertDataAction::consumer_thread_function(
 {
     // Failure retry logic
     const auto& failure_cfg = config_.control.insert_control.failure_handling;
-    size_t retry_count = 0;
+    size_t failed_count = 0;
 
     // Connect to writer
     if (!writer->connect(conn_source)) {
@@ -518,7 +518,7 @@ void InsertDataAction::consumer_thread_function(
                     // using T = std::decay_t<decltype(formatted_result)>;
                     if constexpr (std::is_base_of_v<BaseInsertData, std::decay_t<decltype(formatted_result)>>) {
                         writer->write(formatted_result);
-                        retry_count = 0;
+                        // retry_count = 0;
 
                         // if constexpr (std::is_same_v<T, SqlInsertData> || std::is_same_v<T, StmtV2InsertData>) {
                         //     std::cout << "Consumer " << consumer_id
@@ -538,19 +538,14 @@ void InsertDataAction::consumer_thread_function(
                 std::cerr << "Consumer " << consumer_id << " write failed: " << e.what() << std::endl;
 
                 // Handle failure
-                if (retry_count < failure_cfg.max_retries) {
-                    std::this_thread::sleep_for(
-                        std::chrono::milliseconds(failure_cfg.retry_interval_ms));
-                    retry_count++;
-                } else if (failure_cfg.on_failure == "exit") {
+                failed_count++;
+                if (failure_cfg.on_failure == "exit") {
                     // std::cerr << "Consumer " << consumer_id << " exiting after "
                     //           << retry_count << " retries" << std::endl;
                     throw std::runtime_error(
                         "Consumer " + std::to_string(consumer_id) +
-                        " failed after " + std::to_string(retry_count) +
-                        " retries. Last error: " + e.what()
+                        " failed. Last error: " + e.what()
                     );
-                    // return;
                 }
             }
             break;
@@ -558,6 +553,10 @@ void InsertDataAction::consumer_thread_function(
         case DataPipeline<FormatResult>::Status::Terminated:
             // Pipeline terminated, exit thread
             std::cout << "Consumer " << consumer_id << " received termination signal" << std::endl;
+            if (failed_count > 0) {
+                std::cout << "Consumer " << consumer_id << " had "
+                          << failed_count << " failed write attempts" << std::endl;
+            }
             return;
 
         case DataPipeline<FormatResult>::Status::Timeout:
