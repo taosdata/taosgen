@@ -34,9 +34,6 @@ protected:
     int64_t last_start_time_ = 0;
     int64_t last_end_time_ = 0;
 
-    // Failure retry state
-    size_t current_retry_count_ = 0;
-
     // Performance statistics
     ActionMetrics play_metrics_;
     ActionMetrics write_metrics_;
@@ -49,31 +46,30 @@ protected:
     template<typename Func>
     bool execute_with_retry(Func&& operation, const std::string& error_context) {
         const size_t MAX_RETRIES = config_.control.insert_control.failure_handling.max_retries;
+        size_t current_retry_count = 0;
 
         do {
             try {
                 bool success = operation();
                 if (success) return true;
-
-                // Failure handling strategy
-                if (config_.control.insert_control.failure_handling.on_failure == "exit") {
-                    throw std::runtime_error(error_context + " operation failed");
-                }
-
             } catch (const std::exception& e) {
-                if (current_retry_count_ > MAX_RETRIES) {
-                    throw std::runtime_error(error_context + " failed after " +
-                        std::to_string(MAX_RETRIES) + " retries: " + e.what());
-                }
+                std::cerr << error_context << " failed reason: " << e.what() << std::endl;
+                break;
             }
 
-            current_retry_count_++;
+            current_retry_count++;
             std::this_thread::sleep_for(
                 std::chrono::milliseconds(config_.control.insert_control.failure_handling.retry_interval_ms)
             );
 
-        } while (current_retry_count_ <= MAX_RETRIES);
+        } while (current_retry_count <= MAX_RETRIES);
 
+        // Failure handling strategy
+        if (config_.control.insert_control.failure_handling.on_failure == "exit") {
+            throw std::runtime_error(error_context + " operation failed");
+        }
+
+        std::cerr << error_context << " failed after " << MAX_RETRIES << " retries" << std::endl;
         return false;
     }
 

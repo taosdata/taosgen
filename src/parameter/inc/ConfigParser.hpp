@@ -1160,6 +1160,9 @@ namespace YAML {
                 }
                 if (failure["on_failure"]) {
                     rhs.failure_handling.on_failure = failure["on_failure"].as<std::string>();
+                    if (rhs.failure_handling.on_failure != "exit" && rhs.failure_handling.on_failure != "continue") {
+                        throw std::runtime_error("Invalid value for on_failure in failure_handling: " + rhs.failure_handling.on_failure);
+                    }
                 }
             }
             return true;

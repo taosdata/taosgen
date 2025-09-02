@@ -10,7 +10,7 @@ public:
     bool connect(std::optional<ConnectorSource>& conn_source) override;
     bool select_db(const std::string& db_name) override;
     bool prepare(const std::string& sql) override;
-    void write(const BaseInsertData& data) override;
+    bool write(const BaseInsertData& data) override;
     void close() noexcept override;
 
 private:

@@ -22,7 +22,7 @@ public:
     virtual bool prepare(const std::string& sql) = 0;
 
     // Execute write operation
-    virtual void write(const BaseInsertData& data) = 0;
+    virtual bool write(const BaseInsertData& data) = 0;
 
     // Close/release resource
     virtual void close() noexcept = 0;

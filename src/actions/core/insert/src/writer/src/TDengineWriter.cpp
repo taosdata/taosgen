@@ -50,7 +50,7 @@ bool TDengineWriter::prepare(const std::string& sql) {
     return connector_->prepare(sql);
 }
 
-void TDengineWriter::write(const BaseInsertData& data) {
+bool TDengineWriter::write(const BaseInsertData& data) {
     if (!connector_) {
         throw std::runtime_error("TDengineWriter is not connected");
     }
@@ -85,6 +85,8 @@ void TDengineWriter::write(const BaseInsertData& data) {
     }
 
     update_write_state(data, success);
+
+    return success;
 }
 
 
