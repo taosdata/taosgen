@@ -4,6 +4,6 @@
 
 class NativeConnector final : public TDengineConnector {
 public:
-    explicit NativeConnector(const ConnectionInfo& conn_info)
+    explicit NativeConnector(const TDengineInfo& conn_info)
         : TDengineConnector(conn_info, "native", "Native") {}
 };

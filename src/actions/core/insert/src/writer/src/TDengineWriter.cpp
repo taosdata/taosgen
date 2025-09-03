@@ -24,7 +24,6 @@ bool TDengineWriter::connect(std::optional<ConnectorSource>& conn_source) {
             return connector_->is_connected();
         } else {
             connector_ = ConnectorFactory::create(
-                config_.control.data_channel,
                 config_.target.tdengine.connection_info
             );
             return connector_->connect();

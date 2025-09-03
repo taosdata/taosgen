@@ -21,14 +21,14 @@ struct DummyConnector : public DatabaseConnector {
 };
 
 namespace ConnectorFactory {
-    std::unique_ptr<DatabaseConnector> create(const DataChannel&, const ConnectionInfo&) {
+    std::unique_ptr<DatabaseConnector> create(const DataChannel&, const TDengineInfo&) {
         return std::make_unique<DummyConnector>();
     }
 }
 
 void test_pooled_connector_constructor_valid() {
     DataChannel channel;
-    ConnectionInfo info;
+    TDengineInfo info;
     ConnectionPoolImpl pool(channel, info);
     auto real_conn = std::make_unique<DummyConnector>();
     PooledConnector pooled(std::move(real_conn), pool);
@@ -39,7 +39,7 @@ void test_pooled_connector_constructor_valid() {
 
 void test_pooled_connector_constructor_nullptr() {
     DataChannel channel;
-    ConnectionInfo info;
+    TDengineInfo info;
     ConnectionPoolImpl pool(channel, info);
     bool exception_thrown = false;
     try {

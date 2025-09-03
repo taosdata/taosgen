@@ -205,7 +205,6 @@ void test_end_to_end_data_generation() {
 
             config.control.data_channel = channel;
             config.control.data_format = format;
-            config.target.tdengine.connection_info.port = ConnectionInfo::default_port(channel.channel_type);
 
             config.control.data_generation.per_table_rows = 10;
             config.control.data_generation.generate_threads = 1;

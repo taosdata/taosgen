@@ -5,17 +5,14 @@
 #include "RestfulConnector.hpp"
 #include <stdexcept>
 
-std::unique_ptr<DatabaseConnector> ConnectorFactory::create(
-    const DataChannel& channel,
-    const ConnectionInfo& conn_info)
-{
-    if (channel.channel_type == "native") {
+std::unique_ptr<DatabaseConnector> ConnectorFactory::create(const TDengineInfo& conn_info) {
+    if (conn_info.protocol_type == TDengineInfo::ProtocolType::Native) {
         return std::make_unique<NativeConnector>(conn_info);
-    } else if (channel.channel_type == "websocket") {
+    } else if (conn_info.protocol_type == TDengineInfo::ProtocolType::WebSocket) {
         return std::make_unique<WebsocketConnector>(conn_info);
-    } else if (channel.channel_type == "restful") {
+    } else if (conn_info.protocol_type == TDengineInfo::ProtocolType::RESTful) {
         return std::make_unique<RestfulConnector>(conn_info);
     }
 
-    throw std::invalid_argument("Unsupported channel type: " + channel.channel_type);
+    throw std::invalid_argument("Unsupported channel type: " + std::to_string(static_cast<int>(conn_info.protocol_type)));
 }

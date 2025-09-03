@@ -41,69 +41,36 @@ namespace YAML {
     }
 
     template<>
-    struct convert<ConnectionInfo::ConnectionPoolConfig> {
-        static bool decode(const Node& node, ConnectionInfo::ConnectionPoolConfig& rhs) {
+    struct convert<TDengineInfo> {
+        static bool decode(const Node& node, TDengineInfo& rhs) {
             // Detect unknown configuration keys
             static const std::set<std::string> valid_keys = {
-                "enabled", "max_size", "min_size", "connection_timeout"
+                "dsn", "drop_if_exists", "props", "pool"
             };
-            check_unknown_keys(node, valid_keys, "connection_info::pool");
+            check_unknown_keys(node, valid_keys, "tdengine_connection");
 
-            if (node["enabled"]) {
-                rhs.enabled = node["enabled"].as<bool>();
-            }
-
-            if (rhs.enabled) {
-                if (node["max_size"]) {
-                    rhs.max_size = node["max_size"].as<size_t>();
-                    if (rhs.max_size == 0) {
-                        throw std::runtime_error("max_size must be greater than 0");
-                    }
-                }
-                if (node["min_size"]) {
-                    rhs.min_size = node["min_size"].as<size_t>();
-                }
-                if (rhs.min_size > rhs.max_size) {
-                    throw std::runtime_error("min_size cannot exceed max_size");
-                }
-                if (node["connection_timeout"]) {
-                    rhs.connection_timeout = node["connection_timeout"].as<size_t>();
-                }
-            }
-
-            return true;
-        }
-    };
-
-    template<>
-    struct convert<ConnectionInfo> {
-        static bool decode(const Node& node, ConnectionInfo& rhs) {
-            // Detect unknown configuration keys
-            static const std::set<std::string> valid_keys = {
-                "host", "port", "user", "password", "dsn", "pool"
-            };
-            check_unknown_keys(node, valid_keys, "connection_info");
-
-            if (node["host"]) {
-                rhs.host = node["host"].as<std::string>();
-            }
-            if (node["port"]) {
-                rhs.port = node["port"].as<int>();
-            }
-            if (node["user"]) {
-                rhs.user = node["user"].as<std::string>();
-            }
-            if (node["password"]) {
-                rhs.password = node["password"].as<std::string>();
-            }
             if (node["dsn"]) {
                 rhs.dsn = node["dsn"].as<std::string>();
-                rhs.parse_dsn(*rhs.dsn);
+                rhs.parse_dsn();
+            }
+            if (node["drop_if_exists"]) {
+                rhs.drop_if_exists = node["drop_if_exists"].as<bool>();
+            }
+            if (node["props"]) {
+                rhs.properties = node["props"].as<std::string>();
             }
             if (node["pool"]) {
-                rhs.pool = node["pool"].as<ConnectionInfo::ConnectionPoolConfig>();
-            }
+                const auto& pool_node = node["pool"];
 
+                // Detect unknown keys in pool
+                static const std::set<std::string> pool_keys = {"enabled", "max_size", "min_size", "timeout"};
+                check_unknown_keys(pool_node, pool_keys, "connections::connection::pool");
+
+                if (pool_node["enabled"]) rhs.pool.enabled = pool_node["enabled"].as<bool>();
+                if (pool_node["max_size"]) rhs.pool.max_size = pool_node["max_size"].as<size_t>();
+                if (pool_node["min_size"]) rhs.pool.min_size = pool_node["min_size"].as<size_t>();
+                if (pool_node["timeout"]) rhs.pool.timeout = pool_node["timeout"].as<size_t>();
+            }
             return true;
         }
     };
@@ -770,7 +737,7 @@ namespace YAML {
             check_unknown_keys(node, valid_keys, "insert-data::target::tdengine");
 
             if (node["connection_info"]) {
-                rhs.connection_info = node["connection_info"].as<ConnectionInfo>();
+                rhs.connection_info = node["connection_info"].as<TDengineInfo>();
             } else {
                 throw std::runtime_error("Missing required field 'connection_info' in insert-data::target::tdengine.");
             }
@@ -1291,7 +1258,7 @@ namespace YAML {
             check_unknown_keys(node, valid_keys, "query-data::source");
 
             if (node["connection_info"]) {
-                rhs.connection_info = node["connection_info"].as<ConnectionInfo>();
+                rhs.connection_info = node["connection_info"].as<TDengineInfo>();
             } else {
                 throw std::runtime_error("Missing required field 'connection_info' in query-data::source.");
             }
@@ -1492,7 +1459,7 @@ namespace YAML {
             check_unknown_keys(node, valid_keys, "subscribe-data::source");
 
             if (node["connection_info"]) {
-                rhs.connection_info = node["connection_info"].as<ConnectionInfo>();
+                rhs.connection_info = node["connection_info"].as<TDengineInfo>();
             } else {
                 throw std::runtime_error("Missing required field 'connection_info' in subscribe-data::source.");
             }

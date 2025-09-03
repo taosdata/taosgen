@@ -5,7 +5,7 @@
 #include <stdexcept>
 
 ConnectionPoolImpl::ConnectionPoolImpl(
-    const DataChannel& channel, const ConnectionInfo& conn_info)
+    const DataChannel& channel, const TDengineInfo& conn_info)
     : channel_(channel), conn_info_(conn_info)
 {
     initialize();
@@ -30,7 +30,7 @@ void ConnectionPoolImpl::create_connections_locked(size_t count) {
         if (total_count_ >= conn_info_.pool.max_size) break;
 
         try {
-            std::unique_ptr<DatabaseConnector> conn = ConnectorFactory::create(channel_, conn_info_);
+            std::unique_ptr<DatabaseConnector> conn = ConnectorFactory::create(conn_info_);
 
             if (conn->connect()) {
                 available_connections_.push(std::move(conn));
@@ -61,7 +61,7 @@ std::unique_ptr<DatabaseConnector> ConnectionPoolImpl::get_connector() {
     if (available_connections_.empty()) {
         auto status = condition_.wait_for(
             lock,
-            std::chrono::milliseconds(conn_info_.pool.connection_timeout),
+            std::chrono::milliseconds(conn_info_.pool.timeout),
             [this] { return !available_connections_.empty() ||
                 is_shutting_down_;
             }
@@ -84,7 +84,7 @@ std::unique_ptr<DatabaseConnector> ConnectionPoolImpl::get_connector() {
     if (!real_conn->is_valid()) {
         lock.unlock();
         try {
-            auto new_conn = ConnectorFactory::create(channel_, conn_info_);
+            auto new_conn = ConnectorFactory::create(conn_info_);
             if (new_conn->connect()) {
                 real_conn = std::move(new_conn);
             } else {

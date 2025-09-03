@@ -5,7 +5,6 @@
 
 void CreateSuperTableAction::prepare_connector() {
     connector_ = ConnectorFactory::create(
-        config_.data_channel,
         config_.connection_info
     );
 }

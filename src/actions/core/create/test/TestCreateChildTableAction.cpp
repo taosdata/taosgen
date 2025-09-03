@@ -10,11 +10,7 @@
 void test_create_child_table_action_from_generator() {
     GlobalConfig global;
 
-    ConnectionInfo conn_info;
-    conn_info.host = "localhost";
-    conn_info.port = 6030;
-    conn_info.user = "root";
-    conn_info.password = "taosdata";
+    TDengineInfo conn_info("taos://root:taosdata@localhost:6030/tsbench");
 
     DataChannel channel;
     channel.channel_type = "native";
@@ -58,11 +54,7 @@ void test_create_child_table_action_from_generator() {
 
 void test_create_child_table_action_from_csv() {
     GlobalConfig global;
-    ConnectionInfo conn_info;
-    conn_info.host = "localhost";
-    conn_info.port = 6030;
-    conn_info.user = "root";
-    conn_info.password = "taosdata";
+    TDengineInfo conn_info("taos://root:taosdata@localhost:6030/tsbench");
 
     DataChannel channel;
     channel.channel_type = "native";

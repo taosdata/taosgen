@@ -1,19 +1,19 @@
-# test ConnectionInfo
-add_executable(TestConnectionInfo
-  TestConnectionInfo.cpp
+# test TDengineInfo
+add_executable(TestTDengineInfo
+  TestTDengineInfo.cpp
 )
-target_link_libraries(TestConnectionInfo
-  PRIVATE 
+target_link_libraries(TestTDengineInfo
+  PRIVATE
     actions_config
 )
-add_test(NAME TestConnectionInfo COMMAND TestConnectionInfo)
+add_test(NAME TestTDengineInfo COMMAND TestTDengineInfo)
 
 # test ColumnConfig
 add_executable(TestColumnConfig
   TestColumnConfig.cpp
 )
 target_link_libraries(TestColumnConfig
-  PRIVATE 
+  PRIVATE
     actions_config
 )
 add_test(NAME TestColumnConfig COMMAND TestColumnConfig)
@@ -23,7 +23,7 @@ add_executable(TestColumnConfigInstance
   TestColumnConfigInstance.cpp
 )
 target_link_libraries(TestColumnConfigInstance
-  PRIVATE 
+  PRIVATE
     actions_config
 )
 add_test(NAME TestColumnConfigInstance COMMAND TestColumnConfigInstance)

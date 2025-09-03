@@ -48,10 +48,8 @@ void test_yaml_merge() {
     YAML::Node config = YAML::Load(R"(
 global:
   connection_info: &db_conn
-    host: 10.0.0.1
-    port: 6043
-    user: root
-    password: secret
+    dsn: "taos://root:secret@10.0.0.1:6043/tsbench"
+    drop_if_exists: true
   database_info: &db_info
     name: testdb
     drop_if_exists: true
@@ -170,7 +168,7 @@ jobs:
               database_info:
                 name: testdb
                 precision: us
-            
+
               super_table_info:
                 name: points
                 columns: *columns_info
@@ -499,10 +497,6 @@ void test_unknown_key_detection() {
   YAML::Node config = YAML::Load(R"(
 global:
   connection_info:
-    host: 127.0.0.1
-    port: 6030
-    user: root
-    password: taosdata
     unknown_key: should_fail
 )");
   ParameterContext ctx;
@@ -511,7 +505,7 @@ global:
       assert(false && "Should throw on unknown key in connection_info");
   } catch (const std::runtime_error& e) {
       std::string msg = e.what();
-      assert(msg.find("Unknown configuration key in connection_info") != std::string::npos);
+      assert(msg.find("Unknown configuration key in tdengine_connection") != std::string::npos);
       std::cout << "Unknown key detection test passed.\n";
   }
 }
@@ -537,11 +531,6 @@ global:
 void test_nested_unknown_key_detection() {
   YAML::Node config = YAML::Load(R"(
 global:
-  connection_info:
-    host: 127.0.0.1
-    port: 6030
-    user: root
-    password: taosdata
   database_info:
     name: testdb
     drop_if_exists: true
@@ -570,11 +559,6 @@ jobs:
       - name: Create Database
         uses: actions/create-database
         with:
-          connection_info:
-            host: 127.0.0.1
-            port: 6030
-            user: root
-            password: taosdata
           database_info:
             drop_if_exists: true
             precision: ms

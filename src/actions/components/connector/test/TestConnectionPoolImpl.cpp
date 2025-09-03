@@ -5,11 +5,11 @@
 
 void test_pool_initialization() {
     DataChannel channel;
-    ConnectionInfo info;
+    TDengineInfo info;
     info.pool.enabled = true;
     info.pool.min_size = 2;
     info.pool.max_size = 4;
-    info.pool.connection_timeout = 100;
+    info.pool.timeout = 100;
 
     ConnectionPoolImpl pool(channel, info);
 
@@ -22,11 +22,11 @@ void test_pool_initialization() {
 
 void test_get_and_return_connection() {
     DataChannel channel;
-    ConnectionInfo info;
+    TDengineInfo info;
     info.pool.enabled = true;
     info.pool.min_size = 2;
     info.pool.max_size = 4;
-    info.pool.connection_timeout = 100;
+    info.pool.timeout = 100;
 
     ConnectionPoolImpl pool(channel, info);
 
@@ -44,11 +44,11 @@ void test_get_and_return_connection() {
 
 void test_pool_max_size() {
     DataChannel channel;
-    ConnectionInfo info;
+    TDengineInfo info;
     info.pool.enabled = true;
     info.pool.max_size = 2;
     info.pool.min_size = 1;
-    info.pool.connection_timeout = 100;
+    info.pool.timeout = 100;
 
     ConnectionPoolImpl pool(channel, info);
 
@@ -67,11 +67,11 @@ void test_pool_max_size() {
 
 void test_connection_timeout() {
     DataChannel channel;
-    ConnectionInfo info;
+    TDengineInfo info;
     info.pool.enabled = true;
     info.pool.min_size = 1;
     info.pool.max_size = 1;
-    info.pool.connection_timeout = 100; // 100ms
+    info.pool.timeout = 100; // 100ms
 
     ConnectionPoolImpl pool(channel, info);
 
@@ -92,7 +92,7 @@ void test_connection_timeout() {
     assert(timeout_thrown);
 
     auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    int expected = info.pool.connection_timeout;
+    int expected = info.pool.timeout;
     int tolerance = 30;
     (void)elapsed_ms;
     (void)expected;

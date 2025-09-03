@@ -4,22 +4,26 @@
 #include <yaml-cpp/yaml.h>
 #include "ConfigParser.hpp"
 
-
-void test_ConnectionInfo() {
+void test_TDengineInfo() {
     std::string yaml = R"(
-host: localhost
-port: 6030
-user: root
-password: taosdata
-dsn: "http://localhost:6041"
+dsn: "taos+ws://root:taosdata@127.0.0.1:6041/test"
+drop_if_exists: false
+props: "precision 'ms' vgroups 4"
+pool:
+  enabled: true
+  max_size: 10
+  min_size: 2
+  timeout: 1000
 )";
     YAML::Node node = YAML::Load(yaml);
-    ConnectionInfo ci = node.as<ConnectionInfo>();
-    assert(ci.host == "localhost");
-    assert(ci.port == 6041);
-    assert(ci.user == "root");
-    assert(ci.password == "taosdata");
-    assert(ci.dsn.has_value());
+    TDengineInfo conn = node.as<TDengineInfo>();
+    assert(conn.dsn == "taos+ws://root:taosdata@127.0.0.1:6041/test");
+    assert(conn.drop_if_exists == false);
+    assert(conn.properties.has_value() && *conn.properties == "precision 'ms' vgroups 4");
+    assert(conn.pool.enabled == true);
+    assert(conn.pool.max_size == 10);
+    assert(conn.pool.min_size == 2);
+    assert(conn.pool.timeout == 1000);
 }
 
 void test_DatabaseInfo() {
@@ -322,10 +326,7 @@ void test_InsertDataConfig_Target_TDengine() {
 target_type: tdengine
 tdengine:
   connection_info:
-    host: localhost
-    port: 6030
-    user: root
-    password: taosdata
+    dsn: "taos+ws://root:taosdata@localhost:6041/tsbench"
   database_info:
     name: testdb
     drop_if_exists: true
@@ -590,10 +591,7 @@ time_interval:
 void test_QueryDataConfig_Source() {
   std::string yaml = R"(
 connection_info:
-  host: localhost
-  port: 6030
-  user: root
-  password: taosdata
+  dsn: "taos://root:taosdata@localhost:6030/tsbench"
 )";
   YAML::Node node = YAML::Load(yaml);
   QueryDataConfig::Source src = node.as<QueryDataConfig::Source>();
@@ -744,10 +742,7 @@ query_control:
 void test_SubscribeDataConfig_Source() {
   std::string yaml = R"(
 connection_info:
-  host: localhost
-  port: 6030
-  user: root
-  password: taosdata
+  dsn: "taos://root:taosdata@localhost:6030/tsbench"
 )";
   YAML::Node node = YAML::Load(yaml);
   SubscribeDataConfig::Source src = node.as<SubscribeDataConfig::Source>();
@@ -894,7 +889,7 @@ subscribe_control:
 }
 
 int main() {
-    test_ConnectionInfo();
+    test_TDengineInfo();
     test_DataFormat_csv();
     test_DataChannel();
     test_DatabaseInfo();

@@ -10,7 +10,7 @@
 
 class ConnectorSource {
 public:
-    ConnectorSource(const DataChannel& channel, const ConnectionInfo& conn_info);
+    ConnectorSource(const DataChannel& channel, const TDengineInfo& conn_info);
     ~ConnectorSource();
 
     std::unique_ptr<DatabaseConnector> get_connector();
@@ -25,7 +25,7 @@ private:
     std::unique_ptr<DatabaseConnector> create_raw_connection() const;
 
     const DataChannel& channel_;
-    const ConnectionInfo& conn_info_;
+    const TDengineInfo& conn_info_;
 
     ConnectorSource(const ConnectorSource&) = delete;
     ConnectorSource& operator=(const ConnectorSource&) = delete;

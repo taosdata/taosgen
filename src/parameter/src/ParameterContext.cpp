@@ -85,7 +85,7 @@ void ParameterContext::parse_global(const YAML::Node& global_yaml) {
         global_config.cfg_dir = global_yaml["cfg_dir"].as<std::string>();
     }
     if (global_yaml["connection_info"]) {
-        global_config.connection_info = global_yaml["connection_info"].as<ConnectionInfo>();
+        global_config.connection_info = global_yaml["connection_info"].as<TDengineInfo>();
     }
     if (global_yaml["data_format"]) {
         global_config.data_format = global_yaml["data_format"].as<DataFormat>();
@@ -155,7 +155,7 @@ void ParameterContext::parse_create_database_action(Step& step) {
 
     // Parse connection_info (optional)
     if (step.with["connection_info"]) {
-        create_db_config.connection_info = step.with["connection_info"].as<ConnectionInfo>();
+        create_db_config.connection_info = step.with["connection_info"].as<TDengineInfo>();
     } else {
         // Use global config if not specified
         create_db_config.connection_info = config_data.global.connection_info;
@@ -197,7 +197,7 @@ void ParameterContext::parse_create_super_table_action(Step& step) {
 
     // Parse connection_info (optional)
     if (step.with["connection_info"]) {
-        create_stb_config.connection_info = step.with["connection_info"].as<ConnectionInfo>();
+        create_stb_config.connection_info = step.with["connection_info"].as<TDengineInfo>();
     } else {
         // Use global config if not specified
         create_stb_config.connection_info = config_data.global.connection_info;
@@ -250,7 +250,7 @@ void ParameterContext::parse_create_child_table_action(Step& step) {
 
     // Parse connection_info (optional)
     if (step.with["connection_info"]) {
-        create_child_config.connection_info = step.with["connection_info"].as<ConnectionInfo>();
+        create_child_config.connection_info = step.with["connection_info"].as<TDengineInfo>();
     } else {
         // Use global config if not specified
         create_child_config.connection_info = config_data.global.connection_info;
@@ -562,7 +562,7 @@ const GlobalConfig& ParameterContext::get_global_config() const {
     return config_data.global;
 }
 
-const ConnectionInfo& ParameterContext::get_connection_info() const {
+const TDengineInfo& ParameterContext::get_connection_info() const {
     return config_data.global.connection_info;
 }
 

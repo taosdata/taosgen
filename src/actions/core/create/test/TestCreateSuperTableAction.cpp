@@ -9,11 +9,7 @@
 void test_create_super_table_action() {
     GlobalConfig global;
 
-    ConnectionInfo conn_info;
-    conn_info.host = "localhost";
-    conn_info.port = 6030;
-    conn_info.user = "root";
-    conn_info.password = "taosdata";
+    TDengineInfo conn_info("taos://root:taosdata@localhost:6030/tsbench");
 
     DataChannel channel;
     channel.channel_type = "native";
@@ -54,7 +50,7 @@ void test_create_super_table_action() {
 
     // // Verify super table creation
     // std::cout << "Verifying super table creation..." << std::endl;
-    // auto connector = ConnectorFactory::create(channel, conn_info);
+    // auto connector = ConnectorFactory::create(conn_info);
     // if (!connector->connect()) {
     //     std::cerr << "Verification failed: cannot connect to database" << std::endl;
     //     return;
@@ -82,7 +78,7 @@ void test_create_super_table_action() {
 
     // Clean up test super table
     // std::cout << "Cleaning up test super table..." << std::endl;
-    // auto cleanup_connector = ConnectorFactory::create(channel, conn_info);
+    // auto cleanup_connector = ConnectorFactory::create(conn_info);
     // if (cleanup_connector->connect()) {
     //     cleanup_connector->execute("DROP TABLE IF EXISTS `" + config.super_table_info.name + "`");
     //     cleanup_connector->close();

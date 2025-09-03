@@ -17,11 +17,8 @@ InsertDataConfig create_test_config() {
 
     // Target config
     config.target.timestamp_precision = "ms";
-    config.target.tdengine.connection_info = ConnectionInfo{
-        "localhost",
-        6030,
-        "root",
-        "taosdata"
+    config.target.tdengine.connection_info = TDengineInfo{
+        "taos://root:taosdata@localhost:6030/tsbench"
     };
     config.target.tdengine.database_info.name = "test_action";
     config.target.tdengine.super_table_info.name = "test_super_table";
