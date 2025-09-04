@@ -19,6 +19,6 @@ struct GlobalConfig {
     DatabaseInfo database_info;
     SuperTableInfo super_table_info;
 
-    TDengineConfig td_info;
-    SchemaConfig schema_info;
+    TDengineConfig tdengine;
+    SchemaConfig schema;
 };

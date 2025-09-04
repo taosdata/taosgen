@@ -8,27 +8,15 @@
 
 void test_create_database_action() {
     GlobalConfig global;
-
-    TDengineConfig conn_info("taos://root:taosdata@localhost:6030/tsbench");
-
-    DataChannel channel;
-    channel.channel_type = "native";
-
-    DataFormat format;
-    format.format_type = "sql";
-
+    TDengineConfig conn_info("taos://root:taosdata@localhost:6030/test_action");
     CreateDatabaseConfig config;
-    config.connection_info = conn_info;
-    config.data_format = format;
-    config.data_channel = channel;
-    config.database_info.name = "test_action";
-    config.database_info.drop_if_exists = true;
+    config.tdengine = conn_info;
 
     // Create action instance
     std::cout << "Creating action instance..." << std::endl;
     auto action = ActionFactory::instance().create_action(
         global,
-        "actions/create-database",
+        "tdengine/create-database",
         config
     );
 
@@ -48,7 +36,7 @@ void test_create_database_action() {
     // bool db_exists = false;
     // connector->query("SHOW DATABASES", [&](const QueryResult& result) {
     //     for (const auto& row : result.rows) {
-    //         if (row[0] == config.database_info.name) {
+    //         if (row[0] == config.tdengine.database) {
     //             db_exists = true;
     //             break;
     //         }
@@ -58,7 +46,7 @@ void test_create_database_action() {
     // connector->close();
 
     // if (db_exists) {
-    //     std::cout << "Verification succeeded: database '" << config.database_info.name
+    //     std::cout << "Verification succeeded: database '" << config.tdengine.database
     //               << "' created" << std::endl;
     // } else {
     //     std::cerr << "Verification failed: database not created" << std::endl;
@@ -68,7 +56,7 @@ void test_create_database_action() {
     // std::cout << "Cleaning up test database..." << std::endl;
     // auto cleanup_connector = ConnectorFactory::create(conn_info);
     // if (cleanup_connector->connect()) {
-    //     cleanup_connector->execute("DROP DATABASE IF EXISTS `" + config.database_info.name + "`");
+    //     cleanup_connector->execute("DROP DATABASE IF EXISTS `" + config.tdengine.database + "`");
     //     cleanup_connector->close();
     // }
 

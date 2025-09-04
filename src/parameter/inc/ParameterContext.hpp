@@ -41,7 +41,6 @@ public:
 
 
 private:
-    GlobalConfig global_config;
     int concurrency = 1;
     ConfigData config_data; // Top-level config data
 
@@ -54,13 +53,15 @@ private:
     void parse_schema(const YAML::Node& td_yaml);
     void parse_global(const YAML::Node& global_yaml);
     void parse_jobs(const YAML::Node& jobs_yaml);
-    void parse_steps(const YAML::Node& steps_yaml, std::vector<Step>& steps);
-    void parse_create_database_action(Step& step);
-    void parse_create_super_table_action(Step& step);
-    void parse_create_child_table_action(Step& step);
-    void parse_insert_data_action(Step& step);
-    void parse_query_data_action(Step& step);
-    void parse_subscribe_data_action(Step& step);
+    void parse_steps(const YAML::Node& steps_yaml, Job& job);
+
+    void prepare_work();
+    void parse_td_create_database_action(Job& job, Step& step);
+    void parse_td_create_super_table_action(Job& job, Step& step);
+    void parse_create_child_table_action(Job& job, Step& step);
+    void parse_insert_data_action(Job& job, Step& step);
+    void parse_query_data_action(Job& job, Step& step);
+    void parse_subscribe_data_action(Job& job, Step& step);
     // void parse_job(const YAML::Node& job_yaml, Job& job);
     // void parse_step(const YAML::Node& step_yaml, Step& step);
 

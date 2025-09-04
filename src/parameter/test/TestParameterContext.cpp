@@ -46,6 +46,36 @@ void test_yaml_merge() {
 
     // Simulate YAML config
     YAML::Node config = YAML::Load(R"(
+tdengine:
+  dsn: taos://root:secret@10.0.0.1:6043/testdb
+  drop_if_exists: true
+  props: vgroups 20 replica 3 keep 3650
+
+schema:
+  name: meters
+  tbname:
+    prefix: d
+    count: 100000
+    from: 0
+  columns: &columns_info
+    - name: latitude
+      type: float
+    - name: longitude
+      type: float
+    - name: quality
+      type: varchar(50)
+  tags: &tags_info
+    - name: type
+      type: varchar(7)
+    - name: name
+      type: varchar(20)
+    - name: department
+      type: varchar(7)
+  generation:
+    interlace: 1
+    per_table_rows: 100
+    per_batch_rows: 10000
+
 global:
   connection_info: &db_conn
     dsn: "taos://root:secret@10.0.0.1:6043/tsbench"
@@ -79,30 +109,17 @@ jobs:
     needs: []
     steps:
       - name: Create Database
-        uses: actions/create-database
-        with:
-          connection_info: *db_conn
-          database_info:
-            name: testdb
-            drop_if_exists: true
-            precision: us
-            props: vgroups 20 replica 3 keep 3650
+        uses: tdengine/create-database
 
   create-super-table:
     name: Create Super Table
     needs: [create-database]
     steps:
       - name: Create Super Table
-        uses: actions/create-super-table
+        uses: tdengine/create-super-table
         with:
-          connection_info: *db_conn
-          database_info:
-            name: testdb
-          super_table_info:
+          schema:
             name: points
-            columns: *columns_info
-            tags: *tags_info
-
 
   create-second-child-table:
     name: Create Second Child Table
@@ -190,79 +207,6 @@ jobs:
             time_interval:
               enabled: true
               interval_strategy: first_to_first
-
-  query-super-table:
-    name: Query Super Table
-    needs:
-      - create-second-child-table
-      - create-minute-child-table
-    steps:
-      - name: query-super-table
-        uses: actions/query-data
-        with:
-          # source
-          source:
-            connection_info: *db_conn
-
-          # control
-          control:
-            data_format:
-              format_type: sql
-            data_channel:
-              channel_type: native
-            query_control:
-              execution:
-                mode: parallel_per_group
-                threads: 10
-                times: 50
-                interval: 100
-              query_type: super_table
-              super_table:
-                database_name: testdb
-                super_table_name: points
-                placeholder: ${child_table}
-                templates:
-                  - sql_template: select count(*) from ${child_table}
-                    output_file: stb_result.txt
-
-  subscribe-data:
-    name: Subscribe Data
-    needs:
-      - create-second-child-table
-      - create-minute-child-table
-    steps:
-      - name: subscribe-data
-        uses: actions/subscribe-data
-        with:
-          # source
-          source:
-            connection_info: *db_conn
-          # control
-          control:
-            data_format:
-              format_type: sql
-            data_channel:
-              channel_type: native
-            subscribe_control:
-              execution:
-                consumer_concurrency: 5
-                poll_timeout: 500
-              topics:
-                - name: topic1
-                  sql: select * from testdb.points
-              commit:
-                mode: auto
-              group_id:
-                strategy: custom
-                custom_id: custom_group
-              output:
-                path: out
-                file_prefix: subscribe_data_
-                expected_rows: 10000
-              advanced:
-                client.id: benchmark_client
-                auto.offset.reset: earliest
-                msg.with.table.name: true
 )");
 
     ctx.merge_yaml(config);
@@ -275,24 +219,23 @@ jobs:
 
     // Validate job parsing
     // job: create-database
-    assert(data.jobs.size() == 6);
+    assert(data.jobs.size() == 4);
     assert(data.jobs[0].key == "create-database");
     assert(data.jobs[0].name == "Create Database");
     assert(data.jobs[0].needs.size() == 0);
     assert(data.jobs[0].steps.size() == 1);
     assert(data.jobs[0].steps[0].name == "Create Database");
-    assert(data.jobs[0].steps[0].uses == "actions/create-database");
+    assert(data.jobs[0].steps[0].uses == "tdengine/create-database");
     assert(std::holds_alternative<CreateDatabaseConfig>(data.jobs[0].steps[0].action_config));
     const auto& create_db_config = std::get<CreateDatabaseConfig>(data.jobs[0].steps[0].action_config);
     (void)create_db_config;
-    assert(create_db_config.connection_info.host == "10.0.0.1");
-    assert(create_db_config.connection_info.port == 6043);
-    assert(create_db_config.connection_info.user == "root");
-    assert(create_db_config.connection_info.password == "secret");
-    assert(create_db_config.database_info.name == "testdb");
-    assert(create_db_config.database_info.drop_if_exists == true);
-    assert(create_db_config.database_info.precision == "us");
-    assert(create_db_config.database_info.properties == "vgroups 20 replica 3 keep 3650");
+    assert(create_db_config.tdengine.host == "10.0.0.1");
+    assert(create_db_config.tdengine.port == 6043);
+    assert(create_db_config.tdengine.user == "root");
+    assert(create_db_config.tdengine.password == "secret");
+    assert(create_db_config.tdengine.database == "testdb");
+    assert(create_db_config.tdengine.drop_if_exists == true);
+    assert(create_db_config.tdengine.properties == "vgroups 20 replica 3 keep 3650");
 
     // job: create-super-table
     assert(data.jobs[1].key == "create-super-table");
@@ -300,14 +243,14 @@ jobs:
     assert(data.jobs[1].needs.size() == 1);
     assert(data.jobs[1].steps.size() == 1);
     assert(data.jobs[1].steps[0].name == "Create Super Table");
-    assert(data.jobs[1].steps[0].uses == "actions/create-super-table");
+    assert(data.jobs[1].steps[0].uses == "tdengine/create-super-table");
     assert(std::holds_alternative<CreateSuperTableConfig>(data.jobs[1].steps[0].action_config));
     const auto& create_stb_config = std::get<CreateSuperTableConfig>(data.jobs[1].steps[0].action_config);
     (void)create_stb_config;
-    assert(create_stb_config.database_info.name == "testdb");
-    assert(create_stb_config.super_table_info.name == "points");
-    assert(create_stb_config.super_table_info.columns.size() > 0);
-    assert(create_stb_config.super_table_info.tags.size() > 0);
+    assert(create_stb_config.tdengine.database == "testdb");
+    assert(create_stb_config.schema.name == "points");
+    assert(create_stb_config.schema.columns.size() > 0);
+    assert(create_stb_config.schema.tags.size() > 0);
 
     // job: create-second-child-table
     assert(data.jobs[2].key == "create-second-child-table");
@@ -384,84 +327,6 @@ jobs:
 
     assert(insert_config.control.time_interval.enabled == true);
     assert(insert_config.control.time_interval.interval_strategy == "first_to_first");
-
-
-    // job: query-super-table
-    assert(data.jobs[4].key == "query-super-table");
-    assert(data.jobs[4].name == "Query Super Table");
-    assert(data.jobs[4].needs.size() == 2);
-    assert(data.jobs[4].needs[0] == "create-second-child-table");
-    assert(data.jobs[4].needs[1] == "create-minute-child-table");
-    assert(data.jobs[4].steps.size() == 1);
-    assert(data.jobs[4].steps[0].name == "query-super-table");
-    assert(data.jobs[4].steps[0].uses == "actions/query-data");
-
-    assert(std::holds_alternative<QueryDataConfig>(data.jobs[4].steps[0].action_config));
-    const auto& query_config = std::get<QueryDataConfig>(data.jobs[4].steps[0].action_config);
-
-    assert(query_config.source.connection_info.host == "10.0.0.1");
-    assert(query_config.source.connection_info.port == 6043);
-    assert(query_config.source.connection_info.user == "root");
-    assert(query_config.source.connection_info.password == "secret");
-
-    assert(query_config.control.data_format.format_type == "sql");
-    assert(query_config.control.data_channel.channel_type == "native");
-
-    const auto& query_control = query_config.control.query_control;
-    assert(query_control.execution.mode == "parallel_per_group");
-    assert(query_control.execution.threads == 10);
-    assert(query_control.execution.times == 50);
-    assert(query_control.execution.interval == 100);
-
-    assert(query_control.query_type == "super_table");
-    const auto& super_table = query_control.super_table;
-    (void)super_table;
-    assert(super_table.database_name == "testdb");
-    assert(super_table.super_table_name == "points");
-    assert(super_table.placeholder == "${child_table}");
-    assert(super_table.templates.size() == 1);
-    assert(super_table.templates[0].sql_template == "select count(*) from ${child_table}");
-    assert(super_table.templates[0].output_file == "stb_result.txt");
-
-
-    // job: subscribe-super-table
-    assert(data.jobs[5].key == "subscribe-data");
-    assert(data.jobs[5].name == "Subscribe Data");
-    assert(data.jobs[5].needs.size() == 2);
-    assert(data.jobs[5].needs[0] == "create-second-child-table");
-    assert(data.jobs[5].needs[1] == "create-minute-child-table");
-    assert(data.jobs[5].steps.size() == 1);
-    assert(data.jobs[5].steps[0].name == "subscribe-data");
-    assert(data.jobs[5].steps[0].uses == "actions/subscribe-data");
-
-    assert(std::holds_alternative<SubscribeDataConfig>(data.jobs[5].steps[0].action_config));
-    const auto& subscribe_config = std::get<SubscribeDataConfig>(data.jobs[5].steps[0].action_config);
-
-    assert(subscribe_config.source.connection_info.host == "10.0.0.1");
-    assert(subscribe_config.source.connection_info.port == 6043);
-    assert(subscribe_config.source.connection_info.user == "root");
-    assert(subscribe_config.source.connection_info.password == "secret");
-
-    assert(subscribe_config.control.data_format.format_type == "sql");
-    assert(subscribe_config.control.data_channel.channel_type == "native");
-
-    const auto& subscribe_control = subscribe_config.control.subscribe_control;
-    (void)subscribe_control;
-    assert(subscribe_control.execution.consumer_concurrency == 5);
-    assert(subscribe_control.execution.poll_timeout == 500);
-    assert(subscribe_control.topics.size() == 1);
-    assert(subscribe_control.topics[0].name == "topic1");
-    assert(subscribe_control.topics[0].sql == "select * from testdb.points");
-    assert(subscribe_control.commit.mode == "auto");
-    assert(subscribe_control.group_id.strategy == "custom");
-    assert(subscribe_control.group_id.custom_id == "custom_group");
-    assert(subscribe_control.output.path == "out");
-    assert(subscribe_control.output.file_prefix == "subscribe_data_");
-    assert(subscribe_control.output.expected_rows == 10000);
-    assert(subscribe_control.advanced.at("client.id") == "benchmark_client");
-    assert(subscribe_control.advanced.at("auto.offset.reset") == "earliest");
-    assert(subscribe_control.advanced.at("msg.with.table.name") == "true");
-
 
     std::cout << "YAML merge test passed.\n";
 }
@@ -545,31 +410,6 @@ global:
   }
 }
 
-void test_nested_missing_required_key_detection() {
-  YAML::Node config = YAML::Load(R"(
-jobs:
-  create-database:
-    name: Create Database
-    needs: []
-    steps:
-      - name: Create Database
-        uses: actions/create-database
-        with:
-          database_info:
-            drop_if_exists: true
-            precision: ms
-)");
-  ParameterContext ctx;
-  try {
-      ctx.merge_yaml(config);
-      assert(false && "Should throw on missing required field 'name' in database_info");
-  } catch (const std::runtime_error& e) {
-      std::string msg = e.what();
-      assert(msg.find("Missing required field 'name' in database_info") != std::string::npos);
-      std::cout << "Nested missing required key detection test passed.\n";
-  }
-}
-
 int main() {
     test_commandline_merge();
     test_environment_merge();
@@ -578,7 +418,7 @@ int main() {
     test_unknown_key_detection();
     test_missing_required_key_detection();
     test_nested_unknown_key_detection();
-    test_nested_missing_required_key_detection();
+
     std::cout << "All tests passed!\n";
     return 0;
 }

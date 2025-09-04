@@ -31,9 +31,9 @@ void ProductionStepStrategy::execute(const Step& step) {
 void DebugStepStrategy::execute(const Step& step) {
     std::cout << "Executing step: " << step.name << " (" << step.uses << ")" << std::endl;
 
-    if (step.uses == "actions/create-database") {
+    if (step.uses == "tdengine/create-database") {
         std::cout << "Action type: Create Database" << std::endl;
-    } else if (step.uses == "actions/create-super-table") {
+    } else if (step.uses == "tdengine/create-super-table") {
         std::cout << "Action type: Create Super Table" << std::endl;
     } else if (step.uses == "actions/create-child-table") {
         std::cout << "Action type: Create Child Table" << std::endl;

@@ -5,17 +5,17 @@
 
 void CreateSuperTableAction::prepare_connector() {
     connector_ = ConnectorFactory::create(
-        config_.connection_info
+        config_.tdengine
     );
 }
 
 void CreateSuperTableAction::execute() {
-    std::cout << "Creating super table: " << config_.database_info.name << "." << config_.super_table_info.name << std::endl;
+    std::cout << "Creating super table: " << config_.tdengine.database << "." << config_.schema.name << std::endl;
 
     try {
         prepare_connector();
 
-        auto formatter = FormatterFactory::instance().create_formatter<CreateSuperTableConfig>(config_.data_format);
+        auto formatter = FormatterFactory::instance().create_formatter<CreateSuperTableConfig>(DataFormat());
         FormatResult formatted_result = formatter->format(config_);
         connector_->execute(std::get<std::string>(formatted_result));
 

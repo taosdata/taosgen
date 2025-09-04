@@ -20,8 +20,8 @@ ConfigWithDependencies build_complex_config_with_dependencies() {
     config.concurrency = 3;
 
     // Define steps
-    Step create_database_step{"Create Database", "actions/create-database", YAML::Node(), {}};
-    Step create_super_table_step{"Create Super Table", "actions/create-super-table", YAML::Node(), {}};
+    Step create_database_step{"Create Database", "tdengine/create-database", YAML::Node(), {}};
+    Step create_super_table_step{"Create Super Table", "tdengine/create-super-table", YAML::Node(), {}};
     Step create_second_child_table_step{"Create Second Child Table", "actions/create-child-table", YAML::Node(), {}};
     Step create_minute_child_table_step{"Create Minute Child Table", "actions/create-child-table", YAML::Node(), {}};
     Step insert_second_data_step{"Insert Second-Level Data", "actions/insert-data", YAML::Node(), {}};
@@ -76,7 +76,7 @@ void test_job_scheduler_base() {
     std::cout << "test_job_scheduler_base passed!" << std::endl;
 }
 
-void validate_execution_order(const std::vector<std::string>& actual_order, 
+void validate_execution_order(const std::vector<std::string>& actual_order,
                               const std::unordered_map<std::string, std::unordered_set<std::string>>& dependencies) {
     // Set of completed jobs
     std::unordered_set<std::string> completed_jobs;
@@ -166,11 +166,11 @@ void test_job_scheduler_with_delay() {
         void execute(const Step& step) override {
             // Print debug info
             std::cout << "Executing step: " << step.name << " (" << step.uses << ")" << std::endl;
-        
-            if (step.uses == "actions/create-database") {
+
+            if (step.uses == "tdengine/create-database") {
                 std::cout << "Action type: Create Database" << std::endl;
                 std::this_thread::sleep_for(std::chrono::seconds(7));
-            } else if (step.uses == "actions/create-super-table") {
+            } else if (step.uses == "tdengine/create-super-table") {
                 std::cout << "Action type: Create Super Table" << std::endl;
                 std::this_thread::sleep_for(std::chrono::seconds(6));
             } else if (step.uses == "actions/create-child-table") {

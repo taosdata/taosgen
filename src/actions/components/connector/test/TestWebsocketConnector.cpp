@@ -6,10 +6,6 @@ void test_websocket_connector_create_database() {
     // Set connection info
     TDengineConfig conn_info;
 
-    // Set data channel
-    DataChannel channel;
-    channel.channel_type = "websocket";
-
     // Create connector instance using ConnectorFactory::create
     auto connector = ConnectorFactory::create(conn_info);
 

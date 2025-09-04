@@ -5,17 +5,17 @@
 
 void CreateDatabaseAction::prepare_connector() {
     connector_ = ConnectorFactory::create(
-        config_.connection_info
+        config_.tdengine
     );
 }
 
 void CreateDatabaseAction::execute() {
-    std::cout << "Creating database: " << config_.database_info.name << std::endl;
+    std::cout << "Creating database: " << config_.tdengine.database << std::endl;
 
     try {
         prepare_connector();
 
-        auto formatter = FormatterFactory::instance().create_formatter<CreateDatabaseConfig>(config_.data_format);
+        auto formatter = FormatterFactory::instance().create_formatter<CreateDatabaseConfig>(DataFormat());
 
         FormatResult result = formatter->format(config_);
         const auto& stmts = std::get<std::vector<std::string>>(result);

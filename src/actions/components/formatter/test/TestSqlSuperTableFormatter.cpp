@@ -8,17 +8,17 @@ void test_format_create_super_table_with_columns_and_tags() {
     format.format_type = "sql";
 
     CreateSuperTableConfig config;
-    config.database_info.name = "test_db";
-    config.super_table_info.name = "test_table";
+    config.tdengine.database = "test_db";
+    config.schema.name = "test_table";
 
     // Add columns
-    config.super_table_info.columns = {
+    config.schema.columns = {
         {"col1", "INT", "random", 1, 10},
         {"col2_", "BINARY(10)", 2, "random"}
     };
 
     // Add tags
-    config.super_table_info.tags = {
+    config.schema.tags = {
         {"tag1", "FLOAT", "random", 0, 200},
         {"tag2", "NCHAR(20)", "random"},
     };
@@ -37,14 +37,14 @@ void test_format_create_super_table_without_columns() {
     format.format_type = "sql";
 
     CreateSuperTableConfig config;
-    config.database_info.name = "test_db";
-    config.super_table_info.name = "test_table";
+    config.tdengine.database = "test_db";
+    config.schema.name = "test_table";
 
     // No columns
-    config.super_table_info.columns = {};
+    config.schema.columns = {};
 
     // Add tags
-    config.super_table_info.tags = {
+    config.schema.tags = {
         {"tag1", "FLOAT", "random", 0, 200}
     };
 
@@ -62,16 +62,16 @@ void test_format_create_super_table_without_tags() {
     format.format_type = "sql";
 
     CreateSuperTableConfig config;
-    config.database_info.name = "test_db";
-    config.super_table_info.name = "test_table";
+    config.tdengine.database = "test_db";
+    config.schema.name = "test_table";
 
     // Add columns
-    config.super_table_info.columns = {
+    config.schema.columns = {
         {"col1", "INT", "random", 1, 10},
     };
 
     // No tags
-    config.super_table_info.tags = {};
+    config.schema.tags = {};
 
     auto formatter = FormatterFactory::instance().create_formatter<CreateSuperTableConfig>(format);
     FormatResult result = formatter->format(config);
@@ -87,12 +87,12 @@ void test_format_create_super_table_with_empty_config() {
     format.format_type = "sql";
 
     CreateSuperTableConfig config;
-    config.database_info.name = "test_db";
-    config.super_table_info.name = "test_table";
+    config.tdengine.database = "test_db";
+    config.schema.name = "test_table";
 
     // No columns and tags
-    config.super_table_info.columns = {};
-    config.super_table_info.tags = {};
+    config.schema.columns = {};
+    config.schema.tags = {};
 
     auto formatter = FormatterFactory::instance().create_formatter<CreateSuperTableConfig>(format);
     FormatResult result = formatter->format(config);

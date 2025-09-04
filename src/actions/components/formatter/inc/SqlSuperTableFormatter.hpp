@@ -9,24 +9,23 @@ class SqlSuperTableFormatter final : public ISuperTableFormatter {
 public:
     explicit SqlSuperTableFormatter(const DataFormat& format) : format_(format) {}
 
-
     FormatResult format(const CreateSuperTableConfig& config) const override {
         std::ostringstream result;
         result << "CREATE TABLE IF NOT EXISTS `"
-               << config.database_info.name << "`.`"
-               << config.super_table_info.name << "` (ts TIMESTAMP";
+               << config.tdengine.database << "`.`"
+               << config.schema.name << "` (ts TIMESTAMP";
 
         // columns
-        auto col_instances = ColumnConfigInstanceFactory::create(config.super_table_info.columns);
-        if (!config.super_table_info.columns.empty()) {
+        auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns);
+        if (!config.schema.columns.empty()) {
             result << ", ";
             append_fields(result, col_instances, ", ");
         }
         result << ")";
 
         // tags
-        auto tag_instances = ColumnConfigInstanceFactory::create(config.super_table_info.tags);
-        if (!config.super_table_info.tags.empty()) {
+        auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags);
+        if (!config.schema.tags.empty()) {
             result << " TAGS (";
             append_fields(result, tag_instances, ", ");
             result << ")";

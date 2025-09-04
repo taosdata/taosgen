@@ -71,12 +71,12 @@ void ParameterContext::show_version() {
 
 void ParameterContext::parse_tdengine(const YAML::Node& td_yaml) {
     auto& global_config = config_data.global;
-    global_config.td_info = td_yaml.as<TDengineConfig>();
+    global_config.tdengine = td_yaml.as<TDengineConfig>();
 }
 
 void ParameterContext::parse_schema(const YAML::Node& td_yaml) {
     auto& global_config = config_data.global;
-    global_config.schema_info = td_yaml.as<SchemaConfig>();
+    global_config.schema = td_yaml.as<SchemaConfig>();
 }
 
 // Parse global config
@@ -119,143 +119,155 @@ void ParameterContext::parse_jobs(const YAML::Node& jobs_yaml) {
 
         if (job_content["name"]) {
             job.name = job_content["name"].as<std::string>();
+        } else {
+            job.name = job.key;
         }
+
         if (job_content["needs"]) {
             job.needs = job_content["needs"].as<std::vector<std::string>>();
         }
+
         if (job_content["steps"]) {
-            parse_steps(job_content["steps"], job.steps);
+            parse_steps(job_content["steps"], job);
         }
         config_data.jobs.push_back(job);
     }
+
+    prepare_work();
 }
 
-void ParameterContext::parse_steps(const YAML::Node& steps_yaml, std::vector<Step>& steps) {
+void ParameterContext::prepare_work() {
+    bool need_create = true;
+    for (auto& job : config_data.jobs) {
+        if (job.find_create) {
+            need_create = false;
+        }
+    }
+
+    if (need_create) {
+        for (auto& job : config_data.jobs) {
+            job.needs.push_back("tdengine/create-database");
+        }
+
+        Job job;
+        job.key = "tdengine/create-database";
+        job.name = "Create Database";
+        job.needs = {};
+        job.steps = {
+            Step{
+                .name = "Create Database",
+                .uses = "tdengine/create-database",
+                .with = YAML::Node(YAML::NodeType::Map),
+                .action_config = CreateDatabaseConfig{
+                    .tdengine = config_data.global.tdengine
+                }
+            }
+        };
+        config_data.jobs.insert(config_data.jobs.begin(), job);
+    }
+}
+
+void ParameterContext::parse_steps(const YAML::Node& steps_yaml, Job& job) {
     for (const auto& step_node : steps_yaml) {
         Step step;
-        step.name = step_node["name"].as<std::string>();
-        step.uses = step_node["uses"].as<std::string>();
-        if (step_node["with"]) {
-            step.with = step_node["with"]; // Keep original YAML node
 
-            // Parse action by uses field
-            if (step.uses == "actions/create-database") {
-                parse_create_database_action(step);
-            } else if (step.uses == "actions/create-super-table") {
-                parse_create_super_table_action(step);
-            } else if (step.uses == "actions/create-child-table") {
-                parse_create_child_table_action(step);
-            } else if (step.uses == "actions/insert-data") {
-                parse_insert_data_action(step);
-            } else if (step.uses == "actions/query-data") {
-                parse_query_data_action(step);
-            } else if (step.uses == "actions/subscribe-data") {
-                parse_subscribe_data_action(step);
-            } else {
-                throw std::runtime_error("Unknown action type: " + step.uses);
-            }
-            // Other action parsing logic can be extended here
+        if (step_node["uses"]) {
+            step.uses = step_node["uses"].as<std::string>();
+        } else {
+            throw std::runtime_error("Missing required field 'uses' for step in job: " + job.name);
         }
-        steps.push_back(step);
+
+        if (step_node["name"]) {
+            step.name = step_node["name"].as<std::string>();
+        } else {
+            step.name = step.uses;
+        }
+
+        if (step_node["with"]) {
+            step.with = step_node["with"];
+        } else {
+            step.with = YAML::Node(YAML::NodeType::Map);
+        }
+
+        // Parse action by uses field
+        if (step.uses == "tdengine/create-database") {
+            parse_td_create_database_action(job, step);
+        } else if (step.uses == "tdengine/create-super-table") {
+            parse_td_create_super_table_action(job, step);
+        } else if (step.uses == "actions/create-child-table") {
+            parse_create_child_table_action(job, step);
+        } else if (step.uses == "actions/insert-data") {
+            parse_insert_data_action(job, step);
+        } else if (step.uses == "actions/query-data") {
+            parse_query_data_action(job, step);
+        } else if (step.uses == "actions/subscribe-data") {
+            parse_subscribe_data_action(job, step);
+        } else {
+            // throw std::runtime_error("Unknown action type: " + step.uses);
+        }
+        // Other action parsing logic can be extended here
+
+        job.steps.push_back(step);
     }
 }
 
-void ParameterContext::parse_create_database_action(Step& step) {
+void ParameterContext::parse_td_create_database_action(Job& job, Step& step) {
     CreateDatabaseConfig create_db_config;
 
-    // Parse connection_info (optional)
-    if (step.with["connection_info"]) {
-        create_db_config.connection_info = step.with["connection_info"].as<TDengineConfig>();
-    } else {
-        // Use global config if not specified
-        create_db_config.connection_info = config_data.global.connection_info;
-    }
-
-    // Parse data_format (optional)
-    if (step.with["data_format"]) {
-        create_db_config.data_format = step.with["data_format"].as<DataFormat>();
-    } else {
-        // Use global config if not specified
-        create_db_config.data_format = config_data.global.data_format;
-    }
-
-    // Parse data_channel (optional)
-    if (step.with["data_channel"]) {
-        create_db_config.data_channel = step.with["data_channel"].as<DataChannel>();
-    } else {
-        // Use global config if not specified
-        create_db_config.data_channel = config_data.global.data_channel;
-    }
-
-    // Parse database_info (required)
-    if (step.with["database_info"]) {
-        create_db_config.database_info = step.with["database_info"].as<DatabaseInfo>();
-    } else {
-        // throw std::runtime_error("Missing required 'database_info' for create-database action.");
-        create_db_config.database_info = config_data.global.database_info;
-    }
+    create_db_config.tdengine = config_data.global.tdengine;
 
     // Print parse result
-    std::cout << "Parsed create-database action: " << create_db_config.database_info.name << std::endl;
+    std::cout << "Parsed create-database action: " << create_db_config.tdengine.database << std::endl;
 
     // Save result to Step's action_config field
     step.action_config = std::move(create_db_config);
+    job.find_create = true;
 }
 
-void ParameterContext::parse_create_super_table_action(Step& step) {
+void ParameterContext::parse_td_create_super_table_action(Job& /*job*/, Step& step) {
     CreateSuperTableConfig create_stb_config;
 
-    // Parse connection_info (optional)
-    if (step.with["connection_info"]) {
-        create_stb_config.connection_info = step.with["connection_info"].as<TDengineConfig>();
-    } else {
-        // Use global config if not specified
-        create_stb_config.connection_info = config_data.global.connection_info;
+    create_stb_config.tdengine = config_data.global.tdengine;
+    create_stb_config.schema = config_data.global.schema;
+
+
+    if (step.with["schema"]) {
+        const auto& schema = step.with["schema"];
+
+        if (schema["name"]) {
+            create_stb_config.schema.name = schema["name"].as<std::string>();
+        }
+
+        if (schema["tbname"]) {
+            create_stb_config.schema.tbname = schema["tbname"].as<TableNameConfig>();
+        }
+
+        if (schema["columns"]) {
+            create_stb_config.schema.columns = schema["columns"].as<ColumnConfigVector>();
+        }
+
+        if (schema["tags"]) {
+            create_stb_config.schema.tags = schema["tags"].as<ColumnConfigVector>();
+        }
+
+        if (schema["generation"]) {
+            create_stb_config.schema.generation = schema["generation"].as<GenerationConfig>();
+        }
     }
 
-    // Parse data_format (optional)
-    if (step.with["data_format"]) {
-        create_stb_config.data_format = step.with["data_format"].as<DataFormat>();
-    } else {
-        // Use global config if not specified
-        create_stb_config.data_format = config_data.global.data_format;
-    }
-
-    // Parse data_channel (optional)
-    if (step.with["data_channel"]) {
-        create_stb_config.data_channel = step.with["data_channel"].as<DataChannel>();
-    } else {
-        // Use global config if not specified
-        create_stb_config.data_channel = config_data.global.data_channel;
-    }
-
-    // Parse database_info (required)
-    if (step.with["database_info"]) {
-        create_stb_config.database_info = step.with["database_info"].as<DatabaseInfo>();
-    } else {
-        throw std::runtime_error("Missing required 'database_info' for create-super-table action.");
-    }
-
-    // Parse super_table_info (required)
-    if (step.with["super_table_info"]) {
-        create_stb_config.super_table_info = step.with["super_table_info"].as<SuperTableInfo>();
-    } else {
-        throw std::runtime_error("Missing required 'super_table_info' for create-super-table action.");
-    }
-
-    // Validate columns and tags in super_table_info
-    if (create_stb_config.super_table_info.columns.empty()) {
-        throw std::runtime_error("Missing required 'columns' in super_table_info.");
+    // Validate columns and tags
+    if (create_stb_config.schema.columns.empty()) {
+        throw std::runtime_error("Missing required 'columns' in schema.");
     }
 
     // Print parse result
-    std::cout << "Parsed create-super-table action: " << create_stb_config.super_table_info.name << std::endl;
+    std::cout << "Parsed create-super-table action: " << create_stb_config.schema.name << std::endl;
 
     // Save result to Step's action_config field
     step.action_config = std::move(create_stb_config);
 }
 
-void ParameterContext::parse_create_child_table_action(Step& step) {
+void ParameterContext::parse_create_child_table_action(Job& /*job*/, Step& step) {
     CreateChildTableConfig create_child_config;
 
     // Parse connection_info (optional)
@@ -315,7 +327,7 @@ void ParameterContext::parse_create_child_table_action(Step& step) {
     step.action_config = std::move(create_child_config);
 }
 
-void ParameterContext::parse_insert_data_action(Step& step) {
+void ParameterContext::parse_insert_data_action(Job& /*job*/, Step& step) {
     InsertDataConfig insert_config;
 
     if (step.with["source"]) {
@@ -343,7 +355,7 @@ void ParameterContext::parse_insert_data_action(Step& step) {
     step.action_config = std::move(insert_config);
 }
 
-void ParameterContext::parse_query_data_action(Step& step) {
+void ParameterContext::parse_query_data_action(Job& /*job*/, Step& step) {
     QueryDataConfig query_config;
 
     // Parse source (required)
@@ -367,7 +379,7 @@ void ParameterContext::parse_query_data_action(Step& step) {
     step.action_config = std::move(query_config);
 }
 
-void ParameterContext::parse_subscribe_data_action(Step& step) {
+void ParameterContext::parse_subscribe_data_action(Job& /*job*/, Step& step) {
     SubscribeDataConfig subscribe_config;
 
     // Parse source (required)
@@ -400,13 +412,6 @@ void ParameterContext::merge_yaml(const YAML::Node& config) {
     if (config["schema"]) {
         parse_schema(config["schema"]);
     }
-
-    // debug
-    merge_commandline();
-
-    if (config_data.global.verbose)
-        return;
-
 
     // Parse global config
     if (config["global"]) {

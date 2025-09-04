@@ -22,7 +22,7 @@ private:
     // Register CreateSuperTableAction to ActionFactory
     inline static bool registered_ = []() {
         ActionFactory::instance().register_action(
-            "actions/create-super-table",
+            "tdengine/create-super-table",
             [](const GlobalConfig& global, const ActionConfigVariant& config) {
                 return std::make_unique<CreateSuperTableAction>(global, std::get<CreateSuperTableConfig>(config));
             });

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "DataChannel.hpp"
 #include "DatabaseConnector.hpp"
 #include <memory>
 #include <mutex>

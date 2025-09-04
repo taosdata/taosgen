@@ -8,30 +8,20 @@
 
 void test_create_super_table_action() {
     GlobalConfig global;
-
-    TDengineConfig conn_info("taos://root:taosdata@localhost:6030/tsbench");
-
-    DataChannel channel;
-    channel.channel_type = "native";
-
-    DataFormat format;
-    format.format_type = "sql";
+    TDengineConfig conn_info("taos://root:taosdata@localhost:6030/test_action");
 
     CreateSuperTableConfig config;
-    config.connection_info = conn_info;
-    config.data_format = format;
-    config.data_channel = channel;
-    config.database_info.name = "test_action";
-    config.super_table_info.name = "test_super_table";
+    config.tdengine = conn_info;
+    config.schema.name = "test_super_table";
 
     // Add columns
-    config.super_table_info.columns = {
+    config.schema.columns = {
         {"col1", "INT", "random"},
         {"col2", "DOUBLE", "random", 0, 100}
     };
 
     // Add tags
-    config.super_table_info.tags = {
+    config.schema.tags = {
         {"tag1", "FLOAT", "random"},
         {"tag2", "VARCHAR(20)", "random"}
     };
@@ -40,7 +30,7 @@ void test_create_super_table_action() {
     std::cout << "Creating action instance for super table..." << std::endl;
     auto action = ActionFactory::instance().create_action(
         global,
-        "actions/create-super-table",
+        "tdengine/create-super-table",
         config
     );
 
