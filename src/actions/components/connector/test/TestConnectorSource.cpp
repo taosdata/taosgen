@@ -4,7 +4,7 @@
 
 void test_connector_source_with_pool() {
     DataChannel channel;
-    TDengineInfo info;
+    TDengineConfig info;
     info.pool.enabled = true;
     info.pool.min_size = 2;
     info.pool.max_size = 4;
@@ -28,7 +28,7 @@ void test_connector_source_with_pool() {
 
 void test_connector_source_without_pool() {
     DataChannel channel;
-    TDengineInfo info;
+    TDengineConfig info;
     info.pool.enabled = false;
 
     ConnectorSource source(channel, info);

@@ -10,7 +10,7 @@
 
 class ConnectionPoolImpl {
 public:
-    ConnectionPoolImpl(const DataChannel& channel, const TDengineInfo& conn_info);
+    ConnectionPoolImpl(const DataChannel& channel, const TDengineConfig& conn_info);
     ~ConnectionPoolImpl();
 
     std::unique_ptr<DatabaseConnector> get_connector();
@@ -27,7 +27,7 @@ private:
     void close_all_connections();
 
     const DataChannel& channel_;
-    const TDengineInfo& conn_info_;
+    const TDengineConfig& conn_info_;
 
     std::queue<std::unique_ptr<DatabaseConnector>> available_connections_;
     std::atomic<size_t> total_count_{0};

@@ -54,7 +54,7 @@ global:
     name: testdb
     drop_if_exists: true
     precision: us
-    properties: vgroups 20 replica 3 keep 3650
+    props: vgroups 20 replica 3 keep 3650
   super_table_info: &stb_info
     name: points
     columns: &columns_info
@@ -86,7 +86,7 @@ jobs:
             name: testdb
             drop_if_exists: true
             precision: us
-            properties: vgroups 20 replica 3 keep 3650
+            props: vgroups 20 replica 3 keep 3650
 
   create-super-table:
     name: Create Super Table
@@ -118,11 +118,9 @@ jobs:
             name: points
           child_table_info:
             table_name:
-              source_type: generator
-              generator:
-                prefix: s
-                count: 10000
-                from: 200
+              prefix: s
+              count: 10000
+              from: 200
             tags:
               source_type: csv
               csv:
@@ -142,11 +140,9 @@ jobs:
           # source
           source:
             table_name:
-              source_type: generator
-              generator:
-                prefix: s
-                count: 10000
-                from: 200
+              prefix: s
+              count: 10000
+              from: 200
             columns:
               source_type: csv
               csv:
@@ -535,7 +531,7 @@ global:
     name: testdb
     drop_if_exists: true
     precision: ms
-    properties: vgroups 20
+    props: vgroups 20
     unknown_nested: fail
 )");
   ParameterContext ctx;

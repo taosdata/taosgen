@@ -16,11 +16,15 @@ int main(int argc, char* argv[]) {
         // 2. Get parsed configuration data
         const ConfigData& config = context.get_config_data();
 
+        if (1 == 1) return 0;
+
+
+
         // 3. Create and run job scheduler
         try {
             // Create job scheduler instance
             JobScheduler scheduler(config);
-            
+
             // Run scheduler
             scheduler.run();
 

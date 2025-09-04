@@ -5,7 +5,7 @@
 #include <stdexcept>
 
 ConnectorSource::ConnectorSource(
-    const DataChannel& channel, const TDengineInfo& conn_info)
+    const DataChannel& channel, const TDengineConfig& conn_info)
     : channel_(channel), conn_info_(conn_info)
 {
     if (conn_info_.pool.enabled) {

@@ -5,7 +5,7 @@
 #include <random>
 #include <algorithm>
 
-struct MqttInfo {
+struct MqttConfig {
     std::string host = "localhost";
     int port = 1883;
     std::string user = "root";
@@ -35,11 +35,11 @@ struct MqttInfo {
         return std::string(CLIENT_ID_PREFIX) + suffix;
     }
 
-    MqttInfo()
+    MqttConfig()
         : client_id(generate_client_id())
     {}
 
-    MqttInfo(
+    MqttConfig(
         std::string host_,
         int port_,
         std::string user_,

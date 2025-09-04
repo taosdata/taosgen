@@ -123,7 +123,7 @@ void PahoMqttClient::publish_batch(const MessageBatch& batch_msgs, int qos, bool
 }
 
 // MqttClient implementation
-MqttClient::MqttClient(const MqttInfo& config,
+MqttClient::MqttClient(const MqttConfig& config,
                        const ColumnConfigInstanceVector& col_instances, size_t no)
     : config_(config),
       col_instances_(col_instances),
@@ -132,7 +132,7 @@ MqttClient::MqttClient(const MqttInfo& config,
 {
     std::string client_id;
     if (config.client_id.empty()) {
-        client_id = MqttInfo::generate_client_id();
+        client_id = MqttConfig::generate_client_id();
     } else {
         client_id = config.client_id + "-" + std::to_string(no);
     }

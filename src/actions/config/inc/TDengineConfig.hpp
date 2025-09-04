@@ -3,7 +3,7 @@
 #include <string>
 #include <optional>
 
-struct TDengineInfo {
+struct TDengineConfig {
     std::string dsn = "taos+ws://root:taosdata@localhost:6041/tsbench";
     std::string host = "localhost";
     int port = 6041;
@@ -26,8 +26,8 @@ struct TDengineInfo {
         RESTful
     } protocol_type = ProtocolType::WebSocket;
 
-    TDengineInfo();
-    TDengineInfo(std::string input_dsn);
+    TDengineConfig();
+    TDengineConfig(std::string input_dsn);
 
     void init();
     void parse_dsn();

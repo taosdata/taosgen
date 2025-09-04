@@ -16,7 +16,7 @@ pool:
   timeout: 1000
 )";
     YAML::Node node = YAML::Load(yaml);
-    TDengineInfo conn = node.as<TDengineInfo>();
+    TDengineConfig conn = node.as<TDengineConfig>();
     assert(conn.dsn == "taos+ws://root:taosdata@127.0.0.1:6041/test");
     assert(conn.drop_if_exists == false);
     assert(conn.properties.has_value() && *conn.properties == "precision 'ms' vgroups 4");
@@ -31,7 +31,7 @@ void test_DatabaseInfo() {
 name: testdb
 drop_if_exists: true
 precision: ms
-properties: "replica=2"
+props: "replica=2"
 )";
     YAML::Node node = YAML::Load(yaml);
     DatabaseInfo db = node.as<DatabaseInfo>();
@@ -83,7 +83,7 @@ void test_ColumnConfig_expression() {
 name: value
 type: float
 gen_type: expression
-formula: "2*sinusoid(period=10,min=0,max=10)+3"
+expr: "2*sinusoid(period=10,min=0,max=10)+3"
 )";
     YAML::Node node = YAML::Load(yaml);
     ColumnConfig col = node.as<ColumnConfig>();
@@ -96,11 +96,9 @@ formula: "2*sinusoid(period=10,min=0,max=10)+3"
 
 void test_TableNameConfig_generator() {
     std::string yaml = R"(
-source_type: generator
-generator:
-  prefix: tb
-  count: 10
-  from: 1
+prefix: tb
+count: 10
+from: 1
 )";
     YAML::Node node = YAML::Load(yaml);
     TableNameConfig tnc = node.as<TableNameConfig>();
@@ -112,12 +110,10 @@ generator:
 
 void test_TableNameConfig_csv() {
     std::string yaml = R"(
-source_type: csv
-csv:
-  file_path: tables.csv
-  has_header: true
-  delimiter: ","
-  tbname_index: 0
+file_path: tables.csv
+has_header: true
+delimiter: ","
+tbname_index: 0
 )";
     YAML::Node node = YAML::Load(yaml);
     TableNameConfig tnc = node.as<TableNameConfig>();
@@ -187,11 +183,9 @@ tags:
 void test_ChildTableInfo() {
     std::string yaml = R"(
 table_name:
-  source_type: generator
-  generator:
-    prefix: tb
-    count: 2
-    from: 1
+  prefix: tb
+  count: 2
+  from: 1
 tags:
   source_type: generator
   generator:
@@ -229,7 +223,7 @@ timestamp_step: 10
     assert(std::holds_alternative<std::string>(tgc.start_timestamp));
     assert(std::get<std::string>(tgc.start_timestamp) == "2023-01-01T00:00:00Z");
     assert(tgc.timestamp_precision == "ms");
-    assert(tgc.timestamp_step == 10);
+    assert(std::get<Timestamp>(tgc.timestamp_step) == 10);
 }
 
 void test_TimestampOriginalConfig() {
@@ -268,7 +262,7 @@ generator:
     assert(std::holds_alternative<std::string>(cc.generator.timestamp_strategy.timestamp_config.start_timestamp));
     assert(std::get<std::string>(cc.generator.timestamp_strategy.timestamp_config.start_timestamp) == "2023-01-01T00:00:00Z");
     assert(cc.generator.timestamp_strategy.timestamp_config.timestamp_precision == "ms");
-    assert(cc.generator.timestamp_strategy.timestamp_config.timestamp_step == 1);
+    assert(std::get<Timestamp>(cc.generator.timestamp_strategy.timestamp_config.timestamp_step) == 1);
 }
 
 void test_ColumnsConfig_csv() {
@@ -303,11 +297,9 @@ csv:
 void test_InsertDataConfig_Source() {
     std::string yaml = R"(
 table_name:
-  source_type: generator
-  generator:
-    prefix: tb
-    count: 1
-    from: 1
+  prefix: tb
+  count: 1
+  from: 1
 columns:
   source_type: generator
   generator:

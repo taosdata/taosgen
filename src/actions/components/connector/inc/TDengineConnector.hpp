@@ -7,7 +7,7 @@
 
 class TDengineConnector : public DatabaseConnector {
 public:
-    TDengineConnector(const TDengineInfo& conn_info,
+    TDengineConnector(const TDengineConfig& conn_info,
                           const std::string& driver_type,
                           const std::string& display_name);
 
@@ -27,7 +27,7 @@ public:
     void reset_state() noexcept override;
 
 protected:
-    TDengineInfo conn_info_;
+    TDengineConfig conn_info_;
     std::string driver_type_;
     std::string display_name_;
 

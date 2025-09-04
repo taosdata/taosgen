@@ -5,7 +5,7 @@
 
 void test_pool_initialization() {
     DataChannel channel;
-    TDengineInfo info;
+    TDengineConfig info;
     info.pool.enabled = true;
     info.pool.min_size = 2;
     info.pool.max_size = 4;
@@ -22,7 +22,7 @@ void test_pool_initialization() {
 
 void test_get_and_return_connection() {
     DataChannel channel;
-    TDengineInfo info;
+    TDengineConfig info;
     info.pool.enabled = true;
     info.pool.min_size = 2;
     info.pool.max_size = 4;
@@ -44,7 +44,7 @@ void test_get_and_return_connection() {
 
 void test_pool_max_size() {
     DataChannel channel;
-    TDengineInfo info;
+    TDengineConfig info;
     info.pool.enabled = true;
     info.pool.max_size = 2;
     info.pool.min_size = 1;
@@ -67,7 +67,7 @@ void test_pool_max_size() {
 
 void test_connection_timeout() {
     DataChannel channel;
-    TDengineInfo info;
+    TDengineConfig info;
     info.pool.enabled = true;
     info.pool.min_size = 1;
     info.pool.max_size = 1;

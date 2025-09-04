@@ -6,8 +6,8 @@
 #include "TimestampUtils.hpp"
 
 
-TimestampGenerator::TimestampGenerator(const TimestampGeneratorConfig& config) 
-    : config_(config) 
+TimestampGenerator::TimestampGenerator(const TimestampGeneratorConfig& config)
+    : config_(config)
 {
     // Initialize current timestamp
     reset();
@@ -16,14 +16,14 @@ TimestampGenerator::TimestampGenerator(const TimestampGeneratorConfig& config)
 void TimestampGenerator::reset() {
     // Reset current timestamp to initial value based on config
     current_ = TimestampUtils::parse_timestamp(
-        config_.start_timestamp, 
+        config_.start_timestamp,
         config_.timestamp_precision
     );
 }
 
 Timestamp TimestampGenerator::generate() const {
     Timestamp ts{current_};
-    current_ += config_.timestamp_step;
+    current_ += std::get<Timestamp>(config_.timestamp_step);
     return ts;
 }
 

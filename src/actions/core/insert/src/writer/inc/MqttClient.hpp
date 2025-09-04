@@ -4,7 +4,7 @@
 #include "MsgInsertData.hpp"
 #include "InsertDataConfig.hpp"
 #include "FormatResult.hpp"
-#include "MqttInfo.hpp"
+#include "MqttConfig.hpp"
 #include "Compressor.hpp"
 #include "CompressionType.hpp"
 #include "EncodingConverter.hpp"
@@ -61,7 +61,7 @@ private:
 
 class MqttClient {
 public:
-    MqttClient(const MqttInfo& config, const ColumnConfigInstanceVector& col_instances, size_t no = 0);
+    MqttClient(const MqttConfig& config, const ColumnConfigInstanceVector& col_instances, size_t no = 0);
     ~MqttClient();
 
     // Connect to MQTT broker
@@ -89,7 +89,7 @@ public:
     );
 
 private:
-    const MqttInfo& config_;
+    const MqttConfig& config_;
     const ColumnConfigInstanceVector& col_instances_;
     CompressionType compression_type_;
     EncodingType encoding_type_;

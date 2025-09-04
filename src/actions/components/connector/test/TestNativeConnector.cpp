@@ -4,7 +4,7 @@
 
 void test_native_connector_create_database() {
     // Set connection info
-    TDengineInfo conn_info("taos://root:taosdata@localhost:6030/tsbench");
+    TDengineConfig conn_info("taos://root:taosdata@localhost:6030/tsbench");
 
     // Set data channel
     DataChannel channel;

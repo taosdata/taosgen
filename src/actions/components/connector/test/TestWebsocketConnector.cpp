@@ -4,7 +4,7 @@
 
 void test_websocket_connector_create_database() {
     // Set connection info
-    TDengineInfo conn_info;
+    TDengineConfig conn_info;
 
     // Set data channel
     DataChannel channel;

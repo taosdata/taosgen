@@ -1,23 +1,23 @@
-#include "TDengineInfo.hpp"
+#include "TDengineConfig.hpp"
 
 #include <vector>
 #include <stdexcept>
 #include <algorithm>
 #include "StringUtils.hpp"
 
-TDengineInfo::TDengineInfo() {
+TDengineConfig::TDengineConfig() {
     init();
 }
 
-TDengineInfo::TDengineInfo(std::string input_dsn) : dsn(input_dsn) {
+TDengineConfig::TDengineConfig(std::string input_dsn) : dsn(input_dsn) {
     init();
 }
 
-void TDengineInfo::init() {
+void TDengineConfig::init() {
     parse_dsn();
 }
 
-void TDengineInfo::parse_dsn() {
+void TDengineConfig::parse_dsn() {
     // 1. Check protocol "://"
     const size_t protocol_pos = dsn.find("://");
     if (protocol_pos == std::string::npos) {

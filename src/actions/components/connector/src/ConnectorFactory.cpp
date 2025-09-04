@@ -5,12 +5,12 @@
 #include "RestfulConnector.hpp"
 #include <stdexcept>
 
-std::unique_ptr<DatabaseConnector> ConnectorFactory::create(const TDengineInfo& conn_info) {
-    if (conn_info.protocol_type == TDengineInfo::ProtocolType::Native) {
+std::unique_ptr<DatabaseConnector> ConnectorFactory::create(const TDengineConfig& conn_info) {
+    if (conn_info.protocol_type == TDengineConfig::ProtocolType::Native) {
         return std::make_unique<NativeConnector>(conn_info);
-    } else if (conn_info.protocol_type == TDengineInfo::ProtocolType::WebSocket) {
+    } else if (conn_info.protocol_type == TDengineConfig::ProtocolType::WebSocket) {
         return std::make_unique<WebsocketConnector>(conn_info);
-    } else if (conn_info.protocol_type == TDengineInfo::ProtocolType::RESTful) {
+    } else if (conn_info.protocol_type == TDengineConfig::ProtocolType::RESTful) {
         return std::make_unique<RestfulConnector>(conn_info);
     }
 

@@ -5,7 +5,7 @@
 #include <stdexcept>
 
 ConnectionPoolImpl::ConnectionPoolImpl(
-    const DataChannel& channel, const TDengineInfo& conn_info)
+    const DataChannel& channel, const TDengineConfig& conn_info)
     : channel_(channel), conn_info_(conn_info)
 {
     initialize();

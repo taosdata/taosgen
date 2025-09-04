@@ -1,12 +1,12 @@
-# test TDengineInfo
-add_executable(TestTDengineInfo
-  TestTDengineInfo.cpp
+# test TDengineConfig
+add_executable(TestTDengineConfig
+  TestTDengineConfig.cpp
 )
-target_link_libraries(TestTDengineInfo
+target_link_libraries(TestTDengineConfig
   PRIVATE
     actions_config
 )
-add_test(NAME TestTDengineInfo COMMAND TestTDengineInfo)
+add_test(NAME TestTDengineConfig COMMAND TestTDengineConfig)
 
 # test ColumnConfig
 add_executable(TestColumnConfig

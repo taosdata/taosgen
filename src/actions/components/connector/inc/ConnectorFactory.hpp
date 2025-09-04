@@ -5,5 +5,5 @@
 
 class ConnectorFactory {
 public:
-    static std::unique_ptr<DatabaseConnector> create(const TDengineInfo& connInfo);
+    static std::unique_ptr<DatabaseConnector> create(const TDengineConfig& connInfo);
 };

@@ -1,11 +1,11 @@
-#include "TDengineInfo.hpp"
+#include "TDengineConfig.hpp"
 #include <cassert>
 #include <iostream>
 #include <stdexcept>
 
 void test_taos_ws_full_dsn() {
-    TDengineInfo conn("taos+ws://root:taosdata@localhost:6041/tsbench");
-    assert(conn.protocol_type == TDengineInfo::ProtocolType::WebSocket);
+    TDengineConfig conn("taos+ws://root:taosdata@localhost:6041/tsbench");
+    assert(conn.protocol_type == TDengineConfig::ProtocolType::WebSocket);
     assert(conn.user == "root");
     assert(conn.password == "taosdata");
     assert(conn.host == "localhost");
@@ -15,8 +15,8 @@ void test_taos_ws_full_dsn() {
 }
 
 void test_taos_native_with_user() {
-    TDengineInfo conn("taos://user@127.0.0.1:6030/dbname");
-    assert(conn.protocol_type == TDengineInfo::ProtocolType::Native);
+    TDengineConfig conn("taos://user@127.0.0.1:6030/dbname");
+    assert(conn.protocol_type == TDengineConfig::ProtocolType::Native);
     assert(conn.user == "user");
     assert(conn.password.empty());
     assert(conn.host == "127.0.0.1");
@@ -26,8 +26,8 @@ void test_taos_native_with_user() {
 }
 
 void test_taos_native_no_user() {
-    TDengineInfo conn("taos://localhost/db");
-    assert(conn.protocol_type == TDengineInfo::ProtocolType::Native);
+    TDengineConfig conn("taos://localhost/db");
+    assert(conn.protocol_type == TDengineConfig::ProtocolType::Native);
     assert(conn.user == "root");            // default user
     assert(conn.password == "taosdata");    // default password
     assert(conn.port == 6030);              // default port
@@ -37,8 +37,8 @@ void test_taos_native_no_user() {
 }
 
 void test_taos_ws_no_db() {
-    TDengineInfo conn("taos+ws://root:pwd@host:12345/");
-    assert(conn.protocol_type == TDengineInfo::ProtocolType::WebSocket);
+    TDengineConfig conn("taos+ws://root:pwd@host:12345/");
+    assert(conn.protocol_type == TDengineConfig::ProtocolType::WebSocket);
     assert(conn.user == "root");
     assert(conn.password == "pwd");
     assert(conn.host == "host");
@@ -49,7 +49,7 @@ void test_taos_ws_no_db() {
 
 void test_invalid_protocol() {
     try {
-        TDengineInfo conn("mysql://user:pwd@host:3306/db");
+        TDengineConfig conn("mysql://user:pwd@host:3306/db");
         std::cerr << "Test invalid_protocol failed: Exception not thrown for invalid protocol\n";
         std::exit(1);
     } catch (const std::runtime_error& e) {
@@ -60,7 +60,7 @@ void test_invalid_protocol() {
 
 void test_missing_protocol_separator() {
     try {
-        TDengineInfo conn("taos+ws-root:pwd@host:6041/db");
+        TDengineConfig conn("taos+ws-root:pwd@host:6041/db");
         std::cerr << "Test missing_protocol_separator failed: Exception not thrown for missing ://\n";
         std::exit(1);
     } catch (const std::runtime_error& e) {
@@ -71,7 +71,7 @@ void test_missing_protocol_separator() {
 
 void test_invalid_port() {
     try {
-        TDengineInfo conn("taos://user:pwd@host:70000/db");
+        TDengineConfig conn("taos://user:pwd@host:70000/db");
         std::cerr << "Test invalid_port failed: Exception not thrown for invalid port\n";
         std::exit(1);
     } catch (const std::runtime_error& e) {
@@ -88,6 +88,6 @@ int main() {
     test_invalid_protocol();
     test_missing_protocol_separator();
     test_invalid_port();
-    std::cout << "All TDengineInfo tests passed!\n";
+    std::cout << "All TDengineConfig tests passed!\n";
     return 0;
 }

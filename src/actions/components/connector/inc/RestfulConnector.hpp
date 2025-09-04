@@ -5,7 +5,7 @@
 
 class RestfulConnector final : public DatabaseConnector {
 public:
-    explicit RestfulConnector(const TDengineInfo& conn_info);
+    explicit RestfulConnector(const TDengineConfig& conn_info);
     ~RestfulConnector() override;
 
     bool connect() override;
@@ -23,6 +23,6 @@ public:
 
 private:
 
-    TDengineInfo conn_info_;
+    TDengineConfig conn_info_;
     bool is_connected_{false};
 };

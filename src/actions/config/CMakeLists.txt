@@ -1,6 +1,6 @@
 # Create library target
 add_library(actions_config STATIC
-  src/TDengineInfo.cpp
+  src/TDengineConfig.cpp
   src/ColumnType.cpp
   src/ColumnConfig.cpp
 )

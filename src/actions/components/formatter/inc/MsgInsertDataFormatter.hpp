@@ -32,7 +32,7 @@ public:
         return format_mqtt(mqtt_info, col_instances, batch);
     }
 
-    static MsgInsertData format_mqtt(const MqttInfo& mqtt_info,
+    static MsgInsertData format_mqtt(const MqttConfig& mqtt_info,
                                     const ColumnConfigInstanceVector& col_instances,
                                     MemoryPool::MemoryBlock* batch) {
         if (!batch || batch->total_rows == 0) {

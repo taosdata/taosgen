@@ -2,7 +2,7 @@
 #include <iostream>
 
 
-RestfulConnector::RestfulConnector(const TDengineInfo& conn_info)
+RestfulConnector::RestfulConnector(const TDengineConfig& conn_info)
     : conn_info_(conn_info) {}
 
 RestfulConnector::~RestfulConnector() {

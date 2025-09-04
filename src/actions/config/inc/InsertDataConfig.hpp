@@ -3,8 +3,8 @@
 #include "TableNameConfig.hpp"
 #include "TagsConfig.hpp"
 #include "ColumnsConfig.hpp"
-#include "TDengineInfo.hpp"
-#include "MqttInfo.hpp"
+#include "TDengineConfig.hpp"
+#include "MqttConfig.hpp"
 #include "DatabaseInfo.hpp"
 #include "SuperTableInfo.hpp"
 #include "DataFormat.hpp"
@@ -24,7 +24,7 @@ struct InsertDataConfig {
         std::string target_type = "tdengine";       // Data target type: tdengine or file_system
 
         struct TDengine {
-            TDengineInfo connection_info;
+            TDengineConfig connection_info;
             DatabaseInfo database_info;
             SuperTableInfo super_table_info;
         } tdengine;
@@ -39,7 +39,7 @@ struct InsertDataConfig {
             std::string compression_level = "none";
         } file_system;
 
-        MqttInfo mqtt;
+        MqttConfig mqtt;
 
     } target;
 

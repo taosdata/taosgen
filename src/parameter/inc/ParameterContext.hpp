@@ -35,7 +35,7 @@ public:
     // Get global config and connection info
     const ConfigData& get_config_data() const;
     const GlobalConfig& get_global_config() const;
-    const TDengineInfo& get_connection_info() const;
+    const TDengineConfig& get_connection_info() const;
     const DatabaseInfo& get_database_info() const;
     const SuperTableInfo& get_super_table_info() const;
 
@@ -50,6 +50,8 @@ private:
     std::unordered_map<std::string, std::string> env_params;
 
     // Helper methods
+    void parse_tdengine(const YAML::Node& td_yaml);
+    void parse_schema(const YAML::Node& td_yaml);
     void parse_global(const YAML::Node& global_yaml);
     void parse_jobs(const YAML::Node& jobs_yaml);
     void parse_steps(const YAML::Node& steps_yaml, std::vector<Step>& steps);

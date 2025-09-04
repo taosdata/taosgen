@@ -5,7 +5,7 @@
 std::mutex TDengineConnector::driver_init_mutex_;
 std::map<std::string, std::once_flag> TDengineConnector::driver_init_flags;
 
-TDengineConnector::TDengineConnector(const TDengineInfo& conn_info,
+TDengineConnector::TDengineConnector(const TDengineConfig& conn_info,
                                              const std::string& driver_type,
                                              const std::string& display_name)
     : conn_info_(conn_info),

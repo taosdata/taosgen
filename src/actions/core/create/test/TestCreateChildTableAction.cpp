@@ -10,7 +10,7 @@
 void test_create_child_table_action_from_generator() {
     GlobalConfig global;
 
-    TDengineInfo conn_info("taos://root:taosdata@localhost:6030/tsbench");
+    TDengineConfig conn_info("taos://root:taosdata@localhost:6030/tsbench");
 
     DataChannel channel;
     channel.channel_type = "native";
@@ -54,7 +54,7 @@ void test_create_child_table_action_from_generator() {
 
 void test_create_child_table_action_from_csv() {
     GlobalConfig global;
-    TDengineInfo conn_info("taos://root:taosdata@localhost:6030/tsbench");
+    TDengineConfig conn_info("taos://root:taosdata@localhost:6030/tsbench");
 
     DataChannel channel;
     channel.channel_type = "native";

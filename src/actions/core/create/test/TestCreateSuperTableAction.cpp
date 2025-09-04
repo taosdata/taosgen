@@ -9,7 +9,7 @@
 void test_create_super_table_action() {
     GlobalConfig global;
 
-    TDengineInfo conn_info("taos://root:taosdata@localhost:6030/tsbench");
+    TDengineConfig conn_info("taos://root:taosdata@localhost:6030/tsbench");
 
     DataChannel channel;
     channel.channel_type = "native";

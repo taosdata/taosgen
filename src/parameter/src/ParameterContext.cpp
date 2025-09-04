@@ -69,6 +69,16 @@ void ParameterContext::show_version() {
     std::cout << "build: Linux-x64 2025-08-21 21:51:41 +0800" << std::endl;
 }
 
+void ParameterContext::parse_tdengine(const YAML::Node& td_yaml) {
+    auto& global_config = config_data.global;
+    global_config.td_info = td_yaml.as<TDengineConfig>();
+}
+
+void ParameterContext::parse_schema(const YAML::Node& td_yaml) {
+    auto& global_config = config_data.global;
+    global_config.schema_info = td_yaml.as<SchemaConfig>();
+}
+
 // Parse global config
 void ParameterContext::parse_global(const YAML::Node& global_yaml) {
     auto& global_config = config_data.global;
@@ -85,7 +95,7 @@ void ParameterContext::parse_global(const YAML::Node& global_yaml) {
         global_config.cfg_dir = global_yaml["cfg_dir"].as<std::string>();
     }
     if (global_yaml["connection_info"]) {
-        global_config.connection_info = global_yaml["connection_info"].as<TDengineInfo>();
+        global_config.connection_info = global_yaml["connection_info"].as<TDengineConfig>();
     }
     if (global_yaml["data_format"]) {
         global_config.data_format = global_yaml["data_format"].as<DataFormat>();
@@ -155,7 +165,7 @@ void ParameterContext::parse_create_database_action(Step& step) {
 
     // Parse connection_info (optional)
     if (step.with["connection_info"]) {
-        create_db_config.connection_info = step.with["connection_info"].as<TDengineInfo>();
+        create_db_config.connection_info = step.with["connection_info"].as<TDengineConfig>();
     } else {
         // Use global config if not specified
         create_db_config.connection_info = config_data.global.connection_info;
@@ -197,7 +207,7 @@ void ParameterContext::parse_create_super_table_action(Step& step) {
 
     // Parse connection_info (optional)
     if (step.with["connection_info"]) {
-        create_stb_config.connection_info = step.with["connection_info"].as<TDengineInfo>();
+        create_stb_config.connection_info = step.with["connection_info"].as<TDengineConfig>();
     } else {
         // Use global config if not specified
         create_stb_config.connection_info = config_data.global.connection_info;
@@ -250,7 +260,7 @@ void ParameterContext::parse_create_child_table_action(Step& step) {
 
     // Parse connection_info (optional)
     if (step.with["connection_info"]) {
-        create_child_config.connection_info = step.with["connection_info"].as<TDengineInfo>();
+        create_child_config.connection_info = step.with["connection_info"].as<TDengineConfig>();
     } else {
         // Use global config if not specified
         create_child_config.connection_info = config_data.global.connection_info;
@@ -382,6 +392,22 @@ void ParameterContext::parse_subscribe_data_action(Step& step) {
 }
 
 void ParameterContext::merge_yaml(const YAML::Node& config) {
+
+    if (config["tdengine"]) {
+        parse_tdengine(config["tdengine"]);
+    }
+
+    if (config["schema"]) {
+        parse_schema(config["schema"]);
+    }
+
+    // debug
+    merge_commandline();
+
+    if (config_data.global.verbose)
+        return;
+
+
     // Parse global config
     if (config["global"]) {
         parse_global(config["global"]);
@@ -562,7 +588,7 @@ const GlobalConfig& ParameterContext::get_global_config() const {
     return config_data.global;
 }
 
-const TDengineInfo& ParameterContext::get_connection_info() const {
+const TDengineConfig& ParameterContext::get_connection_info() const {
     return config_data.global.connection_info;
 }
 

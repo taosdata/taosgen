@@ -5,6 +5,7 @@
 #include <optional>
 #include <cstdint>
 #include "ColumnType.hpp"
+#include "TimestampGeneratorConfig.hpp"
 #include "StringUtils.hpp"
 
 
@@ -43,15 +44,18 @@ struct ColumnConfig {
     // Attributes for gen_type=expression
     std::optional<std::string> formula;
 
+    TimestampGeneratorConfig ts;
+
     ColumnConfig() = default;
     ColumnConfig(const std::string& name, const std::string& type);
     ColumnConfig(const std::string& name, const std::string& type, size_t count, std::optional<std::string> gen_type);
     ColumnConfig(const std::string& name, const std::string& type, std::optional<std::string> gen_type);
     ColumnConfig(const std::string& name, const std::string& type, std::optional<std::string> gen_type, std::optional<double> min, std::optional<double> max);
+    ColumnConfig(const std::string& name, const std::string& type, const std::string& ts_precision, const std::string& ts_start, const std::string& ts_step);
 
     static ColumnTypeTag get_type_tag(const std::string& type_str);
 
-    std::size_t get_type_index(const std::string& type_str);
+    std::size_t get_type_index() const noexcept;
 
     void parse_type();
 

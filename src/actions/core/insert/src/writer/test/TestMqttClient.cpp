@@ -47,8 +47,8 @@ public:
     }
 };
 
-MqttInfo create_test_mqtt_info() {
-    MqttInfo info;
+MqttConfig create_test_mqtt_info() {
+    MqttConfig info;
     info.host = "localhost";
     info.port = 1883;
     info.user = "user";
