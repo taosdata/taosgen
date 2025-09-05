@@ -1,8 +1,10 @@
 #pragma once
 
+#include "Step.hpp"
+#include "TDengineConfig.hpp"
+#include "SchemaConfig.hpp"
 #include <string>
 #include <vector>
-#include "Step.hpp"
 
 struct Job {
     std::string key;                // Job identifier
@@ -10,4 +12,13 @@ struct Job {
     std::vector<std::string> needs; // Dependent jobs
     std::vector<Step> steps;        // Steps in the job
     bool find_create = false;
+    TDengineConfig tdengine;
+    SchemaConfig schema;
+
+    Job() = default;
+    Job(const std::string& key,
+        const std::string& name,
+        const std::vector<std::string>& needs,
+        const std::vector<Step>& steps)
+        : key(key), name(name), needs(needs), steps(steps) {}
 };

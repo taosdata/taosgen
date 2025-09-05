@@ -202,7 +202,7 @@ void InsertDataAction::execute() {
         // Start consumer threads
         std::optional<ConnectorSource> conn_source;
         if (config_.target.target_type == "tdengine") {
-            conn_source.emplace(config_.control.data_channel, config_.target.tdengine.connection_info);
+            conn_source.emplace(config_.target.tdengine.connection_info);
         }
 
         for (size_t i = 0; i < consumer_thread_count; i++) {

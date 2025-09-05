@@ -22,6 +22,7 @@ void test_format_create_super_table_with_columns_and_tags() {
         {"tag1", "FLOAT", "random", 0, 200},
         {"tag2", "NCHAR(20)", "random"},
     };
+    config.schema.apply();
 
     auto formatter = FormatterFactory::instance().create_formatter<CreateSuperTableConfig>(format);
     FormatResult result = formatter->format(config);
@@ -47,6 +48,7 @@ void test_format_create_super_table_without_columns() {
     config.schema.tags = {
         {"tag1", "FLOAT", "random", 0, 200}
     };
+    config.schema.apply();
 
     auto formatter = FormatterFactory::instance().create_formatter<CreateSuperTableConfig>(format);
     FormatResult result = formatter->format(config);
@@ -72,6 +74,7 @@ void test_format_create_super_table_without_tags() {
 
     // No tags
     config.schema.tags = {};
+    config.schema.apply();
 
     auto formatter = FormatterFactory::instance().create_formatter<CreateSuperTableConfig>(format);
     FormatResult result = formatter->format(config);
@@ -93,6 +96,7 @@ void test_format_create_super_table_with_empty_config() {
     // No columns and tags
     config.schema.columns = {};
     config.schema.tags = {};
+    config.schema.apply();
 
     auto formatter = FormatterFactory::instance().create_formatter<CreateSuperTableConfig>(format);
     FormatResult result = formatter->format(config);

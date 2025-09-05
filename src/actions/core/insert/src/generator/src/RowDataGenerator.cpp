@@ -129,10 +129,10 @@ void RowDataGenerator::init_csv_reader() {
 
     csv_precision_ = columns_config_.csv.timestamp_strategy.get_precision();
 
-    // Create ColumnsCSV reader
-    columns_csv_ = std::make_unique<ColumnsCSV>(columns_config_.csv, instances_);
+    // Create ColumnsCSV Reader
+    columns_csv_ = std::make_unique<ColumnsCSVReader>(columns_config_.csv, instances_);
 
-    // TODO: ColumnsCSV needs to support table name index interface
+    // TODO: ColumnsCSV Reader needs to support table name index interface
     // Get all table data
     std::vector<TableData> all_tables = columns_csv_->generate();
 

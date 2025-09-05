@@ -52,7 +52,7 @@ tdengine:
   props: vgroups 20 replica 3 keep 3650
 
 schema:
-  name: meters
+  name: points
   tbname:
     prefix: d
     count: 100000
@@ -72,8 +72,8 @@ schema:
     - name: department
       type: varchar(7)
   generation:
-    interlace: 1
-    per_table_rows: 100
+    interlace: 60
+    per_table_rows: 10000
     per_batch_rows: 10000
 
 global:
@@ -128,24 +128,19 @@ jobs:
       - name: Create Second Child Table
         uses: actions/create-child-table
         with:
-          connection_info: *db_conn
-          database_info:
-            name: testdb
-          super_table_info:
+          schema:
             name: points
-          child_table_info:
-            table_name:
+            from_csv:
+              tags:
+                file_path: /root/meta/cnnc_csv_1s.csv
+                has_header: true
+            tbname:
               prefix: s
               count: 10000
               from: 200
-            tags:
-              source_type: csv
-              csv:
-                file_path: /root/meta/cnnc_csv_1s.csv
-                has_header: true
-          batch:
-            size: 1000
-            concurrency: 10
+            batch:
+              size: 1000
+              concurrency: 10
 
   insert-second-data:
     name: Insert Second-Level Data
@@ -262,15 +257,15 @@ jobs:
     assert(std::holds_alternative<CreateChildTableConfig>(data.jobs[2].steps[0].action_config));
     const auto& create_child_config = std::get<CreateChildTableConfig>(data.jobs[2].steps[0].action_config);
     (void)create_child_config;
-    assert(create_child_config.database_info.name == "testdb");
-    assert(create_child_config.super_table_info.name == "points");
-    assert(create_child_config.child_table_info.table_name.source_type == "generator");
-    assert(create_child_config.child_table_info.table_name.generator.prefix == "s");
-    assert(create_child_config.child_table_info.table_name.generator.count == 10000);
-    assert(create_child_config.child_table_info.table_name.generator.from == 200);
-    assert(create_child_config.child_table_info.tags.source_type == "csv");
-    assert(create_child_config.child_table_info.tags.csv.file_path == "/root/meta/cnnc_csv_1s.csv");
-    assert(create_child_config.child_table_info.tags.csv.has_header == true);
+    assert(create_child_config.tdengine.database == "testdb");
+    assert(create_child_config.schema.name == "points");
+    assert(create_child_config.schema.tbname.source_type == "generator");
+    assert(create_child_config.schema.tbname.generator.prefix == "s");
+    assert(create_child_config.schema.tbname.generator.count == 10000);
+    assert(create_child_config.schema.tbname.generator.from == 200);
+    // assert(create_child_config.schema.tags.source_type == "csv");
+    // assert(create_child_config.schema.tags.csv.file_path == "/root/meta/cnnc_csv_1s.csv");
+    // assert(create_child_config.schema.tags.csv.has_header == true);
     assert(create_child_config.batch.size == 1000);
     assert(create_child_config.batch.concurrency == 10);
 

@@ -4,14 +4,13 @@
 #include <chrono>
 
 void test_pool_initialization() {
-    DataChannel channel;
     TDengineConfig info;
     info.pool.enabled = true;
     info.pool.min_size = 2;
     info.pool.max_size = 4;
     info.pool.timeout = 100;
 
-    ConnectionPoolImpl pool(channel, info);
+    ConnectionPoolImpl pool(info);
 
     assert(pool.total_connections() == info.pool.min_size);
     assert(pool.available_connections() == info.pool.min_size);
@@ -21,14 +20,13 @@ void test_pool_initialization() {
 }
 
 void test_get_and_return_connection() {
-    DataChannel channel;
     TDengineConfig info;
     info.pool.enabled = true;
     info.pool.min_size = 2;
     info.pool.max_size = 4;
     info.pool.timeout = 100;
 
-    ConnectionPoolImpl pool(channel, info);
+    ConnectionPoolImpl pool(info);
 
     auto conn = pool.get_connector();
     assert(conn != nullptr);
@@ -43,14 +41,13 @@ void test_get_and_return_connection() {
 }
 
 void test_pool_max_size() {
-    DataChannel channel;
     TDengineConfig info;
     info.pool.enabled = true;
     info.pool.max_size = 2;
     info.pool.min_size = 1;
     info.pool.timeout = 100;
 
-    ConnectionPoolImpl pool(channel, info);
+    ConnectionPoolImpl pool(info);
 
     auto c1 = pool.get_connector();
     auto c2 = pool.get_connector();
@@ -66,14 +63,13 @@ void test_pool_max_size() {
 }
 
 void test_connection_timeout() {
-    DataChannel channel;
     TDengineConfig info;
     info.pool.enabled = true;
     info.pool.min_size = 1;
     info.pool.max_size = 1;
     info.pool.timeout = 100; // 100ms
 
-    ConnectionPoolImpl pool(channel, info);
+    ConnectionPoolImpl pool(info);
 
     // Get the only available connection
     auto conn = pool.get_connector();

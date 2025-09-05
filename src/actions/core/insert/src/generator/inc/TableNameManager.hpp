@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include "InsertDataConfig.hpp"
 #include "TableNameGenerator.hpp"
-#include "TableNameCSV.hpp"
+#include "TableNameCSVReader.hpp"
 
 class TableNameManager {
 public:

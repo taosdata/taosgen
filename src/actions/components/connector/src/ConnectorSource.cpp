@@ -4,12 +4,10 @@
 #include <iostream>
 #include <stdexcept>
 
-ConnectorSource::ConnectorSource(
-    const DataChannel& channel, const TDengineConfig& conn_info)
-    : channel_(channel), conn_info_(conn_info)
+ConnectorSource::ConnectorSource(const TDengineConfig& conn_info) : conn_info_(conn_info)
 {
     if (conn_info_.pool.enabled) {
-        pool_impl_ = std::make_unique<ConnectionPoolImpl>(channel, conn_info);
+        pool_impl_ = std::make_unique<ConnectionPoolImpl>(conn_info);
     }
 }
 

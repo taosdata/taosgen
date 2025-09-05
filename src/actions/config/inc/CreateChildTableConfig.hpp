@@ -1,19 +1,12 @@
 #pragma once
 
 #include "TDengineConfig.hpp"
-#include "DataFormat.hpp"
-#include "DataChannel.hpp"
-#include "DatabaseInfo.hpp"
-#include "SuperTableInfo.hpp"
+#include "SchemaConfig.hpp"
 #include "ChildTableInfo.hpp"
 
 struct CreateChildTableConfig {
-    TDengineConfig connection_info;  // Database connection info
-    DataFormat data_format;
-    DataChannel data_channel;
-    DatabaseInfo database_info;      // Database info
-    SuperTableInfo super_table_info; // Super table info
-    ChildTableInfo child_table_info; // Child table info
+    TDengineConfig tdengine;
+    SchemaConfig schema;
 
     struct BatchConfig {
         int size = 1000;       // Number of child tables per batch

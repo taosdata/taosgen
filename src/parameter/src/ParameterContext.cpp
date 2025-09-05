@@ -114,6 +114,9 @@ void ParameterContext::parse_global(const YAML::Node& global_yaml) {
 void ParameterContext::parse_jobs(const YAML::Node& jobs_yaml) {
     for (const auto& job_node : jobs_yaml) {
         Job job;
+        job.tdengine = config_data.global.tdengine;
+        job.schema = config_data.global.schema;
+
         job.key = job_node.first.as<std::string>(); // Get job identifier
         const auto& job_content = job_node.second;
 
@@ -195,7 +198,7 @@ void ParameterContext::parse_steps(const YAML::Node& steps_yaml, Job& job) {
         } else if (step.uses == "tdengine/create-super-table") {
             parse_td_create_super_table_action(job, step);
         } else if (step.uses == "actions/create-child-table") {
-            parse_create_child_table_action(job, step);
+            parse_td_create_child_table_action(job, step);
         } else if (step.uses == "actions/insert-data") {
             parse_insert_data_action(job, step);
         } else if (step.uses == "actions/query-data") {
@@ -214,7 +217,7 @@ void ParameterContext::parse_steps(const YAML::Node& steps_yaml, Job& job) {
 void ParameterContext::parse_td_create_database_action(Job& job, Step& step) {
     CreateDatabaseConfig create_db_config;
 
-    create_db_config.tdengine = config_data.global.tdengine;
+    create_db_config.tdengine = job.tdengine;
 
     // Print parse result
     std::cout << "Parsed create-database action: " << create_db_config.tdengine.database << std::endl;
@@ -224,11 +227,11 @@ void ParameterContext::parse_td_create_database_action(Job& job, Step& step) {
     job.find_create = true;
 }
 
-void ParameterContext::parse_td_create_super_table_action(Job& /*job*/, Step& step) {
+void ParameterContext::parse_td_create_super_table_action(Job& job, Step& step) {
     CreateSuperTableConfig create_stb_config;
 
-    create_stb_config.tdengine = config_data.global.tdengine;
-    create_stb_config.schema = config_data.global.schema;
+    create_stb_config.tdengine = job.tdengine;
+    create_stb_config.schema = job.schema;
 
 
     if (step.with["schema"]) {
@@ -236,6 +239,10 @@ void ParameterContext::parse_td_create_super_table_action(Job& /*job*/, Step& st
 
         if (schema["name"]) {
             create_stb_config.schema.name = schema["name"].as<std::string>();
+        }
+
+        if (schema["from_csv"]) {
+            create_stb_config.schema.from_csv = schema["from_csv"].as<FromCSVConfig>();
         }
 
         if (schema["tbname"]) {
@@ -253,6 +260,7 @@ void ParameterContext::parse_td_create_super_table_action(Job& /*job*/, Step& st
         if (schema["generation"]) {
             create_stb_config.schema.generation = schema["generation"].as<GenerationConfig>();
         }
+        create_stb_config.schema.apply();
     }
 
     // Validate columns and tags
@@ -264,67 +272,56 @@ void ParameterContext::parse_td_create_super_table_action(Job& /*job*/, Step& st
     std::cout << "Parsed create-super-table action: " << create_stb_config.schema.name << std::endl;
 
     // Save result to Step's action_config field
+    job.schema = create_stb_config.schema;
     step.action_config = std::move(create_stb_config);
 }
 
-void ParameterContext::parse_create_child_table_action(Job& /*job*/, Step& step) {
-    CreateChildTableConfig create_child_config;
+void ParameterContext::parse_td_create_child_table_action(Job& job, Step& step) {
+    CreateChildTableConfig create_ctb_config;
 
-    // Parse connection_info (optional)
-    if (step.with["connection_info"]) {
-        create_child_config.connection_info = step.with["connection_info"].as<TDengineConfig>();
-    } else {
-        // Use global config if not specified
-        create_child_config.connection_info = config_data.global.connection_info;
-    }
+    create_ctb_config.tdengine = job.tdengine;
+    create_ctb_config.schema = job.schema;
 
-    // Parse data_format (optional)
-    if (step.with["data_format"]) {
-        create_child_config.data_format = step.with["data_format"].as<DataFormat>();
-    } else {
-        // Use global config if not specified
-        create_child_config.data_format = config_data.global.data_format;
-    }
+    if (step.with["schema"]) {
+        const auto& schema = step.with["schema"];
 
-    // Parse data_channel (optional)
-    if (step.with["data_channel"]) {
-        create_child_config.data_channel = step.with["data_channel"].as<DataChannel>();
-    } else {
-        // Use global config if not specified
-        create_child_config.data_channel = config_data.global.data_channel;
-    }
+        if (schema["name"]) {
+            create_ctb_config.schema.name = schema["name"].as<std::string>();
+        }
 
-    // Parse database_info (required)
-    if (step.with["database_info"]) {
-        create_child_config.database_info = step.with["database_info"].as<DatabaseInfo>();
-    } else {
-        throw std::runtime_error("Missing required 'database_info' for create-child-table action.");
-    }
+        if (schema["from_csv"]) {
+            create_ctb_config.schema.from_csv = schema["from_csv"].as<FromCSVConfig>();
+        }
 
-    // Parse super_table_info (required)
-    if (step.with["super_table_info"]) {
-        create_child_config.super_table_info = step.with["super_table_info"].as<SuperTableInfo>();
-    } else {
-        throw std::runtime_error("Missing required 'super_table_info' for create-child-table action.");
-    }
+        if (schema["tbname"]) {
+            create_ctb_config.schema.tbname = schema["tbname"].as<TableNameConfig>();
+        }
 
-    // Parse child_table_info (required)
-    if (step.with["child_table_info"]) {
-        create_child_config.child_table_info = step.with["child_table_info"].as<ChildTableInfo>();
-    } else {
-        throw std::runtime_error("Missing required 'child_table_info' for create-child-table action.");
+        if (schema["columns"]) {
+            create_ctb_config.schema.columns = schema["columns"].as<ColumnConfigVector>();
+        }
+
+        if (schema["tags"]) {
+            create_ctb_config.schema.tags = schema["tags"].as<ColumnConfigVector>();
+        }
+
+        if (schema["generation"]) {
+            create_ctb_config.schema.generation = schema["generation"].as<GenerationConfig>();
+        }
+        create_ctb_config.schema.apply();
     }
 
     // Parse batch (optional)
     if (step.with["batch"]) {
-        create_child_config.batch = step.with["batch"].as<CreateChildTableConfig::BatchConfig>();
+        create_ctb_config.batch = step.with["batch"].as<CreateChildTableConfig::BatchConfig>();
     }
 
     // Print parse result
-    std::cout << "Parsed create-child-table action for super table: " << create_child_config.super_table_info.name << std::endl;
+    std::cout << "Parsed create-child-table action for super table: " << create_ctb_config.schema.name << std::endl;
 
     // Save result to Step's action_config field
-    step.action_config = std::move(create_child_config);
+    job.schema = create_ctb_config.schema;
+    step.action_config = std::move(create_ctb_config);
 }
 
 void ParameterContext::parse_insert_data_action(Job& /*job*/, Step& step) {

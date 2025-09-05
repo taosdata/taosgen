@@ -16,7 +16,7 @@ public:
                << config.schema.name << "` (ts TIMESTAMP";
 
         // columns
-        auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns);
+        auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.get_schema());
         if (!config.schema.columns.empty()) {
             result << ", ";
             append_fields(result, col_instances, ", ");
@@ -24,7 +24,7 @@ public:
         result << ")";
 
         // tags
-        auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags);
+        auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.get_schema());
         if (!config.schema.tags.empty()) {
             result << " TAGS (";
             append_fields(result, tag_instances, ", ");

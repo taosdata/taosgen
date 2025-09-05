@@ -25,6 +25,7 @@ void test_create_super_table_action() {
         {"tag1", "FLOAT", "random"},
         {"tag2", "VARCHAR(20)", "random"}
     };
+    config.schema.apply();
 
     // Create action instance
     std::cout << "Creating action instance for super table..." << std::endl;

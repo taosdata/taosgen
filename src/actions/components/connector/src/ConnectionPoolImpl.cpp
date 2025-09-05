@@ -4,9 +4,7 @@
 #include <iostream>
 #include <stdexcept>
 
-ConnectionPoolImpl::ConnectionPoolImpl(
-    const DataChannel& channel, const TDengineConfig& conn_info)
-    : channel_(channel), conn_info_(conn_info)
+ConnectionPoolImpl::ConnectionPoolImpl(const TDengineConfig& conn_info) : conn_info_(conn_info)
 {
     initialize();
 }

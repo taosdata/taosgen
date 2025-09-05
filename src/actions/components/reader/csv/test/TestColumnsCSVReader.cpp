@@ -1,16 +1,16 @@
 #include <iostream>
 #include <cassert>
 #include <fstream>
-#include "ColumnsCSV.hpp"
+#include "ColumnsCSVReader.hpp"
 
 
 void test_validate_config_empty_file_path() {
-    ColumnsConfig::CSV config;
+    ColumnsCSV config;
     config.file_path = "";
     config.has_header = true;
 
     try {
-        ColumnsCSV columns_csv(config, std::nullopt);
+        ColumnsCSVReader columns_csv(config, std::nullopt);
         assert(false && "Expected exception for empty file path");
     } catch (const std::invalid_argument& e) {
         std::cout << "test_validate_config_empty_file_path passed\n";
@@ -18,7 +18,7 @@ void test_validate_config_empty_file_path() {
 }
 
 void test_validate_config_mismatched_column_types() {
-    ColumnsConfig::CSV config;
+    ColumnsCSV config;
     config.file_path = "test.csv";
     config.has_header = true;
 
@@ -37,7 +37,7 @@ void test_validate_config_mismatched_column_types() {
     auto instances = ColumnConfigInstanceFactory::create(col_configs);
 
     try {
-        ColumnsCSV columns_csv(config, instances);
+        ColumnsCSVReader columns_csv(config, instances);
         assert(false && "Expected exception for mismatched column types size");
     } catch (const std::invalid_argument& e) {
         std::cout << "test_validate_config_mismatched_column_types passed\n";
@@ -45,7 +45,7 @@ void test_validate_config_mismatched_column_types() {
 }
 
 void test_generate_table_data_with_default_timestamp() {
-    ColumnsConfig::CSV config;
+    ColumnsCSV config;
     config.file_path = "timestamp.csv";
     config.has_header = true;
 
@@ -62,7 +62,7 @@ void test_generate_table_data_with_default_timestamp() {
     };
     auto instances = ColumnConfigInstanceFactory::create(col_configs);
 
-    ColumnsCSV columns_csv(config, instances);
+    ColumnsCSVReader columns_csv(config, instances);
     auto table_data = columns_csv.generate();
 
     assert(table_data.size() == 1 && "Expected 1 table");
@@ -76,7 +76,7 @@ void test_generate_table_data_with_default_timestamp() {
 }
 
 void test_generate_table_data_with_timestamp() {
-    ColumnsConfig::CSV config;
+    ColumnsCSV config;
     config.file_path = "timestamp.csv";
     config.has_header = true;
     config.timestamp_strategy.timestamp_config = TimestampOriginalConfig{1, "ms", std::nullopt};
@@ -93,7 +93,7 @@ void test_generate_table_data_with_timestamp() {
     };
     auto instances = ColumnConfigInstanceFactory::create(col_configs);
 
-    ColumnsCSV columns_csv(config, instances);
+    ColumnsCSVReader columns_csv(config, instances);
     auto table_data = columns_csv.generate();
 
     assert(table_data.size() == 1 && "Expected 1 table");
@@ -107,7 +107,7 @@ void test_generate_table_data_with_timestamp() {
 }
 
 void test_generate_table_data_with_generated_timestamp() {
-    ColumnsConfig::CSV config;
+    ColumnsCSV config;
     config.file_path = "generated_timestamp.csv";
     config.has_header = true;
 
@@ -127,7 +127,7 @@ void test_generate_table_data_with_generated_timestamp() {
     };
     auto instances = ColumnConfigInstanceFactory::create(col_configs);
 
-    ColumnsCSV columns_csv(config, instances);
+    ColumnsCSVReader columns_csv(config, instances);
     auto table_data = columns_csv.generate();
 
     assert(table_data.size() == 1 && "Expected 1 table");
@@ -141,7 +141,7 @@ void test_generate_table_data_with_generated_timestamp() {
 
 
 void test_generate_table_data_include_tbname() {
-    ColumnsConfig::CSV config;
+    ColumnsCSV config;
     config.file_path = "include_tbname.csv";
     config.has_header = true;
     config.tbname_index = 0; // table name column
@@ -159,7 +159,7 @@ void test_generate_table_data_include_tbname() {
     };
     auto instances = ColumnConfigInstanceFactory::create(col_configs);
 
-    ColumnsCSV columns_csv(config, instances);
+    ColumnsCSVReader columns_csv(config, instances);
     auto table_data = columns_csv.generate();
 
     // Verify table count
@@ -195,7 +195,7 @@ void test_generate_table_data_include_tbname() {
 }
 
 void test_generate_table_data_default_column_types() {
-    ColumnsConfig::CSV config;
+    ColumnsCSV config;
     config.file_path = "default.csv";
     config.has_header = true;
 
@@ -205,7 +205,7 @@ void test_generate_table_data_default_column_types() {
     test_file << "1622592000000,Bob,25,Los Angeles\n";
     test_file.close();
 
-    ColumnsCSV columns_csv(config, std::nullopt); // No column types provided
+    ColumnsCSVReader columns_csv(config, std::nullopt); // No column types provided
     auto table_data = columns_csv.generate();
 
     assert(table_data.size() == 1 && "Expected 1 table");

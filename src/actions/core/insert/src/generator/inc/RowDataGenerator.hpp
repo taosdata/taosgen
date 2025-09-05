@@ -8,8 +8,8 @@
 #include "InsertDataConfig.hpp"
 #include "RowGenerator.hpp"
 #include "TimestampGenerator.hpp"
-#include "ColumnsCSV.hpp"
-#include "TableNameCSV.hpp"
+#include "ColumnsCSVReader.hpp"
+#include "TableNameCSVReader.hpp"
 #include "MemoryPool.hpp"
 
 class RowDataGenerator {
@@ -94,7 +94,7 @@ private:
 
     // Data source components
     std::unique_ptr<RowGenerator> row_generator_;
-    std::unique_ptr<ColumnsCSV> columns_csv_;
+    std::unique_ptr<ColumnsCSVReader> columns_csv_;
     std::unique_ptr<TimestampGenerator> timestamp_generator_;
 
     // CSV data

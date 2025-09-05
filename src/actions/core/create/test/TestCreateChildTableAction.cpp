@@ -9,33 +9,22 @@
 
 void test_create_child_table_action_from_generator() {
     GlobalConfig global;
-
-    TDengineConfig conn_info("taos://root:taosdata@localhost:6030/tsbench");
-
-    DataChannel channel;
-    channel.channel_type = "native";
-
-    DataFormat format;
-    format.format_type = "sql";
-
+    TDengineConfig tdengine("taos://root:taosdata@localhost:6030/test_action");
     CreateChildTableConfig config;
-    config.connection_info = conn_info;
-    config.data_format = format;
-    config.data_channel = channel;
-    config.database_info.name = "test_action";
-    config.super_table_info.name = "test_super_table";
+    config.tdengine = tdengine;
+    config.schema.name = "test_super_table";
 
     // Configure child table name generator
-    config.child_table_info.table_name.source_type = "generator";
-    config.child_table_info.table_name.generator.prefix = "d";
-    config.child_table_info.table_name.generator.count = 10;
+    config.schema.tbname.source_type = "generator";
+    config.schema.tbname.generator.prefix = "d";
+    config.schema.tbname.generator.count = 10;
 
     // Configure tag generator
-    config.child_table_info.tags.source_type = "generator";
-    config.child_table_info.tags.generator.schema = {
+    config.schema.tags = {
         {"tag1", "float", "random", 1.5, 3.5},
         {"tag2", "varchar(20)", "random"}
     };
+    config.schema.apply();
 
     // Create action instance
     std::cout << "Creating action instance for child table from generator..." << std::endl;
@@ -54,21 +43,11 @@ void test_create_child_table_action_from_generator() {
 
 void test_create_child_table_action_from_csv() {
     GlobalConfig global;
-    TDengineConfig conn_info("taos://root:taosdata@localhost:6030/tsbench");
-
-    DataChannel channel;
-    channel.channel_type = "native";
-
-    DataFormat format;
-    format.format_type = "sql";
+    TDengineConfig tdengine("taos://root:taosdata@localhost:6030/test_action");
 
     CreateChildTableConfig config;
-    config.connection_info = conn_info;
-    config.data_format = format;
-    config.data_channel = channel;
-    config.database_info.name = "test_action";
-    config.super_table_info.name = "test_super_table";
-
+    config.tdengine = tdengine;
+    config.schema.name = "test_super_table";
 
     std::ofstream test_file("table_names_and_tags.csv");
     test_file << "tag1,tag2,tag3,table\n";
@@ -77,19 +56,21 @@ void test_create_child_table_action_from_csv() {
     test_file.close();
 
     // Configure child table name CSV file path
-    config.child_table_info.table_name.source_type = "csv";
-    config.child_table_info.table_name.csv.file_path = "table_names_and_tags.csv";
-    config.child_table_info.table_name.csv.has_header = true;
-    config.child_table_info.table_name.csv.tbname_index = 3;
+    config.schema.tbname.source_type = "csv";
+    config.schema.tbname.csv.file_path = "table_names_and_tags.csv";
+    config.schema.tbname.csv.has_header = true;
+    config.schema.tbname.csv.tbname_index = 3;
 
     // Configure tag CSV file path
-    config.child_table_info.tags.source_type = "csv";
-    config.child_table_info.tags.csv.file_path = "table_names_and_tags.csv";
-    config.child_table_info.tags.csv.exclude_indices = {2,3};
-    config.child_table_info.tags.csv.schema = {
+    config.schema.from_csv.enabled = true;
+    config.schema.from_csv.tags.enabled = true;
+    config.schema.from_csv.tags.file_path = "table_names_and_tags.csv";
+    config.schema.from_csv.tags.exclude_indices = {2,3};
+    config.schema.tags = {
         {"tag1", "float"},
         {"tag2", "varchar(20)"}
     };
+    config.schema.apply();
 
     // Create action instance
     std::cout << "Creating action instance for child table from CSV..." << std::endl;

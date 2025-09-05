@@ -1,4 +1,4 @@
-#include "ColumnsCSV.hpp"
+#include "ColumnsCSVReader.hpp"
 #include <stdexcept>
 #include <algorithm>
 #include <sstream>
@@ -20,22 +20,22 @@
 
 
 
-ColumnsCSV::ColumnsCSV(const ColumnsConfig::CSV& config, std::optional<ColumnConfigInstanceVector> instances)
+ColumnsCSVReader::ColumnsCSVReader(const ColumnsCSV& config, std::optional<ColumnConfigInstanceVector> instances)
     : config_(config), instances_(instances) {
 
     validate_config();
 }
 
-void ColumnsCSV::validate_config() {
+void ColumnsCSVReader::validate_config() {
     // Validate file path is not empty
     if (config_.file_path.empty()) {
         throw std::invalid_argument("CSV file path is empty for columns data");
     }
-    
+
     // Create a CSV reader to get total columns
     CSVReader reader(
-        config_.file_path, 
-        config_.has_header, 
+        config_.file_path,
+        config_.has_header,
         config_.delimiter.empty() ? ',' : config_.delimiter[0]
     );
 
@@ -45,7 +45,7 @@ void ColumnsCSV::validate_config() {
     const int tbname_index = config_.tbname_index;
     if (tbname_index >= 0 && static_cast<size_t>(tbname_index) >= total_columns) {
         std::stringstream ss;
-        ss << "tbname_index (" << tbname_index << ") exceeds column count (" 
+        ss << "tbname_index (" << tbname_index << ") exceeds column count ("
             << total_columns << ") in CSV file: " << config_.file_path;
         throw std::out_of_range(ss.str());
     }
@@ -82,20 +82,20 @@ void ColumnsCSV::validate_config() {
 }
 
 template <typename T>
-T ColumnsCSV::convert_value(const std::string& value) const {
+T ColumnsCSVReader::convert_value(const std::string& value) const {
     return CSVUtils::convert_value<T>(value);
 }
 
-ColumnType ColumnsCSV::convert_to_type(const std::string& value, ColumnTypeTag target_type) const {
+ColumnType ColumnsCSVReader::convert_to_type(const std::string& value, ColumnTypeTag target_type) const {
     return CSVUtils::convert_to_type(value, target_type);
 }
 
-std::vector<TableData> ColumnsCSV::generate() const {
+std::vector<TableData> ColumnsCSVReader::generate() const {
     try {
         // Create CSV reader
         CSVReader reader(
-            config_.file_path, 
-            config_.has_header, 
+            config_.file_path,
+            config_.has_header,
             config_.delimiter.empty() ? ',' : config_.delimiter[0]
         );
 
@@ -127,23 +127,23 @@ std::vector<TableData> ColumnsCSV::generate() const {
         // Process each row
         for (size_t row_idx = 0; row_idx < rows.size(); ++row_idx) {
             const auto& row = rows[row_idx];
-            
+
             // Validate row has enough columns
             if (row.size() < total_columns_) {
                 std::stringstream ss;
-                ss << "Row " << (row_idx + 1) << " has only " << row.size() 
+                ss << "Row " << (row_idx + 1) << " has only " << row.size()
                    << " columns, expected " << total_columns_
                    << " in file: " << config_.file_path;
                 throw std::out_of_range(ss.str());
             }
-            
+
             // Get table name
             std::string table_name = "default_table";
             if (tbname_index >= 0) {
                 table_name = row[static_cast<size_t>(tbname_index)];
                 StringUtils::trim(table_name);
             }
-            
+
             // Get or create TableData
             auto& data = table_map[table_name];
             if (data.table_name.empty()) {
@@ -152,7 +152,7 @@ std::vector<TableData> ColumnsCSV::generate() const {
 
             // Handle timestamp
             int64_t timestamp = 0;
-            
+
             if (timestamp_index) {
                 // original mode
                 const auto& raw_value = row[*timestamp_index];
@@ -171,24 +171,24 @@ std::vector<TableData> ColumnsCSV::generate() const {
                         // relative mode
                         int64_t multiplier = TimestampUtils::get_precision_multiplier(ts_config.timestamp_precision);
                         auto [years, months, days, hours, seconds] = offset.relative_offset;
-    
+
                         // Convert timestamp to seconds
                         std::time_t raw_time = raw_ts / multiplier;
                         int64_t fraction = raw_ts % multiplier;
-                        
+
                         // Handle time offset
                         std::tm* timeinfo = std::localtime(&raw_time);
                         if (!timeinfo) {
                             throw std::runtime_error("Failed to convert timestamp to local time, raw_ts: " + std::to_string(raw_ts));
                         }
-                        
+
                         // Apply year/month/day offset
                         timeinfo->tm_year += years;
                         timeinfo->tm_mon  += months;
                         timeinfo->tm_mday += days;
                         timeinfo->tm_hour += hours;
                         timeinfo->tm_sec  += seconds;
-  
+
                         std::time_t new_time = std::mktime(timeinfo);
                         if (new_time == -1) {
                             throw std::runtime_error("Failed to apply time offset, raw_ts: " + std::to_string(raw_ts));
@@ -224,7 +224,7 @@ std::vector<TableData> ColumnsCSV::generate() const {
                 // Skip table name and timestamp columns
                 if (static_cast<int>(col_idx) == tbname_index) continue;
                 if (timestamp_index && col_idx == *timestamp_index) continue;
-                
+
                 // Convert value type
                 if (instances_) {
                     // Use provided column types
@@ -238,7 +238,7 @@ std::vector<TableData> ColumnsCSV::generate() const {
                     data_row.push_back(val);
                 }
             }
-            
+
             data.rows.push_back(std::move(data_row));
         }
 
@@ -251,7 +251,7 @@ std::vector<TableData> ColumnsCSV::generate() const {
 
     } catch (const std::exception& e) {
         std::stringstream ss;
-        ss << "Failed to generate table data from CSV: " << config_.file_path 
+        ss << "Failed to generate table data from CSV: " << config_.file_path
            << " - " << e.what();
         throw std::runtime_error(ss.str());
     }

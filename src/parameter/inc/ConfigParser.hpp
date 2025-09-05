@@ -155,6 +155,64 @@ namespace YAML {
         }
     };
 
+
+    template<>
+    struct convert<FromCSVConfig> {
+        static bool decode(const Node& node, FromCSVConfig& rhs) {
+            static const std::set<std::string> valid_keys = {"tags", "columns"};
+            check_unknown_keys(node, valid_keys, "schema::from_csv");
+
+            rhs.enabled = true;
+
+            // Parse tags
+            if (node["tags"]) {
+                rhs.tags.enabled = true;
+                const auto& tags_node = node["tags"];
+                static const std::set<std::string> tags_keys = {
+                    "file_path", "has_header", "delimiter", "tbname_index", "exclude_indices"
+                };
+                check_unknown_keys(tags_node, tags_keys, "schema::from_csv::tags");
+
+                if (tags_node["file_path"]) {
+                    rhs.tags.file_path = tags_node["file_path"].as<std::string>();
+                } else {
+                    throw std::runtime_error("Missing required 'file_path' configuration for schema::from_csv::tags");
+                }
+
+                if (tags_node["has_header"]) rhs.tags.has_header = tags_node["has_header"].as<bool>();
+                if (tags_node["delimiter"]) rhs.tags.delimiter = tags_node["delimiter"].as<std::string>();
+                if (tags_node["tbname_index"]) rhs.tags.tbname_index = tags_node["tbname_index"].as<int>();
+                if (tags_node["exclude_indices"]) {
+                    rhs.tags.exclude_indices_str = tags_node["exclude_indices"].as<std::string>();
+                    rhs.tags.parse_exclude_indices();
+                }
+            }
+
+            // Parse columns
+            if (node["columns"]) {
+                rhs.columns.enabled = true;
+                const auto& columns_node = node["columns"];
+                static const std::set<std::string> columns_keys = {
+                    "file_path", "has_header", "repeat_read", "delimiter", "tbname_index"
+                };
+                check_unknown_keys(columns_node, columns_keys, "schema::from_csv::columns");
+
+                if (columns_node["file_path"]) {
+                    rhs.columns.file_path = columns_node["file_path"].as<std::string>();
+                } else {
+                    throw std::runtime_error("Missing required 'file_path' configuration for schema::from_csv::columns");
+                }
+
+                if (columns_node["has_header"]) rhs.columns.has_header = columns_node["has_header"].as<bool>();
+                if (columns_node["repeat_read"]) rhs.columns.repeat_read = columns_node["repeat_read"].as<bool>();
+                if (columns_node["delimiter"]) rhs.columns.delimiter = columns_node["delimiter"].as<std::string>();
+                if (columns_node["tbname_index"]) rhs.columns.tbname_index = columns_node["tbname_index"].as<int>();
+            }
+
+            return true;
+        }
+    };
+
     template<>
     struct convert<GenerationConfig::DataDisorder::Interval> {
         static bool decode(const Node& node, GenerationConfig::DataDisorder::Interval& rhs) {
@@ -289,6 +347,10 @@ namespace YAML {
             }
             rhs.name = node["name"].as<std::string>();
 
+            if (node["from_csv"]) {
+                rhs.from_csv = node["from_csv"].as<FromCSVConfig>();
+            }
+
             if (!node["tbname"]) {
                 throw std::runtime_error("Missing required field 'tbname' in schema.");
             }
@@ -307,6 +369,7 @@ namespace YAML {
             if (node["generation"]) {
                 rhs.generation = node["generation"].as<GenerationConfig>();
             }
+            rhs.apply();
             return true;
         }
     };

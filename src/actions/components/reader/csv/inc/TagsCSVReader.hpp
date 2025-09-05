@@ -4,26 +4,26 @@
 #include <string>
 #include <unordered_map>
 #include "ColumnType.hpp"
-#include "TagsConfig.hpp"
+#include "TagsCSV.hpp"
 #include "CSVReader.hpp"
 #include "ColumnConfigInstance.hpp"
 
-class TagsCSV {
+class TagsCSVReader {
 public:
-    TagsCSV(const TagsConfig::CSV& config, std::optional<ColumnConfigInstanceVector> instances);
+    TagsCSVReader(const TagsCSV& config, std::optional<ColumnConfigInstanceVector> instances);
 
     // Disable copy and move operations
-    TagsCSV(const TagsCSV&) = delete;
-    TagsCSV& operator=(const TagsCSV&) = delete;
-    TagsCSV(TagsCSV&&) = delete;
-    TagsCSV& operator=(TagsCSV&&) = delete;
-    
-    ~TagsCSV() = default;
+    TagsCSVReader(const TagsCSVReader&) = delete;
+    TagsCSVReader& operator=(const TagsCSVReader&) = delete;
+    TagsCSVReader(TagsCSVReader&&) = delete;
+    TagsCSVReader& operator=(TagsCSVReader&&) = delete;
+
+    ~TagsCSVReader() = default;
 
     std::vector<ColumnTypeVector> generate() const;
 
 private:
-    TagsConfig::CSV config_;
+    TagsCSV config_;
     std::optional<ColumnConfigInstanceVector> instances_;
     size_t total_columns_ = 0;
     std::vector<std::pair<size_t, ColumnTypeTag>> column_type_map_;

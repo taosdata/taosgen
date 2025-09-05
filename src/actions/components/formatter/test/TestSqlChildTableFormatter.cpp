@@ -9,8 +9,8 @@ void test_format_create_child_table_single() {
     format.format_type = "sql";
 
     CreateChildTableConfig config;
-    config.database_info.name = "test_db";
-    config.super_table_info.name = "test_super_table";
+    config.tdengine.database = "test_db";
+    config.schema.name = "test_super_table";
 
     std::string table_name = "child_table_1";
     RowType tags = {3.14, std::string("California")};
@@ -27,8 +27,8 @@ void test_format_create_child_table_multiple() {
     format.format_type = "sql";
 
     CreateChildTableConfig config;
-    config.database_info.name = "test_db";
-    config.super_table_info.name = "test_super_table";
+    config.tdengine.database = "test_db";
+    config.schema.name = "test_super_table";
 
     std::vector<std::string> table_names = {"child_table_1", "child_table_2"};
     std::vector<RowType> tags = {
@@ -51,8 +51,8 @@ void test_format_create_child_table_empty_tags() {
     format.format_type = "sql";
 
     CreateChildTableConfig config;
-    config.database_info.name = "test_db";
-    config.super_table_info.name = "test_super_table";
+    config.tdengine.database = "test_db";
+    config.schema.name = "test_super_table";
 
     std::string table_name = "child_table_1";
     RowType tags = {};
