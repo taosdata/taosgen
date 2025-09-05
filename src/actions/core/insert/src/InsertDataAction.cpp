@@ -11,6 +11,7 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <optional>
 #include <variant>
 #include <type_traits>
 #include <pthread.h>
@@ -144,9 +145,22 @@ void InsertDataAction::execute() {
         const size_t group_size = 10;
         GarbageCollector<FormatResult> gc((consumer_thread_count + group_size - 1) / group_size);
 
+        auto action_info = std::make_shared<ActionRegisterInfo>();
+        if (config_.control.checkpoint_info.enabled && config_.control.data_format.format_type == "stmt"
+            && config_.control.data_format.stmt_config.version == "v2") {
+            std::cout << "[Info] Starting checkpoint configuration construction..." << std::endl;
+            CheckpointActionConfig checkpoint_config(this->config_);
+            auto action = ActionFactory::instance().create_action(global_, "actions/checkpoint", checkpoint_config);
+            action_info->action = std::move(action);
+            (action_info->action.value())->execute();
+            this->is_checkpoint_recover_ = true;
+            std::cout << "[Info] Checkpointing is enabled. CheckpointAction initialized." << std::endl; 
+        }
+
         // Create all writer instances
         for (size_t i = 0; i < consumer_thread_count; i++) {
-            writers.push_back(WriterFactory::create(config_, col_instances_, i));
+            std::cout << "[Info] Creating writer instance for consumer thread " << i << std::endl;
+            writers.push_back(WriterFactory::create(config_, col_instances_, i, action_info));
         }
 
         auto consumer_running = std::make_unique<std::atomic<bool>[]>(consumer_thread_count);
@@ -400,6 +414,9 @@ void InsertDataAction::execute() {
             writer->close();
         }
 
+        if (action_info && action_info->action) {
+            CheckpointAction::stop_all();
+        }
         std::cout << "InsertDataAction completed successfully" << std::endl;
 
     } catch (const std::exception& e) {
@@ -428,7 +445,7 @@ void InsertDataAction::producer_thread_function(
         // size_t total_rows = batch->total_rows;
 
         // Format data
-        FormatResult formatted_result = formatter->format(config_, col_instances_, std::move(batch.value()));
+        FormatResult formatted_result = formatter->format(config_, col_instances_, std::move(batch.value()), is_checkpoint_recover_);
 
         // Debug: print formatted result info
         // std::visit([producer_id](const auto& result) {

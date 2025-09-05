@@ -217,6 +217,31 @@ namespace YAML {
         }
     };
 
+    template<>
+    struct convert<CheckpointInfo> {
+        static bool decode(const Node& node, CheckpointInfo& rhs) {
+            // Detect unknown configuration keys
+            static const std::set<std::string> valid_keys = {
+                "enabled", "interval_sec"
+            };
+            check_unknown_keys(node, valid_keys, "checkpoint_info");
+
+            if (node["enabled"]) {
+                rhs.enabled = node["enabled"].as<bool>();
+            }
+            if (rhs.enabled) {
+                if (node["interval_sec"]) {
+                    rhs.interval_sec = node["interval_sec"].as<size_t>();
+                    if (rhs.interval_sec == 0) {
+                        throw std::runtime_error("interval_sec must be greater than 0 in checkpoint_info.");
+                    }
+                }
+            }
+
+            return true;
+        }
+    };
+
 
     template<>
     struct convert<ColumnConfig> {
@@ -970,7 +995,6 @@ namespace YAML {
         }
     };
 
-
     template<>
     struct convert<InsertDataConfig::Control::DataQuality> {
         static bool decode(const Node& node, InsertDataConfig::Control::DataQuality& rhs) {
@@ -1240,7 +1264,7 @@ namespace YAML {
         static bool decode(const Node& node, InsertDataConfig::Control& rhs) {
             // Detect unknown configuration keys at the top level
             static const std::set<std::string> valid_keys = {
-                "data_format", "data_channel", "data_quality", "data_generation", "insert_control", "time_interval"
+                "data_format", "data_channel", "data_quality", "data_generation", "insert_control", "time_interval", "checkpoint_info" 
             };
             check_unknown_keys(node, valid_keys, "insert-data::control");
 
@@ -1261,6 +1285,9 @@ namespace YAML {
             }
             if (node["time_interval"]) {
                 rhs.time_interval = node["time_interval"].as<InsertDataConfig::Control::TimeInterval>();
+            }
+            if (node["checkpoint_info"]) {
+                rhs.checkpoint_info = node["checkpoint_info"].as<CheckpointInfo>();
             }
             return true;
         }
@@ -1412,7 +1439,6 @@ namespace YAML {
         }
     };
 
-
     template<>
     struct convert<QueryDataConfig::Control::QueryControl> {
         static bool decode(const Node& node, QueryDataConfig::Control::QueryControl& rhs) {
@@ -1450,7 +1476,6 @@ namespace YAML {
             return true;
         }
     };
-
 
     template<>
     struct convert<QueryDataConfig::Control> {

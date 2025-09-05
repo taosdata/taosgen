@@ -3,7 +3,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <sstream>
-
+#include "CheckpointAction.hpp"
 
 ParameterContext::ParameterContext() {}
 
@@ -130,6 +130,7 @@ void ParameterContext::parse_steps(const YAML::Node& steps_yaml, std::vector<Ste
 
             // Parse action by uses field
             if (step.uses == "actions/create-database") {
+                //TODO: checkpoint recover
                 parse_create_database_action(step);
             } else if (step.uses == "actions/create-super-table") {
                 parse_create_super_table_action(step);
@@ -137,6 +138,7 @@ void ParameterContext::parse_steps(const YAML::Node& steps_yaml, std::vector<Ste
                 parse_create_child_table_action(step);
             } else if (step.uses == "actions/insert-data") {
                 parse_insert_data_action(step);
+                CheckpointAction::checkpoint_recover(config_data.global, std::get<InsertDataConfig>(step.action_config));
             } else if (step.uses == "actions/query-data") {
                 parse_query_data_action(step);
             } else if (step.uses == "actions/subscribe-data") {
@@ -185,6 +187,10 @@ void ParameterContext::parse_create_database_action(Step& step) {
         create_db_config.database_info = config_data.global.database_info;
     }
 
+    // Parse database_info (required)
+    if (step.with["checkpoint_info"]) {
+        create_db_config.checkpoint_info = step.with["checkpoint_info"].as<CheckpointInfo>();
+    }
     // Print parse result
     std::cout << "Parsed create-database action: " << create_db_config.database_info.name << std::endl;
 
@@ -403,6 +409,7 @@ void ParameterContext::merge_yaml(const std::string& file_path) {
         // Load and parse the YAML file
         YAML::Node config = YAML::LoadFile(file_path);
         // Call the existing merge_yaml function with the parsed YAML node
+        config_data.global.yaml_cfg_dir = file_path;
         merge_yaml(config);
     } catch (const YAML::Exception& e) {
         throw std::runtime_error("Failed to parse YAML file '" + file_path + "': " + e.what());
