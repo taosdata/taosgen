@@ -56,7 +56,7 @@ void CheckpointAction::run_timer() {
 
     {
         std::lock_guard<std::mutex> lock(global_mutex_);
-        active_threads_count_--; // 线程计数减一       
+        active_threads_count_--; // Decrement thread count
     }
 
     global_cv_.notify_all(); 
@@ -66,7 +66,7 @@ void CheckpointAction::run_timer() {
 
 void CheckpointAction::wait_for_all_to_stop() {
     std::unique_lock<std::mutex> lock(global_mutex_);
-    // 等待，直到 active_threads_count_ 变为 0
+    // Wait until active_threads_count_ becomes 0
     global_cv_.wait(lock, [] { return active_threads_count_ == 0; });
 }
 
@@ -123,7 +123,7 @@ void CheckpointAction::notify(const std::any& payload) {
             update_checkpoint(wrapper.get());
         } catch (const std::bad_any_cast& e) {
 
-            std::cerr << "类型匹配但提取失败: " << e.what() << std::endl;
+            std::cerr << "[Checkpoint] update_checkpoint call failed: " << e.what() << std::endl;
         }
     }
 }
@@ -203,5 +203,5 @@ void CheckpointAction::delete_checkpoint() {
     std::string file_path = global_.yaml_cfg_dir + "_" + global_.database_info.name + "_" + global_.super_table_info.name + "_checkpoints.json";
     std::remove(file_path.c_str());
     checkpoint_map_.clear();
-    std::cout << "[Checkpoint] Cleared all in-memory checkpoint data." << std::endl;
+    std::cout << "[Checkpoint] delete checkpoint file and cleared all in-memory checkpoint data." << std::endl;
 }
