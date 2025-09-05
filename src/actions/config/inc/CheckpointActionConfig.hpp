@@ -19,7 +19,7 @@ struct CheckpointActionConfig {
             this->start_timestamp = TimestampUtils::parse_timestamp(timestampConfig.start_timestamp, timestampConfig.timestamp_precision);
             this->timestamp_step = timestampConfig.timestamp_step;
             this->timestamp_precision = timestampConfig.timestamp_precision;
-            this->tableCount = config.source.table_name.generator.count;
+            this->tableCount = config.source.table_name.generator.count - config.source.table_name.generator.from;
         }
     }
 };

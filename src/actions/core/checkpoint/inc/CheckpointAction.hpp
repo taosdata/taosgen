@@ -51,8 +51,6 @@ private:
     static std::condition_variable global_cv_;
     static std::atomic<int> active_threads_count_;
     
-    int tableCount = 0;
-
     // Register CheckpointAction to ActionFactory
     inline static bool registered_ = []() {
         ActionFactory::instance().register_action(
