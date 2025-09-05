@@ -22,7 +22,7 @@ target_link_libraries(core_checkpoint
     nlohmann_json::nlohmann_json # Add dependency for JSON parsing
 )
 
-# # Enable tests
-# if(CMAKE_ENABLE_TEST)
-#   add_subdirectory(test)
-# endif()
+# Enable tests
+if(CMAKE_ENABLE_TEST)
+  add_subdirectory(test)
+endif()
