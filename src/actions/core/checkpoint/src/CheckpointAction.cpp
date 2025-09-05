@@ -86,8 +86,7 @@ void CheckpointAction::save_checkpoint() {
         std::cout << "[Checkpoint] No progress data to save." << checkpoint_map_.size() << std::endl;
         return;
     }
-
-    // 找到timestamp最小的键值对
+    // Find the entry with the smallest last_checkpoint_time
     auto min_it = std::min_element(
         checkpoint_map_.begin(), 
         checkpoint_map_.end(),
