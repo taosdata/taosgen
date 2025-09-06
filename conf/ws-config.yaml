@@ -46,10 +46,15 @@ global:
 
   tbname_generator: &tbname_generator
     prefix: d
-    count: 100000
+    count: 10
     from: 0
 
-concurrency: 4
+  # Checkpoint
+  checkpoint_info: &checkpoint_info
+    enabled: true
+    interval_sec: 10
+
+concurrency: 1
 
 jobs:
   # Create database job
@@ -62,7 +67,7 @@ jobs:
         with:
           connection_info: *db_conn
           database_info: *db_info
-
+          checkpoint_info: *checkpoint_info
 
   # Create super table job
   create-super-table:
@@ -98,8 +103,7 @@ jobs:
                 schema: *tags_info
           batch:
             size: 1000
-            concurrency: 10
-
+            concurrency: 1
 
   # Insert data job
   insert-second-data:
@@ -140,17 +144,18 @@ jobs:
               stmt:
                 version: v2
             data_channel: *data_channel
+            checkpoint_info: *checkpoint_info
             data_generation:
               interlace_mode:
                 enabled: true
                 rows: 1
-              generate_threads: 1
-              per_table_rows: 100
+              generate_threads: 8
+              per_table_rows: 10000
               queue_capacity: 10
               queue_warmup_ratio: 0.05
             insert_control:
               per_request_rows: 10000
-              insert_threads: 1
+              insert_threads: 8
               failure_handling:
                 on_failure: continue
                 max_retries: 18

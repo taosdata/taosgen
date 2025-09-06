@@ -4,6 +4,7 @@
 #include "concurrentqueue.hpp"
 #include "blockingconcurrentqueue.hpp"
 #include "ColumnConverter.hpp"
+#include "CheckpointData.hpp"
 #include "TableData.hpp"
 #include "taos.h"
 #include <vector>
@@ -201,6 +202,7 @@ public:
         std::vector<const char*> tbnames_;          // Table name pointer array
         std::vector<TAOS_STMT2_BIND*> bind_ptrs_;   // Bind pointer array
         std::vector<std::vector<TAOS_STMT2_BIND>> bind_lists_; // Bind data storage
+        std::vector<CheckpointData> checkpoint_data_list_; // Checkpoint info for each table
 
         void release() {
             if (owning_pool) {
@@ -269,7 +271,7 @@ public:
             bindv_.bind_cols = bind_ptrs_.data();
         }
 
-        void build_bindv() {
+        void build_bindv(bool is_checkpoint_recover = false) {
             bindv_.count = used_tables;
 
             // Update table names and row counts
@@ -277,6 +279,10 @@ public:
                 auto& table = tables[i];
                 tbnames_[i] = table.table_name;
 
+                if (is_checkpoint_recover) {
+                    checkpoint_data_list_.emplace_back(CheckpointData(table.table_name, table.timestamps[table.used_rows - 1], table.used_rows));
+                }
+                
                 // Update timestamp row count
                 bind_lists_[i][0].num = table.used_rows;
 

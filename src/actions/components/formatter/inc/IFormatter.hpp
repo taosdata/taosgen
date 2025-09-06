@@ -41,7 +41,7 @@ enum class InsertMode {
 class IInsertDataFormatter : public IFormatter {
 public:
     virtual std::string prepare(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances) = 0;
-    virtual FormatResult format(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances, MemoryPool::MemoryBlock* batch) const = 0;
+    virtual FormatResult format(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances, MemoryPool::MemoryBlock* batch, bool is_checkpoint_recover = false) const = 0;
 
 protected:
     InsertMode mode_;

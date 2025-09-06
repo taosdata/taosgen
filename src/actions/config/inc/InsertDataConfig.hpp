@@ -4,6 +4,7 @@
 #include "TagsConfig.hpp"
 #include "ColumnsConfig.hpp"
 #include "ConnectionInfo.hpp"
+#include "CheckpointInfo.hpp"
 #include "MqttInfo.hpp"
 #include "DatabaseInfo.hpp"
 #include "SuperTableInfo.hpp"
@@ -46,7 +47,7 @@ struct InsertDataConfig {
     struct Control {
         DataFormat data_format;
         DataChannel data_channel;
-
+        CheckpointInfo checkpoint_info;
         struct DataQuality {
             struct DataDisorder {
                 bool enabled = false;

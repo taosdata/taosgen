@@ -6,6 +6,7 @@
 #include "InsertDataConfig.hpp"
 #include "QueryDataConfig.hpp"
 #include "SubscribeDataConfig.hpp"
+#include "CheckpointActionConfig.hpp"
 
 using ActionConfigVariant = std::variant<
     std::monostate,
@@ -14,5 +15,6 @@ using ActionConfigVariant = std::variant<
     CreateChildTableConfig,
     InsertDataConfig,
     QueryDataConfig,
-    SubscribeDataConfig
+    SubscribeDataConfig,
+    CheckpointActionConfig
 >;

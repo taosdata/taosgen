@@ -16,12 +16,15 @@ target_include_directories(insert_writer
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../../components/metrics/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../../components/connector/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../../components/formatter/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../checkpoint/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../../base
 )
 
 # Link dependent libraries
 target_link_libraries(insert_writer
   PUBLIC
     actions_config
+    core_checkpoint
     components_metrics
     components_connector
     components_formatter
