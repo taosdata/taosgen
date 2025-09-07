@@ -28,7 +28,7 @@ public:
             return FormatResult("");
         }
 
-        const auto& mqtt_info = config.target.mqtt;
+        const auto& mqtt_info = config.mqtt;
         return format_mqtt(mqtt_info, col_instances, batch);
     }
 

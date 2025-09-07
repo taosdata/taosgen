@@ -8,10 +8,10 @@ void test_msg_format_insert_data_single_table() {
     format.format_type = "msg";
 
     InsertDataConfig config;
-    config.target.mqtt.batch_messages = 2;
-    config.target.mqtt.topic = "test/topic";
-    config.target.mqtt.compression = "";
-    config.target.mqtt.encoding = "";
+    config.mqtt.batch_messages = 2;
+    config.mqtt.topic = "test/topic";
+    config.mqtt.compression = "";
+    config.mqtt.encoding = "";
 
     ColumnConfigInstanceVector col_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
@@ -45,10 +45,10 @@ void test_msg_format_insert_data_multiple_tables() {
     format.format_type = "msg";
 
     InsertDataConfig config;
-    config.target.mqtt.batch_messages = 2;
-    config.target.mqtt.topic = "test/topic";
-    config.target.mqtt.compression = "";
-    config.target.mqtt.encoding = "";
+    config.mqtt.batch_messages = 2;
+    config.mqtt.topic = "test/topic";
+    config.mqtt.compression = "";
+    config.mqtt.encoding = "";
 
     ColumnConfigInstanceVector col_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
@@ -90,10 +90,10 @@ void test_msg_format_insert_data_empty_batch() {
     format.format_type = "msg";
 
     InsertDataConfig config;
-    config.target.mqtt.batch_messages = 2;
-    config.target.mqtt.topic = "test/topic";
-    config.target.mqtt.compression = "";
-    config.target.mqtt.encoding = "";
+    config.mqtt.batch_messages = 2;
+    config.mqtt.topic = "test/topic";
+    config.mqtt.compression = "";
+    config.mqtt.encoding = "";
 
     ColumnConfigInstanceVector col_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
@@ -128,10 +128,10 @@ void test_msg_format_insert_data_with_empty_rows() {
     format.format_type = "msg";
 
     InsertDataConfig config;
-    config.target.mqtt.batch_messages = 2;
-    config.target.mqtt.topic = "test/topic";
-    config.target.mqtt.compression = "";
-    config.target.mqtt.encoding = "";
+    config.mqtt.batch_messages = 2;
+    config.mqtt.topic = "test/topic";
+    config.mqtt.compression = "";
+    config.mqtt.encoding = "";
 
     ColumnConfigInstanceVector col_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});

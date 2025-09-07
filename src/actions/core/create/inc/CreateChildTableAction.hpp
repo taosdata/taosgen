@@ -19,7 +19,7 @@ private:
     // Register CreateChildTableAction to ActionFactory
     inline static bool registered_ = []() {
         ActionFactory::instance().register_action(
-            "actions/create-child-table",
+            "tdengine/create-child-table",
             [](const GlobalConfig& global, const ActionConfigVariant& config) {
                 return std::make_unique<CreateChildTableAction>(global, std::get<CreateChildTableConfig>(config));
             });

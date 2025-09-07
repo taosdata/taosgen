@@ -179,7 +179,9 @@ ColumnConfig::ColumnConfig(
     const std::string& ts_precision,
     const std::string& ts_start,
     const std::string& ts_step
-) : name(name), type(type), ts{ts_start, ts_precision, ts_step} {
+) : name(name), type(type) {
+    ts.strategy_type = "generator";
+    ts.generator = TimestampGeneratorConfig{ts_start, ts_precision, ts_step};
     parse_type();
 }
 

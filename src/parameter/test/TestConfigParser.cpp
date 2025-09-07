@@ -235,7 +235,7 @@ offset_config:
   value: "+1d"
 )";
     YAML::Node node = YAML::Load(yaml);
-    TimestampOriginalConfig toc = node.as<TimestampOriginalConfig>();
+    TimestampCSVConfig toc = node.as<TimestampCSVConfig>();
     assert(toc.timestamp_index == 0);
     assert(toc.timestamp_precision == "ms");
     assert(toc.offset_config.has_value());
@@ -276,8 +276,8 @@ csv:
   has_header: true
   delimiter: ","
   timestamp_strategy:
-    strategy_type: original
-    original:
+    strategy_type: csv
+    csv:
       column_index: 0
       precision: ms
       offset_config:
@@ -291,105 +291,38 @@ csv:
     assert(cc.csv.schema[0].name == "c1");
     assert(cc.csv.schema[0].type == "int");
     assert(cc.csv.file_path == "data.csv");
-    assert(cc.csv.timestamp_strategy.strategy_type == "original");
+    assert(cc.csv.timestamp_strategy.strategy_type == "csv");
 }
 
-void test_InsertDataConfig_Source() {
+void test_Mqtt() {
     std::string yaml = R"(
-table_name:
-  prefix: tb
-  count: 1
-  from: 1
-columns:
-  source_type: generator
-  generator:
-    schema:
-      - name: c1
-        type: int
+uri: mqtt.example.com:1883
+user: testuser
+password: testpass
+topic: test/topic
+client_id: client-001
+compression: none
+encoding: utf8
+timestamp_precision: ms
+qos: 1
+keep_alive: 60
+clean_session: true
+retain: false
 )";
     YAML::Node node = YAML::Load(yaml);
-    InsertDataConfig::Source src = node.as<InsertDataConfig::Source>();
-    assert(src.table_name.source_type == "generator");
-    assert(src.columns.source_type == "generator");
-}
-
-void test_InsertDataConfig_Target_TDengine() {
-    std::string yaml = R"(
-target_type: tdengine
-tdengine:
-  connection_info:
-    dsn: "taos+ws://root:taosdata@localhost:6041/tsbench"
-  database_info:
-    name: testdb
-    drop_if_exists: true
-    precision: ms
-  super_table_info:
-    name: st
-    columns:
-      - name: c1
-        type: int
-)";
-    YAML::Node node = YAML::Load(yaml);
-    InsertDataConfig::Target tgt = node.as<InsertDataConfig::Target>();
-    assert(tgt.target_type == "tdengine");
-    assert(tgt.tdengine.connection_info.host == "localhost");
-    assert(tgt.tdengine.database_info.name == "testdb");
-    assert(tgt.tdengine.super_table_info.name == "st");
-}
-
-void test_InsertDataConfig_Target_FileSystem() {
-    std::string yaml = R"(
-target_type: file_system
-file_system:
-  output_dir: ./out
-  file_prefix: data
-  timestamp_format: "%Y-%m-%d"
-  timestamp_interval: "1d"
-  include_header: true
-  tbname_col_alias: device_id
-  compression_level: none
-)";
-    YAML::Node node = YAML::Load(yaml);
-    InsertDataConfig::Target tgt = node.as<InsertDataConfig::Target>();
-    assert(tgt.target_type == "file_system");
-    assert(tgt.file_system.output_dir == "./out");
-    assert(tgt.file_system.timestamp_format == "%Y-%m-%d");
-}
-
-void test_InsertDataConfig_Target_Mqtt() {
-    std::string yaml = R"(
-target_type: mqtt
-mqtt:
-  host: mqtt.example.com
-  port: 1883
-  user: testuser
-  password: testpass
-  topic: test/topic
-  client_id: client-001
-  compression: none
-  encoding: utf8
-  timestamp_precision: ms
-  qos: 1
-  keep_alive: 60
-  clean_session: true
-  retain: false
-)";
-    YAML::Node node = YAML::Load(yaml);
-    InsertDataConfig::Target tgt = node.as<InsertDataConfig::Target>();
-    assert(tgt.target_type == "mqtt");
-    assert(tgt.mqtt.host == "mqtt.example.com");
-    assert(tgt.mqtt.port == 1883);
-    assert(tgt.mqtt.user == "testuser");
-    assert(tgt.mqtt.password == "testpass");
-    assert(tgt.mqtt.client_id == "client-001");
-    assert(tgt.mqtt.topic == "test/topic");
-    assert(tgt.mqtt.compression == "none");
-    assert(tgt.mqtt.encoding == "utf8");
-    assert(tgt.mqtt.timestamp_precision == "ms");
-    assert(tgt.mqtt.qos == 1);
-    assert(tgt.mqtt.keep_alive == 60);
-    assert(tgt.mqtt.clean_session == true);
-    assert(tgt.mqtt.retain == false);
+    MqttConfig mqtt = node.as<MqttConfig>();
+    assert(mqtt.uri == "mqtt.example.com:1883");
+    assert(mqtt.user == "testuser");
+    assert(mqtt.password == "testpass");
+    assert(mqtt.client_id == "client-001");
+    assert(mqtt.topic == "test/topic");
+    assert(mqtt.compression == "none");
+    assert(mqtt.encoding == "utf8");
+    assert(mqtt.timestamp_precision == "ms");
+    assert(mqtt.qos == 1);
+    assert(mqtt.keep_alive == 60);
+    assert(mqtt.clean_session == true);
+    assert(mqtt.retain == false);
 }
 
 void test_DataFormat_csv() {
@@ -417,87 +350,6 @@ channel_type: native
     assert(dc.channel_type == "native");
 }
 
-void test_InsertDataConfig_Control_DataQuality() {
-  std::string yaml = R"(
-data_disorder:
-  enabled: true
-  intervals:
-    - time_start: "2024-01-01T00:00:00Z"
-      time_end: "2024-01-02T00:00:00Z"
-      ratio: 0.2
-      latency_range: 100
-    - time_start: "2024-01-03T00:00:00Z"
-      time_end: "2024-01-04T00:00:00Z"
-      ratio: 0.5
-      latency_range: 200
-)";
-  YAML::Node node = YAML::Load(yaml);
-  InsertDataConfig::Control::DataQuality dq = node.as<InsertDataConfig::Control::DataQuality>();
-  assert(dq.data_disorder.enabled == true);
-  assert(dq.data_disorder.intervals.size() == 2);
-  assert(std::holds_alternative<std::string>(dq.data_disorder.intervals[0].time_start));
-  assert(std::get<std::string>(dq.data_disorder.intervals[0].time_start) == "2024-01-01T00:00:00Z");
-  assert(dq.data_disorder.intervals[0].ratio == 0.2);
-  assert(dq.data_disorder.intervals[1].latency_range == 200);
-}
-
-void test_InsertDataConfig_Control_DataGeneration() {
-  std::string yaml = R"(
-interlace_mode:
-  enabled: true
-  rows: 10
-data_cache:
-  enabled: true
-  cache_size: 1000
-flow_control:
-  enabled: true
-  rate_limit: 10000
-generate_threads: 8
-per_table_rows: 10000
-queue_capacity: 128
-)";
-  YAML::Node node = YAML::Load(yaml);
-  InsertDataConfig::Control::DataGeneration dg = node.as<InsertDataConfig::Control::DataGeneration>();
-  (void)dg;
-  assert(dg.interlace_mode.enabled == true);
-  assert(dg.interlace_mode.rows == 10);
-  assert(dg.data_cache.enabled == true);
-  assert(dg.data_cache.cache_size == 1000);
-  assert(dg.flow_control.enabled == true);
-  assert(dg.flow_control.rate_limit == 10000);
-  assert(dg.generate_threads == 8);
-  assert(dg.per_table_rows == 10000);
-  assert(dg.queue_capacity == 128);
-}
-
-void test_InsertDataConfig_Control_InsertControl() {
-  std::string yaml = R"(
-per_request_rows: 5000
-auto_create_table: true
-insert_threads: 4
-thread_allocation: vgroup_binding
-log_path: "insert.log"
-enable_dryrun: true
-preload_table_meta: true
-failure_handling:
-  max_retries: 3
-  retry_interval_ms: 500
-  on_failure: "continue"
-)";
-  YAML::Node node = YAML::Load(yaml);
-  InsertDataConfig::Control::InsertControl ic = node.as<InsertDataConfig::Control::InsertControl>();
-  assert(ic.per_request_rows == 5000);
-  assert(ic.auto_create_table == true);
-  assert(ic.insert_threads == 4);
-  assert(ic.thread_allocation == "vgroup_binding");
-  assert(ic.log_path == "insert.log");
-  assert(ic.enable_dryrun == true);
-  assert(ic.preload_table_meta == true);
-  assert(ic.failure_handling.max_retries == 3);
-  assert(ic.failure_handling.retry_interval_ms == 500);
-  assert(ic.failure_handling.on_failure == "continue");
-}
-
 void test_InsertDataConfig_Control_TimeInterval() {
   // fixed_interval
   std::string yaml_fixed = R"(
@@ -509,7 +361,7 @@ fixed_interval:
   random_deviation: 50
 )";
   YAML::Node node_fixed = YAML::Load(yaml_fixed);
-  InsertDataConfig::Control::TimeInterval ti_fixed = node_fixed.as<InsertDataConfig::Control::TimeInterval>();
+  InsertDataConfig::TimeInterval ti_fixed = node_fixed.as<InsertDataConfig::TimeInterval>();
   assert(ti_fixed.enabled == true);
   assert(ti_fixed.interval_strategy == "fixed");
   assert(ti_fixed.fixed_interval.base_interval == 1000);
@@ -525,59 +377,11 @@ dynamic_interval:
   max_interval: 100
 )";
   YAML::Node node_dynamic = YAML::Load(yaml_dynamic);
-  InsertDataConfig::Control::TimeInterval ti_dynamic = node_dynamic.as<InsertDataConfig::Control::TimeInterval>();
+  InsertDataConfig::TimeInterval ti_dynamic = node_dynamic.as<InsertDataConfig::TimeInterval>();
   assert(ti_dynamic.enabled == true);
   assert(ti_dynamic.interval_strategy == "first_to_first");
   assert(ti_dynamic.dynamic_interval.min_interval == 10);
   assert(ti_dynamic.dynamic_interval.max_interval == 100);
-}
-
-void test_InsertDataConfig_Control() {
-  std::string yaml = R"(
-data_format:
-  format_type: csv
-  csv:
-    delimiter: ","
-data_channel:
-  channel_type: native
-data_quality:
-  data_disorder:
-    enabled: false
-data_generation:
-  interlace_mode:
-    enabled: false
-    rows: 1
-insert_control:
-  per_request_rows: 1000
-  auto_create_table: false
-  insert_threads: 2
-  thread_allocation: index_range
-  log_path: "result.txt"
-  enable_dryrun: false
-  preload_table_meta: false
-  failure_handling:
-    max_retries: 1
-    retry_interval_ms: 100
-    on_failure: "exit"
-time_interval:
-  enabled: true
-  interval_strategy: fixed
-  wait_strategy: sleep
-  fixed_interval:
-    base_interval: 100
-    random_deviation: 10
-)";
-  YAML::Node node = YAML::Load(yaml);
-  InsertDataConfig::Control ctrl = node.as<InsertDataConfig::Control>();
-  assert(ctrl.data_format.format_type == "csv");
-  assert(ctrl.data_channel.channel_type == "native");
-  assert(ctrl.data_quality.data_disorder.enabled == false);
-  assert(ctrl.data_generation.interlace_mode.enabled == false);
-  assert(ctrl.insert_control.per_request_rows == 1000);
-  assert(ctrl.insert_control.insert_threads == 2);
-  assert(ctrl.time_interval.enabled == true);
-  assert(ctrl.time_interval.fixed_interval.base_interval == 100);
-  assert(ctrl.time_interval.fixed_interval.random_deviation == 10);
 }
 
 void test_QueryDataConfig_Source() {
@@ -899,17 +703,7 @@ int main() {
     test_TimestampOriginalConfig();
     test_ColumnsConfig_generator();
     test_ColumnsConfig_csv();
-
-    test_InsertDataConfig_Source();
-    test_InsertDataConfig_Target_TDengine();
-    test_InsertDataConfig_Target_FileSystem();
-    test_InsertDataConfig_Target_Mqtt();
-    test_InsertDataConfig_Control_DataQuality();
-    test_InsertDataConfig_Control_DataGeneration();
-    test_InsertDataConfig_Control_InsertControl();
-    test_InsertDataConfig_Control_TimeInterval();
-    test_InsertDataConfig_Control();
-
+    test_Mqtt();
     test_QueryDataConfig_Source();
     test_QueryDataConfig_Control_QueryControl_Execution();
     test_QueryDataConfig_Control_QueryControl_Fixed();

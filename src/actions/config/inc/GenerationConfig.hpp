@@ -4,6 +4,7 @@
 #include <string>
 #include <variant>
 #include <vector>
+#include <optional>
 
 struct GenerationConfig {
     struct InterlaceMode {
@@ -33,9 +34,7 @@ struct GenerationConfig {
         std::vector<Interval> intervals;
     } data_disorder;
 
-    size_t generate_threads = 1;
+    std::optional<size_t> generate_threads = 1;
     int64_t per_table_rows = 10000;
     size_t per_batch_rows = 10000;
-    int queue_capacity = 100;
-    double queue_warmup_ratio = 0.5;
 };

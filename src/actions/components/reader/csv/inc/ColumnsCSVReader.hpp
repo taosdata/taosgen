@@ -9,7 +9,7 @@
 #include "ColumnsCSV.hpp"
 #include "CSVReader.hpp"
 #include "TimestampGenerator.hpp"
-#include "TimestampOriginalConfig.hpp"
+#include "TimestampCSVConfig.hpp"
 #include "ColumnConfigInstance.hpp"
 
 class ColumnsCSVReader {

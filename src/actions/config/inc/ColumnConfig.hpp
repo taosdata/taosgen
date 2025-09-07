@@ -5,7 +5,7 @@
 #include <optional>
 #include <cstdint>
 #include "ColumnType.hpp"
-#include "TimestampGeneratorConfig.hpp"
+#include "TimestampStrategy.hpp"
 #include "StringUtils.hpp"
 
 
@@ -44,7 +44,7 @@ struct ColumnConfig {
     // Attributes for gen_type=expression
     std::optional<std::string> formula;
 
-    TimestampGeneratorConfig ts;
+    TimestampStrategy ts;
 
     ColumnConfig() = default;
     ColumnConfig(const std::string& name, const std::string& type);

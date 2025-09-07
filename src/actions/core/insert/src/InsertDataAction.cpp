@@ -65,19 +65,16 @@ void InsertDataAction::set_thread_affinity(size_t thread_id, bool reverse, const
 }
 
 void InsertDataAction::execute() {
-    std::cout << "Inserting data into: " << config_.target.target_type;
-    if (config_.target.target_type == "tdengine") {
+    std::cout << "Inserting data into: " << config_.target_type;
+    if (config_.target_type == "tdengine") {
         std::cout << " @ "
-                  << config_.target.tdengine.connection_info.host << ":"
-                  << config_.target.tdengine.connection_info.port << std::endl;
-    } else if (config_.target.target_type == "file_system") {
-        std::cout << " @ " << config_.target.file_system.output_dir << std::endl;
-    } else if (config_.target.target_type == "mqtt") {
+                  << config_.tdengine.host << ":"
+                  << config_.tdengine.port << std::endl;
+    } else if (config_.target_type == "mqtt") {
         std::cout << " @ "
-                  << config_.target.mqtt.host << ":"
-                  << config_.target.mqtt.port << std::endl;
+                  << config_.mqtt.uri << std::endl;
     } else {
-        throw std::invalid_argument("Unsupported target type: " + config_.target.target_type);
+        throw std::invalid_argument("Unsupported target type: " + config_.target_type);
     }
 
     try {
@@ -93,11 +90,11 @@ void InsertDataAction::execute() {
         const auto split_names = name_manager.split_for_threads();
 
         // Check split result
-        if (split_names.size() != config_.control.data_generation.generate_threads) {
+        if (split_names.size() != config_.schema.generation.generate_threads.value()) {
             throw std::runtime_error(
                 "Split names count (" + std::to_string(split_names.size()) +
                 ") does not match generate_threads (" +
-                std::to_string(config_.control.data_generation.generate_threads) + ")"
+                std::to_string(config_.schema.generation.generate_threads.value()) + ")"
             );
         }
 
@@ -108,19 +105,19 @@ void InsertDataAction::execute() {
         }
 
         // Initialize data pipeline
-        const size_t producer_thread_count = config_.control.data_generation.generate_threads;
-        const size_t consumer_thread_count = config_.control.insert_control.insert_threads;
-        const size_t queue_capacity = config_.control.data_generation.queue_capacity;
-        const double queue_warmup_ratio = config_.control.data_generation.queue_warmup_ratio;
-        const size_t per_request_rows = config_.control.insert_control.per_request_rows;
-        const size_t interlace_rows = config_.control.data_generation.interlace_mode.rows;
-        const int64_t per_table_rows = config_.control.data_generation.per_table_rows;
+        const size_t producer_thread_count = config_.schema.generation.generate_threads.value();
+        const size_t consumer_thread_count = config_.insert_threads;
+        const size_t queue_capacity = config_.queue_capacity;
+        const double queue_warmup_ratio = config_.queue_warmup_ratio;
+        const size_t per_request_rows = config_.schema.generation.per_batch_rows;
+        const size_t interlace_rows = config_.schema.generation.interlace_mode.rows;
+        const int64_t per_table_rows = config_.schema.generation.per_table_rows;
 
-        size_t block_count = queue_capacity;
+        size_t block_count = queue_capacity * consumer_thread_count;
         size_t max_tables_per_block = std::min(name_manager.chunk_size(), per_request_rows);
         size_t max_rows_per_table = std::min(static_cast<size_t>(per_table_rows), per_request_rows);
 
-        if (config_.control.data_generation.interlace_mode.enabled) {
+        if (config_.schema.generation.interlace_mode.enabled) {
             max_tables_per_block = (per_request_rows + interlace_rows - 1) / interlace_rows;
             max_rows_per_table = std::min(max_rows_per_table, interlace_rows);
 
@@ -131,7 +128,7 @@ void InsertDataAction::execute() {
         MemoryPool pool(block_count, max_tables_per_block, max_rows_per_table, col_instances_);
 
         // Create data pipeline
-        DataPipeline<FormatResult> pipeline(queue_capacity);
+        DataPipeline<FormatResult> pipeline(block_count);
         Barrier sync_barrier(consumer_thread_count + 1);
 
         // Start consumer threads
@@ -190,7 +187,7 @@ void InsertDataAction::execute() {
 
         while (true) {
             size_t total_queued = pipeline.total_queued();
-            double queue_ratio = std::min(static_cast<double>(total_queued) / queue_capacity, 1.0);
+            double queue_ratio = std::min(static_cast<double>(total_queued) / block_count, 1.0);
 
             std::cout << "[Warmup] Queue fill ratio: " << std::fixed << std::setprecision(2)
                       << (queue_ratio * 100) << "%, target: " << (queue_warmup_ratio * 100) << "%" << std::endl;
@@ -201,8 +198,8 @@ void InsertDataAction::execute() {
 
         // Start consumer threads
         std::optional<ConnectorSource> conn_source;
-        if (config_.target.target_type == "tdengine") {
-            conn_source.emplace(config_.target.tdengine.connection_info);
+        if (config_.target_type == "tdengine") {
+            conn_source.emplace(config_.tdengine);
         }
 
         for (size_t i = 0; i < consumer_thread_count; i++) {
@@ -377,7 +374,7 @@ void InsertDataAction::execute() {
         double thread_latency = global_write_metrics.get_sum() / consumer_thread_count / 1000;
         double effective_ratio = thread_latency / total_duration * 100.0;
         double framework_ratio = (1 - (thread_latency + avg_wait_time) / total_duration) * 100.0;
-        TimeIntervalStrategy time_strategy(config_.control.time_interval, config_.target.timestamp_precision);
+        TimeIntervalStrategy time_strategy(config_.time_interval, config_.timestamp_precision);
         std::cout << "\n=============================================== Insert Latency & Efficiency Metrics ==========================================\n"
                 << "Total Operations: " << global_write_metrics.get_samples().size() << "\n"
                 << "Total Duration: " << std::fixed << std::setprecision(2) << total_duration << " seconds\n"
@@ -414,13 +411,18 @@ void InsertDataAction::producer_thread_function(
     DataPipeline<FormatResult>& pipeline,
     std::shared_ptr<TableDataManager> data_manager)
 {
+    if (assigned_tables.empty()) {
+        std::cout << "Producer thread " + std::to_string(producer_id) + " has no assigned tables" << std::endl;
+        return;
+    }
+
     // Initialize data manager
     if (!data_manager->init(assigned_tables)) {
         throw std::runtime_error("TableDataManager initialization failed for producer " + std::to_string(producer_id));
     }
 
     // Create formatter
-    auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(config_.control.data_format);
+    auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(config_.data_format);
 
     // Data generation loop
     while (auto batch = data_manager->next_multi_batch()) {
@@ -480,7 +482,7 @@ void InsertDataAction::consumer_thread_function(
     Barrier& sync_barrier)
 {
     // Failure retry logic
-    const auto& failure_cfg = config_.control.insert_control.failure_handling;
+    const auto& failure_cfg = config_.failure_handling;
     size_t failed_count = 0;
 
     // Connect to writer
@@ -488,13 +490,13 @@ void InsertDataAction::consumer_thread_function(
         throw std::runtime_error("Failed to connect writer for consumer " + std::to_string(consumer_id));
     }
 
-    if (config_.target.target_type == "tdengine") {
-        if (!writer->select_db(config_.target.tdengine.database_info.name)) {
+    if (config_.target_type == "tdengine") {
+        if (!writer->select_db(config_.tdengine.database)) {
             throw std::runtime_error("Failed to select database for writer thread " + std::to_string(consumer_id) + \
-                " with database name: " + config_.target.tdengine.database_info.name);
+                " with database name: " + config_.tdengine.database);
         }
 
-        auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(config_.control.data_format);
+        auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(config_.data_format);
         auto sql = formatter->prepare(config_, col_instances_);
 
         if (!writer->prepare(sql)) {
@@ -573,7 +575,7 @@ void InsertDataAction::consumer_thread_function(
 
 ColumnConfigInstanceVector InsertDataAction::create_column_instances() const {
     try {
-        const auto& schema = config_.source.columns.get_schema();
+        const auto& schema = config_.schema.columns_cfg.get_schema();
         if (schema.empty()) {
             throw std::invalid_argument("Schema configuration is empty");
         }

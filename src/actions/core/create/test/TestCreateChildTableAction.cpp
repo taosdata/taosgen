@@ -30,7 +30,7 @@ void test_create_child_table_action_from_generator() {
     std::cout << "Creating action instance for child table from generator..." << std::endl;
     auto action = ActionFactory::instance().create_action(
         global,
-        "actions/create-child-table",
+        "tdengine/create-child-table",
         config
     );
 
@@ -76,7 +76,7 @@ void test_create_child_table_action_from_csv() {
     std::cout << "Creating action instance for child table from CSV..." << std::endl;
     auto action = ActionFactory::instance().create_action(
         global,
-        "actions/create-child-table",
+        "tdengine/create-child-table",
         config
     );
 

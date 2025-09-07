@@ -18,7 +18,7 @@ public:
         //               -ntb   : INSERT INTO `db_name`.`stb_name`(ts,cols-name) VALUES(?,cols-qmark)
         // 3. auto create table : INSERT INTO ? USING `db_name`.`stb_name` TAGS (tags-qmark) VALUES(?,cols-qmark)
 
-        if (config.control.data_channel.channel_type == "websocket") {
+        if (config.tdengine.protocol_type == TDengineConfig::ProtocolType::WebSocket) {
             mode_ = InsertMode::SuperTable;
         } else {
             mode_ = InsertMode::SubTable;
@@ -38,8 +38,8 @@ public:
         else if (mode_ == InsertMode::SuperTable)
         {
             result << "INSERT INTO `"
-                << config.target.tdengine.database_info.name << "`.`"
-                << config.target.tdengine.super_table_info.name << "`(tbname,ts";
+                << config.tdengine.database << "`.`"
+                << config.schema.name << "`(tbname,ts";
 
             // Add column names
             for (size_t i = 0; i < col_instances.size(); i++) {

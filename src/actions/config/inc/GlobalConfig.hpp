@@ -2,6 +2,7 @@
 
 #include <string>
 #include "TDengineConfig.hpp"
+#include "MqttConfig.hpp"
 #include "SchemaConfig.hpp"
 #include "DatabaseInfo.hpp"
 #include "SuperTableInfo.hpp"
@@ -20,5 +21,6 @@ struct GlobalConfig {
     SuperTableInfo super_table_info;
 
     TDengineConfig tdengine;
+    MqttConfig mqtt;
     SchemaConfig schema;
 };

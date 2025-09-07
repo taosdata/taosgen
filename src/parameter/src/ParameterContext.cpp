@@ -74,9 +74,22 @@ void ParameterContext::parse_tdengine(const YAML::Node& td_yaml) {
     global_config.tdengine = td_yaml.as<TDengineConfig>();
 }
 
-void ParameterContext::parse_schema(const YAML::Node& td_yaml) {
+void ParameterContext::parse_mqtt(const YAML::Node& td_yaml) {
     auto& global_config = config_data.global;
-    global_config.schema = td_yaml.as<SchemaConfig>();
+    global_config.mqtt = td_yaml.as<MqttConfig>();
+}
+
+void ParameterContext::parse_schema(const YAML::Node& schema_yaml) {
+    auto& global_config = config_data.global;
+    global_config.schema = schema_yaml.as<SchemaConfig>();
+
+    if (!global_config.schema.tbname.enabled && !global_config.schema.from_csv.enabled) {
+        throw std::runtime_error("Missing required field 'tbname' in schema.");
+    }
+
+    if (global_config.schema.columns.size() == 0) {
+        throw std::runtime_error("Schema must have at least one column defined.");
+    }
 }
 
 // Parse global config
@@ -197,10 +210,10 @@ void ParameterContext::parse_steps(const YAML::Node& steps_yaml, Job& job) {
             parse_td_create_database_action(job, step);
         } else if (step.uses == "tdengine/create-super-table") {
             parse_td_create_super_table_action(job, step);
-        } else if (step.uses == "actions/create-child-table") {
+        } else if (step.uses == "tdengine/create-child-table") {
             parse_td_create_child_table_action(job, step);
-        } else if (step.uses == "actions/insert-data") {
-            parse_insert_data_action(job, step);
+        } else if (step.uses == "tdengine/insert-data") {
+            parse_td_insert_data_action(job, step);
         } else if (step.uses == "actions/query-data") {
             parse_query_data_action(job, step);
         } else if (step.uses == "actions/subscribe-data") {
@@ -215,7 +228,7 @@ void ParameterContext::parse_steps(const YAML::Node& steps_yaml, Job& job) {
 }
 
 void ParameterContext::parse_td_create_database_action(Job& job, Step& step) {
-    CreateDatabaseConfig create_db_config;
+    CreateDatabaseConfig create_db_config = step.with.as<CreateDatabaseConfig>();
 
     create_db_config.tdengine = job.tdengine;
 
@@ -228,7 +241,7 @@ void ParameterContext::parse_td_create_database_action(Job& job, Step& step) {
 }
 
 void ParameterContext::parse_td_create_super_table_action(Job& job, Step& step) {
-    CreateSuperTableConfig create_stb_config;
+    CreateSuperTableConfig create_stb_config = step.with.as<CreateSuperTableConfig>();
 
     create_stb_config.tdengine = job.tdengine;
     create_stb_config.schema = job.schema;
@@ -277,7 +290,7 @@ void ParameterContext::parse_td_create_super_table_action(Job& job, Step& step) 
 }
 
 void ParameterContext::parse_td_create_child_table_action(Job& job, Step& step) {
-    CreateChildTableConfig create_ctb_config;
+    CreateChildTableConfig create_ctb_config = step.with.as<CreateChildTableConfig>();
 
     create_ctb_config.tdengine = job.tdengine;
     create_ctb_config.schema = job.schema;
@@ -324,31 +337,69 @@ void ParameterContext::parse_td_create_child_table_action(Job& job, Step& step) 
     step.action_config = std::move(create_ctb_config);
 }
 
-void ParameterContext::parse_insert_data_action(Job& /*job*/, Step& step) {
-    InsertDataConfig insert_config;
+void ParameterContext::parse_td_insert_data_action(Job& job, Step& step) {
+    InsertDataConfig insert_config = step.with.as<InsertDataConfig>();
 
-    if (step.with["source"]) {
-        insert_config.source = step.with["source"].as<InsertDataConfig::Source>();
-    } else {
-        throw std::runtime_error("Missing required 'source' for insert-data action.");
+    insert_config.tdengine = job.tdengine;
+    insert_config.mqtt = job.mqtt;
+    insert_config.schema = job.schema;
+
+    if (step.with["tdengine"]) {
+        insert_config.tdengine = step.with["tdengine"].as<TDengineConfig>();
     }
 
-    if (step.with["target"]) {
-        insert_config.target = step.with["target"].as<InsertDataConfig::Target>();
-    } else {
-        throw std::runtime_error("Missing required 'target' for insert-data action.");
+    if (step.with["mqtt"]) {
+        insert_config.mqtt = step.with["mqtt"].as<MqttConfig>();
     }
 
-    if (step.with["control"]) {
-        insert_config.control = step.with["control"].as<InsertDataConfig::Control>();
+    if (step.with["schema"]) {
+        const auto& schema = step.with["schema"];
+
+        if (schema["name"]) {
+            insert_config.schema.name = schema["name"].as<std::string>();
+        }
+
+        if (schema["from_csv"]) {
+            insert_config.schema.from_csv = schema["from_csv"].as<FromCSVConfig>();
+        }
+
+        if (schema["tbname"]) {
+            insert_config.schema.tbname = schema["tbname"].as<TableNameConfig>();
+        }
+
+        if (schema["columns"]) {
+            insert_config.schema.columns = schema["columns"].as<ColumnConfigVector>();
+        }
+
+        if (schema["tags"]) {
+            insert_config.schema.tags = schema["tags"].as<ColumnConfigVector>();
+        }
+
+        if (schema["generation"]) {
+            insert_config.schema.generation = schema["generation"].as<GenerationConfig>();
+        }
+        insert_config.schema.apply();
+    }
+
+    if (step.with["timestamp_precision"]) {
+        insert_config.timestamp_precision = step.with["timestamp_precision"].as<std::string>();
     } else {
-        throw std::runtime_error("Missing required 'control' for insert-data action.");
+        insert_config.timestamp_precision = insert_config.schema.columns[0].ts.get_precision();
+    }
+
+    if (!insert_config.schema.generation.generate_threads.has_value()) {
+        if (job.schema.generation.generate_threads.has_value()) {
+            insert_config.schema.generation.generate_threads = job.schema.generation.generate_threads;
+        } else {
+            insert_config.schema.generation.generate_threads = insert_config.insert_threads;
+        }
     }
 
     // Print parse result
     std::cout << "Parsed insert-data action." << std::endl;
 
     // Save result to Step's action_config field
+    job.schema = insert_config.schema;
     step.action_config = std::move(insert_config);
 }
 
@@ -404,6 +455,10 @@ void ParameterContext::merge_yaml(const YAML::Node& config) {
 
     if (config["tdengine"]) {
         parse_tdengine(config["tdengine"]);
+    }
+
+    if (config["mqtt"]) {
+        parse_mqtt(config["mqtt"]);
     }
 
     if (config["schema"]) {

@@ -22,10 +22,10 @@ ConfigWithDependencies build_complex_config_with_dependencies() {
     // Define steps
     Step create_database_step{"Create Database", "tdengine/create-database", YAML::Node(), {}};
     Step create_super_table_step{"Create Super Table", "tdengine/create-super-table", YAML::Node(), {}};
-    Step create_second_child_table_step{"Create Second Child Table", "actions/create-child-table", YAML::Node(), {}};
-    Step create_minute_child_table_step{"Create Minute Child Table", "actions/create-child-table", YAML::Node(), {}};
-    Step insert_second_data_step{"Insert Second-Level Data", "actions/insert-data", YAML::Node(), {}};
-    Step insert_minute_data_step{"Insert Minute-Level Data", "actions/insert-data", YAML::Node(), {}};
+    Step create_second_child_table_step{"Create Second Child Table", "tdengine/create-child-table", YAML::Node(), {}};
+    Step create_minute_child_table_step{"Create Minute Child Table", "tdengine/create-child-table", YAML::Node(), {}};
+    Step insert_second_data_step{"Insert Second-Level Data", "tdengine/insert-data", YAML::Node(), {}};
+    Step insert_minute_data_step{"Insert Minute-Level Data", "tdengine/insert-data", YAML::Node(), {}};
     Step query_super_table_step{"Query Super Table", "actions/query-data", YAML::Node(), {}};
     Step subscribe_data_step{"Subscribe Data", "actions/subscribe-data", YAML::Node(), {}};
 
@@ -173,7 +173,7 @@ void test_job_scheduler_with_delay() {
             } else if (step.uses == "tdengine/create-super-table") {
                 std::cout << "Action type: Create Super Table" << std::endl;
                 std::this_thread::sleep_for(std::chrono::seconds(6));
-            } else if (step.uses == "actions/create-child-table") {
+            } else if (step.uses == "tdengine/create-child-table") {
                 std::cout << "Action type: Create Child Table" << std::endl;
                 if (step.name == "Create Second Child Table") {
                     std::this_thread::sleep_for(std::chrono::seconds(5));
@@ -181,7 +181,7 @@ void test_job_scheduler_with_delay() {
                     std::this_thread::sleep_for(std::chrono::seconds(4));
                 }
                 std::this_thread::sleep_for(std::chrono::seconds(3));
-            } else if (step.uses == "actions/insert-data") {
+            } else if (step.uses == "tdengine/insert-data") {
                 std::cout << "Action type: Insert Data" << std::endl;
                 if (step.name == "Insert Second-Level Data") {
                     std::this_thread::sleep_for(std::chrono::seconds(1));

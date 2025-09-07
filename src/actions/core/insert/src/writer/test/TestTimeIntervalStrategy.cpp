@@ -4,8 +4,8 @@
 #include <stdexcept>
 #include <thread>
 
-InsertDataConfig::Control::TimeInterval create_test_config() {
-    InsertDataConfig::Control::TimeInterval config;
+InsertDataConfig::TimeInterval create_test_config() {
+    InsertDataConfig::TimeInterval config;
     config.enabled = true;
     config.interval_strategy = "fixed";
     config.wait_strategy = "sleep";
@@ -163,7 +163,7 @@ void test_wait_strategy() {
 }
 
 void test_literal_strategy() {
-    InsertDataConfig::Control::TimeInterval config;
+    InsertDataConfig::TimeInterval config;
     config.enabled = true;
     config.interval_strategy = "literal";
     config.wait_strategy = "sleep";

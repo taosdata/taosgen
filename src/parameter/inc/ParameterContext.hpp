@@ -50,6 +50,7 @@ private:
 
     // Helper methods
     void parse_tdengine(const YAML::Node& td_yaml);
+    void parse_mqtt(const YAML::Node& td_yaml);
     void parse_schema(const YAML::Node& td_yaml);
     void parse_global(const YAML::Node& global_yaml);
     void parse_jobs(const YAML::Node& jobs_yaml);
@@ -59,7 +60,7 @@ private:
     void parse_td_create_database_action(Job& job, Step& step);
     void parse_td_create_super_table_action(Job& job, Step& step);
     void parse_td_create_child_table_action(Job& job, Step& step);
-    void parse_insert_data_action(Job& job, Step& step);
+    void parse_td_insert_data_action(Job& job, Step& step);
     void parse_query_data_action(Job& job, Step& step);
     void parse_subscribe_data_action(Job& job, Step& step);
     // void parse_job(const YAML::Node& job_yaml, Job& job);

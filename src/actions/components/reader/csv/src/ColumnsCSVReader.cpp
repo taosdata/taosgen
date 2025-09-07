@@ -54,8 +54,8 @@ void ColumnsCSVReader::validate_config() {
     if (tbname_index >= 0) actual_columns--;
 
     // Validate timestamp strategy config
-    if (std::holds_alternative<TimestampOriginalConfig>(config_.timestamp_strategy.timestamp_config)) {
-        const auto& ts_config = std::get<TimestampOriginalConfig>(config_.timestamp_strategy.timestamp_config);
+    if (config_.timestamp_strategy.strategy_type == "csv" ) {
+        const auto& ts_config = config_.timestamp_strategy.csv;
 
         if (ts_config.timestamp_index >= total_columns) {
             std::stringstream ss;
@@ -107,16 +107,16 @@ std::vector<TableData> ColumnsCSVReader::generate() const {
         const int tbname_index = config_.tbname_index;
         bool is_generator_mode = false;
         TimestampGeneratorConfig gen_config;
-        TimestampOriginalConfig ts_config;
+        TimestampCSVConfig ts_config;
 
         std::unordered_map<std::string, std::unique_ptr<TimestampGenerator>> table_ts_generators;
         std::unordered_map<std::string, int64_t> table_first_raw_ts;
 
-        if (std::holds_alternative<TimestampOriginalConfig>(config_.timestamp_strategy.timestamp_config)) {
-            ts_config = std::get<TimestampOriginalConfig>(config_.timestamp_strategy.timestamp_config);
+        if (config_.timestamp_strategy.strategy_type == "csv") {
+            ts_config = config_.timestamp_strategy.csv;
             timestamp_index = ts_config.timestamp_index;
-        } else if (std::holds_alternative<TimestampGeneratorConfig>(config_.timestamp_strategy.timestamp_config)) {
-            gen_config = std::get<TimestampGeneratorConfig>(config_.timestamp_strategy.timestamp_config);
+        } else if (config_.timestamp_strategy.strategy_type == "generator") {
+            gen_config = config_.timestamp_strategy.generator;
             is_generator_mode = true;
         }
 

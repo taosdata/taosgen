@@ -24,7 +24,7 @@ bool TDengineWriter::connect(std::optional<ConnectorSource>& conn_source) {
             return connector_->is_connected();
         } else {
             connector_ = ConnectorFactory::create(
-                config_.target.tdengine.connection_info
+                config_.tdengine
             );
             return connector_->connect();
         }
@@ -77,7 +77,7 @@ bool TDengineWriter::write(const BaseInsertData& data) {
         }
     } catch (const std::exception& e) {
         // Handling after retry failure
-        if (config_.control.insert_control.failure_handling.on_failure == "exit") {
+        if (config_.failure_handling.on_failure == "exit") {
             throw;
         }
         // Otherwise, ignore the error and continue

@@ -23,7 +23,7 @@ void test_validate_config_mismatched_column_types() {
     config.has_header = true;
 
     // Explicitly set timestamp strategy to generator mode
-    config.timestamp_strategy.timestamp_config = TimestampGeneratorConfig{};
+    config.timestamp_strategy.generator = TimestampGeneratorConfig{};
 
     std::ofstream test_file("test.csv");
     test_file << "name,age,city\n";
@@ -46,10 +46,14 @@ void test_validate_config_mismatched_column_types() {
 
 void test_generate_table_data_with_default_timestamp() {
     ColumnsCSV config;
+    config.enabled = true;
+    config.timestamp_strategy.strategy_type = "csv";
+    config.timestamp_strategy.csv.enabled = true;
+    config.timestamp_strategy.csv.timestamp_index = 0;
     config.file_path = "timestamp.csv";
     config.has_header = true;
 
-    // Default timestamp strategy (TimestampOriginalConfig)
+    // Default timestamp strategy (TimestampCSVConfig)
     std::ofstream test_file("timestamp.csv");
     test_file << "timestamp,name,city\n"; // First column is the timestamp in milliseconds
     test_file << "1622505600000,Alice,New York\n";
@@ -77,9 +81,12 @@ void test_generate_table_data_with_default_timestamp() {
 
 void test_generate_table_data_with_timestamp() {
     ColumnsCSV config;
+    config.enabled = true;
+    config.timestamp_strategy.strategy_type = "csv";
+    config.timestamp_strategy.csv.enabled = true;
+    config.timestamp_strategy.csv.timestamp_index = 1;
     config.file_path = "timestamp.csv";
     config.has_header = true;
-    config.timestamp_strategy.timestamp_config = TimestampOriginalConfig{1, "ms", std::nullopt};
 
     std::ofstream test_file("timestamp.csv");
     test_file << "name,timestamp,city\n";
@@ -112,7 +119,7 @@ void test_generate_table_data_with_generated_timestamp() {
     config.has_header = true;
 
     // Explicitly set timestamp strategy to generator mode
-    config.timestamp_strategy.timestamp_config = TimestampGeneratorConfig{};
+    config.timestamp_strategy.generator = TimestampGeneratorConfig{};
 
     std::ofstream test_file("generated_timestamp.csv");
     test_file << "name,age,city\n";
@@ -145,7 +152,7 @@ void test_generate_table_data_include_tbname() {
     config.file_path = "include_tbname.csv";
     config.has_header = true;
     config.tbname_index = 0; // table name column
-    config.timestamp_strategy.timestamp_config = TimestampGeneratorConfig{};
+    config.timestamp_strategy.generator = TimestampGeneratorConfig{};
 
     std::ofstream test_file("include_tbname.csv");
     test_file << "table_name,age,city\n";
@@ -196,6 +203,10 @@ void test_generate_table_data_include_tbname() {
 
 void test_generate_table_data_default_column_types() {
     ColumnsCSV config;
+    config.enabled = true;
+    config.timestamp_strategy.strategy_type = "csv";
+    config.timestamp_strategy.csv.enabled = true;
+    config.timestamp_strategy.csv.timestamp_index = 0;
     config.file_path = "default.csv";
     config.has_header = true;
 

@@ -7,15 +7,11 @@
 #include <mqtt/connect_options.h>
 #include <mqtt/properties.h>
 
-PahoMqttClient::PahoMqttClient(const std::string& host, int port, const std::string& client_id, size_t max_buffered_messages,
+PahoMqttClient::PahoMqttClient(const std::string& uri, const std::string& client_id, size_t max_buffered_messages,
                                const std::string& content_type,
                                const std::string& compression,
                                const std::string& encoding) {
     // Example: "tcp://localhost:1883"
-    std::ostringstream oss;
-    oss << "tcp://" << host << ":" << port;
-    std::string uri = oss.str();
-
     mqtt::create_options create_opts;
     create_opts.set_server_uri(uri);
     create_opts.set_client_id(client_id);
@@ -130,12 +126,7 @@ MqttClient::MqttClient(const MqttConfig& config,
       compression_type_(string_to_compression(config.compression)),
       encoding_type_(string_to_encoding(config.encoding))
 {
-    std::string client_id;
-    if (config.client_id.empty()) {
-        client_id = MqttConfig::generate_client_id();
-    } else {
-        client_id = config.client_id + "-" + std::to_string(no);
-    }
+    std::string client_id = config.generate_client_id(no);
 
     compression_str_ = (compression_type_ != CompressionType::NONE)
         ? compression_to_string(compression_type_) : "";
@@ -143,7 +134,7 @@ MqttClient::MqttClient(const MqttConfig& config,
         ? encoding_to_string(encoding_type_) : "";
 
     // Initialize MQTT client
-    client_ = std::make_unique<PahoMqttClient>(config.host, config.port, client_id, config.max_buffered_messages,
+    client_ = std::make_unique<PahoMqttClient>(config.uri, client_id, config.max_buffered_messages,
         "application/json", compression_str_, encoding_str_);
 }
 

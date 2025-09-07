@@ -80,17 +80,14 @@ namespace YAML {
         static bool decode(const Node& node, MqttConfig& rhs) {
             // Detect unknown configuration keys
             static const std::set<std::string> valid_keys = {
-                "host", "port", "user", "password", "client_id", "topic", "compression", "encoding",
+                "uri", "user", "password", "client_id", "topic", "compression", "encoding",
                 "timestamp_precision", "qos", "keep_alive", "clean_session", "retain",
                 "max_buffered_messages", "batch_messages"
             };
             check_unknown_keys(node, valid_keys, "mqtt_info");
 
-            if (node["host"]) {
-                rhs.host = node["host"].as<std::string>();
-            }
-            if (node["port"]) {
-                rhs.port = node["port"].as<int>();
+            if (node["uri"]) {
+                rhs.uri = node["uri"].as<std::string>();
             }
             if (node["user"]) {
                 rhs.user = node["user"].as<std::string>();
@@ -182,10 +179,12 @@ namespace YAML {
                 if (tags_node["has_header"]) rhs.tags.has_header = tags_node["has_header"].as<bool>();
                 if (tags_node["delimiter"]) rhs.tags.delimiter = tags_node["delimiter"].as<std::string>();
                 if (tags_node["tbname_index"]) rhs.tags.tbname_index = tags_node["tbname_index"].as<int>();
-                if (tags_node["exclude_indices"]) {
+                if (tags_node["exclude_indices"] && tags_node["exclude_indices"].IsScalar()) {
                     rhs.tags.exclude_indices_str = tags_node["exclude_indices"].as<std::string>();
-                    rhs.tags.parse_exclude_indices();
+                } else {
+                    rhs.tags.exclude_indices_str = "";
                 }
+                rhs.tags.parse_exclude_indices();
             }
 
             // Parse columns
@@ -193,7 +192,8 @@ namespace YAML {
                 rhs.columns.enabled = true;
                 const auto& columns_node = node["columns"];
                 static const std::set<std::string> columns_keys = {
-                    "file_path", "has_header", "repeat_read", "delimiter", "tbname_index"
+                    "file_path", "has_header", "repeat_read", "delimiter",
+                    "tbname_index", "timestamp_index"
                 };
                 check_unknown_keys(columns_node, columns_keys, "schema::from_csv::columns");
 
@@ -207,8 +207,10 @@ namespace YAML {
                 if (columns_node["repeat_read"]) rhs.columns.repeat_read = columns_node["repeat_read"].as<bool>();
                 if (columns_node["delimiter"]) rhs.columns.delimiter = columns_node["delimiter"].as<std::string>();
                 if (columns_node["tbname_index"]) rhs.columns.tbname_index = columns_node["tbname_index"].as<int>();
+                if (columns_node["timestamp_index"]) rhs.columns.timestamp_index = columns_node["timestamp_index"].as<int>();
             }
 
+            rhs.enabled = true;
             return true;
         }
     };
@@ -266,7 +268,7 @@ namespace YAML {
         static bool decode(const Node& node, GenerationConfig& rhs) {
             static const std::set<std::string> valid_keys = {
                 "interlace", "cache_size", "rate_limit", "data_disorder",
-                "generate_threads", "per_table_rows", "per_batch_rows", "queue_capacity", "queue_warmup_ratio"
+                "concurrency", "per_table_rows", "per_batch_rows"
             };
             check_unknown_keys(node, valid_keys, "generation");
 
@@ -304,8 +306,14 @@ namespace YAML {
                 rhs.data_disorder = node["data_disorder"].as<GenerationConfig::DataDisorder>();
             }
 
-            if (node["generate_threads"]) {
-                rhs.generate_threads = node["generate_threads"].as<size_t>();
+            if (node["concurrency"]) {
+                int64_t concurrency = node["concurrency"].as<int64_t>();
+                if (concurrency <= 0) {
+                    throw std::runtime_error("concurrency must be a positive integer.");
+                }
+                rhs.generate_threads = concurrency;
+            } else {
+                rhs.generate_threads = std::nullopt;
             }
 
             if (node["per_table_rows"]) {
@@ -323,13 +331,6 @@ namespace YAML {
                 rhs.per_batch_rows = node["per_batch_rows"].as<size_t>();
             }
 
-            if (node["queue_capacity"]) {
-                rhs.queue_capacity = node["queue_capacity"].as<int>();
-            }
-            if (node["queue_warmup_ratio"]) {
-                rhs.queue_warmup_ratio = node["queue_warmup_ratio"].as<double>();
-            }
-
             return true;
         }
     };
@@ -338,7 +339,7 @@ namespace YAML {
     struct convert<SchemaConfig> {
         static bool decode(const Node& node, SchemaConfig& rhs) {
             static const std::set<std::string> valid_keys = {
-                "name", "tbname", "columns", "tags", "generation"
+                "name", "from_csv", "tbname", "columns", "tags", "generation"
             };
             check_unknown_keys(node, valid_keys, "schema");
 
@@ -351,20 +352,41 @@ namespace YAML {
                 rhs.from_csv = node["from_csv"].as<FromCSVConfig>();
             }
 
-            if (!node["tbname"]) {
-                throw std::runtime_error("Missing required field 'tbname' in schema.");
+            // if (!node["tbname"]) {
+            //     throw std::runtime_error("Missing required field 'tbname' in schema.");
+            // }
+            if (node["tbname"]) {
+                rhs.tbname = node["tbname"].as<TableNameConfig>();
             }
-            rhs.tbname = node["tbname"].as<TableNameConfig>();
 
-            if (!node["columns"]) {
-                throw std::runtime_error("Missing required field 'columns' in schema.");
+            if (rhs.from_csv.enabled && rhs.from_csv.tags.enabled && rhs.from_csv.tags.tbname_index >= 0) {
+                rhs.tbname.enabled = true;
+                rhs.tbname.source_type = "csv";
+                rhs.tbname.csv.file_path = rhs.from_csv.tags.file_path;
+                rhs.tbname.csv.tbname_index = rhs.from_csv.tags.tbname_index;
             }
-            rhs.columns = node["columns"].as<ColumnConfigVector>();
 
-            if (!node["tags"]) {
-                throw std::runtime_error("Missing required field 'tags' in schema.");
+            // if (!node["columns"]) {
+            //     throw std::runtime_error("Missing required field 'columns' in schema.");
+            // }
+            if (node["columns"]) {
+                rhs.columns = node["columns"].as<ColumnConfigVector>();
+                if (rhs.columns.size() == 0) {
+                    throw std::runtime_error("Schema must have at least one column defined.");
+                }
+
+                if (rhs.columns[0].type_tag != ColumnTypeTag::BIGINT) {
+                    // throw std::runtime_error("The first column must be of type BIGINT or TIMESTAMP to serve as the timestamp column.");
+                    rhs.columns.insert(rhs.columns.begin(), ColumnConfig("ts", "TIMESTAMP"));
+                }
             }
-            rhs.tags = node["tags"].as<ColumnConfigVector>();
+
+            // if (!node["tags"]) {
+            //     throw std::runtime_error("Missing required field 'tags' in schema.");
+            // }
+            if (node["tags"]) {
+                rhs.tags = node["tags"].as<ColumnConfigVector>();
+            }
 
             if (node["generation"]) {
                 rhs.generation = node["generation"].as<GenerationConfig>();
@@ -446,15 +468,18 @@ namespace YAML {
             if (rhs.type_tag == ColumnTypeTag::BIGINT) {
                 // Parse timestamp config
                 if (node["precision"]) {
-                    rhs.ts.timestamp_precision = node["precision"].as<std::string>();
+                    rhs.ts.generator.timestamp_precision = node["precision"].as<std::string>();
+                    rhs.ts.csv.timestamp_precision = rhs.ts.generator.timestamp_precision;
                 }
                 if (node["start"]) {
-                    rhs.ts.start_timestamp = node["start"].as<std::string>();
-                    (void)TimestampUtils::parse_timestamp(rhs.ts.start_timestamp, rhs.ts.timestamp_precision);
+                    rhs.ts.strategy_type = "generator";
+                    rhs.ts.generator.start_timestamp = node["start"].as<std::string>();
+                    (void)TimestampUtils::parse_timestamp(rhs.ts.generator.start_timestamp, rhs.ts.generator.timestamp_precision);
                 }
                 if (node["step"]) {
-                    rhs.ts.timestamp_step = node["step"].as<std::string>();
-                    rhs.ts.timestamp_step = TimestampUtils::parse_step(rhs.ts.timestamp_step, rhs.ts.timestamp_precision);
+                    rhs.ts.strategy_type = "generator";
+                    rhs.ts.generator.timestamp_step = node["step"].as<std::string>();
+                    rhs.ts.generator.timestamp_step = TimestampUtils::parse_step(rhs.ts.generator.timestamp_step, rhs.ts.generator.timestamp_precision);
                 }
             }
 
@@ -598,6 +623,7 @@ namespace YAML {
                 if (node["tbname_index"]) rhs.csv.tbname_index = node["tbname_index"].as<int>();
             }
 
+            rhs.enabled = true;
             return true;
         }
     };
@@ -755,11 +781,11 @@ namespace YAML {
 
 
     template<>
-    struct convert<TimestampOriginalConfig::OffsetConfig> {
-        static bool decode(const Node& node, TimestampOriginalConfig::OffsetConfig& rhs) {
+    struct convert<TimestampCSVConfig::OffsetConfig> {
+        static bool decode(const Node& node, TimestampCSVConfig::OffsetConfig& rhs) {
             // Detect unknown configuration keys
             static const std::set<std::string> valid_keys = {"offset_type", "value"};
-            check_unknown_keys(node, valid_keys, "timestamp_strategy::original::offset_config");
+            check_unknown_keys(node, valid_keys, "timestamp_strategy::csv::offset_config");
 
             if (!node["offset_type"]) {
                 throw std::runtime_error("Missing required field 'offset_type' in offset_config");
@@ -791,13 +817,13 @@ namespace YAML {
 
 
     template<>
-    struct convert<TimestampOriginalConfig> {
-        static bool decode(const Node& node, TimestampOriginalConfig& rhs) {
+    struct convert<TimestampCSVConfig> {
+        static bool decode(const Node& node, TimestampCSVConfig& rhs) {
             // Detect unknown configuration keys
             static const std::set<std::string> valid_keys = {
                 "column_index", "precision", "offset_config"
             };
-            check_unknown_keys(node, valid_keys, "timestamp_strategy::original");
+            check_unknown_keys(node, valid_keys, "timestamp_strategy::csv");
 
             if (node["column_index"]) {
                 rhs.timestamp_index = node["column_index"].as<size_t>();
@@ -815,7 +841,7 @@ namespace YAML {
             }
 
             if (node["offset_config"]) {
-                rhs.offset_config = node["offset_config"].as<TimestampOriginalConfig::OffsetConfig>();
+                rhs.offset_config = node["offset_config"].as<TimestampCSVConfig::OffsetConfig>();
                 if (rhs.offset_config) {
                     rhs.offset_config->parse_offset(rhs.timestamp_precision);
                 }
@@ -908,7 +934,7 @@ namespace YAML {
                     const auto& ts = csv["timestamp_strategy"];
 
                     // Detect unknown keys in timestamp_strategy
-                    static const std::set<std::string> ts_keys = {"strategy_type", "original", "generator"};
+                    static const std::set<std::string> ts_keys = {"strategy_type", "csv", "generator"};
                     check_unknown_keys(ts, ts_keys, "columns::csv::timestamp_strategy");
 
                     if (!ts["strategy_type"]) {
@@ -917,16 +943,16 @@ namespace YAML {
 
                     rhs.csv.timestamp_strategy.strategy_type = ts["strategy_type"].as<std::string>();
 
-                    if (rhs.csv.timestamp_strategy.strategy_type == "original") {
-                        if (!ts["original"]) {
-                            throw std::runtime_error("Missing required field 'original' in columns::csv::timestamp_strategy");
+                    if (rhs.csv.timestamp_strategy.strategy_type == "csv") {
+                        if (!ts["csv"]) {
+                            throw std::runtime_error("Missing required field 'csv' in columns::csv::timestamp_strategy");
                         }
-                        rhs.csv.timestamp_strategy.timestamp_config = ts["original"].as<TimestampOriginalConfig>();
+                        rhs.csv.timestamp_strategy.csv = ts["csv"].as<TimestampCSVConfig>();
                     } else if (rhs.csv.timestamp_strategy.strategy_type == "generator") {
                         if (!ts["generator"]) {
                             throw std::runtime_error("Missing required field 'generator' in columns::csv::timestamp_strategy");
                         }
-                        rhs.csv.timestamp_strategy.timestamp_config = ts["generator"].as<TimestampGeneratorConfig>();
+                        rhs.csv.timestamp_strategy.generator = ts["generator"].as<TimestampGeneratorConfig>();
                     } else {
                         throw std::runtime_error("Invalid strategy_type in columns::csv::timestamp_strategy: " +
                             rhs.csv.timestamp_strategy.strategy_type);
@@ -939,150 +965,6 @@ namespace YAML {
             return true;
         }
     };
-
-
-    template<>
-    struct convert<InsertDataConfig::Source> {
-        static bool decode(const Node& node, InsertDataConfig::Source& rhs) {
-            // Detect unknown configuration keys
-            static const std::set<std::string> valid_keys = {"table_name", "tags", "columns"};
-            check_unknown_keys(node, valid_keys, "insert-data::source");
-
-            if (node["table_name"]) {
-                rhs.table_name = node["table_name"].as<TableNameConfig>();
-            } else {
-                throw std::runtime_error("Missing required field 'table_name' in insert-data::source.");
-            }
-
-            if (node["tags"]) {
-                rhs.tags = node["tags"].as<TagsConfig>();
-            }
-
-            if (node["columns"]) {
-                rhs.columns = node["columns"].as<ColumnsConfig>();
-            } else {
-                throw std::runtime_error("Missing required field 'columns' in insert-data::source.");
-            }
-            return true;
-        }
-    };
-
-
-    template<>
-    struct convert<InsertDataConfig::Target::TDengine> {
-        static bool decode(const Node& node, InsertDataConfig::Target::TDengine& rhs) {
-            // Detect unknown configuration keys
-            static const std::set<std::string> valid_keys = {
-                "connection_info", "database_info", "super_table_info"
-            };
-            check_unknown_keys(node, valid_keys, "insert-data::target::tdengine");
-
-            if (node["connection_info"]) {
-                rhs.connection_info = node["connection_info"].as<TDengineConfig>();
-            } else {
-                throw std::runtime_error("Missing required field 'connection_info' in insert-data::target::tdengine.");
-            }
-
-            if (node["database_info"]) {
-                rhs.database_info = node["database_info"].as<DatabaseInfo>();
-            } else {
-                throw std::runtime_error("Missing required field 'database_info' in insert-data::target::tdengine.");
-            }
-
-            if (node["super_table_info"]) {
-                rhs.super_table_info = node["super_table_info"].as<SuperTableInfo>();
-            } else {
-                throw std::runtime_error("Missing required field 'super_table_info' in insert-data::target::tdengine.");
-            }
-            return true;
-        }
-    };
-
-    template<>
-    struct convert<InsertDataConfig::Target::FileSystem> {
-        static bool decode(const Node& node, InsertDataConfig::Target::FileSystem& rhs) {
-            // Detect unknown configuration keys
-            static const std::set<std::string> valid_keys = {
-                "output_dir", "file_prefix", "timestamp_format", "timestamp_interval",
-                "include_header", "tbname_col_alias", "compression_level"
-            };
-            check_unknown_keys(node, valid_keys, "insert-data::target::file_system");
-
-            if (node["output_dir"]) {
-                rhs.output_dir = node["output_dir"].as<std::string>();
-            } else {
-                throw std::runtime_error("Missing required field 'output_dir' in insert-data::target::file_system.");
-            }
-
-            if (node["file_prefix"]) {
-                rhs.file_prefix = node["file_prefix"].as<std::string>();
-            }
-            if (node["timestamp_format"]) {
-                rhs.timestamp_format = node["timestamp_format"].as<std::string>();
-            } else {
-                throw std::runtime_error("Missing required field 'timestamp_format' in insert-data::target::file_system.");
-            }
-
-            if (node["timestamp_interval"]) {
-                rhs.timestamp_interval = node["timestamp_interval"].as<std::string>();
-            }
-
-            if (node["include_header"]) {
-                rhs.include_header = node["include_header"].as<bool>();
-            }
-
-            if (node["tbname_col_alias"]) {
-                rhs.tbname_col_alias = node["tbname_col_alias"].as<std::string>();
-            }
-
-            if (node["compression_level"]) {
-                rhs.compression_level = node["compression_level"].as<std::string>();
-            }
-            return true;
-        }
-    };
-
-
-    template<>
-    struct convert<InsertDataConfig::Target> {
-        static bool decode(const Node& node, InsertDataConfig::Target& rhs) {
-            // Detect unknown configuration keys
-            static const std::set<std::string> valid_keys = {
-                "target_type", "tdengine", "file_system", "mqtt"
-            };
-            check_unknown_keys(node, valid_keys, "insert-data::target");
-
-            if (node["target_type"]) {
-                rhs.target_type = node["target_type"].as<std::string>();
-            }
-
-            if (rhs.target_type == "tdengine") {
-                if (node["tdengine"]) {
-                    rhs.tdengine = node["tdengine"].as<InsertDataConfig::Target::TDengine>();
-                    rhs.timestamp_precision = rhs.tdengine.database_info.precision;
-                } else {
-                    throw std::runtime_error("Missing required field 'tdengine' in insert-data::target.");
-                }
-            } else if (rhs.target_type == "file_system") {
-                if (node["file_system"]) {
-                    rhs.file_system = node["file_system"].as<InsertDataConfig::Target::FileSystem>();
-                } else {
-                    throw std::runtime_error("Missing required field 'file_system' in insert-data::target.");
-                }
-            } else if (rhs.target_type == "mqtt") {
-                if (node["mqtt"]) {
-                    rhs.mqtt = node["mqtt"].as<MqttConfig>();
-                    rhs.timestamp_precision = rhs.mqtt.timestamp_precision;
-                } else {
-                    throw std::runtime_error("Missing required field 'mqtt' in insert-data::target.");
-                }
-            } else {
-                throw std::runtime_error("Invalid target_type in insert-data::target: " + rhs.target_type);
-            }
-            return true;
-        }
-    };
-
 
     template<>
     struct convert<DataFormat> {
@@ -1178,209 +1060,33 @@ namespace YAML {
         }
     };
 
-
     template<>
-    struct convert<InsertDataConfig::Control::DataQuality> {
-        static bool decode(const Node& node, InsertDataConfig::Control::DataQuality& rhs) {
-            // Detect unknown configuration keys at the top level
-            static const std::set<std::string> valid_keys = {"data_disorder"};
-            check_unknown_keys(node, valid_keys, "insert-data::control::data_quality");
-
-            if (node["data_disorder"]) {
-                const auto& disorder = node["data_disorder"];
-
-                // Detect unknown keys in data_disorder
-                static const std::set<std::string> disorder_keys = {"enabled", "intervals"};
-                check_unknown_keys(disorder, disorder_keys, "insert-data::control::data_quality::data_disorder");
-
-                if (disorder["enabled"]) {
-                    rhs.data_disorder.enabled = disorder["enabled"].as<bool>();
-                }
-
-                if (rhs.data_disorder.enabled) {
-                    if (disorder["intervals"]) {
-                        for (const auto& interval : disorder["intervals"]) {
-                            // Detect unknown keys in each interval
-                            static const std::set<std::string> interval_keys = {"time_start", "time_end", "ratio", "latency_range"};
-                            check_unknown_keys(interval, interval_keys, "insert-data::control::data_quality::data_disorder::intervals");
-
-                            InsertDataConfig::Control::DataQuality::DataDisorder::Interval i;
-                            if (interval["time_start"]) {
-                                i.time_start = interval["time_start"].as<std::string>();
-                            } else {
-                                throw std::runtime_error("Missing required field 'time_start' in data_disorder::intervals.");
-                            }
-
-                            if (interval["time_end"]) {
-                                i.time_end = interval["time_end"].as<std::string>();
-                            } else {
-                                throw std::runtime_error("Missing required field 'time_end' in data_disorder::intervals.");
-                            }
-
-                            if (interval["ratio"]) {
-                                i.ratio = interval["ratio"].as<double>();
-                            } else {
-                                throw std::runtime_error("Missing required field 'ratio' in data_disorder::intervals.");
-                            }
-
-                            if (interval["latency_range"]) {
-                                i.latency_range = interval["latency_range"].as<int>();
-                            } else {
-                                throw std::runtime_error("Missing required field 'latency_range' in data_disorder::intervals.");
-                            }
-
-                            rhs.data_disorder.intervals.push_back(i);
-                        }
-                    }
-                }
-            }
-            return true;
-        }
-    };
-
-
-    template<>
-    struct convert<InsertDataConfig::Control::DataGeneration> {
-        static bool decode(const Node& node, InsertDataConfig::Control::DataGeneration& rhs) {
-            // Detect unknown configuration keys at the top level
+    struct convert<InsertDataConfig::FailureHandling> {
+        static bool decode(const YAML::Node& node, InsertDataConfig::FailureHandling& rhs) {
             static const std::set<std::string> valid_keys = {
-                "interlace_mode", "data_cache", "flow_control", "generate_threads", "per_table_rows", "queue_capacity", "queue_warmup_ratio"
+                "max_retries", "retry_interval_ms", "on_failure"
             };
-            check_unknown_keys(node, valid_keys, "insert-data::control::data_generation");
+            check_unknown_keys(node, valid_keys, "insert-data::failure_handling");
 
-            if (node["interlace_mode"]) {
-                const auto& interlace = node["interlace_mode"];
-                // Detect unknown keys in interlace_mode
-                static const std::set<std::string> interlace_keys = {"enabled", "rows"};
-                check_unknown_keys(interlace, interlace_keys, "insert-data::control::data_generation::interlace_mode");
-
-                if (interlace["enabled"]) {
-                    rhs.interlace_mode.enabled = interlace["enabled"].as<bool>();
-                }
-
-                if (rhs.interlace_mode.enabled) {
-                    if (interlace["rows"]) {
-                        rhs.interlace_mode.rows = interlace["rows"].as<size_t>();
-                    }
-                }
+            if (node["max_retries"]) {
+                rhs.max_retries = node["max_retries"].as<size_t>();
             }
-            if (node["data_cache"]) {
-                const auto& data_cache = node["data_cache"];
-
-                // Detect unknown keys in data_cache
-                static const std::set<std::string> data_cache_keys = {"enabled", "cache_size"};
-                check_unknown_keys(data_cache, data_cache_keys, "insert-data::control::data_generation::data_cache");
-
-                if (data_cache["enabled"]) {
-                    rhs.data_cache.enabled = data_cache["enabled"].as<bool>();
-                }
-
-                if (rhs.data_cache.enabled) {
-                    if (data_cache["cache_size"]) {
-                        rhs.data_cache.cache_size = data_cache["cache_size"].as<size_t>();
-                    }
-                }
+            if (node["retry_interval_ms"]) {
+                rhs.retry_interval_ms = node["retry_interval_ms"].as<int>();
             }
-            if (node["flow_control"]) {
-                const auto& flow_control = node["flow_control"];
-
-                // Detect unknown keys in flow_control
-                static const std::set<std::string> flow_control_keys = {"enabled", "rate_limit"};
-                check_unknown_keys(flow_control, flow_control_keys, "insert-data::control::data_generation::flow_control");
-
-                if (flow_control["enabled"]) {
-                    rhs.flow_control.enabled = flow_control["enabled"].as<bool>();
-                }
-
-                if(rhs.flow_control.enabled) {
-                    if (flow_control["rate_limit"]) {
-                        rhs.flow_control.rate_limit = flow_control["rate_limit"].as<int64_t>();
-                    }
-                }
-            }
-            if (node["generate_threads"]) {
-                rhs.generate_threads = node["generate_threads"].as<size_t>();
-            }
-            if (node["per_table_rows"]) {
-                int64_t val = node["per_table_rows"].as<int64_t>();
-                if (val == -1) {
-                    rhs.per_table_rows = std::numeric_limits<int64_t>::max();
-                } else if (val <= 0) {
-                    throw std::runtime_error("per_table_rows must be positive or -1 (for unlimited).");
-                } else {
-                    rhs.per_table_rows = val;
-                }
-            }
-            if (node["queue_capacity"]) {
-                rhs.queue_capacity = node["queue_capacity"].as<int>();
-            }
-            if (node["queue_warmup_ratio"]) {
-                rhs.queue_warmup_ratio = node["queue_warmup_ratio"].as<double>();
-            }
-            return true;
-        }
-    };
-
-
-    template<>
-    struct convert<InsertDataConfig::Control::InsertControl> {
-        static bool decode(const Node& node, InsertDataConfig::Control::InsertControl& rhs) {
-            // Detect unknown configuration keys
-            static const std::set<std::string> valid_keys = {
-                "per_request_rows", "auto_create_table", "insert_threads", "thread_allocation",
-                "log_path", "enable_dryrun", "preload_table_meta", "failure_handling"
-            };
-            check_unknown_keys(node, valid_keys, "insert-data::control::insert_control");
-
-            if (node["per_request_rows"]) {
-                rhs.per_request_rows = node["per_request_rows"].as<size_t>();
-            }
-            if (node["auto_create_table"]) {
-                rhs.auto_create_table = node["auto_create_table"].as<bool>();
-            }
-            if (node["insert_threads"]) {
-                rhs.insert_threads = node["insert_threads"].as<int>();
-            }
-            if (node["thread_allocation"]) {
-                rhs.thread_allocation = node["thread_allocation"].as<std::string>();
-            }
-            if (node["log_path"]) {
-                rhs.log_path = node["log_path"].as<std::string>();
-            }
-            if (node["enable_dryrun"]) {
-                rhs.enable_dryrun = node["enable_dryrun"].as<bool>();
-            }
-            if (node["preload_table_meta"]) {
-                rhs.preload_table_meta = node["preload_table_meta"].as<bool>();
-            }
-            if (node["failure_handling"]) {
-                const auto& failure = node["failure_handling"];
-
-                // Detect unknown keys in failure_handling
-                static const std::set<std::string> failure_keys = {"max_retries", "retry_interval_ms", "on_failure"};
-                check_unknown_keys(failure, failure_keys, "insert-data::control::insert_control::failure_handling");
-
-                if (failure["max_retries"]) {
-                    rhs.failure_handling.max_retries = failure["max_retries"].as<size_t>();
-                }
-                if (failure["retry_interval_ms"]) {
-                    rhs.failure_handling.retry_interval_ms = failure["retry_interval_ms"].as<int>();
-                }
-                if (failure["on_failure"]) {
-                    rhs.failure_handling.on_failure = failure["on_failure"].as<std::string>();
-                    if (rhs.failure_handling.on_failure != "exit" && rhs.failure_handling.on_failure != "continue") {
-                        throw std::runtime_error("Invalid value for on_failure in failure_handling: " + rhs.failure_handling.on_failure);
-                    }
+            if (node["on_failure"]) {
+                rhs.on_failure = node["on_failure"].as<std::string>();
+                if (rhs.on_failure != "exit" && rhs.on_failure != "skip") {
+                    throw std::runtime_error("Invalid value for on_failure in failure_handling: " + rhs.on_failure);
                 }
             }
             return true;
         }
     };
 
-
     template<>
-    struct convert<InsertDataConfig::Control::TimeInterval> {
-        static bool decode(const Node& node, InsertDataConfig::Control::TimeInterval& rhs) {
+    struct convert<InsertDataConfig::TimeInterval> {
+        static bool decode(const Node& node, InsertDataConfig::TimeInterval& rhs) {
             // Detect unknown configuration keys at the top level
             static const std::set<std::string> valid_keys = {
                 "enabled", "interval_strategy", "wait_strategy", "fixed_interval", "dynamic_interval"
@@ -1441,55 +1147,6 @@ namespace YAML {
             return true;
         }
     };
-
-
-    template<>
-    struct convert<InsertDataConfig::Control> {
-        static bool decode(const Node& node, InsertDataConfig::Control& rhs) {
-            // Detect unknown configuration keys at the top level
-            static const std::set<std::string> valid_keys = {
-                "data_format", "data_channel", "data_quality", "data_generation", "insert_control", "time_interval"
-            };
-            check_unknown_keys(node, valid_keys, "insert-data::control");
-
-            if (node["data_format"]) {
-                rhs.data_format = node["data_format"].as<DataFormat>();
-            }
-            if (node["data_channel"]) {
-                rhs.data_channel = node["data_channel"].as<DataChannel>();
-            }
-            if (node["data_quality"]) {
-                rhs.data_quality = node["data_quality"].as<InsertDataConfig::Control::DataQuality>();
-            }
-            if (node["data_generation"]) {
-                rhs.data_generation = node["data_generation"].as<InsertDataConfig::Control::DataGeneration>();
-            }
-            if (node["insert_control"]) {
-                rhs.insert_control = node["insert_control"].as<InsertDataConfig::Control::InsertControl>();
-            }
-            if (node["time_interval"]) {
-                rhs.time_interval = node["time_interval"].as<InsertDataConfig::Control::TimeInterval>();
-            }
-            return true;
-        }
-    };
-
-    // template<>
-    // struct convert<InsertDataConfig> {
-    //     static bool decode(const Node& node, InsertDataConfig& rhs) {
-    //         if (node["source"]) {
-    //             rhs.source = node["source"].as<InsertDataConfig::Source>();
-    //         }
-    //         if (node["target"]) {
-    //             rhs.target = node["target"].as<InsertDataConfig::Target>();
-    //         }
-    //         if (node["control"]) {
-    //             rhs.control = node["control"].as<InsertDataConfig::Control>();
-    //         }
-    //         return true;
-    //     }
-    // };
-
 
     template<>
     struct convert<QueryDataConfig::Source> {
@@ -1890,6 +1547,143 @@ namespace YAML {
             } else {
                 throw std::runtime_error("Missing required field 'subscribe_control' in subscribe-data::control.");
             }
+            return true;
+        }
+    };
+
+    template<>
+    struct convert<CreateDatabaseConfig> {
+        static bool decode(const Node& node, CreateDatabaseConfig& rhs) {
+            // Detect unknown configuration keys
+            static const std::set<std::string> valid_keys = {
+            };
+            check_unknown_keys(node, valid_keys, "tdengine/create-database");
+            (void)rhs;
+            return true;
+        }
+    };
+
+    template<>
+    struct convert<CreateSuperTableConfig> {
+        static bool decode(const Node& node, CreateSuperTableConfig& rhs) {
+            // Detect unknown configuration keys
+            static const std::set<std::string> valid_keys = {
+                "schema"
+            };
+            check_unknown_keys(node, valid_keys, "tdengine/create-super-table");
+
+            if (node["schema"]) {
+                rhs.schema = node["schema"].as<SchemaConfig>();
+            }
+
+            return true;
+        }
+    };
+
+    template<>
+    struct convert<CreateChildTableConfig> {
+        static bool decode(const Node& node, CreateChildTableConfig& rhs) {
+            // Detect unknown configuration keys
+            static const std::set<std::string> valid_keys = {
+                "schema", "batch"
+            };
+            check_unknown_keys(node, valid_keys, "tdengine/create-child-table");
+
+            if (node["schema"]) {
+                rhs.schema = node["schema"].as<SchemaConfig>();
+            }
+
+            if (node["batch"]) {
+                rhs.batch = node["batch"].as<CreateChildTableConfig::BatchConfig>();
+            }
+
+            return true;
+        }
+    };
+
+    template<>
+    struct convert<InsertDataConfig> {
+        static bool decode(const Node& node, InsertDataConfig& rhs) {
+            // Detect unknown configuration keys
+            static const std::set<std::string> valid_keys = {
+                "tdengine", "mqtt", "schema", "target", "format",
+                "concurrency", "queue_capacity", "queue_warmup_ratio",
+                "failure_handl  ing", "time_interval"
+            };
+            check_unknown_keys(node, valid_keys, "tdengine/insert-data");
+
+            if (node["tdengine"]) {
+                rhs.tdengine = node["tdengine"].as<TDengineConfig>();
+            }
+
+            if (node["mqtt"]) {
+                rhs.mqtt = node["mqtt"].as<MqttConfig>();
+            }
+
+            if (node["schema"]) {
+                rhs.schema = node["schema"].as<SchemaConfig>();
+            }
+
+            if (node["target"]) {
+                rhs.target_type = node["target"].as<std::string>();
+            } else {
+                rhs.target_type = "tdengine";
+            }
+
+            if (node["timestamp_precision"]) {
+                rhs.timestamp_precision = node["timestamp_precision"].as<std::string>();
+            }
+
+            if (node["format"]) {
+                rhs.data_format.format_type = node["format"].as<std::string>();
+            } else {
+                if (rhs.target_type == "tdengine")
+                    rhs.data_format.format_type = "stmt";
+                else if (rhs.target_type == "mqtt")
+                    rhs.data_format.format_type = "json";
+            }
+
+            if (rhs.target_type == "tdengine") {
+                if (rhs.data_format.format_type != "stmt" && rhs.data_format.format_type != "sql") {
+                    throw std::runtime_error("For tdengine target, format must be either 'stmt' or 'sql'.");
+                }
+            } else if (rhs.target_type == "mqtt") {
+                if (rhs.data_format.format_type != "stmt" && rhs.data_format.format_type != "sql") {
+                    throw std::runtime_error("For mqtt target, format must be 'json'.");
+                }
+            } else {
+                throw std::runtime_error("Invalid target type in insert-data: " + rhs.target_type);
+            }
+
+            if (node["format"]) {
+                rhs.data_format.format_type = node["format"].as<std::string>();
+            } else {
+                rhs.data_format.format_type = "stmt";
+            }
+
+            if (node["concurrency"]) {
+                int64_t concurrency = node["concurrency"].as<int64_t>();
+                if (concurrency <= 0) {
+                    throw std::runtime_error("concurrency must be a positive integer.");
+                }
+                rhs.insert_threads = concurrency;
+            }
+
+            if (node["queue_capacity"]) {
+                rhs.queue_capacity = node["queue_capacity"].as<size_t>();
+            }
+            if (node["queue_warmup_ratio"]) {
+                rhs.queue_warmup_ratio = node["queue_warmup_ratio"].as<double>();
+            }
+
+            if (node["failure_handling"]) {
+                rhs.failure_handling = node["failure_handling"].as<InsertDataConfig::FailureHandling>();
+            }
+
+            if (node["time_interval"]) {
+                rhs.time_interval = node["time_interval"].as<InsertDataConfig::TimeInterval>();
+            }
+
             return true;
         }
     };

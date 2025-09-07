@@ -3,6 +3,7 @@
 #include <string>
 
 struct TableNameConfig {
+    bool enabled = false;
     std::string source_type = "generator";
 
     struct Generator {

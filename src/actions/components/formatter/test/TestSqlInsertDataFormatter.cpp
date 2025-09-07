@@ -8,7 +8,7 @@ void test_format_insert_data_single_table() {
     format.format_type = "sql";
 
     InsertDataConfig config;
-    config.target.tdengine.database_info.name = "test_db";
+    config.tdengine.database = "test_db";
 
     ColumnConfigInstanceVector col_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
@@ -74,7 +74,7 @@ void test_format_insert_data_multiple_tables() {
     format.format_type = "sql";
 
     InsertDataConfig config;
-    config.target.tdengine.database_info.name = "test_db";
+    config.tdengine.database = "test_db";
 
     ColumnConfigInstanceVector col_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
@@ -118,7 +118,7 @@ void test_format_insert_data_empty_rows() {
     format.format_type = "sql";
 
     InsertDataConfig config;
-    config.target.tdengine.database_info.name = "test_db";
+    config.tdengine.database = "test_db";
 
     ColumnConfigInstanceVector col_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
@@ -143,7 +143,7 @@ void test_format_insert_data_different_types() {
     format.format_type = "sql";
 
     InsertDataConfig config;
-    config.target.tdengine.database_info.name = "test_db";
+    config.tdengine.database = "test_db";
 
     ColumnConfigInstanceVector col_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});

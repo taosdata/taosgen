@@ -5,8 +5,8 @@
 
 BaseWriter::BaseWriter(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances)
     : config_(config), col_instances_(col_instances),
-      timestamp_precision_(config.target.timestamp_precision),
-      time_strategy_(config.control.time_interval, config.target.timestamp_precision),
+      timestamp_precision_(config.timestamp_precision),
+      time_strategy_(config.time_interval, config.timestamp_precision),
       start_write_time_(std::chrono::steady_clock::now()),
       end_write_time_(std::chrono::steady_clock::now()) {
 
@@ -33,7 +33,7 @@ void BaseWriter::apply_time_interval_strategy(int64_t current_start, int64_t cur
 }
 
 std::string BaseWriter::get_format_description() const {
-    return config_.control.data_format.format_type;
+    return config_.data_format.format_type;
 }
 
 void BaseWriter::update_write_state(const BaseInsertData& data, bool /* success */ ) {

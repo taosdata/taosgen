@@ -15,10 +15,8 @@
 class RowDataGenerator {
 public:
     RowDataGenerator(const std::string& table_name,
-                    const ColumnsConfig& columns_config,
-                    const ColumnConfigInstanceVector& instances,
-                    const InsertDataConfig::Control& control,
-                    const std::string& target_precision);
+                    const InsertDataConfig& config,
+                    const ColumnConfigInstanceVector& instances);
 
     // Get next row data
     std::optional<RowData> next_row();
@@ -86,7 +84,7 @@ private:
     const std::string& table_name_;
     const ColumnsConfig& columns_config_;
     const ColumnConfigInstanceVector& instances_;
-    const InsertDataConfig::Control& control_;
+    const InsertDataConfig& config_;
     const std::string& target_precision_;
 
     // Initialize cache line memory

@@ -14,7 +14,8 @@
 #include "StringUtils.hpp"
 #include "TimestampUtils.hpp"
 
-struct TimestampOriginalConfig {
+struct TimestampCSVConfig {
+    bool enabled = false;
     size_t timestamp_index = 0;                     // Index of the original timestamp column (starting from 0)
     std::string timestamp_precision = "ms";         // Time precision, options: "s", "ms", "us", "ns"
 
@@ -27,8 +28,8 @@ struct TimestampOriginalConfig {
         int64_t absolute_value = 0;
         bool parsed = false;
 
-        OffsetConfig() = default; 
-        OffsetConfig(const std::string& type, const std::variant<int64_t, std::string>& val, const std::string& precision) 
+        OffsetConfig() = default;
+        OffsetConfig(const std::string& type, const std::variant<int64_t, std::string>& val, const std::string& precision)
             : offset_type(type), value(val)
         {
             parse_offset(precision);

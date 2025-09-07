@@ -17,7 +17,7 @@ public:
 
         // columns
         auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.get_schema());
-        if (!config.schema.columns.empty()) {
+        if (!col_instances.empty()) {
             result << ", ";
             append_fields(result, col_instances, ", ");
         }
@@ -25,7 +25,7 @@ public:
 
         // tags
         auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.get_schema());
-        if (!config.schema.tags.empty()) {
+        if (!tag_instances.empty()) {
             result << " TAGS (";
             append_fields(result, tag_instances, ", ");
             result << ")";

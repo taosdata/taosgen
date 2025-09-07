@@ -7,7 +7,7 @@
 
 MqttWriter::MqttWriter(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances, size_t no)
     : BaseWriter(config, col_instances) {
-    client_ = std::make_unique<MqttClient>(config.target.mqtt, col_instances, no);
+    client_ = std::make_unique<MqttClient>(config.mqtt, col_instances, no);
 }
 
 MqttWriter::~MqttWriter() {
@@ -65,7 +65,7 @@ bool MqttWriter::write(const BaseInsertData& data) {
         }
     } catch (const std::exception& e) {
         // Handling after retry failure
-        if (config_.control.insert_control.failure_handling.on_failure == "exit") {
+        if (config_.failure_handling.on_failure == "exit") {
             throw;
         }
         // Otherwise, ignore the error and continue

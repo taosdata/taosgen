@@ -42,7 +42,7 @@ public:
 // MQTT client implementation wrapper
 class PahoMqttClient : public IMqttClient {
 public:
-    PahoMqttClient(const std::string& host, int port, const std::string& client_id, size_t max_buffered_messages,
+    PahoMqttClient(const std::string& uri, const std::string& client_id, size_t max_buffered_messages,
         const std::string& content_type, const std::string& compression, const std::string& encoding);
 
     ~PahoMqttClient();

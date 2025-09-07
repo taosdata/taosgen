@@ -11,7 +11,7 @@ enum class IntervalStrategyType {
 class TimeIntervalStrategy {
 public:
     TimeIntervalStrategy(
-        const InsertDataConfig::Control::TimeInterval& config,
+        const InsertDataConfig::TimeInterval& config,
         const std::string& timestamp_precision);
 
     // Apply wait strategy
@@ -57,7 +57,7 @@ private:
     int64_t literal_strategy(int64_t current_start) const;
 
     // Configuration
-    const InsertDataConfig::Control::TimeInterval& config_;
+    const InsertDataConfig::TimeInterval& config_;
 
     // Timestamp precision
     const std::string& timestamp_precision_;

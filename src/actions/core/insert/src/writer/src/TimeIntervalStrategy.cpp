@@ -12,7 +12,7 @@ IntervalStrategyType parse_strategy(const std::string& s) {
 }
 
 TimeIntervalStrategy::TimeIntervalStrategy(
-    const InsertDataConfig::Control::TimeInterval& config,
+    const InsertDataConfig::TimeInterval& config,
     const std::string& timestamp_precision)
     : config_(config)
     , timestamp_precision_(timestamp_precision)

@@ -49,8 +49,7 @@ public:
 
 MqttConfig create_test_mqtt_info() {
     MqttConfig info;
-    info.host = "localhost";
-    info.port = 1883;
+    info.uri = "localhost:1883";
     info.user = "user";
     info.password = "pass";
     info.client_id = "test_client";
