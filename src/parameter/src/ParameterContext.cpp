@@ -81,7 +81,7 @@ void ParameterContext::parse_mqtt(const YAML::Node& td_yaml) {
 
 void ParameterContext::parse_schema(const YAML::Node& schema_yaml) {
     auto& global_config = config_data.global;
-    global_config.schema = schema_yaml.as<SchemaConfig>();
+global_config.schema = schema_yaml.as<SchemaConfig>();
 
     if (!global_config.schema.tbname.enabled && !global_config.schema.from_csv.enabled) {
         throw std::runtime_error("Missing required field 'tbname' in schema.");
@@ -466,9 +466,9 @@ void ParameterContext::merge_yaml(const YAML::Node& config) {
     }
 
     // Parse global config
-    if (config["global"]) {
-        parse_global(config["global"]);
-    }
+    // if (config["global"]) {
+    //     parse_global(config["global"]);
+    // }
 
     // Parse job concurrency
     if (config["concurrency"]) {
@@ -495,12 +495,85 @@ void ParameterContext::merge_yaml(const std::string& file_path) {
 }
 
 void ParameterContext::merge_yaml() {
-    if (!cli_params.count("--config-file")) {
-        throw std::runtime_error("Missing required parameter: --config-file or -c");
+    if (cli_params.count("--config-file")) {
+        // throw std::runtime_error("Missing required parameter: --config-file or -c");
+        const std::string& config_file = cli_params["--config-file"];
+        merge_yaml(config_file);
+    } else {
+        load_default_config();
     }
+}
 
-    const std::string& config_file = cli_params["--config-file"];
-    merge_yaml(config_file);
+void ParameterContext::load_default_config() {
+    YAML::Node config = YAML::Load(R"(
+tdengine:
+  dsn: taos://root:taosdata@127.0.0.1:6030/tsbench
+  drop_if_exists: true
+  props: precision 'ms' vgroups 4
+
+schema:
+  name: meters
+  tbname:
+    prefix: d
+    count: 10000
+    from: 0
+  columns:
+    - name: ts
+      type: timestamp
+      start: 1735660800000
+      precision : ms
+      step: 1
+    - name: current
+      type: float
+      min: 0
+      max: 100
+    - name: voltage
+      type: int
+      min: 200
+      max: 240
+    - name: phase
+      type: float
+      expr: _i * math.pi % 180
+  tags:
+    - name: groupid
+      type: int
+      min: 1
+      max: 10
+    - name: location
+      type: binary(24)
+      values:
+        - New York
+        - Los Angeles
+        - Chicago
+        - Houston
+        - Phoenix
+        - Philadelphia
+        - San Antonio
+        - San Diego
+        - Dallas
+        - Austin
+  generation:
+    interlace: 8
+    per_table_rows: 10000
+    per_batch_rows: 10000
+
+jobs:
+  # TDengine insert job
+  insert-data:
+    steps:
+      - uses: tdengine/create-super-table
+      - uses: tdengine/create-child-table
+        with:
+          batch:
+            size: 1000
+            concurrency: 10
+
+      - uses: tdengine/insert-data
+        with:
+          concurrency: 8
+)");
+
+    merge_yaml(config);
 }
 
 void ParameterContext::parse_commandline(int argc, char* argv[]) {
