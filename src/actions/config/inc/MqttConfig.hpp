@@ -3,6 +3,7 @@
 #include <string>
 
 struct MqttConfig {
+    bool enabled = false;
     std::string uri = "tcp://localhost:1883";
     std::string user = "root";
     std::string password = "taosdata";

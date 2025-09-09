@@ -71,6 +71,8 @@ namespace YAML {
                 if (pool_node["min_size"]) rhs.pool.min_size = pool_node["min_size"].as<size_t>();
                 if (pool_node["timeout"]) rhs.pool.timeout = pool_node["timeout"].as<size_t>();
             }
+
+            rhs.enabled = true;
             return true;
         }
     };
@@ -148,10 +150,11 @@ namespace YAML {
             if (rhs.batch_messages > rhs.max_buffered_messages) {
                 throw std::runtime_error("batch_messages cannot be greater than max_buffered_messages in mqtt_info.");
             }
+
+            rhs.enabled = true;
             return true;
         }
     };
-
 
     template<>
     struct convert<FromCSVConfig> {
@@ -193,7 +196,7 @@ namespace YAML {
                 const auto& columns_node = node["columns"];
                 static const std::set<std::string> columns_keys = {
                     "file_path", "has_header", "repeat_read", "delimiter",
-                    "tbname_index", "timestamp_index"
+                    "tbname_index", "timestamp_index", "timestamp_precision", "timestamp_offset"
                 };
                 check_unknown_keys(columns_node, columns_keys, "schema::from_csv::columns");
 
@@ -208,6 +211,23 @@ namespace YAML {
                 if (columns_node["delimiter"]) rhs.columns.delimiter = columns_node["delimiter"].as<std::string>();
                 if (columns_node["tbname_index"]) rhs.columns.tbname_index = columns_node["tbname_index"].as<int>();
                 if (columns_node["timestamp_index"]) rhs.columns.timestamp_index = columns_node["timestamp_index"].as<int>();
+
+                if (rhs.columns.timestamp_index >= 0) {
+                    rhs.columns.timestamp_strategy.strategy_type = "csv";
+                    rhs.columns.timestamp_strategy.csv.enabled = true;
+                    rhs.columns.timestamp_strategy.csv.timestamp_index = rhs.columns.timestamp_index;
+
+                    if (columns_node["timestamp_precision"]) {
+                        rhs.columns.timestamp_strategy.csv.timestamp_precision = columns_node["timestamp_precision"].as<std::string>();
+                    }
+
+                    if (columns_node["timestamp_offset"]) {
+                        rhs.columns.timestamp_strategy.csv.offset_config = columns_node["timestamp_offset"].as<TimestampCSVConfig::OffsetConfig>();
+                        if (rhs.columns.timestamp_strategy.csv.timestamp_precision.has_value()) {
+                            rhs.columns.timestamp_strategy.csv.offset_config->parse_offset(rhs.columns.timestamp_strategy.csv.timestamp_precision.value());
+                        }
+                    }
+                }
             }
 
             rhs.enabled = true;
@@ -392,6 +412,7 @@ namespace YAML {
                 rhs.generation = node["generation"].as<GenerationConfig>();
             }
             rhs.apply();
+            rhs.enabled = true;
             return true;
         }
     };
@@ -836,14 +857,14 @@ namespace YAML {
                     rhs.timestamp_precision != "ms" &&
                     rhs.timestamp_precision != "us" &&
                     rhs.timestamp_precision != "ns") {
-                    throw std::runtime_error("Invalid timestamp precision: " + rhs.timestamp_precision);
+                    throw std::runtime_error("Invalid timestamp precision: " + rhs.timestamp_precision.value());
                 }
             }
 
             if (node["offset_config"]) {
                 rhs.offset_config = node["offset_config"].as<TimestampCSVConfig::OffsetConfig>();
                 if (rhs.offset_config) {
-                    rhs.offset_config->parse_offset(rhs.timestamp_precision);
+                    rhs.offset_config->parse_offset(rhs.timestamp_precision.value());
                 }
             }
 
@@ -1035,7 +1056,7 @@ namespace YAML {
                     throw std::runtime_error("Missing required 'csv' configuration for format_type 'csv' in data_format.");
                 }
             }
-            else if (rhs.format_type == "msg") {
+            else if (rhs.format_type == "json") {
 
             }
             else {
@@ -1648,17 +1669,11 @@ namespace YAML {
                     throw std::runtime_error("For tdengine target, format must be either 'stmt' or 'sql'.");
                 }
             } else if (rhs.target_type == "mqtt") {
-                if (rhs.data_format.format_type != "stmt" && rhs.data_format.format_type != "sql") {
+                if (rhs.data_format.format_type != "json") {
                     throw std::runtime_error("For mqtt target, format must be 'json'.");
                 }
             } else {
                 throw std::runtime_error("Invalid target type in insert-data: " + rhs.target_type);
-            }
-
-            if (node["format"]) {
-                rhs.data_format.format_type = node["format"].as<std::string>();
-            } else {
-                rhs.data_format.format_type = "stmt";
             }
 
             if (node["concurrency"]) {

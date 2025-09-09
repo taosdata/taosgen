@@ -147,7 +147,7 @@ private:
 
     inline static bool registered_ = []() {
         FormatterFactory::instance().register_formatter<InsertDataConfig>(
-            "msg",
+            "json",
             [](const DataFormat& format) {
                 return std::make_unique<MsgInsertDataFormatter>(format);
             });

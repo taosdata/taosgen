@@ -4,7 +4,7 @@
 #include <yaml-cpp/yaml.h>
 #include "ConfigParser.hpp"
 
-void test_TDengineInfo() {
+void test_TDengine() {
     std::string yaml = R"(
 dsn: "taos+ws://root:taosdata@127.0.0.1:6041/test"
 drop_if_exists: false
@@ -24,6 +24,283 @@ pool:
     assert(conn.pool.max_size == 10);
     assert(conn.pool.min_size == 2);
     assert(conn.pool.timeout == 1000);
+}
+
+void test_Mqtt() {
+    std::string yaml = R"(
+uri: mqtt.example.com:1883
+user: testuser
+password: testpass
+topic: test/topic
+client_id: client-001
+compression: none
+encoding: utf8
+timestamp_precision: ms
+qos: 1
+keep_alive: 60
+clean_session: true
+retain: false
+)";
+    YAML::Node node = YAML::Load(yaml);
+    MqttConfig mqtt = node.as<MqttConfig>();
+    assert(mqtt.uri == "mqtt.example.com:1883");
+    assert(mqtt.user == "testuser");
+    assert(mqtt.password == "testpass");
+    assert(mqtt.client_id == "client-001");
+    assert(mqtt.topic == "test/topic");
+    assert(mqtt.compression == "none");
+    assert(mqtt.encoding == "utf8");
+    assert(mqtt.timestamp_precision == "ms");
+    assert(mqtt.qos == 1);
+    assert(mqtt.keep_alive == 60);
+    assert(mqtt.clean_session == true);
+    assert(mqtt.retain == false);
+}
+
+void test_FromCSVConfig_tags_columns() {
+  std::string yaml = R"(
+tags:
+  file_path: "tags.csv"
+  has_header: true
+  delimiter: ";"
+  tbname_index: 1
+  exclude_indices: "2,3"
+columns:
+  file_path: "cols.csv"
+  has_header: false
+  repeat_read: true
+  delimiter: ","
+  tbname_index: 0
+  timestamp_index: 5
+)";
+  YAML::Node node = YAML::Load(yaml);
+  FromCSVConfig cfg = node.as<FromCSVConfig>();
+  assert(cfg.enabled == true);
+
+  // tags
+  assert(cfg.tags.enabled == true);
+  assert(cfg.tags.file_path == "tags.csv");
+  assert(cfg.tags.has_header == true);
+  assert(cfg.tags.delimiter == ";");
+  assert(cfg.tags.tbname_index == 1);
+  assert(cfg.tags.exclude_indices_str == "2,3");
+  assert(!cfg.tags.exclude_indices.empty());
+
+  // columns
+  assert(cfg.columns.enabled == true);
+  assert(cfg.columns.file_path == "cols.csv");
+  assert(cfg.columns.has_header == false);
+  assert(cfg.columns.repeat_read == true);
+  assert(cfg.columns.delimiter == ",");
+  assert(cfg.columns.tbname_index == 0);
+  assert(cfg.columns.timestamp_index == 5);
+}
+
+void test_FromCSVConfig_missing_file_path_tags() {
+  std::string yaml = R"(
+tags:
+  has_header: true
+  delimiter: ";"
+)";
+  YAML::Node node = YAML::Load(yaml);
+  try {
+      FromCSVConfig cfg = node.as<FromCSVConfig>();
+      assert(false && "Should throw for missing file_path in tags");
+  } catch (const std::runtime_error& e) {
+      assert(std::string(e.what()).find("Missing required 'file_path' configuration for schema::from_csv::tags") != std::string::npos);
+  }
+}
+
+void test_FromCSVConfig_missing_file_path_columns() {
+  std::string yaml = R"(
+columns:
+    has_header: false
+    delimiter: ","
+)";
+  YAML::Node node = YAML::Load(yaml);
+  try {
+      FromCSVConfig cfg = node.as<FromCSVConfig>();
+      assert(false && "Should throw for missing file_path in columns");
+  } catch (const std::runtime_error& e) {
+      assert(std::string(e.what()).find("Missing required 'file_path' configuration for schema::from_csv::columns") != std::string::npos);
+  }
+}
+
+void test_FromCSVConfig_unknown_key_tags() {
+  std::string yaml = R"(
+tags:
+  file_path: "tags.csv"
+  unknown_key: "value"
+)";
+  YAML::Node node = YAML::Load(yaml);
+  try {
+      FromCSVConfig cfg = node.as<FromCSVConfig>();
+      assert(false && "Should throw for unknown key in tags");
+  } catch (const std::runtime_error& e) {
+      assert(std::string(e.what()).find("Unknown configuration key in schema::from_csv") != std::string::npos);
+  }
+}
+
+void test_FromCSVConfig_unknown_key_columns() {
+  std::string yaml = R"(
+columns:
+  file_path: "cols.csv"
+  unknown_key: "value"
+)";
+  YAML::Node node = YAML::Load(yaml);
+  try {
+      FromCSVConfig cfg = node.as<FromCSVConfig>();
+      assert(false && "Should throw for unknown key in columns");
+  } catch (const std::runtime_error& e) {
+      assert(std::string(e.what()).find("Unknown configuration key in schema::from_csv") != std::string::npos);
+  }
+}
+
+void test_GenerationConfig_DataDisorder_Interval() {
+  std::string yaml = R"(
+time_start: "2025-09-08T00:00:00Z"
+time_end: "2025-09-08T01:00:00Z"
+ratio: 0.25
+latency_range: 100
+)";
+  YAML::Node node = YAML::Load(yaml);
+  GenerationConfig::DataDisorder::Interval interval = node.as<GenerationConfig::DataDisorder::Interval>();
+
+  assert(std::holds_alternative<std::string>(interval.time_start));
+  assert(std::get<std::string>(interval.time_start) == "2025-09-08T00:00:00Z");
+  assert(std::holds_alternative<std::string>(interval.time_start));
+  assert(std::get<std::string>(interval.time_end) == "2025-09-08T01:00:00Z");
+  assert(interval.ratio == 0.25);
+  assert(interval.latency_range == 100);
+}
+
+void test_GenerationConfig_DataDisorder() {
+  std::string yaml = R"(
+- time_start: "2025-09-08T00:00:00Z"
+  time_end: "2025-09-08T01:00:00Z"
+  ratio: 0.5
+  latency_range: 100
+- time_start: "2025-09-08T01:00:00Z"
+  time_end: "2025-09-08T02:00:00Z"
+  ratio: 0.25
+  latency_range: 200
+)";
+  YAML::Node node = YAML::Load(yaml);
+  GenerationConfig::DataDisorder disorder = node.as<GenerationConfig::DataDisorder>();
+  assert(disorder.enabled == true);
+  assert(disorder.intervals.size() == 2);
+  assert(std::holds_alternative<std::string>(disorder.intervals[0].time_start));
+  assert(std::get<std::string>(disorder.intervals[0].time_start) == "2025-09-08T00:00:00Z");
+  assert(std::holds_alternative<std::string>(disorder.intervals[0].time_start));
+  assert(std::get<std::string>(disorder.intervals[0].time_end) == "2025-09-08T01:00:00Z");
+  assert(disorder.intervals[0].ratio == 0.5);
+  assert(disorder.intervals[0].latency_range == 100);
+
+  assert(std::holds_alternative<std::string>(disorder.intervals[1].time_start));
+  assert(std::get<std::string>(disorder.intervals[1].time_start) == "2025-09-08T01:00:00Z");
+  assert(std::holds_alternative<std::string>(disorder.intervals[1].time_start));
+  assert(std::get<std::string>(disorder.intervals[1].time_end) == "2025-09-08T02:00:00Z");
+  assert(disorder.intervals[1].ratio == 0.25);
+  assert(disorder.intervals[1].latency_range == 200);
+}
+
+void test_GenerationConfig() {
+    std::string yaml = R"(
+interlace: 100
+cache_size: 2048
+rate_limit: 5000
+data_disorder:
+  - time_start: "2025-09-08T00:00:00Z"
+    time_end: "2025-09-08T01:00:00Z"
+    ratio: 0.5
+    latency_range: 100
+concurrency: 8
+per_table_rows: 10000
+per_batch_rows: 500
+)";
+    YAML::Node node = YAML::Load(yaml);
+    GenerationConfig cfg = node.as<GenerationConfig>();
+
+    assert(cfg.interlace_mode.enabled == true);
+    assert(cfg.interlace_mode.rows == 100);
+
+    assert(cfg.data_cache.enabled == true);
+    assert(cfg.data_cache.cache_size == 2048);
+
+    assert(cfg.flow_control.enabled == true);
+    assert(cfg.flow_control.rate_limit == 5000);
+
+    assert(cfg.data_disorder.enabled == true);
+    assert(cfg.data_disorder.intervals.size() == 1);
+    assert(std::holds_alternative<std::string>(cfg.data_disorder.intervals[0].time_start));
+    assert(std::get<std::string>(cfg.data_disorder.intervals[0].time_start) == "2025-09-08T00:00:00Z");
+    assert(std::holds_alternative<std::string>(cfg.data_disorder.intervals[0].time_end));
+    assert(std::get<std::string>(cfg.data_disorder.intervals[0].time_end) == "2025-09-08T01:00:00Z");
+
+    assert(cfg.data_disorder.intervals[0].ratio == 0.5);
+    assert(cfg.data_disorder.intervals[0].latency_range == 100);
+
+    assert(cfg.generate_threads.has_value());
+    assert(cfg.generate_threads.value() == 8);
+
+    assert(cfg.per_table_rows == 10000);
+    assert(cfg.per_batch_rows == 500);
+}
+
+void test_SchemaConfig() {
+    std::string yaml = R"(
+name: test_schema
+columns:
+  - name: ts
+    type: BIGINT
+    precision: ms
+    start: "2025-09-08T00:00:00Z"
+    step: "1000"
+  - name: value
+    type: DOUBLE
+    min: 0
+    max: 100
+tags:
+  - name: tag1
+    type: INT
+    min: 1
+    max: 10
+tbname:
+  prefix: "tb"
+  count: 5
+generation:
+  interlace: 10
+  cache_size: 1024
+  rate_limit: 1000
+  concurrency: 2
+  per_table_rows: 100
+  per_batch_rows: 10
+)";
+    YAML::Node node = YAML::Load(yaml);
+    SchemaConfig cfg = node.as<SchemaConfig>();
+
+    assert(cfg.name == "test_schema");
+    assert(cfg.columns.size() == 2);
+    assert(cfg.columns[0].name == "ts");
+    assert(cfg.columns[0].type == "BIGINT");
+    assert(cfg.columns[1].name == "value");
+    assert(cfg.columns[1].type == "DOUBLE");
+    assert(cfg.tags.size() == 1);
+    assert(cfg.tags[0].name == "tag1");
+    assert(cfg.tags[0].type == "INT");
+    assert(cfg.tbname.source_type == "generator");
+    assert(cfg.tbname.generator.prefix == "tb");
+    assert(cfg.tbname.generator.count == 5);
+    assert(cfg.generation.interlace_mode.enabled == true);
+    assert(cfg.generation.interlace_mode.rows == 10);
+    assert(cfg.generation.data_cache.enabled == true);
+    assert(cfg.generation.data_cache.cache_size == 1024);
+    assert(cfg.generation.flow_control.enabled == true);
+    assert(cfg.generation.flow_control.rate_limit == 1000);
+    assert(cfg.generation.generate_threads.has_value());
+    assert(cfg.generation.generate_threads.value() == 2);
+    assert(cfg.generation.per_table_rows == 100);
+    assert(cfg.generation.per_batch_rows == 10);
 }
 
 void test_DatabaseInfo() {
@@ -292,37 +569,6 @@ csv:
     assert(cc.csv.schema[0].type == "int");
     assert(cc.csv.file_path == "data.csv");
     assert(cc.csv.timestamp_strategy.strategy_type == "csv");
-}
-
-void test_Mqtt() {
-    std::string yaml = R"(
-uri: mqtt.example.com:1883
-user: testuser
-password: testpass
-topic: test/topic
-client_id: client-001
-compression: none
-encoding: utf8
-timestamp_precision: ms
-qos: 1
-keep_alive: 60
-clean_session: true
-retain: false
-)";
-    YAML::Node node = YAML::Load(yaml);
-    MqttConfig mqtt = node.as<MqttConfig>();
-    assert(mqtt.uri == "mqtt.example.com:1883");
-    assert(mqtt.user == "testuser");
-    assert(mqtt.password == "testpass");
-    assert(mqtt.client_id == "client-001");
-    assert(mqtt.topic == "test/topic");
-    assert(mqtt.compression == "none");
-    assert(mqtt.encoding == "utf8");
-    assert(mqtt.timestamp_precision == "ms");
-    assert(mqtt.qos == 1);
-    assert(mqtt.keep_alive == 60);
-    assert(mqtt.clean_session == true);
-    assert(mqtt.retain == false);
 }
 
 void test_DataFormat_csv() {
@@ -685,7 +931,18 @@ subscribe_control:
 }
 
 int main() {
-    test_TDengineInfo();
+    test_TDengine();
+    test_Mqtt();
+    test_FromCSVConfig_tags_columns();
+    test_FromCSVConfig_missing_file_path_tags();
+    test_FromCSVConfig_missing_file_path_columns();
+    test_FromCSVConfig_unknown_key_tags();
+    test_FromCSVConfig_unknown_key_columns();
+    test_GenerationConfig_DataDisorder_Interval();
+    test_GenerationConfig_DataDisorder();
+    test_GenerationConfig();
+    test_SchemaConfig();
+
     test_DataFormat_csv();
     test_DataChannel();
     test_DatabaseInfo();
@@ -703,7 +960,7 @@ int main() {
     test_TimestampOriginalConfig();
     test_ColumnsConfig_generator();
     test_ColumnsConfig_csv();
-    test_Mqtt();
+
     test_QueryDataConfig_Source();
     test_QueryDataConfig_Control_QueryControl_Execution();
     test_QueryDataConfig_Control_QueryControl_Fixed();

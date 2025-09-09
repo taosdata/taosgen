@@ -1,5 +1,7 @@
 #pragma once
 
+#include "StringUtils.hpp"
+#include "TimestampUtils.hpp"
 #include <string>
 #include <chrono>
 #include <optional>
@@ -11,13 +13,12 @@
 #include <iomanip>
 #include <ctime>
 #include <algorithm>
-#include "StringUtils.hpp"
-#include "TimestampUtils.hpp"
+
 
 struct TimestampCSVConfig {
     bool enabled = false;
-    size_t timestamp_index = 0;                     // Index of the original timestamp column (starting from 0)
-    std::string timestamp_precision = "ms";         // Time precision, options: "s", "ms", "us", "ns"
+    size_t timestamp_index = 0;                                 // Index of the original timestamp column (starting from 0)
+    std::optional<std::string> timestamp_precision;             // Time precision, options: "s", "ms", "us", "ns"
 
     struct OffsetConfig {
         std::string offset_type;                    // Timestamp offset type: "relative" or "absolute"

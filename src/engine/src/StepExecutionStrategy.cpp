@@ -21,7 +21,7 @@ void ProductionStepStrategy::execute(const Step& step) {
 
     } catch (const std::exception& e) {
         std::cerr << "Error executing step: " << step.name << " (" << step.uses << ")" << std::endl;
-        std::cerr << "Reason: Exception - " << e.what() << std::endl;
+        // std::cerr << "Reason: Exception - " << e.what() << std::endl;
         throw;
     }
 }

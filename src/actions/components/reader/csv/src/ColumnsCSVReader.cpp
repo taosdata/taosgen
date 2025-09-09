@@ -156,7 +156,7 @@ std::vector<TableData> ColumnsCSVReader::generate() const {
             if (timestamp_index) {
                 // original mode
                 const auto& raw_value = row[*timestamp_index];
-                int64_t raw_ts = TimestampUtils::parse_timestamp(raw_value, ts_config.timestamp_precision);
+                int64_t raw_ts = TimestampUtils::parse_timestamp(raw_value, ts_config.timestamp_precision.value());
 
                 if (ts_config.offset_config) {
                     const auto& offset = *ts_config.offset_config;
@@ -169,7 +169,7 @@ std::vector<TableData> ColumnsCSVReader::generate() const {
                         timestamp = offset.absolute_value + (raw_ts - first_raw_ts);
                     } else if (offset.offset_type == "relative") {
                         // relative mode
-                        int64_t multiplier = TimestampUtils::get_precision_multiplier(ts_config.timestamp_precision);
+                        int64_t multiplier = TimestampUtils::get_precision_multiplier(ts_config.timestamp_precision.value());
                         auto [years, months, days, hours, seconds] = offset.relative_offset;
 
                         // Convert timestamp to seconds

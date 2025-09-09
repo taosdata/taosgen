@@ -11,7 +11,7 @@ struct TimestampStrategy {
 
     std::string get_precision() const {
         if (strategy_type == "csv") {
-            return csv.timestamp_precision;
+            return csv.timestamp_precision.value();
         } else if (strategy_type == "generator") {
             return generator.timestamp_precision;
         }

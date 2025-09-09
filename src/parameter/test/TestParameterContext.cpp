@@ -87,32 +87,6 @@ schema:
     per_batch_rows: 10000
     concurrency: 8
 
-global:
-  connection_info: &db_conn
-    dsn: "taos://root:secret@10.0.0.1:6043/tsbench"
-    drop_if_exists: true
-  database_info: &db_info
-    name: testdb
-    drop_if_exists: true
-    precision: us
-    props: vgroups 20 replica 3 keep 3650
-  super_table_info: &stb_info
-    name: points
-    columns: &columns_info
-      - name: latitude
-        type: float
-      - name: longitude
-        type: float
-      - name: quality
-        type: varchar(50)
-    tags: &tags_info
-      - name: type
-        type: varchar(7)
-      - name: name
-        type: varchar(20)
-      - name: department
-        type: varchar(7)
-
 concurrency: 4
 jobs:
   create-database:
@@ -162,8 +136,8 @@ jobs:
     const auto& data = ctx.get_config_data();
 
     // Validate global config
-    assert(data.global.connection_info.host == "10.0.0.1");
-    assert(data.global.connection_info.port == 6043);
+    assert(data.global.tdengine.host == "10.0.0.1");
+    assert(data.global.tdengine.port == 6043);
     assert(data.concurrency == 4);
 
     // Validate job parsing
@@ -301,56 +275,62 @@ global:
 
 void test_unknown_key_detection() {
   YAML::Node config = YAML::Load(R"(
-global:
-  connection_info:
-    unknown_key: should_fail
+tdengine:
+  unknown_key: should_fail
 )");
   ParameterContext ctx;
   try {
       ctx.merge_yaml(config);
-      assert(false && "Should throw on unknown key in connection_info");
+      assert(false && "Should throw on unknown key in tdengine");
   } catch (const std::runtime_error& e) {
       std::string msg = e.what();
-      assert(msg.find("Unknown configuration key in tdengine_connection") != std::string::npos);
+      assert(msg.find("Unknown configuration key in tdengine") != std::string::npos);
       std::cout << "Unknown key detection test passed.\n";
   }
 }
 
 void test_missing_required_key_detection() {
   YAML::Node config = YAML::Load(R"(
-global:
-  database_info:
-    drop_if_exists: true
-    precision: ms
+schema:
+  tbname:
+    prefix: s
+    count: 1000
+    from: 200
+  tags:
+  columns:
 )");
   ParameterContext ctx;
   try {
       ctx.merge_yaml(config);
-      assert(false && "Should throw on missing required field 'name' in database_info");
+      assert(false && "Should throw on missing required field 'name' in schema");
   } catch (const std::runtime_error& e) {
       std::string msg = e.what();
-      assert(msg.find("Missing required field 'name' in database_info") != std::string::npos);
+      assert(msg.find("Missing required field 'name' in schema") != std::string::npos);
       std::cout << "Missing required key detection test passed.\n";
   }
 }
 
 void test_nested_unknown_key_detection() {
   YAML::Node config = YAML::Load(R"(
-global:
-  database_info:
-    name: testdb
-    drop_if_exists: true
-    precision: ms
-    props: vgroups 20
-    unknown_nested: fail
+schema:
+  name: meters
+  tbname:
+    prefix: s
+    count: 1000
+    from: 200
+  tags:
+  columns:
+    - name: ts
+      type: timestamp
+      unknown_nested: fail
 )");
   ParameterContext ctx;
   try {
       ctx.merge_yaml(config);
-      assert(false && "Should throw on unknown key in database_info");
+      assert(false && "Should throw on unknown key in schema::columns");
   } catch (const std::runtime_error& e) {
       std::string msg = e.what();
-      assert(msg.find("Unknown configuration key in database_info") != std::string::npos);
+      assert(msg.find("Unknown configuration key in columns or tags: unknown_nested") != std::string::npos);
       std::cout << "Nested unknown key detection test passed.\n";
   }
 }

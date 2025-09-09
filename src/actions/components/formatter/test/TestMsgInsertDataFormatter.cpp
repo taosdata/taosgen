@@ -5,7 +5,7 @@
 
 void test_msg_format_insert_data_single_table() {
     DataFormat format;
-    format.format_type = "msg";
+    format.format_type = "json";
 
     InsertDataConfig config;
     config.mqtt.batch_messages = 2;
@@ -42,7 +42,7 @@ void test_msg_format_insert_data_single_table() {
 
 void test_msg_format_insert_data_multiple_tables() {
     DataFormat format;
-    format.format_type = "msg";
+    format.format_type = "json";
 
     InsertDataConfig config;
     config.mqtt.batch_messages = 2;
@@ -87,7 +87,7 @@ void test_msg_format_insert_data_multiple_tables() {
 
 void test_msg_format_insert_data_empty_batch() {
     DataFormat format;
-    format.format_type = "msg";
+    format.format_type = "json";
 
     InsertDataConfig config;
     config.mqtt.batch_messages = 2;
@@ -125,7 +125,7 @@ void test_msg_format_insert_data_empty_batch() {
 
 void test_msg_format_insert_data_with_empty_rows() {
     DataFormat format;
-    format.format_type = "msg";
+    format.format_type = "json";
 
     InsertDataConfig config;
     config.mqtt.batch_messages = 2;

@@ -38,18 +38,20 @@ struct SchemaConfig {
             columns_cfg.csv = from_csv.columns;
             columns_cfg.csv.schema = ColumnConfigVector(columns.begin() + 1, columns.end());
 
-            if (columns_cfg.csv.timestamp_index >= 0) {
-                columns_cfg.csv.timestamp_strategy.strategy_type = "csv";
-                columns_cfg.csv.timestamp_strategy.csv.timestamp_index = columns_cfg.csv.timestamp_index;
+            if (from_csv.columns.timestamp_strategy.csv.enabled) {
+                if(!from_csv.columns.timestamp_strategy.csv.timestamp_precision.has_value()) {
+                    from_csv.columns.timestamp_strategy.csv.timestamp_precision = columns[0].ts.generator.timestamp_precision;
+                    from_csv.columns.timestamp_strategy.csv.offset_config->parse_offset(from_csv.columns.timestamp_strategy.csv.timestamp_precision.value());
+                }
+                columns_cfg.csv.timestamp_strategy = from_csv.columns.timestamp_strategy;
             } else {
-                columns_cfg.csv.timestamp_strategy.strategy_type = "generator";
-                columns_cfg.csv.timestamp_strategy.generator = columns[0].ts.generator;
+                columns_cfg.generator.timestamp_strategy.timestamp_config = columns[0].ts.generator;
             }
         } else {
             columns_cfg.source_type = "generator";
             columns_cfg.generator.schema = ColumnConfigVector(columns.begin() + 1, columns.end());
-            columns_cfg.csv.timestamp_strategy.strategy_type = "generator";
-            columns_cfg.csv.timestamp_strategy.generator = columns[0].ts.generator;
+            columns_cfg.generator.timestamp_strategy.timestamp_config = columns[0].ts.generator;
+
         }
     }
 };

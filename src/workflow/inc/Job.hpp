@@ -13,6 +13,7 @@ struct Job {
     std::vector<std::string> needs; // Dependent jobs
     std::vector<Step> steps;        // Steps in the job
 
+    bool need_create = false;
     bool find_create = false;
     TDengineConfig tdengine;
     MqttConfig mqtt;;

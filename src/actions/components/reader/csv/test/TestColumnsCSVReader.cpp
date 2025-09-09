@@ -50,6 +50,7 @@ void test_generate_table_data_with_default_timestamp() {
     config.timestamp_strategy.strategy_type = "csv";
     config.timestamp_strategy.csv.enabled = true;
     config.timestamp_strategy.csv.timestamp_index = 0;
+    config.timestamp_strategy.csv.timestamp_precision = "ms";
     config.file_path = "timestamp.csv";
     config.has_header = true;
 
@@ -85,6 +86,7 @@ void test_generate_table_data_with_timestamp() {
     config.timestamp_strategy.strategy_type = "csv";
     config.timestamp_strategy.csv.enabled = true;
     config.timestamp_strategy.csv.timestamp_index = 1;
+    config.timestamp_strategy.csv.timestamp_precision = "ms";
     config.file_path = "timestamp.csv";
     config.has_header = true;
 
@@ -207,6 +209,7 @@ void test_generate_table_data_default_column_types() {
     config.timestamp_strategy.strategy_type = "csv";
     config.timestamp_strategy.csv.enabled = true;
     config.timestamp_strategy.csv.timestamp_index = 0;
+    config.timestamp_strategy.csv.timestamp_precision = "ms";
     config.file_path = "default.csv";
     config.has_header = true;
 

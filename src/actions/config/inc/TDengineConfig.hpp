@@ -4,6 +4,7 @@
 #include <optional>
 
 struct TDengineConfig {
+    bool enabled = false;
     std::string dsn = "taos+ws://root:taosdata@localhost:6041/tsbench";
     std::string host = "localhost";
     int port = 6041;
