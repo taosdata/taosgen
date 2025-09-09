@@ -128,10 +128,17 @@ void ParameterContext::parse_jobs(const YAML::Node& jobs_yaml) {
     for (const auto& job_node : jobs_yaml) {
         Job job;
         job.tdengine = config_data.global.tdengine;
+        job.mqtt = config_data.global.mqtt;
         job.schema = config_data.global.schema;
 
         job.key = job_node.first.as<std::string>(); // Get job identifier
         const auto& job_content = job_node.second;
+
+        // Detect unknown configuration keys
+        static const std::set<std::string> valid_keys = {
+            "name", "needs", "steps"
+        };
+        YAML::check_unknown_keys(job_content, valid_keys, "job");
 
         if (job_content["name"]) {
             job.name = job_content["name"].as<std::string>();
@@ -153,39 +160,50 @@ void ParameterContext::parse_jobs(const YAML::Node& jobs_yaml) {
 }
 
 void ParameterContext::prepare_work() {
-    bool need_create = true;
     for (auto& job : config_data.jobs) {
         if (job.find_create) {
-            need_create = false;
-        }
-    }
-
-    if (need_create) {
-        for (auto& job : config_data.jobs) {
-            job.needs.push_back("tdengine/create-database");
+            continue;
         }
 
-        Job job;
-        job.key = "tdengine/create-database";
-        job.name = "Create Database";
-        job.needs = {};
-        job.steps = {
-            Step{
-                .name = "Create Database",
-                .uses = "tdengine/create-database",
-                .with = YAML::Node(YAML::NodeType::Map),
-                .action_config = CreateDatabaseConfig{
-                    .tdengine = config_data.global.tdengine
+        if (job.need_create) {
+            bool has_create_db_dependency = false;
+            for (const auto& dep_key : job.needs) {
+                auto it = std::find_if(config_data.jobs.begin(), config_data.jobs.end(),
+                    [&dep_key](const Job& j) { return j.key == dep_key; });
+                if (it != config_data.jobs.end() && it->find_create) {
+                    has_create_db_dependency = true;
+                    break;
                 }
             }
-        };
-        config_data.jobs.insert(config_data.jobs.begin(), job);
+
+            if (has_create_db_dependency) {
+                continue;
+            }
+
+            job.steps.insert(
+                job.steps.begin(),
+                Step{
+                    .name = "Create Database",
+                    .uses = "tdengine/create-database",
+                    .with = YAML::Node(YAML::NodeType::Map),
+                    .action_config = CreateDatabaseConfig{
+                        .tdengine = job.tdengine
+                    }
+                }
+            );
+        }
     }
 }
 
 void ParameterContext::parse_steps(const YAML::Node& steps_yaml, Job& job) {
     for (const auto& step_node : steps_yaml) {
         Step step;
+
+        // Detect unknown configuration keys
+        static const std::set<std::string> valid_keys = {
+            "name", "uses", "with"
+        };
+        YAML::check_unknown_keys(step_node, valid_keys, "job::steps");
 
         if (step_node["uses"]) {
             step.uses = step_node["uses"].as<std::string>();
@@ -213,8 +231,11 @@ void ParameterContext::parse_steps(const YAML::Node& steps_yaml, Job& job) {
         } else if (step.uses == "tdengine/create-child-table") {
             parse_td_create_child_table_action(job, step);
         } else if (step.uses == "tdengine/insert-data") {
-            parse_td_insert_data_action(job, step);
-        } else if (step.uses == "actions/query-data") {
+            parse_comm_insert_data_action(job, step, "tdengine");
+        } else if (step.uses == "mqtt/publish-data") {
+            parse_comm_insert_data_action(job, step, "mqtt");
+        }
+        else if (step.uses == "actions/query-data") {
             parse_query_data_action(job, step);
         } else if (step.uses == "actions/subscribe-data") {
             parse_subscribe_data_action(job, step);
@@ -287,6 +308,7 @@ void ParameterContext::parse_td_create_super_table_action(Job& job, Step& step) 
     // Save result to Step's action_config field
     job.schema = create_stb_config.schema;
     step.action_config = std::move(create_stb_config);
+    job.need_create = true;
 }
 
 void ParameterContext::parse_td_create_child_table_action(Job& job, Step& step) {
@@ -337,9 +359,11 @@ void ParameterContext::parse_td_create_child_table_action(Job& job, Step& step) 
     step.action_config = std::move(create_ctb_config);
 }
 
-void ParameterContext::parse_td_insert_data_action(Job& job, Step& step) {
+void ParameterContext::parse_comm_insert_data_action(Job& job, Step& step, std::string target_type) {
+    step.with["target"] = target_type;
     InsertDataConfig insert_config = step.with.as<InsertDataConfig>();
 
+    insert_config.target_type = target_type;
     insert_config.tdengine = job.tdengine;
     insert_config.mqtt = job.mqtt;
     insert_config.schema = job.schema;

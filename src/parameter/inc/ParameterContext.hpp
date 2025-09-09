@@ -61,7 +61,7 @@ private:
     void parse_td_create_database_action(Job& job, Step& step);
     void parse_td_create_super_table_action(Job& job, Step& step);
     void parse_td_create_child_table_action(Job& job, Step& step);
-    void parse_td_insert_data_action(Job& job, Step& step);
+    void parse_comm_insert_data_action(Job& job, Step& step, std::string target_type);
     void parse_query_data_action(Job& job, Step& step);
     void parse_subscribe_data_action(Job& job, Step& step);
     // void parse_job(const YAML::Node& job_yaml, Job& job);

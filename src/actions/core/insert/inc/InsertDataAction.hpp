@@ -56,6 +56,12 @@ private:
             [](const GlobalConfig& global, const ActionConfigVariant& config) {
                 return std::make_unique<InsertDataAction>(global, std::get<InsertDataConfig>(config));
             });
+
+        ActionFactory::instance().register_action(
+            "mqtt/publish-data",
+            [](const GlobalConfig& global, const ActionConfigVariant& config) {
+                return std::make_unique<InsertDataAction>(global, std::get<InsertDataConfig>(config));
+            });
         return true;
     }();
 };
