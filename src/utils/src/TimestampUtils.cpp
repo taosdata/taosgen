@@ -150,16 +150,36 @@ int64_t TimestampUtils::parse_timestamp(const std::variant<int64_t, std::string>
         }
     }
 
-
     // Parse ISO time format
+    std::string iso_str = trimmed;
+    bool is_utc = false;
+    if (iso_str.size() > 1 && iso_str.back() == 'Z') {
+        iso_str.pop_back();
+        is_utc = true;
+    }
+    size_t t_pos = iso_str.find('T');
+    if (t_pos != std::string::npos) {
+        iso_str[t_pos] = ' ';
+    }
+
     tm time_struct = {};
-    std::istringstream ss(trimmed);
+    std::istringstream ss(iso_str);
     ss >> std::get_time(&time_struct, "%Y-%m-%d %H:%M:%S");
     if (ss.fail()) {
         throw std::runtime_error("Invalid timestamp format: " + trimmed);
     }
 
-    time_t time_val = mktime(&time_struct);
+    time_t time_val;
+    if (is_utc) {
+#if defined(_WIN32)
+        time_val = _mkgmtime(&time_struct);
+#else
+        time_val = timegm(&time_struct);
+#endif
+    } else {
+        time_val = mktime(&time_struct);
+    }
+
     int64_t ms_val = static_cast<int64_t>(time_val) * 1000;
 
     // Return timestamp according to precision
