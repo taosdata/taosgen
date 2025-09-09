@@ -29,6 +29,7 @@ PahoMqttClient::PahoMqttClient(const std::string& uri, const std::string& client
 }
 
 PahoMqttClient::~PahoMqttClient() {
+    token_queue_.put(mqtt::delivery_token_ptr());
     disconnect();
 }
 
@@ -109,9 +110,26 @@ void PahoMqttClient::publish_batch(const MessageBatch& batch_msgs, int qos, bool
             retain,
             default_props_
         );
-        auto token = client_->publish(pubmsg);
-        token->wait();
+        // auto token = client_->publish(pubmsg);
+        // token->wait();
         // tokens.push_back(client_->publish(pubmsg));
+
+        while (true) {
+            try {
+                auto token = client_->publish(pubmsg);
+                token_queue_.put(std::move(token));
+                break;
+            } catch (const mqtt::exception& e) {
+                std::string msg = e.what();
+                if (msg.find("No more messages can be buffered") != std::string::npos ||
+                    msg.find("MQTT error [-12]") != std::string::npos) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                    continue;
+                } else {
+                    throw std::runtime_error(std::string("MQTT publish failed: ") + msg);
+                }
+            }
+        }
     }
     // for (auto& tok : tokens) {
     //     tok->wait();

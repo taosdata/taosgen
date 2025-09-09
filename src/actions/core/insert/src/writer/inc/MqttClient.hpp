@@ -57,6 +57,16 @@ public:
 private:
     std::unique_ptr<mqtt::async_client> client_;
     mqtt::properties default_props_;
+    mqtt::thread_queue<mqtt::delivery_token_ptr> token_queue_;
+
+    void token_wait_func() {
+        while (true) {
+            mqtt::delivery_token_ptr token = token_queue_.get();
+            if (!token)
+                break;
+            token->wait();
+        }
+    }
 };
 
 class MqttClient {
