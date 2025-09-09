@@ -677,17 +677,22 @@ void ParameterContext::merge_commandline(int argc, char* argv[]) {
 
 void ParameterContext::merge_commandline() {
     // Map command line parameters to global config
-    auto& conn_info = config_data.global.connection_info;
-    if (cli_params.count("--host")) conn_info.host = cli_params["--host"];
+    auto& tdengine = config_data.global.tdengine;
+    if (cli_params.count("--host"))
+        tdengine.host = cli_params["--host"];
+
     if (cli_params.count("--port")) {
         try {
-            conn_info.port = std::stoi(cli_params["--port"]);
+            tdengine.port = std::stoi(cli_params["--port"]);
         } catch (const std::exception& e) {
             throw std::runtime_error("Invalid port number: " + cli_params["--port"]);
         }
     }
-    if (cli_params.count("--user")) conn_info.user = cli_params["--user"];
-    if (cli_params.count("--password")) conn_info.password = cli_params["--password"];
+    if (cli_params.count("--user"))
+        tdengine.user = cli_params["--user"];
+
+    if (cli_params.count("--password"))
+        tdengine.password = cli_params["--password"];
 
     if (cli_params.count("--verbose")) {
         config_data.global.verbose = true;
