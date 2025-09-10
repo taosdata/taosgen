@@ -52,17 +52,14 @@ void BaseWriter::notify(const BaseInsertData& data, bool success) {
             std::any payload = std::cref(checkpoint_data);
             ptr->notify(payload);
         }
-    } 
+    }
 }
 
 void BaseWriter::update_play_metrics(const BaseInsertData& data) {
     if (time_strategy_.is_literal_strategy()) {
-        auto now = std::chrono::system_clock::now();
-        int64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-            now.time_since_epoch()
-        ).count();
-
-        int64_t elapsed_ms = now_ms - data.start_time;
+        int64_t now = TimestampUtils::convert_to_timestamp(timestamp_precision_);
+        int64_t elapsed = now - data.start_time;
+        int64_t elapsed_ms = TimestampUtils::convert_timestamp_precision(elapsed, timestamp_precision_, "ms");
         play_metrics_.add_sample(elapsed_ms);
     }
 }
