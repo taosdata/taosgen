@@ -1601,9 +1601,14 @@ namespace YAML {
         static bool decode(const Node& node, CreateDatabaseConfig& rhs) {
             // Detect unknown configuration keys
             static const std::set<std::string> valid_keys = {
+                "checkpoint"
             };
             check_unknown_keys(node, valid_keys, "tdengine/create-database");
-            (void)rhs;
+
+            if (node["checkpoint"]) {
+                rhs.checkpoint_info = node["checkpoint"].as<CheckpointInfo>();
+            }
+
             return true;
         }
     };
