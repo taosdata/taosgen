@@ -1,5 +1,4 @@
 <!-- omit in toc -->
-# 目录
 - [运行](#运行)
 - [命令行参数](#命令行参数)
 - [配置文件参数](#配置文件参数)
@@ -7,55 +6,21 @@
     - [作业的格式](#作业的格式)
     - [步骤的格式](#步骤的格式)
   - [全局配置参数](#全局配置参数)
-    - [连接信息参数](#连接信息参数)
-    - [数据格式化参数](#数据格式化参数)
-    - [数据通道参数](#数据通道参数)
-    - [数据库信息参数](#数据库信息参数)
-    - [超级表信息参数](#超级表信息参数)
+    - [TDengine 参数](#tdengine-参数)
+    - [MQTT 参数](#mqtt-参数)
+    - [schema 参数](#schema-参数)
       - [列配置包含属性](#列配置包含属性)
       - [数据生成方式详解](#数据生成方式详解)
   - [行动的种类](#行动的种类)
-  - [创建数据库行动的格式](#创建数据库行动的格式)
-    - [connection\_info (可选)](#connection_info-可选)
-    - [data\_format (可选)](#data_format-可选)
-    - [data\_channel (可选)](#data_channel-可选)
-    - [database\_info (可选)](#database_info-可选)
-  - [创建超级表行动的格式](#创建超级表行动的格式)
-    - [connection\_info (可选)](#connection_info-可选-1)
-    - [data\_format (可选)](#data_format-可选-1)
-    - [data\_channel (可选)](#data_channel-可选-1)
-    - [database\_info (可选)](#database_info-可选-1)
-    - [super\_table\_info (可选)](#super_table_info-可选)
-  - [创建子表行动的格式](#创建子表行动的格式)
-    - [connection\_info (可选)](#connection_info-可选-2)
-    - [data\_format (可选)](#data_format-可选-2)
-    - [data\_channel (可选)](#data_channel-可选-2)
-    - [database\_info (可选)](#database_info-可选-2)
-    - [super\_table\_info (可选)](#super_table_info-可选-1)
-    - [child\_table\_info (必需)](#child_table_info-必需)
-      - [table\_name（子表名称）](#table_name子表名称)
-      - [tags（标签列）](#tags标签列)
-    - [batch (可选)](#batch-可选)
-  - [插入数据行动的格式](#插入数据行动的格式)
-    - [source (必需)](#source-必需)
-      - [table\_name（子表名称）](#table_name子表名称-1)
-      - [columns（普通列）](#columns普通列)
-    - [target (必需)](#target-必需)
-      - [timestamp\_precision （时间戳精度，可选）](#timestamp_precision-时间戳精度可选)
-      - [target\_type (目标类型，必需)](#target_type-目标类型必需)
-      - [tdengine](#tdengine)
-      - [mqtt](#mqtt)
-    - [control (必需)](#control-必需)
-      - [data\_format（数据格式化，可选）](#data_format数据格式化可选)
-      - [data\_channel (数据通道，可选)](#data_channel-数据通道可选)
-      - [data\_generation（数据生成策略，可选）](#data_generation数据生成策略可选)
-      - [insert\_control（写入控制策略，可选）](#insert_control写入控制策略可选)
-      - [time\_interval（时间间隔策略，可选）](#time_interval时间间隔策略可选)
+  - [创建 TDengine 数据库行动的格式](#创建-tdengine-数据库行动的格式)
+  - [创建 TDengine 超级表行动的格式](#创建-tdengine-超级表行动的格式)
+  - [创建 TDengine 子表行动的格式](#创建-tdengine-子表行动的格式)
+  - [写入 TDengine 数据行动的格式](#写入-tdengine-数据行动的格式)
+  - [发布 MQTT 数据行动的格式](#发布-mqtt-数据行动的格式)
 - [配置文件示例](#配置文件示例)
-  - [生成器方式生成数据 stmt v2 写入 TDengine 示例](#生成器方式生成数据-stmt-v2-写入-tdengine-示例)
-  - [CSV文件方式生成数据 stmt v2 写入 TDengine 实例](#csv文件方式生成数据-stmt-v2-写入-tdengine-实例)
-  - [生成器方式生成数据并写入 MQTT 示例](#生成器方式生成数据并写入-mqtt-示例)
-
+  - [生成器方式生成数据 STMT 方式写入 TDengine 示例](#生成器方式生成数据-stmt-方式写入-tdengine-示例)
+  - [CSV文件方式生成数据 STMT 方式写入 TDengine 实例](#csv文件方式生成数据-stmt-方式写入-tdengine-实例)
+  - [生成器方式生成数据并发布数据到 MQTT Broker 示例](#生成器方式生成数据并发布数据到-mqtt-broker-示例)
 
 
 ## 运行
@@ -77,12 +42,19 @@ taosgen -h 192.168.1.1 -c config.yaml
 | -c/--config-file \<yaml file> | 指定 yaml 格式配置文件的路径 |
 | -?/--help                     | 显示帮助信息并退出|
 
+提示：当没有指定参数运行 taosgen 时，默认行为是：
+- 创建 TDengine 数据库 tsbench。
+- 创建超级表 meters。
+- 创建 1 万个子表 d0 ~ d9999。
+- 每个子表批量写入 1 万条数据。
 
 ## 配置文件参数
 
 ### 整体结构
-配置文件分为："global"、"concurrency"、"jobs" 三部分。
-- global：描述全局生效的配置参数。
+配置文件分为："tdengine"、"mqtt"、"schema"、"concurrency"、"jobs" 五部分。
+- tdengine：描述 TDengine 数据库的相关配置参数。
+- mqtt：描述 MQTT Broker 的相关配置参数。
+- schema：描述数据定义和生成的相关配置参数。
 - concurrency：描述作业执行的并发度。
 - jobs：列表结构，描述所有作业的具体相关参数。
 
@@ -92,331 +64,68 @@ taosgen -h 192.168.1.1 -c config.yaml
 - name：字符串类型，表示作业的显示名称，用于日志输出或 UI 展示。
 - needs：列表类型，表示当前作业所依赖的其他作业的标识符列表。若不依赖任何作业，则为空列表。
 - steps：列表类型，由一个或多个步骤（Step）组成，按顺序依次执行，定义了该作业的具体操作流程。
-作业支持复用全局配置（如数据库连接信息等），并通过 YAML 锚点与别名机制减少重复定义，提高配置文件的可读性和可维护性。
+作业默认继承全局配置（如 tdengine、schema 等）。
 
 #### 步骤的格式
 步骤（Step）是作业中基础的操作单位，代表某一种具体操作类型的执行过程。每个步骤按顺序运行，并可以引用预定义的 Action 来完成特定功能。步骤的组成包括以下属性：
 - name：字符串类型，表示该步骤的显示名称，用于日志输出和界面展示。
 - uses：字符串类型，指向要使用的 Action 路径或标识符，指示系统调用哪一个操作模块来执行此步骤。
 - with：映射（字典）类型，包含传递给该 Action 的参数集合。参数内容因 Action 类型而异，支持灵活配置。
-通过组合多个步骤，作业能够实现复杂的逻辑流程，例如创建数据库、写入数据等。
-
-示例配置如下：
-
-```yaml
-global:
-  connection_info:
-    host: 192.168.1.1
-    port: 6030
-    user: root
-    password: taosdata
-
-concurrency: 3
-
-jobs:
-  # 创建数据库作业
-  create-database:
-    name: Create Database
-    needs: []
-    steps:
-      - name: Create Database
-        uses: actions/create-database
-        with:
-          ......
-
-  # 创建超级表作业
-  create-super-table:
-    name: Create Super Table
-    needs: [create-database]
-    steps:
-      ......
-
-  # 创建秒级子表作业
-  create-second-child-table:
-    name: Create Second Child Table
-    needs: [create-super-table]
-    steps:
-      ......
-
-  # 创建分钟级子表作业
-  create-minute-child-table:
-    name: Create Minute Child Table
-    needs: [create-super-table]
-    steps:
-      ......
-
-  # 写入秒级数据作业
-  insert-second-data:
-    name: Insert Second-Level Data
-    needs: [create-second-child-table]
-    steps:
-      ......
-
-  # 写入分钟级数据作业
-  insert-minute-data:
-    name: Insert Minute-Level Data
-    needs: [create-minute-child-table]
-    steps:
-      ......
-```
-
-要点说明：
-- 创建数据库、超级表和子表由单独作业完成，且它们之间有依赖关系，通过属性 `needs` 指定。
-- 插入秒级数据作业 insert-second-data 需要等待作业 create-database 、create-super-table、create-second-child-table 依次完成后，然后才开始并发写入任务；插入分钟级别作业 insert-minute-data 同理。
+通过组合多个步骤，作业能够实现复杂的逻辑流程，例如 TDengine 创建超级表 & 子表、TDengine 写入数据等。
 
 ### 全局配置参数
 
-#### 连接信息参数
-- connection_info：定义服务器连接信息，它包括以下属性：
-  - host (字符串，可选)：表示要连接服务器的主机名或 IP 地址，默认值为 localhost。
-  - port (整型，可选)：表示要连接服务器的端口号，默认值为 6030。
-  - user (字符串，可选)：表示用于连接服务器的用户名，默认值为 root。
-  - password (字符串，可选)：表示用于连接服务器的密码，默认值为 taosdata。
-  - pool：连接池配置，包含如下属性：
-    - enabled (布尔，可选)：表示是否启用连接池功能，默认值为 true，；
-    - max_pool_size（整型，可选）：表示连接池的最大容量，默认值为 100；
-    - min_pool_size（整型，可选）：表示连接池的最小容量，默认值为 2；
-    - connection_timeout（整型，可选）：表示获取连接超时时间，单位毫秒，默认值为 1000；
-
-#### 数据格式化参数
-- data_format：定义输出数据的格式类型及其相关配置，描述数据以何种格式输出到数据存储介质中，它包括以下属性：
-  - format_type: (字符串类型，可选)：表示数据格式化的类型，默认值为 sql，可选值包括：
-    - sql：以 SQL 语句形式格式化数据。
-    - stmt：使用 STMT 接口格式化数据。
-
-  - 相应格式类型的描述信息：包含属性根据 format_type 不同而不同：
-    - 当 format_type: sql 时，暂无额外配置项。
-    - 当 format_type: stmt 时：
-      - version (字符串，可选)：表示 STMT 接口版本，目前仅支持 v2。
-
-#### 数据通道参数
-- data_channel：定义数据传输所使用的通信通道或目标路径。
-  - channel_type (字符串，可选)：表示数据通道类型，可选值包括：
-    - native：使用原生接口与数据库交互。
-    - websocket：通过 WebSocket 协议与数据库交互。
-
-    注意：暂时不支持 native、websocket 混合使用！
-
-#### 数据库信息参数
-- database_info：定义 TDengine 数据库的实例信息，它包括以下属性：
-  - name (字符串，必需)：表示数据库名称。
-  - drop_if_exists (布尔，可选)：表示数据库已存在时是否删除该数据库，默认为 true。
-  - properties (字符串，可选)：表示数据库支持的创建数据库的属性信息。
+#### TDengine 参数
+- tdengine：描述 TDengine 数据库的相关配置参数，它包括以下属性：
+  - dsn（字符串）：表示要连接的 TDengine 数据库的 DSN 地址，默认值为：taos+ws://root:taosdata@localhost:6041/tsbench。
+  - drop_if_exists（布尔）：表示数据库已存在时是否删除该数据库，默认为 true。
+  - props（字符串）：表示数据库支持的创建数据库的属性信息。
   例如，precision ms vgroups 20 replica 3 keep 3650 分别设置了虚拟组数量、副本数及数据保留期限。
     - precision：
-      指定数据库的时间精度，可选值为："ms"、"us"、"ns"，默认值为 "ms"。
+      指定数据库的时间精度，可选值为："ms"、"us"、"ns"。
     - vgroups：
-      指定数据库的虚拟组的个数，默认不指定。
+      指定数据库的虚拟组的个数。
     - replica：
-      指定数据库的副本格式，默认不指定。
+      指定数据库的副本格式。
+  - pool：连接池配置，包含如下属性：
+    - enabled（布尔）：表示是否启用连接池功能，默认值为 true，；
+    - max_size（整型）：表示连接池的最大容量，默认值为 100；
+    - min_size（整型）：表示连接池的最小容量，默认值为 2；
+    - timeout（整型）：表示获取连接超时时间，单位毫秒，默认值为 1000；
 
-#### 超级表信息参数
-- super_table_info：定义 TDengine 数据库的超级表信息的映射结构，它包括以下属性：
-  - name (字符串)：表示超级表的名称。
-  - columns (列表)：表示超级表的普通列的模式定义。
-  - tags (列表)：表示超级表的标签列的模式定义。
+#### MQTT 参数
+- mqtt：描述 MQTT Broker 的相关配置参数，它包括以下属性：
+  - uri（字符串）：MQTT Broker 的 uri 地址，默认值为 tcp://localhost:1883。
+  - username（字符串）：登录 Broker 的用户名。
+  - password（字符串）：登录 Broker 的密码。
+  - topic（字符串）：要发布消息的 MQTT Topic，默认值为 taosgen/`{table}`。支持通过占位符语法发布到动态主题，占位符语法如下：
+    - `{table}`：表示表名数据
+    - `{column}`：表示列数据，column 是列字段名称
+  - client_id（字符串）：客户端唯一标识符前缀，默认值为 taosgen。
+  - qos（整数）：QoS 等级，取值范围为 0、1、2，默认为 0。
+  - keep_alive（整数）：超时没有消息发送后会发送心跳，单位为秒，默认值为 5。
+  - clean_session（布尔）：是否清除就会话状态，默认值为 true。
+  - retain（布尔）：MQTT Broker 是否保留最后一条消息，默认值为 false。
+  - max_buffered_messages（整数）：客户端的最大缓冲消息数，默认值为 10000。
 
-##### 列配置包含属性
-每列包含以下属性：
-- name (字符串，必需)：表示列的名称，当 count 属性大于1时，name 表示的是列名称前缀，比如：name：current，count：3，则 3 个列的名字分别为 current1、current2、current3。
-- type（字符串，必需）：表示数据类型，支持以下类型（不区分大小写，与 TDengine 的数据类型兼容）：
-  - 整型：timestamp、bool、tinyint、tinyint unsigned、smallint、smallint unsigned、int、int unsigned、bigint、bigint unsigned。
-  - 浮点型：float、double、decimal。
-  - 字符型：nchar、varchar（binary）。
-- count (整数，可选)：表示指定该类型的列连续出现的数量，例如 count：4096 即可生成 4096 个指定类型的列。
-- properties (字符串，可选)：表示 TDengine 数据库的列支持的属性信息，可以包含以下属性：
-  - encode：指定此列两级压缩中的第一级编码算法。
-  - compress：指定此列两级压缩中的第二级加密算法。
-  - level：指定此列两级压缩中的第二级加密算法的压缩率高低。
-- gen_type (字符串，可选)：指定此列生成数据的方式，默认值为 random，支持的类型有：
-  - random：随机方式生成。
-  - order：按自然数顺序增长，仅适用整数类型。
-  - expression：根据表达式生成。适用整数类型、浮点数类型 float、double 和字符类型。
-
-##### 数据生成方式详解
-- random：随机方式生成
-  - distribution (字符串，可选)：表示随机数的分别模型，目前仅支持均匀分布，后续按需扩充，默认值为 "uniform"。
-  - min (浮点数，可选)：表示列的最小值，仅适用整数类型和浮点数类型，生成的值将大于或等于最小值。
-  - max (浮点数，可选)：表示列的最大值，仅适用整数类型和浮点数类型，生成的值将小于最大值。
-  - values（列表，可选）：指定随机数据的取值范围，生成的数据将从中随机选取。
-
-- order：按自然数顺序增长，仅适用整数类型，达到最大值后会自动翻转到最小值
-  - min (整数，可选)：表示列的最小值，生成的值将大于或等于最小值。
-  - max (整数，可选)：表示列的最大值，生成的值将小于最大值。
-
-- expression：根据表达式生成。适用整数类型、浮点数类型 float、double 和字符类型。
-  - formula (字符串，必需)：表示生成数据的表达式内容，表达式语法采用 lua 语言，内置变量：
-    -  `_i` 表示调用索引，从 `0` 开始，如："2 + math.sin(_i/10)"；
-    -  `_table` 表示该表达式为哪个表构建数据；
-    -  `_last` 表示该表达式上次返回的数值，仅对数值类型生效，初始值为 0.0；
-
-    为了说明表达式方式的数据描述能力，下面举一个更复杂的表达式样例：
-
-    ```lua
-    (math.sin(_i / 7) * math.cos(_i / 13) + 0.5 * (math.random(80, 120) / 100)) * ((_i % 50 < 25) and (1 + 0.3 * math.sin(_i / 3)) or 0.7) + 10 * (math.floor(_i / 100) % 2)
-    ```
-    它结合了多种数学函数、条件逻辑、周期性行为和随机扰动，模拟一个非线性、带噪声、分段变化的动态数据生成过程，组成部分（A + B）× C + D。功能分解说明：
-
-    | 部分 | 内容                                                               | 类别           | 作用                                                              |
-    |------|--------------------------------------------------------------------|----------------|-------------------------------------------------------------------|
-    | A    | `math.sin(_i / 7) * math.cos(_i / 13)`                             | 基础信号       | 双频调制，生成复杂波形（拍频效应）                                |
-    | B    | `0.5 * (math.random(80, 120) / 100)`                               | 噪声           | 添加 80%~120% 的随机扰动（模拟噪声）                              |
-    | C    | `((_i % 50 < 25) and (1 + 0.3 * math.sin(_i / 3)) or 0.7)`         | 动态增益调制   | 每 50 次调用切换一次增益（前 25 次高增益，后 25 次低增益）        |
-    | D    | `10 * (math.floor(_i / 100) % 2)`                                  | 基线阶跃变化   | 每 100 次调用切换一次基线（0 或 10），模拟阶跃变化，表示高峰/低谷 |
-
-
-### 行动的种类
-行动（Action） 是封装好的可复用操作单元，用于完成特定功能。每个行动代表一类独立的操作逻辑，可以在不同的步骤（Step）中被调用和执行。通过将常用操作抽象为标准化的行动模块，系统实现了良好的扩展性与配置灵活性。
-同一类型的行动可以在多个步骤中并行或重复使用，从而支持多样化的任务流程编排。例如：创建数据库、定义超级表、生成子表、插入数据等核心操作，均可通过对应的行动进行统一调度。
-目前系统支持以下内置行动：
-- `actions/create-database`：用于创建数据库
-- `actions/create-super-table`：用于创建超级表
-- `actions/create-child-table`：用于基于超级表生成子表
-- `actions/insert-data`：用于向指定的数据表中插入数据
-每个行动在调用时可通过 with 字段传入参数，具体参数内容因行动类型而异。
-
-
-### 创建数据库行动的格式
-`actions/create-database` 行动用于在指定的 TDengine 数据库服务器上创建一个新的数据库。通过传递必要的连接信息和数据库配置参数，用户可以轻松地定义新数据库的各种属性，如数据库名称、是否在存在时删除旧数据库、时间精度等。
-
-#### connection_info (可选)
-同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
-
-#### data_format (可选)
-同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
-
-#### data_channel (可选)
-同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
-
-#### database_info (可选)
-同《全局配置参数》章节中同名参数的描述，包含数据库创建所需的所有细节。如果未指定，则默认使用全局配置中的参数信息。
-
-### 创建超级表行动的格式
-`actions/create-super-table` 行动用于在指定数据库中创建一个新的超级表（Super Table）。通过传递必要的连接信息和超级表配置参数，用户能够定义超级表的各种属性，如表名、普通列和标签列等。
-
-#### connection_info (可选)
-同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
-
-#### data_format (可选)
-同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
-
-#### data_channel (可选)
-同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
-
-#### database_info (可选)
-同《全局配置参数》章节中同名参数的描述，指定要在哪个数据库中创建超级表。如果未指定，则默认使用全局配置中的参数信息。
-
-#### super_table_info (可选)
-同《全局配置参数》章节中同名参数的描述，包含超级表创建所需的所有细节。如果未指定，则默认使用全局配置中的参数信息。
-
-### 创建子表行动的格式
-`actions/create-child-table` 行动用于基于指定的超级表，在目标数据库中批量创建多个子表（Child Tables）。每个子表可以拥有不同的名称和标签列数据，从而实现对时间序列数据的有效分类与管理。该行动支持从生成器（Generator）或 CSV 文件两种来源定义子表名称及标签列信息，具备高度灵活性和可配置性。
-
-#### connection_info (可选)
-同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
-
-#### data_format (可选)
-同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
-
-#### data_channel (可选)
-同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
-
-#### database_info (可选)
-同《全局配置参数》章节中同名参数的描述，指定要在哪个数据库中创建子表。如果未指定，则默认使用全局配置中的参数信息。
-
-#### super_table_info (可选)
-同《全局配置参数》章节中同名参数的描述，指定基于哪个超级表创建子表。如果未指定，则默认使用全局配置中的参数信息。
-
-#### child_table_info (必需)
-包含创建子表所需的核心信息，包括子表名称和标签列数据的来源及具体配置。
-
-##### table_name（子表名称）
-- source_type (字符串，必需)：
-  子表名称的数据来源支持以下两种方式：generator、csv。
-- generator：仅在 source_type="generator" 时生效，包含如下属性：
-  使用生成器动态生成子表名称列表，需提供以下属性：
-  - prefix (字符串)：
-    子表名前缀，默认为 "d"。
-  - count (整数)：
-    要创建的子表数量，默认为 10000。
-  - from (整数)：
-    子表名称的起始下标（包含），默认为 0。
-- csv：仅在 source_type="csv" 时生效，包含如下属性：
-  从 CSV 文件读取子表名称列表，需提供以下属性：
-  - file_path (字符串)：
-    CSV 文件路径。
-  - has_header (布尔)：
-    是否包含表头行，默认为 true。
-  - tbname_index (整数)：
-    指定子表名称所在的列索引（从 0 开始），默认为 0。
-
-##### tags（标签列）
-- source_type (字符串，必需)：
-  标签列的数据来源支持以下两种方式：generator、csv。
-- generator：仅在 source_type="generator" 时生效，包含如下属性：
-  使用生成器动态生成标签列数据，需提供以下属性：
-  - schema (列表类型，可选)：
-    标签列的 Schema 定义，每个元素表示一个标签列，包含字段名（name）、类型（type）以及生成规则（如随机等）。若未指定，则使用全局作用域中预定义的标签列的 Schema。
-- csv：仅在 source_type="csv" 时生效，包含如下属性：
-  从 CSV 文件读取标签列数据，需提供以下属性：
-  - schema (列表类型，可选)：标签列的 Schema 定义，每个元素表示一个标签列，包含字段名（name）、类型（type）等信息。
-  - file_path (字符串)：
-    CSV 文件路径。
-  - has_header (布尔)：
-    是否包含表头行，默认为 true。
-  - exclude_indices (字符串)：
-    若文件中同时包含子表名称列和标签列，或者仅想使用部分标签列时，此参数用于指定剔除的子表名称列/无用标签列等的索引（从 0 开始），列索引之间使用英文逗号,分隔，默认值为空，表示不剔除。
-
-#### batch (可选)
-控制批量创建子表时的行为：
-- size (整数)：
-  每批创建的子表数量，默认值为 1000。
-- concurrency (整数)：
-  并发执行的批次数量，提升创建效率，默认值为 10。
-
-### 插入数据行动的格式
-`actions/insert-data` 行动用于将数据插入到指定的子表中。它支持从生成器或 CSV 文件两种来源获取子表名称、普通列数据，并允许用户通过多种时间戳策略控制数据的时间属性。此外，还提供了丰富的写入控制策略以优化数据插入过程，具备高度灵活性和可配置性。
-
-#### source (必需)
-包含了需要插入的数据的所有相关信息：
-
-##### table_name（子表名称）
-描述同：《创建子表行动的格式》中的同名配置项的描述。
-
-##### columns（普通列）
-- source_type (字符串，必需)：
-  普通列的数据来源支持以下两种方式：generator、csv。
-- generator：
-  仅在 source_type="generator" 时生效，使用生成器动态生成普通列数据，需提供以下属性：
-  - schema (列表类型，必须)：
-    普通列的 Schema 定义，每个元素表示一个普通列，包含字段名（name）、类型（type）以及生成规则（如随机等）。
-  - timestamp_strategy (时间戳列策略，可选)：
-    generator 类型数据源下的时间戳列策略仅有一种类型，即是生成方式，包含如下属性：
-    - start_timestamp (整数或关键字 "now"，可选)：表示子表的时间戳列的起始值，默认值为 "now"。
-    - timestamp_precision (字符串，可选)：
-      表示时间戳列的时间精度，可选值为："ms"、"us"、"ns"，默认与数据目标中的时间戳列的精度一致。
-    - timestamp_step (整数，可选)：表示子表中插入数据的时间戳步长，单位与时间精度一致，默认值是 1。
-- csv
-  仅在 source_type="csv" 时生效，从 CSV 文件读取普通列数据，需提供以下属性：
-  - schema (列表类型，可选)：
-    普通列的 Schema 定义，每个元素表示一个普通列，包含字段名（name）、类型（type）。
-  - file_path (字符串，必需)：
-    CSV 文件路径，支持单个文件或目录路径。
-  - has_header (布尔，可选)：
-    是否包含表头行，默认为 true。
-  - repeat_read (布尔，可选)：
-    是否是否重复读取数据，默认为 false。
-  - tbname_index （整数，可选）：
-    指定子表名称所在的列索引（从 0 开始）。
-  - timestamp_strategy (时间戳列策略，必需)：用于控制时间戳的生成逻辑。
-    - strategy_type (字符串，必需)：时间戳生成策略类型，默认为 original，可选值包括：
-      - original：使用原始文件中的时间列作为时间戳。
-      - generator：根据用户规则 start_timestamp 和 timestamp_step 生成时间戳。
-    1. original (对象，可选)：仅在 strategy_type="original" 时生效，包含以下属性：
-      - timestamp_index (整数，可选)：指定原始时间列的索引（从 0 开始），默认值为 0。
-      - timestamp_precision (字符串，可选)：表示原始时间列的时间精度，默认与数据目标中的时间戳列的精度一致，可选值为 "s"、"ms"、"us"、"ns"。
-      - offset_config (可选)：
-        - offset_type (字符串)：表示时间戳偏移类型，可选值为："relative"、"absolute"。
+#### schema 参数
+- schema：描述数据定义和生成模式的相关配置参数。
+  - name（字符串）：schema 的名称。
+  - from_csv：描述 CSV 文件作为数据源时的相关配置参数。
+    - tags：描述 tags 的配置参数。
+      - file_path（字符串）：标签数据 CSV 文件路径。
+      - has_header（布尔）：是否包含表头行，默认为 true。
+      - tbname_index（整数）：指定表名称所在的列索引（从 0 开始），默认为 -1，表示未生效。
+      - exclude_indices（字符串）：如果仅想使用部分标签列时，此参数用于指定剔除的无用标签列的索引（从 0 开始），列索引之间使用英文逗号,分隔，默认值为空，表示不剔除。
+    - columns：描述 tags 的配置参数。
+      - file_path（字符串）：时序数据 CSV 文件路径。
+      - has_header（布尔）：是否包含表头行，默认为 true。
+      - repeat_read（布尔）：是否重复读取数据，默认为 false。
+      - tbname_index（整数）：指定子表名称所在的列索引（从 0 开始），默认为 -1，表示未生效。
+      - timestamp_index（整数）：指定时间戳列的索引（从 0 开始），默认值为 0。
+      - timestamp_precision（字符串）：表示时间戳列的时间精度，可选值为 "s"、"ms"、"us"、"ns"。
+      - timestamp_offset：描述时间戳数值的偏移配置参数。
+        - offset_type（字符串）：表示时间戳偏移类型，可选值为："relative"、"absolute"。
         - value（字符串或整型）：表示时间戳的偏移量（relative）或起始时间戳（absolute）：
           - 时间戳偏移类型为 "relative" 时：字符串类型，格式为 ±[数值][单位] 组合（示例："+1d3h" 表示加1天3小时），支持以下时间单位：
             - y：年偏移量
@@ -426,546 +135,425 @@ jobs:
           - 时间戳偏移类型为 "absolute" 时：整型或字符串类型，格式如下：
             - 时间戳数值（精度由 timestamp_precision 参数决定）
             - ISO 8601 格式字符串（"YYYY-MM-DD HH:mm:ss"）
-    2. generator (对象，可选)：仅在 strategy_type="generator" 时生效，包含以下属性：
-      - start_timestamp (整数或字符串，可选)：表示子表的时间戳列的起始值，默认值为 "now"。
-      - timestamp_precision (字符串，可选)：
-        表示时间戳列的时间精度，可选值为："ms"、"us"、"ns"，默认与数据目标中的时间戳列的精度一致。
-      - timestamp_step (整数，可选)：表示子表中插入数据的时间戳步长，单位与时间精度一致，默认值是 1。
+  - tbname：描述生成表名称的相关配置参数：
+    - prefix（字符串）：表名前缀，默认为 "d"。
+    - count（整数）：要创建的表数量，默认为 10000。
+    - from（整数）：表名称的起始下标（包含），默认为 0。
 
-#### target (必需)
-描述数据写入的目标数据库或其他存储介质信息：
+  - columns（列表）：描述表普通列结构的模式定义。
+  - tags（列表）：描述表标签列结构的模式定义。
+  - generation：描述数据生成行为相关的配置参数。
+    - interlace（整数）：控制交错方式生成表数据的行数，默认值为 0，表示不启用交错模式。
+    - concurrency（整数）：表示生成数据的线程数量，默认值为写入线程数量。
+    - per_table_rows（整数），每个数据表写入的行数，默认值为 10000，-1 表示无限数据。
+    - per_batch_rows（整数），默认值为 10000，表示每次批量请求写入的最大行数。
 
-##### timestamp_precision （时间戳精度，可选）
-字符串类型：表示时间戳列的精度，可选值为："ms"、"us"、"ns"，当数据目标是 tdengine 时，默认为数据库的精度，否则默认为 "ms"。
+##### 列配置包含属性
+每列包含以下属性：
+- name（字符串）：表示列的名称，当 count 属性大于1时，name 表示的是列名称前缀，比如：name：current，count：3，则 3 个列的名字分别为 current1、current2、current3。
+- type（字符串）：表示数据类型，支持以下类型（不区分大小写，与 TDengine 的数据类型兼容）：
+  - 整型：timestamp、bool、tinyint、tinyint unsigned、smallint、smallint unsigned、int、int unsigned、bigint、bigint unsigned。
+  - 浮点型：float、double、decimal。
+  - 字符型：nchar、varchar（binary）。
+- count（整数）：表示指定该类型的列连续出现的数量，例如 count：4096 即可生成 4096 个指定类型的列。
+- properties（字符串）：表示 TDengine 数据库的列支持的属性信息，可以包含以下属性：
+  - encode：指定此列两级压缩中的第一级编码算法。
+  - compress：指定此列两级压缩中的第二级加密算法。
+  - level：指定此列两级压缩中的第二级加密算法的压缩率高低。
+- gen_type（字符串）：指定此列生成数据的方式，默认值为 random，支持的类型有：
+  - random：随机方式生成。
+  - order：按自然数顺序增长，仅适用整数类型。
+  - expression：根据表达式生成。适用整数类型、浮点数类型 float、double 和字符类型。
 
-##### target_type (目标类型，必需)
-字符串类型，目标数据类型支持以下几种方式：
-- tdengine：TDengine 数据库。
-- mqtt：轻量级的物联网通信协议。
+##### 数据生成方式详解
+- random：随机方式生成
+  - distribution（字符串）：表示随机数的分别模型，目前仅支持均匀分布，后续按需扩充，默认值为 "uniform"。
+  - min（浮点数）：表示列的最小值，仅适用整数类型和浮点数类型，生成的值将大于或等于最小值。
+  - max（浮点数）：表示列的最大值，仅适用整数类型和浮点数类型，生成的值将小于最大值。
+  - values（列表）：指定随机数据的取值范围，生成的数据将从中随机选取。
 
-##### tdengine
-仅在 target_type="tdengine" 时生效，包含如下属性：
-- connection_info (必需)：数据库连接信息。
-- database_info (对象类型，必需)：包含目标数据库的相关信息：
-  - name (字符串，必需)：数据库名称。
-  - precision (字符串，可选)：数据库的时间精度，与上边 timestamp_precision 的值保持一致。
-- super_table_info (必需)：包含超级表的信息：
-  - name (字符串，必需)：超级表名称。
-  - columns (可选)：引用预定义的普通列 Schema。
-  - tags (可选)：引用预定义的标签列 Schema。
+- order：按自然数顺序增长，仅适用整数类型，达到最大值后会自动翻转到最小值
+  - min（整数）：表示列的最小值，生成的值将大于或等于最小值。
+  - max（整数）：表示列的最大值，生成的值将小于最大值。
 
-##### mqtt
-仅在 target_type="mqtt" 时生效，包含如下属性：
-- host (字符串，可选)： MQTT Broker 主机地址，默认值为 localhost。
-- port (整数，可选)： MQTT Broker 端口，默认值为 1883。
-- username (字符串，可选)： 登录 Broker 的用户名。
-- password (字符串，可选)： 登录 Broker 的密码。
-- client_id (字符串，可选)： 客户端唯一标识符，若未指定则自动生成；
-- topic (字符串，必需)： 要发布消息的 MQTT Topic，支持通过占位符语法发布到动态主题，占位符语法如下：
-  - `{table}`：表示表名数据
-  - `{column}`：表示列数据，column 是列字段名称
-- timestamp_precision (字符串，可选)： 表示消息时间戳的精度，可选值为："ms"、"us"、"ns"，默认为 "ms"。
-- qos (整数，可选)： QoS 等级，取值范围为 0、1、2，默认为 0。
-- keep_alive (整数，可选)： 超时没有消息发送后会发送心跳，单位为秒，默认值为 5。
-- clean_session（布尔，可选）：是否清除就会话状态，默认值为 true。
-- retain（布尔，可选）：MQTT Broker 是否保留最后一条消息，默认值为 false。
-- max_buffered_messages (整数，可选)： 客户端的最大缓冲消息数，默认值为 1000。
-- batch_messages (整数，可选)： 客户端的每次批量发送的消息数，默认值为 500。
+- expression：根据表达式生成。适用整数类型、浮点数类型 float、double 和字符类型。
+  - formula（字符串）：表示生成数据的表达式内容，表达式语法采用 lua 语言，内置变量：
+    -  `_i` 表示调用索引，从 `0` 开始，如："2 + math.sin（_i/10）"；
+    -  `_table` 表示该表达式为哪个表构建数据；
+    -  `_last` 表示该表达式上次返回的数值，仅对数值类型生效，初始值为 0.0；
 
-#### control (必需)
-定义数据写入过程中的行为策略，包括数据格式化（data_format）、数据通道（data_channel）、数据生成策略（data_generation）、写入控制策略（insert_control）、时间间隔策略（time_interval）等部分。
+    为了说明表达式方式的数据描述能力，下面举一个更复杂的表达式样例：
 
-##### data_format（数据格式化，可选）
-同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
+    ```lua
+   （math.sin（_i / 7） * math.cos（_i / 13） + 0.5 *（math.random（80, 120） / 100）） *（（_i % 50 < 25） and（1 + 0.3 * math.sin（_i / 3）） or 0.7） + 10 *（math.floor（_i / 100） % 2）
+    ```
+    它结合了多种数学函数、条件逻辑、周期性行为和随机扰动，模拟一个非线性、带噪声、分段变化的动态数据生成过程，组成部分（A + B）× C + D。功能分解说明：
 
-##### data_channel (数据通道，可选)
-同《全局配置参数》章节中同名参数的描述，如果未指定，则默认使用全局配置中的参数信息。
+    | 部分 | 内容                                                               | 类别           | 作用                                                              |
+    |------|--------------------------------------------------------------------|----------------|-------------------------------------------------------------------|
+    | A    | `math.sin（_i / 7） * math.cos（_i / 13）`                             | 基础信号       | 双频调制，生成复杂波形（拍频效应）                                |
+    | B    | `0.5 *（math.random（80, 120） / 100）`                               | 噪声           | 添加 80%~120% 的随机扰动（模拟噪声）                              |
+    | C    | `（（_i % 50 < 25） and（1 + 0.3 * math.sin（_i / 3）） or 0.7）`         | 动态增益调制   | 每 50 次调用切换一次增益（前 25 次高增益，后 25 次低增益）        |
+    | D    | `10 *（math.floor（_i / 100） % 2）`                                  | 基线阶跃变化   | 每 100 次调用切换一次基线（0 或 10），模拟阶跃变化，表示高峰/低谷 |
 
-##### data_generation（数据生成策略，可选）
-定义数据生成的行为相关设置：
-- interlace_mode（可选）：控制交错生成子表数据的方式。
-  - enabled (布尔，可选)：表示是否启用交错模式，默认值为 false。
-  - rows (整数，可选)：表示每个子表单次生成的行数，默认值为 1。
-- generate_threads (整数，可选)，表示生成数据的线程数量，默认值为 1。
-- per_table_rows (整数，可选)，每个子表插入的行数，默认值为 10000，-1 表示无限数据。
-- queue_capacity (整数，可选)，表示存放生成数据的队列的容量，默认值为 100。
-- queue_warmup_ratio（浮点，可选），表示队列中数据预热生成的比例，默认值为 0.5，表示提前生成队列容量 50%的数据。
+### 行动的种类
+行动（Action） 是封装好的可复用操作单元，用于完成特定功能。每个行动代表一类独立的操作逻辑，可以在不同的步骤（Step）中被调用和执行。通过将常用操作抽象为标准化的行动模块，系统实现了良好的扩展性与配置灵活性。
+同一类型的行动可以在多个步骤中并行或重复使用，从而支持多样化的任务流程编排。例如：创建数据库、定义超级表、生成子表、写入数据等核心操作，均可通过对应的行动进行统一调度。
+目前系统支持以下内置行动：
+- `tdengine/create-database`：用于创建 TDengine 数据库
+- `tdengine/create-super-table`：用于创建 TDengine 超级表
+- `tdengine/create-child-table`：用于创建 TDengine 超级表的子表
+- `tdengine/insert-data`：用于向指定的 TDengine 数据库中写入数据
+- `mqtt/publish-data`：用于向指定的 MQTT Broker 发布数据
+每个行动在调用时可通过 with 字段传入参数，具体参数内容因行动类型而异。
 
-##### insert_control（写入控制策略，可选）
-写入控制策略：控制实际数据的写入目标数据库或文件的行为细节。
-- per_request_rows (整数，可选)，默认值为 10000，表示每次请求写入的最大行数。
-- insert_threads (整数，可选)，默认值为 8，表示并发写入线程数量。
-- failure_handling (可选)：表示失败处理策略：
-  - max_retries (整数，可选)：默认值为 0，表示最大重试次数；
-  - retry_interval_ms (整数，可选)：默认值为 1000，仅在 max_retries > 0 时有效；
-  - on_failure (字符串，可选)：默认值为 exit，表示失败后的行为，可选值为：
-    - exit：失败后自动退出程序；
-    - continue：失败后警告用户并继续执行；
+### 创建 TDengine 数据库行动的格式
+`tdengine/create-database` 行动用于在指定的 TDengine 数据库服务器上创建一个新的数据库。通过配置的连接信息和数据库参数，用户可以轻松地定义新数据库的各种属性，如数据库名称、是否在存在时删除旧数据库、时间精度等。
 
-##### time_interval（时间间隔策略，可选）
-  控制写入过程中时间间隔分布策略。
-- enabled (布尔，可选)：默认值为 false，表示是否启用时间间隔控制。
-- interval_strategy (字符串，可选)：表示时间间隔策略类型，默认值为 fixed。可选值为：
-  - fixed：固定的时间间隔。
-  - first_to_first：本次发送数据的首行的时间列 - 上次发送数据的首行的时间列。
-  - last_to_first：本次发送数据的首行的时间列 - 上次发送数据的末行的时间列。
-  - literal：根据本次发送数据的首行的时间列的值的时间点来发送，模拟实时产生数据的场景。
-- fixed_interval：仅在 interval_strategy = fixed 时生效：
-  - base_interval (整数，必需)：表示固定间隔数值，单位毫秒。
-- dynamic_interval：仅在 interval_strategy = first_to_first / last_to_first 时生效：
-  - min_interval (整数，可选)：默认值为 -1，表示最小时间间隔阈值。
-  - max_interval (整数，可选)：默认值为 -1，表示最大时间间隔阈值。
-- wait_strategy (字符串，可选)：表示在开启时间间隔控制时，发送写入请求之间的等待策略，默认值为：sleep，可选值为：
-  - sleep：睡眠，归还当前线程的执行权给操作系统。
-  - busy_wait：忙等待，保持当前线程的执行权。
+- checkpoint：描述写入数据中断/恢复功能相关配置参数：
+  - enabled：是否开启写入数据中断/恢复功能。
+  - interval_sec：数据写入进度进行存储间隔,单位为秒。
+
+### 创建 TDengine 超级表行动的格式
+`tdengine/create-super-table` 行动用于在指定数据库中创建一个新的超级表。通过传递必要的连接信息和超级表配置参数，用户能够定义超级表的各种属性，如表名、普通列和标签列等。
+
+- schema：默认使用全局的 schema 配置信息，当需要差异化时可在此行动下单独定义。
+
+### 创建 TDengine 子表行动的格式
+`tdengine/create-child-table` 行动用于基于指定的超级表，在目标数据库中批量创建多个子表。每个子表可以拥有不同的名称和标签列数据，从而实现对时间序列数据的有效分类与管理。该行动支持从生成器（Generator）或 CSV 文件两种来源定义子表名称及标签列信息，具备高度灵活性和可配置性。
+
+- schema：默认使用全局的 schema 配置信息，当需要差异化时可在此行动下单独定义。
+- batch：控制批量创建子表时的行为:
+  - size（整数）：
+    每批创建的子表数量，默认值为 1000。
+  - concurrency（整数）：并发执行的批次数量，提升创建效率，默认值为 10。
+
+### 写入 TDengine 数据行动的格式
+`tdengine/insert-data` 行动用于将数据写入到指定的子表中。它支持从生成器或 CSV 文件两种来源获取子表名称、普通列数据，并允许用户通过多种时间戳策略控制数据的时间属性。此外，还提供了丰富的写入控制策略以优化数据写入过程，具备高度灵活性和可配置性。
+
+- tdengine：默认使用全局的 tdengine 配置信息，当需要差异化时可在此行动下单独定义。
+- schema：默认使用全局的 schema 配置信息，当需要差异化时可在此行动下单独定义。
+- format（字符串）：描述数据写入时使用的格式，可选值为：sql、stmt，默认使用 stmt。
+- concurrency（整数）：并发写入数据的线程数量，默认值为 8。
+- failure_handling（可选）：表示失败处理策略：
+  - max_retries（整数）：最大重试次数，默认值为 0。
+  - retry_interval_ms（整数）：重试间隔，单位为毫秒，默认值为 1000，仅在 max_retries > 0 时有效。
+  - on_failure（字符串）：默认值为 exit，表示失败后的行为，可选值为：
+    - exit：失败后自动退出程序
+    - continue：失败后警告用户并继续执行
+- time_interval：控制写入过程中时间间隔分布策略。
+  - enabled（布尔）：表示是否启用时间间隔控制，默认值为 false。
+  - interval_strategy（字符串）：表示时间间隔策略类型，默认值为 fixed。可选值为：
+    - fixed：固定的时间间隔。
+    - first_to_first：本次发送数据的首行的时间列 - 上次发送数据的首行的时间列。
+    - last_to_first：本次发送数据的首行的时间列 - 上次发送数据的末行的时间列。
+    - literal：根据本次发送数据的首行的时间列的值的时间点来发送，模拟实时产生数据的场景。
+  - fixed_interval：仅在 interval_strategy = fixed 时生效：
+    - base_interval（整数）：表示固定间隔数值，单位毫秒。
+  - dynamic_interval：仅在 interval_strategy = first_to_first / last_to_first 时生效：
+    - min_interval（整数）：默认值为 -1，表示最小时间间隔阈值。
+    - max_interval（整数）：默认值为 -1，表示最大时间间隔阈值。
+  - wait_strategy（字符串）：表示在开启时间间隔控制时，发送写入请求之间的等待策略，默认值为：sleep，可选值为：
+    - sleep：睡眠，归还当前线程的执行权给操作系统。
+    - busy_wait：忙等待，保持当前线程的执行权。
+- checkpoint：描述写入数据中断/恢复功能相关配置参数（目前仅支持 stmt 格式、生成器方式数据源）：
+  - enabled：是否开启写入数据中断/恢复功能。
+  - interval_sec：数据写入进度进行存储间隔,单位为秒。
+
+### 发布 MQTT 数据行动的格式
+`mqtt/publish-data` 行动用于将数据发布到指定的 topic 中。它支持从生成器或 CSV 文件两种来源获取数据，并允许用户通过多种时间戳策略控制数据的时间属性。此外，还提供了丰富的写入控制策略以优化数据发布过程，具备高度灵活性和可配置性。
+
+- mqtt：默认使用全局的 mqtt 配置信息，当需要差异化时可在此行动下单独定义。
+- schema：默认使用全局的 schema 配置信息，当需要差异化时可在此行动下单独定义。
+- format（字符串）：描述数据发布时使用的格式，目前仅支持 json，默认值为 json。
+- concurrency（整数）：并发发布数据的线程数量，默认值为 8。
+- failure_handling（可选）：描述同“写入 TDengine 数据行动的格式”中的同名参数。
+- time_interval：描述同“写入 TDengine 数据行动的格式”中的同名参数。
 
 ## 配置文件示例
 
-### 生成器方式生成数据 stmt v2 写入 TDengine 示例
+### 生成器方式生成数据 STMT 方式写入 TDengine 示例
+
+该示例展示了如何使用 taosgen 工具模拟一万台智能电表，每台智能电表采集电流、电压、相位三个物理量，它们每隔 5 分钟产生一条记录，电流的数据用随机数，电压用正弦波模拟，产生的这些数据采用 WebSocket 的方式写入 TDengine TSDB 的 tsbench 数据库的超级表 meters。
+
+配置详解：
+- TDengine 配置参数
+  - 连接信息: 通过 DSN 定义数据库连接相关参数。
+  - 数据库的属性：定义是否重新创建数据库，设置时间精度为毫秒，4个 vgroup。
+- schema 配置参数
+  - 名称：指定超极表的名称。
+  - 子表名称：定义生成一万张子表名称的规则，格式为 d0 到 d9999。
+  - 超级表字段结构信息: 定义超级表结构，包含3个普通列（电流、电压、相位）和2个标签列（组ID、位置）。
+    - 时间戳: 配置了时间戳生成策略，从指定时间戳 1700000000000 (2023-11-14 22:13:20 UTC) 开始，以 5 分钟的步长递增。
+    - 时序数据: current 和 phase 使用指定范围的随机数，voltage 使用正弦波模拟。
+    - 标签数据: groupid 和 location 使用指定范围的随机数。
+  - 数据生成行为：使用交错模式写入，每张子表写入 1 万条记录，每批写入请求最大行数为 1 万行。
+- 创建子表：指定 10 线程并发创建子表，每批发送 1000 个子表创建请求。
+- 数据写入：使用默认的 stmt (参数化写入) 格式、8 线程并发写入数据，极大提升了批量数据写入的性能。
+
+场景说明：
+
+此配置专为 TDengine 数据库的性能基准测试 而设计。它适用于模拟大规模物联网设备（如电表、传感器）持续产生高频数据的场景，用于：
+- 测试和评估 TDengine 集群在海量时间序列数据写入压力下的吞吐量、延迟和稳定性。
+- 验证数据库 schema 设计、资源规划以及不同硬件配置下的性能表现。
+- 为工业物联网等领域的系统容量规划提供数据支撑。
 
 ```yaml
-global:
-  confirm_prompt: false
-  log_dir: log/
-  cfg_dir: /etc/taos/
+tdengine:
+  dsn: taos+ws://root:taosdata@127.0.0.1:6041/tsbench
+  drop_if_exists: true
+  props: precision 'ms' vgroups 4
 
-  # Common structure definition
-  connection_info: &db_conn
-    host: 127.0.0.1
-    port: 6030
-    user: root
-    password: taosdata
-    pool:
-      enabled: true
-      max_size: 10
-      min_size: 2
-      connection_timeout: 1000
-
-  data_format: &data_format
-    format_type: sql
-
-  data_channel: &data_channel
-    channel_type: native
-
-  database_info: &db_info
-    name: tsbench
-    drop_if_exists: true
-    properties: precision 'ms' vgroups 4
-
-  super_table_info: &stb_info
-    name: meters
-    columns: &columns_info
-      - name: current
-        type: float
-        min: 0
-        max: 100
-      - name: voltage
-        type: int
-        min: 200
-        max: 240
-      - name: phase
-        type: float
-        min: 0
-        max: 360
-    tags: &tags_info
-      - name: groupid
-        type: int
-        min: 1
-        max: 10
-      - name: location
-        type: binary(24)
-
-  tbname_generator: &tbname_generator
-    prefix: d
-    count: 100000
-    from: 0
-
-concurrency: 4
-
-jobs:
-  # Create database job
-  create-database:
-    name: Create Database
-    needs: []
-    steps:
-      - name: Create Database
-        uses: actions/create-database
-        with:
-          connection_info: *db_conn
-          database_info: *db_info
-
-  # Create super table job
-  create-super-table:
-    name: Create Super Table
-    needs: [create-database]
-    steps:
-      - name: Create Super Table
-        uses: actions/create-super-table
-        with:
-          connection_info: *db_conn
-          database_info: *db_info
-          super_table_info: *stb_info
-
-  # Create child table job
-  create-second-child-table:
-    name: Create Second Child Table
-    needs: [create-super-table]
-    steps:
-      - name: Create Second Child Table
-        uses: actions/create-child-table
-        with:
-          connection_info: *db_conn
-          database_info: *db_info
-          super_table_info: *stb_info
-          child_table_info:
-            table_name:
-              source_type: generator
-              generator: *tbname_generator
-            tags:
-              source_type: generator
-              generator:
-                schema: *tags_info
-          batch:
-            size: 1000
-            concurrency: 10
-
-  # Insert data job
-  insert-second-data:
-    name: Insert Second-Level Data
-    needs: [create-second-child-table]
-    steps:
-      - name: Insert Second-Level Data
-        uses: actions/insert-data
-        with:
-          # source
-          source:
-            table_name:
-              source_type: generator
-              generator: *tbname_generator
-            columns:
-              source_type: generator
-              generator:
-                schema: *columns_info
-
-                timestamp_strategy:
-                  generator:
-                    start_timestamp: 1700000000000
-                    timestamp_precision : ms
-                    timestamp_step: 1
-
-          # target
-          target:
-            target_type: tdengine
-            tdengine:
-              connection_info: *db_conn
-              database_info: *db_info
-              super_table_info: *stb_info
-
-          # control
-          control:
-            data_format:
-              format_type: stmt
-              stmt:
-                version: v2
-            data_channel:
-              channel_type: native
-            data_generation:
-              interlace_mode:
-                enabled: true
-                rows: 1
-              generate_threads: 1
-              per_table_rows: 100
-              queue_capacity: 100
-              queue_warmup_ratio: 0.5
-            insert_control:
-              per_request_rows: 10000
-              auto_create_table: false
-              insert_threads: 1
-```
-
-### CSV文件方式生成数据 stmt v2 写入 TDengine 实例
-
-```yaml
-global:
-  confirm_prompt: false
-  log_dir: log/
-  cfg_dir: /etc/taos/
-
-  # Common structure definition
-  connection_info: &db_conn
-    host: 127.0.0.1
-    port: 6030
-    user: root
-    password: taosdata
-    pool:
-      enabled: true
-      max_size: 10
-      min_size: 2
-      connection_timeout: 1000
-
-  data_format: &data_format
-    format_type: sql
-
-  data_channel: &data_channel
-    channel_type: native
-
-  database_info: &db_info
-    name: tsbench
-    drop_if_exists: true
-    properties: precision 'ms' vgroups 4
-
-  super_table_info: &stb_info
-    name: meters
-    columns: &columns_info
-      - name: current
-        type: float
-        min: 0
-        max: 100
-      - name: voltage
-        type: int
-        min: 200
-        max: 240
-      - name: phase
-        type: float
-        min: 0
-        max: 360
-    tags: &tags_info
-      - name: groupid
-        type: int
-        min: 1
-        max: 10
-      - name: location
-        type: binary(24)
-
-  tbname_generator: &tbname_generator
-    prefix: d
-    count: 100000
-    from: 0
-
-concurrency: 4
-
-jobs:
-  # Create database job
-  create-database:
-    name: Create Database
-    needs: []
-    steps:
-      - name: Create Database
-        uses: actions/create-database
-        with:
-          connection_info: *db_conn
-          database_info: *db_info
-
-  # Create super table job
-  create-super-table:
-    name: Create Super Table
-    needs: [create-database]
-    steps:
-      - name: Create Super Table
-        uses: actions/create-super-table
-        with:
-          connection_info: *db_conn
-          database_info: *db_info
-          super_table_info: *stb_info
-
-  # Create child table job
-  create-second-child-table:
-    name: Create Second Child Table
-    needs: [create-super-table]
-    steps:
-      - name: Create Second Child Table
-        uses: actions/create-child-table
-        with:
-          connection_info: *db_conn
-          database_info: *db_info
-          super_table_info: *stb_info
-          child_table_info:
-            table_name:
-              source_type: csv
-              csv:
-                file_path: ../src/parameter/conf/ctb-tags.csv
-                tbname_index: 2
-            tags:
-              source_type: csv
-              csv:
-                schema: *tags_info
-                file_path: ../src/parameter/conf/ctb-tags.csv
-                exclude_indices: 2
-          batch:
-            size: 1000
-            concurrency: 10
-
-  # Insert data job
-  insert-second-data:
-    name: Insert Second-Level Data
-    needs: [create-second-child-table]
-    steps:
-      - name: Insert Second-Level Data
-        uses: actions/insert-data
-        with:
-          # source
-          source:
-            table_name:
-              source_type: csv
-              csv:
-                file_path: ../src/parameter/conf/ctb-tags.csv
-                tbname_index: 2
-            columns:
-              source_type: csv
-              csv:
-                schema: *columns_info
-                file_path: ../src/parameter/conf/ctb-data.csv
-                tbname_index : 0
-
-                timestamp_strategy:
-                  strategy_type: generator
-                  generator:
-                    start_timestamp: 1700000000000
-                    timestamp_precision : ms
-                    timestamp_step: 1
-
-          # target
-          target:
-            target_type: tdengine
-            tdengine:
-              connection_info: *db_conn
-              database_info: *db_info
-              super_table_info: *stb_info
-
-          # control
-          control:
-            data_format:
-              format_type: stmt
-              stmt:
-                version: v2
-            data_channel:
-              channel_type: native
-            data_generation:
-              interlace_mode:
-                enabled: true
-                rows: 1
-              generate_threads: 1
-              per_table_rows: 100
-              queue_capacity: 100
-              queue_warmup_ratio: 0.0
-            insert_control:
-              per_request_rows: 10000
-              insert_threads: 1
-```
-
-其中：
-- `ctb-tags.csv` 文件内容为：
-
-```csv
-groupid,location,tbname
-1,loc1,d1
-2,loc2,d2
-3,loc3,d3
-```
-
-- `ctb-data.csv` 文件内容为：
-
-```csv
-tbname,current,voltage,phase
-d1,11,200,1001
-d3,13,201,3001
-d2,12,202,2001
-d3,23,203,3002
-d2,22,204,2002
-d1,21,205,1002
-```
-
-### 生成器方式生成数据并写入 MQTT 示例
-
-```yaml
-global:
-  confirm_prompt: false
-
-  super_table_info: &stb_info
-    name: meters
-    columns: &columns_info
-      - name: current
-        type: float
-        min: 0
-        max: 100
-      - name: voltage
-        type: int
-        min: 200
-        max: 240
-      - name: phase
-        type: float
-        min: 0
-        max: 360
-      - name: state
-        type: varchar(20)
-        values:
-          - "normal"
-          - "warning"
-          - "critical"
-
-  tbname_generator: &tbname_generator
+schema:
+  name: meters
+  tbname:
     prefix: d
     count: 10000
     from: 0
-
-concurrency: 1
+  columns:
+    - name: ts
+      type: timestamp
+      start: 1700000000000
+      precision : ms
+      step: 300s
+    - name: current
+      type: float
+      min: 0
+      max: 100
+    - name: voltage
+      type: int
+      expr: 220 * math.sqrt(2) * math.sin(_i)
+    - name: phase
+      type: float
+      min: 0
+      max: 360
+  tags:
+    - name: groupid
+      type: int
+      min: 1
+      max: 10
+    - name: location
+      type: binary(24)
+      values:
+        - New York
+        - Los Angeles
+        - Chicago
+        - Houston
+        - Phoenix
+        - Philadelphia
+        - San Antonio
+        - San Diego
+        - Dallas
+        - Austin
+  generation:
+    interlace: 1
+    per_table_rows: 10000
+    per_batch_rows: 10000
 
 jobs:
-  # Insert data job
-  insert-into-mqtt:
-    name: Insert Data Into MQTT
+  # TDengine insert job
+  insert-data:
+    steps:
+      - uses: tdengine/create-super-table
+      - uses: tdengine/create-child-table
+        with:
+          batch:
+            size: 1000
+            concurrency: 10
+
+      - uses: tdengine/insert-data
+        with:
+          concurrency: 8
+```
+
+### CSV文件方式生成数据 STMT 方式写入 TDengine 实例
+
+该示例展示了如何使用 taosgen 工具模拟一万台智能电表，每台智能电表采集电流、电压、相位三个物理量， 它们每隔 5 分钟产生一条记录，测点数据读取自 CSV 文件，采用 WebSocket 的方式写入 TDengine TSDB 的 tsbench 数据库的超级表 meters。
+
+配置详解：
+- TDengine 配置参数
+  - 连接信息: 通过 DSN 定义数据库连接相关参数。
+  - 数据库的属性：定义是否重新创建数据库，设置时间精度为毫秒，4个 vgroup。
+- schema 配置参数
+  - 名称：指定超极表的名称。
+  - from_csv 配置定义了子表名称、标签列和时序数据列的来源。
+    - 子表名称：使用文件 ctb-tags.csv 中索引为 2 的列。
+    - 标签数据：使用文件 ctb-tags.csv 中排除子表名称列之外的所有列。
+    - 时间戳：使用文件 ctb-data.csv 中索引为 1 的列，且在原始数据基础上增加 10 秒。
+    - 时序数据：使用文件 ctb-data.csv 中的数据，该文件第 0 列为子表名，用于关联数据与子表。。
+  - 超级表字段结构信息: 定义超级表结构，包含3个普通列（电流、电压、相位）和2个标签列（组ID、位置）。
+  - 数据生成行为：使用交错模式写入，每张子表写入 1 万条记录，每批写入请求最大行数为 1 万行。
+- 创建子表：指定 10 线程并发创建子表，每批发送 1000 个子表创建请求。
+- 数据写入：使用默认的 stmt (参数化写入) 格式、8 线程并发写入数据，极大提升了批量数据写入的性能。
+
+场景说明：
+
+此配置专为从现有CSV文件导入设备元数据和历史数据到TDengine数据库而设计。它适用于以下场景：
+- 数据迁移: 将已收集存储于CSV文件中的设备元数据（标签）和历史监测数据迁移至TDengine数据库。
+- 系统初始化: 为新的监控系统初始化一批设备及其历史数据，用于系统测试、演示或回溯分析。
+- 数据回放: 通过重新注入历史数据，模拟实时数据流，用于测试系统处理能力或重现特定历史场景。
+
+
+```yaml
+tdengine:
+  dsn: taos+ws://root:taosdata@127.0.0.1:6041/tsbench
+  drop_if_exists: true
+  props: precision 'ms' vgroups 4
+
+schema:
+  name: meters
+  from_csv:
+    tags:
+      file_path: ../conf/ctb-tags.csv
+      tbname_index: 2
+      exclude_indices:
+    columns:
+      file_path: ../conf/ctb-data.csv
+      tbname_index : 0
+      timestamp_index: 1
+      timestamp_precision: ms
+      timestamp_offset:
+        offset_type: relative
+        value: +10s
+      repeat_read: false
+  columns:
+    - name: ts
+      type: timestamp
+      start: 1700000000000
+      precision : ms
+      step: 300s
+    - name: current
+      type: float
+    - name: voltage
+      type: int
+    - name: phase
+      type: float
+  tags:
+    - name: groupid
+      type: int
+    - name: location
+      type: binary(24)
+  generation:
+    interlace: 1
+    per_table_rows: 10000
+    per_batch_rows: 10000
+
+jobs:
+  # TDengine insert job
+  insert-data:
     needs: []
     steps:
-      - name: Insert Data Into MQTT
-        uses: actions/insert-data
+      - uses: tdengine/create-super-table
+      - uses: tdengine/create-child-table
         with:
-          # source
-          source:
-            table_name:
-              source_type: generator
-              generator: *tbname_generator
-            columns:
-              source_type: generator
-              generator:
-                schema: *columns_info
+          batch:
+            size: 1000
+            concurrency: 10
+      - uses: tdengine/insert-data
+        with:
+          concurrency: 8
+```
 
-                timestamp_strategy:
-                  generator:
-                    start_timestamp: 1700000000000
-                    timestamp_precision : ms
-                    timestamp_step: 1
+其中：
+- `ctb-tags.csv` 文件内容格式为：
 
-          # target
-          target:
-            target_type: mqtt
-            mqtt:
-              host: localhost
-              port: 1883
-              user: testuser
-              password: testpassword
-              client_id: mqtt_client
-              keep_alive: 60
-              clean_session: true
-              qos: 1
-              topic: factory/{table}/{state}/data
+```csv
+groupid,location,tbname
+1,California.Campbell,d1
+2,Texas.Austin,d2
+3,NewYork.NewYorkCity,d3
+```
 
-          # control
-          control:
-            data_format:
-              format_type: stmt
-              stmt:
-                version: v2
-            data_channel:
-              channel_type: native
-            data_generation:
-              interlace_mode:
-                enabled: true
-                rows: 1
-              generate_threads: 1
-              per_table_rows: 1000
-              queue_capacity: 10
-              queue_warmup_ratio: 0.00
-            insert_control:
-              per_request_rows: 10
-              insert_threads: 8
+- `ctb-data.csv` 文件内容格式为：
+
+```csv
+tbname,current,voltage,phase
+tbname,ts,current,voltage,phase
+d1,1700000010000,5.23,221.5,146.2
+d3,1700000030000,8.76,219.8,148.7
+d2,1700000020000,12.45,223.1,147.3
+d3,1700000030001,9.12,220.3,149.1
+d2,1700000020001,11.87,222.7,145.8
+d1,1700000010001,4.98,220.9,147.9
+```
+
+### 生成器方式生成数据并发布数据到 MQTT Broker 示例
+
+该示例展示了如何使用 taosgen 工具模拟一万台智能电表，每台智能电表采集电流、电压、相位、状态四个物理量，它们每隔 5 分钟产生一条记录，电流的数据用随机数，电压用正弦波模拟，产生的这些数据通过 MQTT 协议进行发布。
+
+配置详解：
+- MQTT 配置参数
+  - 连接信息: 使用 URI 描述连接 MQTT Broker 的信息。
+  - 主题配置 (topic): 使用动态主题 factory/`{table}`/`{state}`，其中：
+    - `{table}` 占位符将被实际生成的子表名称替换。
+    - `{state}` 占位符将被生成的 state 列值替换，实现按设备状态发布到不同主题。
+  - qos: 服务质量等级设置为 1（至少交付一次）。
+- schema 配置参数
+  - 名称：指定 schema 的名称。
+  - 表名称：定义生成一万张表名称的规则，格式为 d0 到 d9999。虽然不直接创建数据库表，此处表作为逻辑概念用来组织数据。
+  - 表字段结构信息: 定义数据表结构，包含4个普通列（电流、电压、相位、设备状态）。
+    - 时间戳: 配置了时间戳生成策略，从指定时间戳 1700000000000 (2023-11-14 22:13:20 UTC) 开始，以 5 分钟的步长递增。
+    - 时序数据: current、phase 和 state 使用指定范围的随机数，voltage 使用正弦波模拟。
+  - 数据生成行为：使用交错模式写入，每张表写入 1 万条记录，每批写入请求最大行数为 1000 行。
+- 数据发布：使用 8 线程并发向 MQTT Broker 发布数据，提高吞吐量。
+
+场景说明：
+
+此配置专为向 MQTT 消息代理发布模拟设备数据而设计。它适用于以下场景：
+- MQTT 消费者测试: 模拟大量设备向 MQTT 代理发布数据，用于测试 MQTT 消费者端的处理能力、负载均衡和稳定性。
+- 物联网平台演示: 快速构建一个模拟的物联网环境，展示设备数据如何通过 MQTT 协议接入平台。
+- 规则引擎测试: 结合 MQTT 主题的动态特性（如按设备状态路由），测试基于 MQTT 的主题订阅和消息路由规则。
+- 实时数据流模拟: 模拟实时产生的设备数据流，用于测试流处理框架的数据消费和处理能力。
+
+
+```yaml
+mqtt:
+  uri: tcp://localhost:1883
+  user: root
+  password: taosdata
+  topic: factory/{table}/{state}
+  qos: 0
+
+schema:
+  name: meters
+  tbname:
+    prefix: d
+    count: 10000
+    from: 0
+  columns:
+    - name: ts
+      type: timestamp
+      start: 1700000000000
+      precision : ms
+      step: 300s
+    - name: current
+      type: float
+      min: 0
+      max: 100
+    - name: voltage
+      type: int
+      expr: 220 * math.sqrt(2) * math.sin(_i)
+    - name: phase
+      type: float
+      min: 0
+      max: 360
+    - name: state
+      type: varchar(20)
+      values:
+        - "normal"
+        - "warning"
+        - "critical"
+  generation:
+    interlace: 1
+    concurrency: 1
+    per_table_rows: 10000
+    per_batch_rows: 1000
+
+jobs:
+  # MQTT publish job
+  publish-data:
+    steps:
+      - uses: mqtt/publish-data
+        with:
+          concurrency: 8
 ```
