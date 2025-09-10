@@ -35,7 +35,7 @@ public:
     // Get global config and connection info
     const ConfigData& get_config_data() const;
     const GlobalConfig& get_global_config() const;
-    const TDengineConfig& get_connection_info() const;
+    const TDengineConfig& get_tdengine() const;
     const DatabaseInfo& get_database_info() const;
     const SuperTableInfo& get_super_table_info() const;
 

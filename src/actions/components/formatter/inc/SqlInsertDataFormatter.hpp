@@ -19,7 +19,9 @@ public:
 
     FormatResult format(const InsertDataConfig& config,
                         const ColumnConfigInstanceVector& col_instances,
-                        MemoryPool::MemoryBlock* batch) const override{
+                        MemoryPool::MemoryBlock* batch, bool is_checkpoint_recover = false) const override{
+                            
+        (void)is_checkpoint_recover;
         if (!batch || batch->total_rows == 0) {
             return FormatResult("");
         }

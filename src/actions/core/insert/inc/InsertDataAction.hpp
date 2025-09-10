@@ -27,7 +27,8 @@ private:
     const GlobalConfig& global_;
     InsertDataConfig config_;
     ColumnConfigInstanceVector col_instances_;
-
+    bool is_checkpoint_recover_ = false;
+    
     void set_realtime_priority();
     void set_thread_affinity(size_t thread_id, bool reverse = false, const std::string& purpose = "");
 

@@ -17,7 +17,7 @@ void test_commandline_merge() {
     };
     ctx.merge_commandline(5, const_cast<char**>(argv));
 
-    const auto& conn_info = ctx.get_connection_info();
+    const auto& conn_info = ctx.get_tdengine();
     (void)conn_info;
     assert(conn_info.host == "127.0.0.1");
     assert(conn_info.port == 6041);
@@ -33,7 +33,7 @@ void test_environment_merge() {
     setenv("TAOS_PORT", "6042", 1);
     ctx.merge_environment_vars();
 
-    const auto& conn_info = ctx.get_connection_info();
+    const auto& conn_info = ctx.get_tdengine();
     (void)conn_info;
     assert(conn_info.host == "192.168.1.100");
     assert(conn_info.port == 6042);
@@ -269,7 +269,7 @@ global:
     ctx.merge_commandline(2, const_cast<char**>(argv));
 
     // Validate priority
-    assert(ctx.get_config_data().global.connection_info.host == "cli.host");
+    assert(ctx.get_tdengine().host == "cli.host");
     std::cout << "Priority test passed.\n";
 }
 

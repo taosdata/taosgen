@@ -14,6 +14,7 @@ struct GlobalConfig {
     bool verbose = false;
     std::string log_dir = "log/";
     std::string cfg_dir = "/etc/taos/";
+    std::string yaml_cfg_dir = "./";
     TDengineConfig connection_info;
     DataFormat data_format;
     DataChannel data_channel;

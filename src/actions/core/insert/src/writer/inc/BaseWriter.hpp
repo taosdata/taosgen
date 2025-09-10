@@ -3,10 +3,12 @@
 #include "TimeIntervalStrategy.hpp"
 #include "TimeRecorder.hpp"
 #include <functional>
+#include "CheckpointAction.hpp"
+#include "ActionRegisterInfo.hpp"
 
 class BaseWriter : public IWriter {
 public:
-    explicit BaseWriter(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances);
+    explicit BaseWriter(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances, std::shared_ptr<ActionRegisterInfo> action_info = nullptr);
     virtual ~BaseWriter() = default;
 
     // Public method implementations
@@ -42,7 +44,9 @@ protected:
     void apply_time_interval_strategy(int64_t current_start, int64_t current_end);
     std::string get_format_description() const;
     void update_write_state(const BaseInsertData& data, bool success);
-
+    void notify(const BaseInsertData& data, bool success);
+    std::shared_ptr<ActionRegisterInfo> action_info_;
+    
     template<typename Func>
     bool execute_with_retry(Func&& operation, const std::string& error_context) {
         const size_t MAX_RETRIES = config_.failure_handling.max_retries;

@@ -3,7 +3,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <sstream>
-
+#include "CheckpointAction.hpp"
 
 ParameterContext::ParameterContext() {}
 
@@ -187,7 +187,11 @@ void ParameterContext::prepare_work() {
                     .uses = "tdengine/create-database",
                     .with = YAML::Node(YAML::NodeType::Map),
                     .action_config = CreateDatabaseConfig{
-                        .tdengine = job.tdengine
+                        .tdengine = job.tdengine,
+                        .checkpoint_info = CheckpointInfo{
+                            .enabled = false,
+                            .interval_sec = 60
+                        }
                     }
                 }
             );
@@ -232,6 +236,7 @@ void ParameterContext::parse_steps(const YAML::Node& steps_yaml, Job& job) {
             parse_td_create_child_table_action(job, step);
         } else if (step.uses == "tdengine/insert-data") {
             parse_comm_insert_data_action(job, step, "tdengine");
+            CheckpointAction::checkpoint_recover(config_data.global, std::get<InsertDataConfig>(step.action_config));
         } else if (step.uses == "mqtt/publish-data") {
             parse_comm_insert_data_action(job, step, "mqtt");
         }
@@ -253,6 +258,10 @@ void ParameterContext::parse_td_create_database_action(Job& job, Step& step) {
 
     create_db_config.tdengine = job.tdengine;
 
+    // Parse database_info (required)
+    if (step.with["checkpoint"]) {
+        create_db_config.checkpoint_info = step.with["checkpoint"].as<CheckpointInfo>();
+    }
     // Print parse result
     std::cout << "Parsed create-database action: " << create_db_config.tdengine.database << std::endl;
 
@@ -510,6 +519,7 @@ void ParameterContext::merge_yaml(const std::string& file_path) {
         // Load and parse the YAML file
         YAML::Node config = YAML::LoadFile(file_path);
         // Call the existing merge_yaml function with the parsed YAML node
+        config_data.global.yaml_cfg_dir = file_path;
         merge_yaml(config);
     } catch (const YAML::Exception& e) {
         throw std::runtime_error("Failed to parse YAML file '" + file_path + "': " + e.what());
@@ -678,6 +688,7 @@ void ParameterContext::merge_commandline(int argc, char* argv[]) {
 void ParameterContext::merge_commandline() {
     // Map command line parameters to global config
     auto& tdengine = config_data.global.tdengine;
+    auto& mqtt = config_data.global.mqtt;
     if (cli_params.count("--host"))
         tdengine.host = cli_params["--host"];
 
@@ -688,11 +699,15 @@ void ParameterContext::merge_commandline() {
             throw std::runtime_error("Invalid port number: " + cli_params["--port"]);
         }
     }
-    if (cli_params.count("--user"))
+    if (cli_params.count("--user")) {
         tdengine.user = cli_params["--user"];
+        mqtt.user = cli_params["--user"];
+    }
 
-    if (cli_params.count("--password"))
+    if (cli_params.count("--password")) {
         tdengine.password = cli_params["--password"];
+        mqtt.password = cli_params["--password"];
+    }
 
     if (cli_params.count("--verbose")) {
         config_data.global.verbose = true;
@@ -708,15 +723,23 @@ void ParameterContext::merge_environment_vars() {
         {"TAOS_PASSWORD", "password"}
     };
 
-    auto& conn_info = config_data.global.connection_info;
+    auto& tdengine = config_data.global.tdengine;
+    auto& mqtt = config_data.global.mqtt;
     // Iterate environment variables and update connection info
     for (const auto& [env_var, key] : env_mappings) {
         const char* env_value = std::getenv(env_var.c_str());
         if (env_value) {
-            if (key == "host") conn_info.host = env_value;
-            else if (key == "port") conn_info.port = std::stoi(env_value);
-            else if (key == "user") conn_info.user = env_value;
-            else if (key == "password") conn_info.password = env_value;
+            if (key == "host") {
+                tdengine.host = env_value;
+            } else if (key == "port") {
+                tdengine.port = std::stoi(env_value);
+            } else if (key == "user") {
+                tdengine.user = env_value;
+                mqtt.user = env_value;
+            } else if (key == "password") {
+                tdengine.password = env_value;
+                mqtt.password = env_value;
+            }
         }
     }
 }
@@ -747,8 +770,8 @@ const GlobalConfig& ParameterContext::get_global_config() const {
     return config_data.global;
 }
 
-const TDengineConfig& ParameterContext::get_connection_info() const {
-    return config_data.global.connection_info;
+const TDengineConfig& ParameterContext::get_tdengine() const {
+    return config_data.global.tdengine;
 }
 
 const DatabaseInfo& ParameterContext::get_database_info() const {

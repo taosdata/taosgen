@@ -5,6 +5,7 @@
 #include "ColumnsConfig.hpp"
 #include "TDengineConfig.hpp"
 #include "MqttConfig.hpp"
+#include "CheckpointInfo.hpp"
 #include "DatabaseInfo.hpp"
 #include "SuperTableInfo.hpp"
 #include "DataFormat.hpp"
@@ -49,4 +50,6 @@ struct InsertDataConfig {
             int max_interval = -1;                  // Maximum interval threshold
         } dynamic_interval;
     } time_interval;
+
+    CheckpointInfo checkpoint_info;
 };

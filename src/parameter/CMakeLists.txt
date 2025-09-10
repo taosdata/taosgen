@@ -9,12 +9,15 @@ target_include_directories(parameter
     ${CMAKE_CURRENT_SOURCE_DIR}/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../workflow/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../actions/config/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../actions/core/checkpoint/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../actions/base
 )
 
 # Link dependent libraries
 target_link_libraries(parameter
   PUBLIC
     actions_config
+    core_checkpoint
     yaml-cpp::yaml-cpp
 )
 

@@ -16,12 +16,14 @@ target_include_directories(core_create
     ${CMAKE_CURRENT_SOURCE_DIR}/../../components/formatter/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../components/generator/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../components/reader/csv/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../checkpoint/inc
 )
 
 # Link dependencies
 target_link_libraries(core_create
   PUBLIC
     actions_config
+    core_checkpoint
     components_connector
     components_formatter
     components_generator

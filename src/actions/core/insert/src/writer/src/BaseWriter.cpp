@@ -3,12 +3,13 @@
 #include <chrono>
 #include <iostream>
 
-BaseWriter::BaseWriter(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances)
+BaseWriter::BaseWriter(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances, std::shared_ptr<ActionRegisterInfo> action_info)
     : config_(config), col_instances_(col_instances),
       timestamp_precision_(config.timestamp_precision),
       time_strategy_(config.time_interval, config.timestamp_precision),
       start_write_time_(std::chrono::steady_clock::now()),
-      end_write_time_(std::chrono::steady_clock::now()) {
+      end_write_time_(std::chrono::steady_clock::now()),
+      action_info_(action_info) {
 
     // Validate timestamp precision
     if (timestamp_precision_.empty()) {
@@ -41,6 +42,17 @@ void BaseWriter::update_write_state(const BaseInsertData& data, bool /* success 
     last_start_time_ = data.start_time;
     last_end_time_ = data.end_time;
     first_write_ = false;
+}
+
+void BaseWriter::notify(const BaseInsertData& data, bool success) {
+    if (action_info_ && action_info_->action && success) {
+        std::shared_ptr<ActionBase>& ptr = action_info_->action.value();
+        if (ptr) {
+            const auto& checkpoint_data = data.get_block()->checkpoint_data_list_;
+            std::any payload = std::cref(checkpoint_data);
+            ptr->notify(payload);
+        }
+    } 
 }
 
 void BaseWriter::update_play_metrics(const BaseInsertData& data) {

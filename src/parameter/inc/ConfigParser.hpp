@@ -447,6 +447,31 @@ namespace YAML {
     };
 
     template<>
+    struct convert<CheckpointInfo> {
+        static bool decode(const Node& node, CheckpointInfo& rhs) {
+            // Detect unknown configuration keys
+            static const std::set<std::string> valid_keys = {
+                "enabled", "interval_sec"
+            };
+            check_unknown_keys(node, valid_keys, "checkpoint_info");
+
+            if (node["enabled"]) {
+                rhs.enabled = node["enabled"].as<bool>();
+            }
+            if (rhs.enabled) {
+                if (node["interval_sec"]) {
+                    rhs.interval_sec = node["interval_sec"].as<size_t>();
+                    if (rhs.interval_sec == 0) {
+                        throw std::runtime_error("interval_sec must be greater than 0 in checkpoint_info.");
+                    }
+                }
+            }
+
+            return true;
+        }
+    };
+
+    template<>
     struct convert<ColumnConfig> {
         static bool decode(const Node& node, ColumnConfig& rhs) {
             // Detect unknown configuration keys
@@ -794,7 +819,8 @@ namespace YAML {
                 rhs.timestamp_precision = node["timestamp_precision"].as<std::string>();
             }
             if (node["timestamp_step"]) {
-                rhs.timestamp_step = node["timestamp_step"].as<int>();
+                rhs.timestamp_step = node["timestamp_step"].as<std::string>();
+                rhs.timestamp_step = TimestampUtils::parse_step(rhs.timestamp_step, rhs.timestamp_precision);
             }
             return true;
         }
@@ -1298,7 +1324,6 @@ namespace YAML {
         }
     };
 
-
     template<>
     struct convert<QueryDataConfig::Control::QueryControl> {
         static bool decode(const Node& node, QueryDataConfig::Control::QueryControl& rhs) {
@@ -1336,7 +1361,6 @@ namespace YAML {
             return true;
         }
     };
-
 
     template<>
     struct convert<QueryDataConfig::Control> {
@@ -1629,7 +1653,7 @@ namespace YAML {
             static const std::set<std::string> valid_keys = {
                 "tdengine", "mqtt", "schema", "target", "format",
                 "concurrency", "queue_capacity", "queue_warmup_ratio",
-                "failure_handl  ing", "time_interval"
+                "failure_handling", "time_interval", "checkpoint"
             };
             check_unknown_keys(node, valid_keys, "tdengine/insert-data");
 
@@ -1697,6 +1721,10 @@ namespace YAML {
 
             if (node["time_interval"]) {
                 rhs.time_interval = node["time_interval"].as<InsertDataConfig::TimeInterval>();
+            }
+
+            if (node["checkpoint"]) {
+                rhs.checkpoint_info = node["checkpoint"].as<CheckpointInfo>();
             }
 
             return true;

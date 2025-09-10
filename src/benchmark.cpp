@@ -1,9 +1,19 @@
 #include <iostream>
 #include "ParameterContext.hpp"
 #include "JobScheduler.hpp"
+#include <csignal>
+#include "actions/core/checkpoint/inc/CheckpointAction.hpp"
 
+
+void signal_handler(int signum) {
+    std::cout << "\nInterrupt signal (" << signum << ") received. Shutting down gracefully..." << std::endl;
+    CheckpointAction::stop_all(true);
+    exit(signum);
+}
 
 int main(int argc, char* argv[]) {
+    signal(SIGINT, signal_handler);
+    signal(SIGTERM, signal_handler);
     try {
         // 1. Create parameter context and initialize
         ParameterContext context;

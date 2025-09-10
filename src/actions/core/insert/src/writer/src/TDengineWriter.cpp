@@ -5,8 +5,8 @@
 #include <thread>
 #include <iostream>
 
-TDengineWriter::TDengineWriter(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances, size_t)
-    : BaseWriter(config, col_instances) {}
+TDengineWriter::TDengineWriter(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances, size_t no, std::shared_ptr<ActionRegisterInfo> action_info)
+    : BaseWriter(config, col_instances, action_info), no_(no) {}
 
 TDengineWriter::~TDengineWriter() {
     close();
@@ -84,7 +84,7 @@ bool TDengineWriter::write(const BaseInsertData& data) {
     }
 
     update_write_state(data, success);
-
+    notify(data, success);
     return success;
 }
 
