@@ -40,7 +40,8 @@ taosgen -h 192.168.1.1 -c config.yaml
 | -u/--user \<user>             | 指定用于连接服务器的用户名，默认为 root |
 | -p/--password \<passwd>       | 指定用于连接服务服务器的密码，默认值为 taosdata |
 | -c/--config-file \<yaml file> | 指定 yaml 格式配置文件的路径 |
-| -?/--help                     | 显示帮助信息并退出|
+| -?/--help                     | 显示帮助信息并退出 |
+| -V/--version                  | 显示版本信息并退出。不能与其它参数混用 |
 
 提示：当没有指定参数运行 taosgen 时，默认行为是：
 - 创建 TDengine 数据库 tsbench。
@@ -233,7 +234,7 @@ taosgen -h 192.168.1.1 -c config.yaml
 - schema：默认使用全局的 schema 配置信息，当需要差异化时可在此行动下单独定义。
 - format（字符串）：描述数据写入时使用的格式，可选值为：sql、stmt，默认使用 stmt。
 - concurrency（整数）：并发写入数据的线程数量，默认值为 8。
-- failure_handling（可选）：表示失败处理策略：
+- failure_handling：表示失败处理策略：
   - max_retries（整数）：最大重试次数，默认值为 0。
   - retry_interval_ms（整数）：重试间隔，单位为毫秒，默认值为 1000，仅在 max_retries > 0 时有效。
   - on_failure（字符串）：默认值为 exit，表示失败后的行为，可选值为：
@@ -439,7 +440,6 @@ schema:
 jobs:
   # TDengine insert job
   insert-data:
-    needs: []
     steps:
       - uses: tdengine/create-super-table
       - uses: tdengine/create-child-table

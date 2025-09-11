@@ -91,7 +91,6 @@ concurrency: 4
 jobs:
   create-database:
     name: Create Database
-    needs: []
     steps:
       - name: Create Database
         uses: tdengine/create-database

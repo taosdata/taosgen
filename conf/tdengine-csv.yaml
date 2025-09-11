@@ -44,7 +44,6 @@ schema:
 jobs:
   # TDengine insert job
   insert-data:
-    needs: []
     steps:
       - uses: tdengine/create-super-table
       - uses: tdengine/create-child-table

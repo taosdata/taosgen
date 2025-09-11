@@ -5,11 +5,11 @@ tdengine:
 
 schema:
   name: meters
-  tbname: &tbname
+  tbname:
     prefix: d
     count: 10000
     from: 0
-  columns: &columns
+  columns:
     - name: ts
       type: timestamp
       start: now
@@ -26,7 +26,7 @@ schema:
     - name: phase
       type: float
       expr: _i * math.pi % 180
-  tags: &tags
+  tags:
     - name: groupid
       type: int
       min: 1
@@ -44,7 +44,7 @@ schema:
         - San Diego
         - Dallas
         - Austin
-  generation: &generation
+  generation:
     interlace: 1
     per_table_rows: 100
     per_batch_rows: 10000
@@ -114,7 +114,6 @@ jobs:
   create-db:
     steps:
       - uses: tdengine/create-database
-
 
   # TDengine insert meters job
   insert-data-meters:
