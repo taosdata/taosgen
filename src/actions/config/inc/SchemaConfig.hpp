@@ -9,7 +9,7 @@
 
 struct SchemaConfig {
     bool enabled = false;
-    std::string name;
+    std::string name = "meters";
     FromCSVConfig from_csv;
     TableNameConfig tbname;
     ColumnConfigVector columns;
@@ -51,7 +51,6 @@ struct SchemaConfig {
             columns_cfg.source_type = "generator";
             columns_cfg.generator.schema = ColumnConfigVector(columns.begin() + 1, columns.end());
             columns_cfg.generator.timestamp_strategy.timestamp_config = columns[0].ts.generator;
-
         }
     }
 };

@@ -185,6 +185,33 @@ ColumnConfig::ColumnConfig(
     parse_type();
 }
 
+ColumnConfig::ColumnConfig(
+    const std::string& name,
+    const std::string& type,
+    ExpressionTag,
+    const std::string& expr
+) : name(name), type(type), gen_type("expression"), formula(expr) {
+    parse_type();
+}
+
+ColumnConfig::ColumnConfig(
+    const std::string& name,
+    const std::string& type,
+    std::vector<std::string> values
+) : name(name), type(type) {
+    set_values_from_strings(values);
+    parse_type();
+}
+
+ColumnConfig::ColumnConfig(
+    const std::string& name,
+    const std::string& type,
+    std::vector<double> values
+) : name(name), type(type) {
+    set_values_from_doubles(values);
+    parse_type();
+}
+
 void ColumnConfig::parse_type() {
     StringUtils::trim(type);
     std::string lower_type = StringUtils::to_lower(type);

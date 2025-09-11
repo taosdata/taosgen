@@ -363,10 +363,12 @@ namespace YAML {
             };
             check_unknown_keys(node, valid_keys, "schema");
 
-            if (!node["name"]) {
-                throw std::runtime_error("Missing required field 'name' in schema.");
+            // if (!node["name"]) {
+            //     throw std::runtime_error("Missing required field 'name' in schema.");
+            // }
+            if (node["name"]) {
+                rhs.name = node["name"].as<std::string>();
             }
-            rhs.name = node["name"].as<std::string>();
 
             if (node["from_csv"]) {
                 rhs.from_csv = node["from_csv"].as<FromCSVConfig>();
@@ -399,6 +401,13 @@ namespace YAML {
                     // throw std::runtime_error("The first column must be of type BIGINT or TIMESTAMP to serve as the timestamp column.");
                     rhs.columns.insert(rhs.columns.begin(), ColumnConfig("ts", "TIMESTAMP"));
                 }
+            } else {
+                rhs.columns = {
+                    ColumnConfig("ts", "TIMESTAMP", "ms", "1735660800000", "1"),
+                    ColumnConfig("current", "FLOAT", "random", 0, 100),
+                    ColumnConfig("voltage", "INT", "random", 200, 240),
+                    ColumnConfig("phase", "FLOAT", ExpressionTag(), "_i * math.pi % 180")
+                };
             }
 
             // if (!node["tags"]) {
@@ -406,6 +415,23 @@ namespace YAML {
             // }
             if (node["tags"]) {
                 rhs.tags = node["tags"].as<ColumnConfigVector>();
+            } else {
+                rhs.tags = {
+                    ColumnConfig("groupid", "INT", "random", 1, 10),
+                    ColumnConfig("location", "BINARY(24)", std::vector<std::string>{
+                            "New York",
+                            "Los Angeles",
+                            "Chicago",
+                            "Houston",
+                            "Phoenix",
+                            "Philadelphia",
+                            "San Antonio",
+                            "San Diego",
+                            "Dallas",
+                            "Austin"
+                        }
+                    )
+                };
             }
 
             if (node["generation"]) {

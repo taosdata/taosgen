@@ -9,6 +9,8 @@
 #include "StringUtils.hpp"
 
 
+struct ExpressionTag {};
+
 struct ColumnConfig {
     std::string name;
     std::string type;
@@ -52,6 +54,9 @@ struct ColumnConfig {
     ColumnConfig(const std::string& name, const std::string& type, std::optional<std::string> gen_type);
     ColumnConfig(const std::string& name, const std::string& type, std::optional<std::string> gen_type, std::optional<double> min, std::optional<double> max);
     ColumnConfig(const std::string& name, const std::string& type, const std::string& ts_precision, const std::string& ts_start, const std::string& ts_step);
+    ColumnConfig(const std::string& name, const std::string& type, ExpressionTag, const std::string& expr);
+    ColumnConfig(const std::string& name, const std::string& type, std::vector<std::string> values);
+    ColumnConfig(const std::string& name, const std::string& type, std::vector<double> values);
 
     static ColumnTypeTag get_type_tag(const std::string& type_str);
 

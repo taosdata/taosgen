@@ -9,7 +9,7 @@ struct MqttConfig {
     std::string password = "taosdata";
     std::string client_id= "taosgen";
 
-    std::string topic = "taosgen/{table}";
+    std::string topic = "tsbench/{table}";
     std::string compression = "";
     std::string encoding = "UTF-8";
     std::string timestamp_precision = "ms";

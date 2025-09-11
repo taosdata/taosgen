@@ -49,6 +49,7 @@ private:
     std::unordered_map<std::string, std::string> env_params;
 
     // Helper methods
+    void load_default_schema();
     void load_default_config();
     void parse_tdengine(const YAML::Node& td_yaml);
     void parse_mqtt(const YAML::Node& td_yaml);

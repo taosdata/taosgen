@@ -83,10 +83,8 @@ taosgen -h 192.168.1.1 -c config.yaml
   例如，precision ms vgroups 20 replica 3 keep 3650 分别设置了虚拟组数量、副本数及数据保留期限。
     - precision：
       指定数据库的时间精度，可选值为："ms"、"us"、"ns"。
-    - vgroups：
-      指定数据库的虚拟组的个数。
-    - replica：
-      指定数据库的副本格式。
+    - vgroups：指定数据库的虚拟组的个数。
+    - replica：指定数据库的副本格式。
   - pool：连接池配置，包含如下属性：
     - enabled（布尔）：表示是否启用连接池功能，默认值为 true，；
     - max_size（整型）：表示连接池的最大容量，默认值为 100；
@@ -98,7 +96,7 @@ taosgen -h 192.168.1.1 -c config.yaml
   - uri（字符串）：MQTT Broker 的 uri 地址，默认值为 tcp://localhost:1883。
   - username（字符串）：登录 Broker 的用户名。
   - password（字符串）：登录 Broker 的密码。
-  - topic（字符串）：要发布消息的 MQTT Topic，默认值为 taosgen/`{table}`。支持通过占位符语法发布到动态主题，占位符语法如下：
+  - topic（字符串）：要发布消息的 MQTT Topic，默认值为 tsbench/`{table}`。支持通过占位符语法发布到动态主题，占位符语法如下：
     - `{table}`：表示表名数据
     - `{column}`：表示列数据，column 是列字段名称
   - client_id（字符串）：客户端唯一标识符前缀，默认值为 taosgen。

@@ -289,26 +289,26 @@ tdengine:
   }
 }
 
-void test_missing_required_key_detection() {
-  YAML::Node config = YAML::Load(R"(
-schema:
-  tbname:
-    prefix: s
-    count: 1000
-    from: 200
-  tags:
-  columns:
-)");
-  ParameterContext ctx;
-  try {
-      ctx.merge_yaml(config);
-      assert(false && "Should throw on missing required field 'name' in schema");
-  } catch (const std::runtime_error& e) {
-      std::string msg = e.what();
-      assert(msg.find("Missing required field 'name' in schema") != std::string::npos);
-      std::cout << "Missing required key detection test passed.\n";
-  }
-}
+// void test_missing_required_key_detection() {
+//   YAML::Node config = YAML::Load(R"(
+// schema:
+//   tbname:
+//     prefix: s
+//     count: 1000
+//     from: 200
+//   tags:
+//   columns:
+// )");
+//   ParameterContext ctx;
+//   try {
+//       ctx.merge_yaml(config);
+//       assert(false && "Should throw on missing required field 'name' in schema");
+//   } catch (const std::runtime_error& e) {
+//       std::string msg = e.what();
+//       assert(msg.find("Missing required field 'name' in schema") != std::string::npos);
+//       std::cout << "Missing required key detection test passed.\n";
+//   }
+// }
 
 void test_nested_unknown_key_detection() {
   YAML::Node config = YAML::Load(R"(
@@ -335,14 +335,65 @@ schema:
   }
 }
 
+void test_load_default_schema() {
+  ParameterContext ctx;
+  YAML::Node config = YAML::Load(R"()");
+
+  ctx.merge_yaml(config);
+
+
+    // tbname
+    const auto& schema = ctx.get_global_config().schema;
+    assert(schema.name == "meters");
+    assert(schema.tbname.generator.prefix == "d");
+    assert(schema.tbname.generator.count == 10000);
+    assert(schema.tbname.generator.from == 0);
+
+    // columns
+    assert(schema.columns.size() == 4);
+    assert(schema.columns[0].name == "ts");
+    assert(schema.columns[0].type == "timestamp");
+    assert(schema.columns[1].name == "current");
+    assert(schema.columns[1].type == "float");
+    assert(schema.columns[1].min.value() == 0);
+    assert(schema.columns[1].max.value() == 100);
+    assert(schema.columns[2].name == "voltage");
+    assert(schema.columns[2].type == "int");
+    assert(schema.columns[2].min.value() == 200);
+    assert(schema.columns[2].max.value() == 240);
+    assert(schema.columns[3].name == "phase");
+    assert(schema.columns[3].type == "float");
+    assert(schema.columns[3].formula.value() == "_i * math.pi % 180");
+
+    // tags
+    assert(schema.tags.size() == 2);
+    assert(schema.tags[0].name == "groupid");
+    assert(schema.tags[0].type == "int");
+    assert(schema.tags[0].min.value() == 1);
+    assert(schema.tags[0].max.value() == 10);
+    assert(schema.tags[1].name == "location");
+    assert(schema.tags[1].type == "binary(24)");
+    assert(schema.tags[1].str_values.size() == 10);
+    assert(schema.tags[1].str_values[0] == "New York");
+    assert(schema.tags[1].str_values[9] == "Austin");
+
+    // generation
+    assert(schema.generation.interlace_mode.enabled == false);
+    assert(schema.generation.per_table_rows == 10000);
+    assert(schema.generation.per_batch_rows == 10000);
+
+    std::cout << "Default schema loaded test passed.\n";
+}
+
 int main() {
     test_commandline_merge();
     test_environment_merge();
     test_yaml_merge();
     test_priority();
     test_unknown_key_detection();
-    test_missing_required_key_detection();
+    // test_missing_required_key_detection();
     test_nested_unknown_key_detection();
+    test_load_default_schema();
 
     std::cout << "All tests passed!\n";
     return 0;
