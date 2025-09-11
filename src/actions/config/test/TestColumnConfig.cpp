@@ -29,7 +29,7 @@ void test_column_config_with_name_type() {
     ColumnConfig config("column1", "int");
     assert(config.name == "column1");
     assert(config.type == "int");
-    assert(config.gen_type == std::nullopt);
+    assert(config.gen_type == "random");
     assert(config.type_tag == ColumnTypeTag::INT);
 }
 

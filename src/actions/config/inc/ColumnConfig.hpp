@@ -22,7 +22,7 @@ struct ColumnConfig {
     std::optional<int> precision;
     std::optional<int> scale;
     std::optional<std::string> properties;
-    std::optional<std::string> gen_type;
+    std::optional<std::string> gen_type = "random";
     std::optional<float> null_ratio;
     std::optional<float> none_ratio;
 

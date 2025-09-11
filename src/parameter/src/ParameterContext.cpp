@@ -83,9 +83,9 @@ void ParameterContext::parse_schema(const YAML::Node& schema_yaml) {
     auto& global_config = config_data.global;
     global_config.schema = schema_yaml.as<SchemaConfig>();
 
-    if (!global_config.schema.tbname.enabled && !global_config.schema.from_csv.enabled) {
-        throw std::runtime_error("Missing required field 'tbname' or 'from_csv' in schema.");
-    }
+    // if (!global_config.schema.tbname.enabled && !global_config.schema.from_csv.enabled) {
+    //     throw std::runtime_error("Missing required field 'tbname' or 'from_csv' in schema.");
+    // }
 
     if (global_config.schema.columns.size() == 0) {
         throw std::runtime_error("Schema must have at least one column defined.");
