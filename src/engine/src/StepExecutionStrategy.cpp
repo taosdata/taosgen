@@ -21,7 +21,7 @@ void ProductionStepStrategy::execute(const Step& step) {
 
     } catch (const std::exception& e) {
         std::cerr << "Error executing step: " << step.name << " (" << step.uses << ")" << std::endl;
-        std::cerr << "Reason: Exception - " << e.what() << std::endl;
+        // std::cerr << "Reason: Exception - " << e.what() << std::endl;
         throw;
     }
 }
@@ -31,13 +31,13 @@ void ProductionStepStrategy::execute(const Step& step) {
 void DebugStepStrategy::execute(const Step& step) {
     std::cout << "Executing step: " << step.name << " (" << step.uses << ")" << std::endl;
 
-    if (step.uses == "actions/create-database") {
+    if (step.uses == "tdengine/create-database") {
         std::cout << "Action type: Create Database" << std::endl;
-    } else if (step.uses == "actions/create-super-table") {
+    } else if (step.uses == "tdengine/create-super-table") {
         std::cout << "Action type: Create Super Table" << std::endl;
-    } else if (step.uses == "actions/create-child-table") {
+    } else if (step.uses == "tdengine/create-child-table") {
         std::cout << "Action type: Create Child Table" << std::endl;
-    } else if (step.uses == "actions/insert-data") {
+    } else if (step.uses == "tdengine/insert-data") {
         std::cout << "Action type: Insert Data" << std::endl;
     } else if (step.uses == "actions/query-data") {
         std::cout << "Action type: Query Data" << std::endl;

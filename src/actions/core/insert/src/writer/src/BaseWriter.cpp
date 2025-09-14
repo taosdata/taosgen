@@ -5,8 +5,8 @@
 
 BaseWriter::BaseWriter(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances, std::shared_ptr<ActionRegisterInfo> action_info)
     : config_(config), col_instances_(col_instances),
-      timestamp_precision_(config.target.timestamp_precision),
-      time_strategy_(config.control.time_interval, config.target.timestamp_precision),
+      timestamp_precision_(config.timestamp_precision),
+      time_strategy_(config.time_interval, config.timestamp_precision),
       start_write_time_(std::chrono::steady_clock::now()),
       end_write_time_(std::chrono::steady_clock::now()),
       action_info_(action_info) {
@@ -34,7 +34,7 @@ void BaseWriter::apply_time_interval_strategy(int64_t current_start, int64_t cur
 }
 
 std::string BaseWriter::get_format_description() const {
-    return config_.control.data_format.format_type;
+    return config_.data_format.format_type;
 }
 
 void BaseWriter::update_write_state(const BaseInsertData& data, bool /* success */ ) {
@@ -52,17 +52,14 @@ void BaseWriter::notify(const BaseInsertData& data, bool success) {
             std::any payload = std::cref(checkpoint_data);
             ptr->notify(payload);
         }
-    } 
+    }
 }
 
 void BaseWriter::update_play_metrics(const BaseInsertData& data) {
     if (time_strategy_.is_literal_strategy()) {
-        auto now = std::chrono::system_clock::now();
-        int64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-            now.time_since_epoch()
-        ).count();
-
-        int64_t elapsed_ms = now_ms - data.start_time;
+        int64_t now = TimestampUtils::convert_to_timestamp(timestamp_precision_);
+        int64_t elapsed = now - data.start_time;
+        int64_t elapsed_ms = TimestampUtils::convert_timestamp_precision(elapsed, timestamp_precision_, "ms");
         play_metrics_.add_sample(elapsed_ms);
     }
 }

@@ -9,12 +9,12 @@ public:
 
     FormatResult format(const CreateDatabaseConfig& config) const override {
         std::vector<std::string> stmts;
-        if (config.database_info.drop_if_exists) {
-            stmts.push_back("DROP DATABASE IF EXISTS `" + config.database_info.name + "` FORCE");
+        if (config.tdengine.drop_if_exists) {
+            stmts.push_back("DROP DATABASE IF EXISTS `" + config.tdengine.database + "` FORCE");
         }
-        std::string create_stmt = "CREATE DATABASE IF NOT EXISTS `" + config.database_info.name + "`";
-        if (config.database_info.properties.has_value()) {
-            create_stmt += " " + config.database_info.properties.value();
+        std::string create_stmt = "CREATE DATABASE IF NOT EXISTS `" + config.tdengine.database + "`";
+        if (config.tdengine.properties.has_value()) {
+            create_stmt += " " + config.tdengine.properties.value();
         }
         stmts.push_back(std::move(create_stmt));
         return stmts;

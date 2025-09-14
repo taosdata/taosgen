@@ -1,5 +1,6 @@
 #pragma once
 
+#include "DataChannel.hpp"
 #include "DatabaseConnector.hpp"
 #include <memory>
 #include <mutex>
@@ -10,7 +11,7 @@
 
 class ConnectionPoolImpl {
 public:
-    ConnectionPoolImpl(const DataChannel& channel, const ConnectionInfo& conn_info);
+    ConnectionPoolImpl(const TDengineConfig& conn_info);
     ~ConnectionPoolImpl();
 
     std::unique_ptr<DatabaseConnector> get_connector();
@@ -26,8 +27,7 @@ private:
     void create_connections(size_t count);
     void close_all_connections();
 
-    const DataChannel& channel_;
-    const ConnectionInfo& conn_info_;
+    const TDengineConfig& conn_info_;
 
     std::queue<std::unique_ptr<DatabaseConnector>> available_connections_;
     std::atomic<size_t> total_count_{0};

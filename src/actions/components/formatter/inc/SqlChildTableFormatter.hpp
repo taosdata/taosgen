@@ -9,35 +9,51 @@ class SqlChildTableFormatter final : public IChildTableFormatter {
 public:
     explicit SqlChildTableFormatter(const DataFormat& format) : format_(format) {}
 
-
     std::string format(const CreateChildTableConfig& config, const std::string& table_name, RowType tags, size_t index = 0) const {
-        std::ostringstream result;
-        if (index == 0) result << "CREATE TABLE";
-        result << " IF NOT EXISTS `" 
-               << config.database_info.name << "`.`"  << table_name << "` USING `"
-               << config.database_info.name << "`.`"  << config.super_table_info.name << "` TAGS (";
+        std::string result;
+        result.reserve(1024 * 1024 * 2);
+
+        if (index == 0) result += "CREATE TABLE";
+        result += " IF NOT EXISTS `";
+        result += config.tdengine.database;
+        result += "`.`";
+        result += table_name;
+        result += "` USING `";
+        result += config.tdengine.database;
+        result += "`.`";
+        result += config.schema.name;
+        result += "` TAGS (";
 
         for (size_t i = 0; i < tags.size(); ++i) {
             if (i > 0) {
-                result << ", ";
+                result += ", ";
             }
             std::visit([&result](const auto& value) {
                 using T = std::decay_t<decltype(value)>;
-                if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, std::u16string>) {
-                    result << "'" << value << "'";
+                if constexpr (std::is_same_v<T, std::string>) {
+                    result += "'";
+                    result += value;
+                    result += "'";
+                } else if constexpr (std::is_same_v<T, std::u16string>) {
+                    result += "'";
+                    result += StringUtils::u16string_to_utf8(value);
+                    result += "'";
+                } else if constexpr (std::is_same_v<T, bool>) {
+                    result += value ? "true" : "false";
+                } else if constexpr (std::is_arithmetic_v<T>) {
+                    result += std::to_string(value);
                 } else {
-                    result << value;
+                    throw std::runtime_error("Unsupported tag value type for SQL formatting");
                 }
             }, tags[i]);
         }
-    
-        result << ")";
 
-        return result.str();
+        result += ")";
+        return result;
     }
 
-    FormatResult format(const CreateChildTableConfig& config, 
-                        const std::vector<std::string>& table_names, 
+    FormatResult format(const CreateChildTableConfig& config,
+                        const std::vector<std::string>& table_names,
                         const std::vector<RowType>& tags) const override {
 
         std::ostringstream result;

@@ -24,7 +24,7 @@ private:
     // Register CreateDatabaseAction to ActionFactory
     inline static bool registered_ = []() {
         ActionFactory::instance().register_action(
-            "actions/create-database",
+            "tdengine/create-database",
             [](const GlobalConfig& global, const ActionConfigVariant& config) {
                 return std::make_unique<CreateDatabaseAction>(global, std::get<CreateDatabaseConfig>(config));
             });

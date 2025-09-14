@@ -27,7 +27,6 @@ public:
         }
 
         std::ostringstream result;
-        const auto& db_info = config.target.tdengine.database_info;
         result << "INSERT INTO";
 
 
@@ -37,7 +36,7 @@ public:
             if (table_block.used_rows == 0) continue;
 
             // Write table name
-            result << " `" << db_info.name
+            result << " `" << config.tdengine.database
                 << "`.`" << table_block.table_name << "` VALUES ";
 
             // Iterate all rows in the table

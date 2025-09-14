@@ -28,22 +28,22 @@ int64_t TimestampUtils::get_precision_multiplier(const std::string& precision) {
 }
 
 std::tuple<int64_t, int64_t> TimestampUtils::get_precision_factor(
-    const std::string& from_precision, 
+    const std::string& from_precision,
     const std::string& to_precision) {
-    
+
     int64_t from_factor = precision_map.at(from_precision);
     int64_t to_factor = precision_map.at(to_precision);
-    
+
     return {from_factor, to_factor};
 }
 
 int64_t TimestampUtils::convert_timestamp_precision(
-    int64_t ts, 
-    const std::string& from_precision, 
+    int64_t ts,
+    const std::string& from_precision,
     const std::string& to_precision) {
-    
+
     if (from_precision == to_precision) return ts;
-    
+
     auto [multiplier, divisor] = get_precision_factor(from_precision, to_precision);
     return (ts * multiplier) / divisor;
 }
@@ -150,16 +150,36 @@ int64_t TimestampUtils::parse_timestamp(const std::variant<int64_t, std::string>
         }
     }
 
-
     // Parse ISO time format
+    std::string iso_str = trimmed;
+    bool is_utc = false;
+    if (iso_str.size() > 1 && iso_str.back() == 'Z') {
+        iso_str.pop_back();
+        is_utc = true;
+    }
+    size_t t_pos = iso_str.find('T');
+    if (t_pos != std::string::npos) {
+        iso_str[t_pos] = ' ';
+    }
+
     tm time_struct = {};
-    std::istringstream ss(trimmed);
+    std::istringstream ss(iso_str);
     ss >> std::get_time(&time_struct, "%Y-%m-%d %H:%M:%S");
     if (ss.fail()) {
         throw std::runtime_error("Invalid timestamp format: " + trimmed);
     }
 
-    time_t time_val = mktime(&time_struct);
+    time_t time_val;
+    if (is_utc) {
+#if defined(_WIN32)
+        time_val = _mkgmtime(&time_struct);
+#else
+        time_val = timegm(&time_struct);
+#endif
+    } else {
+        time_val = mktime(&time_struct);
+    }
+
     int64_t ms_val = static_cast<int64_t>(time_val) * 1000;
 
     // Return timestamp according to precision
@@ -169,4 +189,58 @@ int64_t TimestampUtils::parse_timestamp(const std::variant<int64_t, std::string>
     if (precision == "ns") return ms_val * 1000000;
 
     return ms_val;
+}
+
+int64_t TimestampUtils::parse_step(const std::variant<int64_t, std::string>& step, const std::string& precision) {
+    if (std::holds_alternative<int64_t>(step)) {
+        return std::get<int64_t>(step);
+    }
+
+    const std::string& step_str = std::get<std::string>(step);
+    std::string trimmed = step_str;
+    StringUtils::remove_all_spaces(trimmed);
+
+    size_t unit_pos = trimmed.find_first_not_of("0123456789");
+    std::string number_part = trimmed.substr(0, unit_pos);
+    std::string unit_part;
+    if (unit_pos != std::string::npos)
+        unit_part = trimmed.substr(unit_pos);
+
+    if (number_part.empty())
+        throw std::runtime_error("Invalid timestamp step string: " + trimmed);
+
+    int64_t value = 0;
+    try {
+        value = std::stoll(number_part);
+    } catch (...) {
+        throw std::runtime_error("Invalid number in timestamp step string: " + trimmed);
+    }
+
+    int64_t multiplier = 1;
+    if (unit_part == "ns") multiplier = 1LL;
+    else if (unit_part == "us") multiplier = 1000LL;
+    else if (unit_part == "ms") multiplier = 1000LL * 1000LL;
+    else if (unit_part == "s")  multiplier = 1000LL * 1000LL * 1000LL;
+    else if (unit_part.empty()) {
+        if (precision == "ns") multiplier = 1LL;
+        else if (precision == "us") multiplier = 1000LL;
+        else if (precision == "ms") multiplier = 1000LL * 1000LL;
+        else if (precision == "s")  multiplier = 1000LL * 1000LL * 1000LL;
+        else throw std::runtime_error("Unknown timestap precision: " + precision);
+    } else {
+        throw std::runtime_error("Unknown timestap step unit: " + unit_part);
+    }
+
+    int64_t step_val = value * multiplier;
+    if (precision == "ns") {
+        return step_val;
+    } else if (precision == "us") {
+        return step_val / 1000LL;
+    } else if (precision == "ms") {
+        return step_val / 1000000LL;
+    } else if (precision == "s") {
+        return step_val / 1000000000LL;
+    } else {
+        throw std::runtime_error("Unknown precision: " + precision);
+    }
 }

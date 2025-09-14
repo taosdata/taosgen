@@ -3,14 +3,13 @@
 #include <iostream>
 
 void test_connector_source_with_pool() {
-    DataChannel channel;
-    ConnectionInfo info;
+    TDengineConfig info;
     info.pool.enabled = true;
     info.pool.min_size = 2;
     info.pool.max_size = 4;
-    info.pool.connection_timeout = 100;
+    info.pool.timeout = 100;
 
-    ConnectorSource source(channel, info);
+    ConnectorSource source(info);
 
     assert(source.total_connections() == info.pool.min_size);
     assert(source.available_connections() == info.pool.min_size);
@@ -27,11 +26,10 @@ void test_connector_source_with_pool() {
 }
 
 void test_connector_source_without_pool() {
-    DataChannel channel;
-    ConnectionInfo info;
+    TDengineConfig info;
     info.pool.enabled = false;
 
-    ConnectorSource source(channel, info);
+    ConnectorSource source(info);
 
     assert(source.total_connections() == 0);
     assert(source.available_connections() == 0);

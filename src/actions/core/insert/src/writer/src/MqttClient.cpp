@@ -7,15 +7,11 @@
 #include <mqtt/connect_options.h>
 #include <mqtt/properties.h>
 
-PahoMqttClient::PahoMqttClient(const std::string& host, int port, const std::string& client_id, size_t max_buffered_messages,
+PahoMqttClient::PahoMqttClient(const std::string& uri, const std::string& client_id, size_t max_buffered_messages,
                                const std::string& content_type,
                                const std::string& compression,
                                const std::string& encoding) {
     // Example: "tcp://localhost:1883"
-    std::ostringstream oss;
-    oss << "tcp://" << host << ":" << port;
-    std::string uri = oss.str();
-
     mqtt::create_options create_opts;
     create_opts.set_server_uri(uri);
     create_opts.set_client_id(client_id);
@@ -33,6 +29,7 @@ PahoMqttClient::PahoMqttClient(const std::string& host, int port, const std::str
 }
 
 PahoMqttClient::~PahoMqttClient() {
+    token_queue_.put(mqtt::delivery_token_ptr());
     disconnect();
 }
 
@@ -113,9 +110,26 @@ void PahoMqttClient::publish_batch(const MessageBatch& batch_msgs, int qos, bool
             retain,
             default_props_
         );
-        auto token = client_->publish(pubmsg);
-        token->wait();
+        // auto token = client_->publish(pubmsg);
+        // token->wait();
         // tokens.push_back(client_->publish(pubmsg));
+
+        while (true) {
+            try {
+                auto token = client_->publish(pubmsg);
+                token_queue_.put(std::move(token));
+                break;
+            } catch (const mqtt::exception& e) {
+                std::string msg = e.what();
+                if (msg.find("No more messages can be buffered") != std::string::npos ||
+                    msg.find("MQTT error [-12]") != std::string::npos) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                    continue;
+                } else {
+                    throw std::runtime_error(std::string("MQTT publish failed: ") + msg);
+                }
+            }
+        }
     }
     // for (auto& tok : tokens) {
     //     tok->wait();
@@ -123,19 +137,14 @@ void PahoMqttClient::publish_batch(const MessageBatch& batch_msgs, int qos, bool
 }
 
 // MqttClient implementation
-MqttClient::MqttClient(const MqttInfo& config,
+MqttClient::MqttClient(const MqttConfig& config,
                        const ColumnConfigInstanceVector& col_instances, size_t no)
     : config_(config),
       col_instances_(col_instances),
       compression_type_(string_to_compression(config.compression)),
       encoding_type_(string_to_encoding(config.encoding))
 {
-    std::string client_id;
-    if (config.client_id.empty()) {
-        client_id = MqttInfo::generate_client_id();
-    } else {
-        client_id = config.client_id + "-" + std::to_string(no);
-    }
+    std::string client_id = config.generate_client_id(no);
 
     compression_str_ = (compression_type_ != CompressionType::NONE)
         ? compression_to_string(compression_type_) : "";
@@ -143,7 +152,7 @@ MqttClient::MqttClient(const MqttInfo& config,
         ? encoding_to_string(encoding_type_) : "";
 
     // Initialize MQTT client
-    client_ = std::make_unique<PahoMqttClient>(config.host, config.port, client_id, config.max_buffered_messages,
+    client_ = std::make_unique<PahoMqttClient>(config.uri, client_id, config.max_buffered_messages,
         "application/json", compression_str_, encoding_str_);
 }
 

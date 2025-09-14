@@ -7,8 +7,8 @@ void test_format_drop_database() {
     DataFormat format;
     format.format_type = "sql";
     CreateDatabaseConfig config;
-    config.database_info.name = "test_db";
-    config.database_info.drop_if_exists = true;
+    config.tdengine.database = "test_db";
+    config.tdengine.drop_if_exists = true;
 
     auto formatter = FormatterFactory::instance().create_formatter<CreateDatabaseConfig>(format);
     FormatResult result = formatter->format(config);
@@ -25,8 +25,8 @@ void test_format_create_database_without_properties() {
     DataFormat format;
     format.format_type = "sql";
     CreateDatabaseConfig config;
-    config.database_info.name = "test_db";
-    config.database_info.drop_if_exists = false;
+    config.tdengine.database = "test_db";
+    config.tdengine.drop_if_exists = false;
 
     auto formatter = FormatterFactory::instance().create_formatter<CreateDatabaseConfig>(format);
     FormatResult result = formatter->format(config);
@@ -43,8 +43,8 @@ void test_format_create_database_with_properties() {
     DataFormat format;
     format.format_type = "sql";
     CreateDatabaseConfig config;
-    config.database_info.name = "test_db";
-    config.database_info.properties = "KEEP 3650";
+    config.tdengine.database = "test_db";
+    config.tdengine.properties = "KEEP 3650";
 
     auto formatter = FormatterFactory::instance().create_formatter<CreateDatabaseConfig>(format);
     FormatResult result = formatter->format(config);

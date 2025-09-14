@@ -5,13 +5,13 @@
 
 void test_msg_format_insert_data_single_table() {
     DataFormat format;
-    format.format_type = "msg";
+    format.format_type = "json";
 
     InsertDataConfig config;
-    config.target.mqtt.batch_messages = 2;
-    config.target.mqtt.topic = "test/topic";
-    config.target.mqtt.compression = "";
-    config.target.mqtt.encoding = "";
+    config.mqtt.batch_messages = 2;
+    config.mqtt.topic = "test/topic";
+    config.mqtt.compression = "";
+    config.mqtt.encoding = "";
 
     ColumnConfigInstanceVector col_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
@@ -42,13 +42,13 @@ void test_msg_format_insert_data_single_table() {
 
 void test_msg_format_insert_data_multiple_tables() {
     DataFormat format;
-    format.format_type = "msg";
+    format.format_type = "json";
 
     InsertDataConfig config;
-    config.target.mqtt.batch_messages = 2;
-    config.target.mqtt.topic = "test/topic";
-    config.target.mqtt.compression = "";
-    config.target.mqtt.encoding = "";
+    config.mqtt.batch_messages = 2;
+    config.mqtt.topic = "test/topic";
+    config.mqtt.compression = "";
+    config.mqtt.encoding = "";
 
     ColumnConfigInstanceVector col_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
@@ -87,13 +87,13 @@ void test_msg_format_insert_data_multiple_tables() {
 
 void test_msg_format_insert_data_empty_batch() {
     DataFormat format;
-    format.format_type = "msg";
+    format.format_type = "json";
 
     InsertDataConfig config;
-    config.target.mqtt.batch_messages = 2;
-    config.target.mqtt.topic = "test/topic";
-    config.target.mqtt.compression = "";
-    config.target.mqtt.encoding = "";
+    config.mqtt.batch_messages = 2;
+    config.mqtt.topic = "test/topic";
+    config.mqtt.compression = "";
+    config.mqtt.encoding = "";
 
     ColumnConfigInstanceVector col_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
@@ -125,13 +125,13 @@ void test_msg_format_insert_data_empty_batch() {
 
 void test_msg_format_insert_data_with_empty_rows() {
     DataFormat format;
-    format.format_type = "msg";
+    format.format_type = "json";
 
     InsertDataConfig config;
-    config.target.mqtt.batch_messages = 2;
-    config.target.mqtt.topic = "test/topic";
-    config.target.mqtt.compression = "";
-    config.target.mqtt.encoding = "";
+    config.mqtt.batch_messages = 2;
+    config.mqtt.topic = "test/topic";
+    config.mqtt.compression = "";
+    config.mqtt.encoding = "";
 
     ColumnConfigInstanceVector col_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});

@@ -6,31 +6,31 @@
 #include <variant>
 #include <optional>
 #include "TableData.hpp"
-#include "ColumnsConfig.hpp"
+#include "ColumnsCSV.hpp"
 #include "CSVReader.hpp"
 #include "TimestampGenerator.hpp"
-#include "TimestampOriginalConfig.hpp"
+#include "TimestampCSVConfig.hpp"
 #include "ColumnConfigInstance.hpp"
 
-class ColumnsCSV {
+class ColumnsCSVReader {
 public:
-    ColumnsCSV(const ColumnsConfig::CSV& config, std::optional<ColumnConfigInstanceVector> instances);
-    
-    ColumnsCSV(const ColumnsCSV&) = delete;
-    ColumnsCSV& operator=(const ColumnsCSV&) = delete;
-    ColumnsCSV(ColumnsCSV&&) = delete;
-    ColumnsCSV& operator=(ColumnsCSV&&) = delete;
-    
-    ~ColumnsCSV() = default;
-    
+    ColumnsCSVReader(const ColumnsCSV& config, std::optional<ColumnConfigInstanceVector> instances);
+
+    ColumnsCSVReader(const ColumnsCSVReader&) = delete;
+    ColumnsCSVReader& operator=(const ColumnsCSVReader&) = delete;
+    ColumnsCSVReader(ColumnsCSVReader&&) = delete;
+    ColumnsCSVReader& operator=(ColumnsCSVReader&&) = delete;
+
+    ~ColumnsCSVReader() = default;
+
     std::vector<TableData> generate() const;
 
 private:
-    ColumnsConfig::CSV config_;
+    ColumnsCSV config_;
     std::optional<ColumnConfigInstanceVector> instances_;
     size_t total_columns_ = 0;
     size_t actual_columns_ = 0;
-    
+
     void validate_config();
 
     template <typename T>

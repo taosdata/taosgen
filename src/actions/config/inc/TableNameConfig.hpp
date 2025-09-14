@@ -3,7 +3,8 @@
 #include <string>
 
 struct TableNameConfig {
-    std::string source_type; // Data source type: generator or csv
+    bool enabled = false;
+    std::string source_type = "generator";
 
     struct Generator {
         std::string prefix = "d";

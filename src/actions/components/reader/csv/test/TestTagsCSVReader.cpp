@@ -1,16 +1,15 @@
+#include "TagsCSVReader.hpp"
 #include <iostream>
 #include <cassert>
 #include <fstream>
-#include "TagsCSV.hpp"
-
 
 void test_validate_config_empty_file_path() {
-    TagsConfig::CSV config;
+    TagsCSV config;
     config.file_path = "";
     config.has_header = true;
 
     try {
-        TagsCSV tags_csv(config, std::nullopt);
+        TagsCSVReader tags_csv(config, std::nullopt);
         assert(false && "Expected exception for empty file path");
     } catch (const std::invalid_argument& e) {
         std::cout << "test_validate_config_empty_file_path passed\n";
@@ -18,7 +17,7 @@ void test_validate_config_empty_file_path() {
 }
 
 void test_validate_config_mismatched_tag_types() {
-    TagsConfig::CSV config;
+    TagsCSV config;
     config.file_path = "test.csv";
     config.has_header = true;
 
@@ -31,10 +30,10 @@ void test_validate_config_mismatched_tag_types() {
         {"name", "varchar(20)"},
         {"age", "int"}
     };
-    auto instances = ColumnConfigInstanceFactory::create(tag_configs);    
+    auto instances = ColumnConfigInstanceFactory::create(tag_configs);
 
     try {
-        TagsCSV tags_csv(config, instances);
+        TagsCSVReader tags_csv(config, instances);
         assert(false && "Expected exception for mismatched tag types size");
     } catch (const std::invalid_argument& e) {
         std::cout << "test_validate_config_mismatched_tag_types passed\n";
@@ -42,7 +41,7 @@ void test_validate_config_mismatched_tag_types() {
 }
 
 void test_generate_tags_valid_csv() {
-    TagsConfig::CSV config;
+    TagsCSV config;
     config.file_path = "valid.csv";
     config.has_header = true;
 
@@ -59,7 +58,7 @@ void test_generate_tags_valid_csv() {
     };
     auto instances = ColumnConfigInstanceFactory::create(tag_configs);
 
-    TagsCSV tags_csv(config, instances);
+    TagsCSVReader tags_csv(config, instances);
     auto tags = tags_csv.generate();
 
     assert(tags.size() == 2 && "Expected 2 rows of tags");
@@ -70,7 +69,7 @@ void test_generate_tags_valid_csv() {
 }
 
 void test_generate_tags_excluded_columns() {
-    TagsConfig::CSV config;
+    TagsCSV config;
     config.file_path = "excluded.csv";
     config.has_header = true;
     config.exclude_indices = {1}; // Exclude the second column
@@ -88,7 +87,7 @@ void test_generate_tags_excluded_columns() {
     auto instances = ColumnConfigInstanceFactory::create(tag_configs);
 
 
-    TagsCSV tags_csv(config, instances);
+    TagsCSVReader tags_csv(config, instances);
     auto tags = tags_csv.generate();
 
     assert(tags.size() == 2 && "Expected 2 rows of tags");
@@ -98,7 +97,7 @@ void test_generate_tags_excluded_columns() {
 }
 
 void test_generate_tags_default_tag_types() {
-    TagsConfig::CSV config;
+    TagsCSV config;
     config.file_path = "default.csv";
     config.has_header = true;
 
@@ -108,7 +107,7 @@ void test_generate_tags_default_tag_types() {
     test_file << "Bob,25,Los Angeles\n";
     test_file.close();
 
-    TagsCSV tags_csv(config, std::nullopt); // No tag types provided
+    TagsCSVReader tags_csv(config, std::nullopt); // No tag types provided
     auto tags = tags_csv.generate();
 
     assert(tags.size() == 2 && "Expected 2 rows of tags");

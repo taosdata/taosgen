@@ -1,6 +1,6 @@
 # Create library target
-add_library(actions_config STATIC 
-  src/ConnectionInfo.cpp
+add_library(actions_config STATIC
+  src/TDengineConfig.cpp
   src/ColumnType.cpp
   src/ColumnConfig.cpp
 )
@@ -14,7 +14,7 @@ target_include_directories(actions_config
 
 # Link dependencies
 target_link_libraries(actions_config
-  PUBLIC 
+  PUBLIC
     utils
 )
 

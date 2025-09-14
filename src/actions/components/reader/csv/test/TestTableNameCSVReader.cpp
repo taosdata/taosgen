@@ -1,7 +1,7 @@
 #include <iostream>
 #include <cassert>
 #include <fstream>
-#include "TableNameCSV.hpp"
+#include "TableNameCSVReader.hpp"
 
 
 void test_validate_config_empty_file_path() {
@@ -10,7 +10,7 @@ void test_validate_config_empty_file_path() {
     config.tbname_index = 0;
 
     try {
-        TableNameCSV table_name_csv(config);
+        TableNameCSVReader table_name_csv(config);
         assert(false && "Expected exception for empty file path");
     } catch (const std::invalid_argument& e) {
         std::cout << "test_validate_config_empty_file_path passed\n";
@@ -23,7 +23,7 @@ void test_validate_config_negative_index() {
     config.tbname_index = -1;
 
     try {
-        TableNameCSV table_name_csv(config);
+        TableNameCSVReader table_name_csv(config);
         assert(false && "Expected exception for negative index");
     } catch (const std::invalid_argument& e) {
         std::cout << "test_validate_config_negative_index passed\n";
@@ -42,7 +42,7 @@ void test_generate_names_valid_csv() {
     config.has_header = true;
     config.tbname_index = 0;
 
-    TableNameCSV table_name_csv(config);
+    TableNameCSVReader table_name_csv(config);
     auto names = table_name_csv.generate();
 
     assert(names.size() == 2 && "Expected 2 table names");
@@ -63,7 +63,7 @@ void test_generate_names_invalid_column_index() {
     config.tbname_index = 5; // Invalid index
 
     try {
-        TableNameCSV table_name_csv(config);
+        TableNameCSVReader table_name_csv(config);
         table_name_csv.generate();
         assert(false && "Expected exception for invalid column index");
     } catch (const std::out_of_range& e) {
@@ -83,7 +83,7 @@ void test_generate_names_empty_table_name() {
     config.tbname_index = 0;
 
     try {
-        TableNameCSV table_name_csv(config);
+        TableNameCSVReader table_name_csv(config);
         table_name_csv.generate();
         assert(false && "Expected exception for empty table name");
     } catch (const std::runtime_error& e) {

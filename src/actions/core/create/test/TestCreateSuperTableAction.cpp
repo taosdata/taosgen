@@ -8,43 +8,30 @@
 
 void test_create_super_table_action() {
     GlobalConfig global;
-
-    ConnectionInfo conn_info;
-    conn_info.host = "localhost";
-    conn_info.port = 6030;
-    conn_info.user = "root";
-    conn_info.password = "taosdata";
-
-    DataChannel channel;
-    channel.channel_type = "native";
-
-    DataFormat format;
-    format.format_type = "sql";
+    TDengineConfig conn_info("taos://root:taosdata@localhost:6030/test_action");
 
     CreateSuperTableConfig config;
-    config.connection_info = conn_info;
-    config.data_format = format;
-    config.data_channel = channel;
-    config.database_info.name = "test_action";
-    config.super_table_info.name = "test_super_table";
+    config.tdengine = conn_info;
+    config.schema.name = "test_super_table";
 
     // Add columns
-    config.super_table_info.columns = {
+    config.schema.columns = {
         {"col1", "INT", "random"},
         {"col2", "DOUBLE", "random", 0, 100}
     };
 
     // Add tags
-    config.super_table_info.tags = {
+    config.schema.tags = {
         {"tag1", "FLOAT", "random"},
         {"tag2", "VARCHAR(20)", "random"}
     };
+    config.schema.apply();
 
     // Create action instance
     std::cout << "Creating action instance for super table..." << std::endl;
     auto action = ActionFactory::instance().create_action(
         global,
-        "actions/create-super-table",
+        "tdengine/create-super-table",
         config
     );
 
@@ -54,7 +41,7 @@ void test_create_super_table_action() {
 
     // // Verify super table creation
     // std::cout << "Verifying super table creation..." << std::endl;
-    // auto connector = ConnectorFactory::create(channel, conn_info);
+    // auto connector = ConnectorFactory::create(conn_info);
     // if (!connector->connect()) {
     //     std::cerr << "Verification failed: cannot connect to database" << std::endl;
     //     return;
@@ -82,7 +69,7 @@ void test_create_super_table_action() {
 
     // Clean up test super table
     // std::cout << "Cleaning up test super table..." << std::endl;
-    // auto cleanup_connector = ConnectorFactory::create(channel, conn_info);
+    // auto cleanup_connector = ConnectorFactory::create(conn_info);
     // if (cleanup_connector->connect()) {
     //     cleanup_connector->execute("DROP TABLE IF EXISTS `" + config.super_table_info.name + "`");
     //     cleanup_connector->close();

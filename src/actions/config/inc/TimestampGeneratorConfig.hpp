@@ -6,5 +6,5 @@
 struct TimestampGeneratorConfig {
     std::variant<Timestamp, std::string> start_timestamp = "now";
     std::string timestamp_precision = "ms";
-    int timestamp_step = 1;
+    std::variant<Timestamp, std::string> timestamp_step = 1;
 };

@@ -9,24 +9,22 @@
 
 
 RowDataGenerator::RowDataGenerator(const std::string& table_name,
-                                  const ColumnsConfig& columns_config,
-                                  const ColumnConfigInstanceVector& instances,
-                                  const InsertDataConfig::Control& control,
-                                  const std::string& target_precision)
+                                  const InsertDataConfig& config,
+                                  const ColumnConfigInstanceVector& instances)
     : table_name_(table_name),
-      columns_config_(columns_config),
+      columns_config_(config.schema.columns_cfg),
       instances_(instances),
-      control_(control),
-      target_precision_(target_precision) {
+      config_(config),
+      target_precision_(config.timestamp_precision) {
 
     init_cached_row();
     init_raw_source();
 
-    if (control_.data_generation.data_cache.enabled) {
+    if (config_.schema.generation.data_cache.enabled) {
         init_cache();
     }
 
-    if (control_.data_quality.data_disorder.enabled) {
+    if (config_.schema.generation.data_disorder.enabled) {
         init_disorder();
     }
 }
@@ -67,8 +65,8 @@ void RowDataGenerator::init_cached_row() {
 void RowDataGenerator::init_cache() {
     // Pre-generate data to fill cache
     cache_.clear();
-    cache_.reserve(control_.data_generation.data_cache.cache_size);
-    while (cache_.size() < control_.data_generation.data_cache.cache_size && has_more()) {
+    cache_.reserve(config_.schema.generation.data_cache.cache_size);
+    while (cache_.size() < config_.schema.generation.data_cache.cache_size && has_more()) {
         if (auto row = fetch_raw_row()) {
             cache_.push_back(*row);
         } else {
@@ -80,7 +78,7 @@ void RowDataGenerator::init_cache() {
 void RowDataGenerator::init_disorder() {
     // Initialize disorder intervals
     disorder_intervals_.clear();
-    for (const auto& interval : control_.data_quality.data_disorder.intervals) {
+    for (const auto& interval : config_.schema.generation.data_disorder.intervals) {
         DisorderInterval disorder_interval;
         disorder_interval.start_time = TimestampUtils::parse_timestamp(interval.time_start, target_precision_);
         disorder_interval.end_time = TimestampUtils::parse_timestamp(interval.time_end, target_precision_);
@@ -93,13 +91,13 @@ void RowDataGenerator::init_disorder() {
 void RowDataGenerator::init_raw_source() {
     if (columns_config_.source_type == "generator") {
         init_generator();
-        total_rows_ = control_.data_generation.per_table_rows;
+        total_rows_ = config_.schema.generation.per_table_rows;
     } else if (columns_config_.source_type == "csv") {
         init_csv_reader();
         if (columns_config_.csv.repeat_read) {
-            total_rows_ = control_.data_generation.per_table_rows;
+            total_rows_ = config_.schema.generation.per_table_rows;
         } else {
-            total_rows_ = std::min(static_cast<int64_t>(csv_rows_.size()), control_.data_generation.per_table_rows);
+            total_rows_ = std::min(static_cast<int64_t>(csv_rows_.size()), config_.schema.generation.per_table_rows);
         }
     } else {
         throw std::invalid_argument("Unsupported source_type: " + columns_config_.source_type);
@@ -112,7 +110,7 @@ void RowDataGenerator::init_raw_source() {
         );
     } else if (columns_config_.source_type == "csv" && columns_config_.csv.timestamp_strategy.strategy_type == "generator") {
         timestamp_generator_ = std::make_unique<TimestampGenerator>(
-            std::get<TimestampGeneratorConfig>(columns_config_.csv.timestamp_strategy.timestamp_config)
+            columns_config_.csv.timestamp_strategy.generator
         );
     }
 }
@@ -129,10 +127,10 @@ void RowDataGenerator::init_csv_reader() {
 
     csv_precision_ = columns_config_.csv.timestamp_strategy.get_precision();
 
-    // Create ColumnsCSV reader
-    columns_csv_ = std::make_unique<ColumnsCSV>(columns_config_.csv, instances_);
+    // Create ColumnsCSV Reader
+    columns_csv_ = std::make_unique<ColumnsCSVReader>(columns_config_.csv, instances_);
 
-    // TODO: ColumnsCSV needs to support table name index interface
+    // TODO: ColumnsCSV Reader needs to support table name index interface
     // Get all table data
     std::vector<TableData> all_tables = columns_csv_->generate();
 
@@ -235,7 +233,7 @@ int RowDataGenerator::next_row(MemoryPool::TableBlock& table_block) {
 }
 
 bool RowDataGenerator::apply_disorder(RowData& row) {
-    if (!control_.data_quality.data_disorder.enabled) {
+    if (!config_.schema.generation.data_disorder.enabled) {
         return false;
     }
 

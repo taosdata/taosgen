@@ -29,11 +29,11 @@ public:
             return FormatResult("");
         }
 
-        const auto& mqtt_info = config.target.mqtt;
+        const auto& mqtt_info = config.mqtt;
         return format_mqtt(mqtt_info, col_instances, batch);
     }
 
-    static MsgInsertData format_mqtt(const MqttInfo& mqtt_info,
+    static MsgInsertData format_mqtt(const MqttConfig& mqtt_info,
                                     const ColumnConfigInstanceVector& col_instances,
                                     MemoryPool::MemoryBlock* batch) {
         if (!batch || batch->total_rows == 0) {
@@ -148,7 +148,7 @@ private:
 
     inline static bool registered_ = []() {
         FormatterFactory::instance().register_formatter<InsertDataConfig>(
-            "msg",
+            "json",
             [](const DataFormat& format) {
                 return std::make_unique<MsgInsertDataFormatter>(format);
             });

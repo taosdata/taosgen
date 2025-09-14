@@ -1,12 +1,12 @@
 #include "ColumnConfig.hpp"
+#include "StringUtils.hpp"
+#include "taos.h"
 #include <stdexcept>
 #include <cfloat>
 #include <limits>
 #include <regex>
+#include <cassert>
 #include <unordered_map>
-#include "taos.h"
-#include "StringUtils.hpp"
-
 
 ColumnTypeTag ColumnConfig::get_type_tag(const std::string& type_str) {
     static const std::unordered_map<std::string, ColumnTypeTag> type_tag_map = {
@@ -17,6 +17,7 @@ ColumnTypeTag ColumnConfig::get_type_tag(const std::string& type_str) {
         {"smallint unsigned",   ColumnTypeTag::SMALLINT_UNSIGNED},
         {"int",                 ColumnTypeTag::INT},
         {"int unsigned",        ColumnTypeTag::INT_UNSIGNED},
+        {"timestamp",           ColumnTypeTag::BIGINT},
         {"bigint",              ColumnTypeTag::BIGINT},
         {"bigint unsigned",     ColumnTypeTag::BIGINT_UNSIGNED},
         {"float",               ColumnTypeTag::FLOAT},
@@ -38,35 +39,37 @@ ColumnTypeTag ColumnConfig::get_type_tag(const std::string& type_str) {
     throw std::runtime_error("Unsupported type: " + lower_type);
 }
 
-std::size_t ColumnConfig::get_type_index(const std::string& type_str) {
-    static const std::unordered_map<std::string, std::size_t> type_index_map = {
-        {"bool",                variant_index<bool, ColumnType>::value},
-        {"tinyint",             variant_index<int8_t, ColumnType>::value},
-        {"tinyint unsigned",    variant_index<uint8_t, ColumnType>::value},
-        {"smallint",            variant_index<int16_t, ColumnType>::value},
-        {"smallint unsigned",   variant_index<uint16_t, ColumnType>::value},
-        {"int",                 variant_index<int32_t, ColumnType>::value},
-        {"int unsigned",        variant_index<uint32_t, ColumnType>::value},
-        {"bigint",              variant_index<int64_t, ColumnType>::value},
-        {"bigint unsigned",     variant_index<uint64_t, ColumnType>::value},
-        {"float",               variant_index<float, ColumnType>::value},
-        {"double",              variant_index<double, ColumnType>::value},
-
-        {"decimal",             variant_index<Decimal, ColumnType>::value},
-        {"nchar",               variant_index<std::u16string, ColumnType>::value},
-        {"varchar",             variant_index<std::string, ColumnType>::value},
-        {"binary",              variant_index<std::string, ColumnType>::value},
-        {"json",                variant_index<JsonValue, ColumnType>::value},
-        {"varbinary",           variant_index<std::vector<uint8_t>, ColumnType>::value},
-        {"geometry",            variant_index<Geometry, ColumnType>::value}
+size_t ColumnConfig::get_type_index() const noexcept{
+    static constexpr size_t type_indices[] = {
+        0,                                                          // UNKNOWN
+        variant_index<bool, ColumnType>::value,                     // BOOL
+        variant_index<int8_t, ColumnType>::value,                   // TINYINT
+        variant_index<uint8_t, ColumnType>::value,                  // TINYINT_UNSIGNED
+        variant_index<int16_t, ColumnType>::value,                  // SMALLINT
+        variant_index<uint16_t, ColumnType>::value,                 // SMALLINT_UNSIGNED
+        variant_index<int32_t, ColumnType>::value,                  // INT
+        variant_index<uint32_t, ColumnType>::value,                 // INT_UNSIGNED
+        variant_index<int64_t, ColumnType>::value,                  // BIGINT
+        variant_index<uint64_t, ColumnType>::value,                 // BIGINT_UNSIGNED
+        variant_index<float, ColumnType>::value,                    // FLOAT
+        variant_index<double, ColumnType>::value,                   // DOUBLE
+        variant_index<Decimal, ColumnType>::value,                  // DECIMAL
+        variant_index<std::u16string, ColumnType>::value,           // NCHAR
+        variant_index<std::string, ColumnType>::value,              // VARCHAR
+        variant_index<std::string, ColumnType>::value,              // BINARY
+        variant_index<JsonValue, ColumnType>::value,                // JSON
+        variant_index<std::vector<uint8_t>, ColumnType>::value,     // VARBINARY
+        variant_index<Geometry, ColumnType>::value                  // GEOMETRY
     };
+    static_assert(sizeof(type_indices)/sizeof(type_indices[0]) == static_cast<size_t>(ColumnTypeTag::MAX), "type_indices size mismatch");
 
-    std::string lower_type = StringUtils::to_lower(type_str);
-    if (auto it = type_index_map.find(lower_type); it != type_index_map.end()) {
-        return it->second;
+    size_t idx = static_cast<size_t>(type_tag);
+    if (idx < sizeof(type_indices)/sizeof(type_indices[0])) {
+        return type_indices[idx];
     }
 
-    throw std::runtime_error("Unsupported type: " + lower_type);
+    assert(false && "Invalid type_tag in get_type_index");
+    return 0;
 }
 
 double ColumnConfig::get_min_value() const noexcept {
@@ -170,6 +173,45 @@ ColumnConfig::ColumnConfig(
     this->max = max;
 }
 
+ColumnConfig::ColumnConfig(
+    const std::string& name,
+    const std::string& type,
+    const std::string& ts_precision,
+    const std::string& ts_start,
+    const std::string& ts_step
+) : name(name), type(type) {
+    ts.strategy_type = "generator";
+    ts.generator = TimestampGeneratorConfig{ts_start, ts_precision, ts_step};
+    parse_type();
+}
+
+ColumnConfig::ColumnConfig(
+    const std::string& name,
+    const std::string& type,
+    ExpressionTag,
+    const std::string& expr
+) : name(name), type(type), gen_type("expression"), formula(expr) {
+    parse_type();
+}
+
+ColumnConfig::ColumnConfig(
+    const std::string& name,
+    const std::string& type,
+    std::vector<std::string> values
+) : name(name), type(type) {
+    set_values_from_strings(values);
+    parse_type();
+}
+
+ColumnConfig::ColumnConfig(
+    const std::string& name,
+    const std::string& type,
+    std::vector<double> values
+) : name(name), type(type) {
+    set_values_from_doubles(values);
+    parse_type();
+}
+
 void ColumnConfig::parse_type() {
     StringUtils::trim(type);
     std::string lower_type = StringUtils::to_lower(type);
@@ -185,7 +227,7 @@ void ColumnConfig::parse_type() {
         std::string base = match[1].str();
         int len_val = std::stoi(match[2].str());
         type_tag = get_type_tag(base);
-        type_index = get_type_index(base);
+        type_index = get_type_index();
         len = len_val;
         precision.reset();
         scale.reset();
@@ -214,7 +256,7 @@ void ColumnConfig::parse_type() {
 
     // Other types (no parameters)
     type_tag = get_type_tag(lower_type);
-    type_index = get_type_index(lower_type);
+    type_index = get_type_index();
 
     if (type_tag == ColumnTypeTag::VARCHAR
         || type_tag == ColumnTypeTag::BINARY

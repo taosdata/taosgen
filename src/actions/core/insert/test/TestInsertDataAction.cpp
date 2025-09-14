@@ -11,52 +11,46 @@ InsertDataConfig create_test_config() {
     InsertDataConfig config;
 
     // Configure columns for generator mode
-    config.source.columns.source_type = "generator";
+    config.schema.columns_cfg.source_type = "generator";
 
     // Setup timestamp strategy
-    auto& ts_config = config.source.columns.generator.timestamp_strategy.timestamp_config;
+    auto& ts_config = config.schema.columns_cfg.generator.timestamp_strategy.timestamp_config;
     ts_config.start_timestamp = Timestamp{1700000000000};
     ts_config.timestamp_step = 10;
     ts_config.timestamp_precision = "ms";
 
     // Setup schema
-    auto& schema = config.source.columns.generator.schema;
+    auto& schema = config.schema.columns_cfg.generator.schema;
     schema = {
         {"col1", "INT", "random", 1, 100},
         {"col2", "DOUBLE", "random", 0.0, 1.0}
     };
 
     // Setup table name generation
-    config.source.table_name.source_type = "generator";
-    config.source.table_name.generator.prefix = "d";
-    config.source.table_name.generator.count = 10;
-    config.source.table_name.generator.from = 0;
+    config.schema.tbname.source_type = "generator";
+    config.schema.tbname.generator.prefix = "d";
+    config.schema.tbname.generator.count = 10;
+    config.schema.tbname.generator.from = 0;
 
     // Setup control parameters
-    config.control.data_generation.per_table_rows = 100;
-    config.control.data_generation.generate_threads = 2;
-    config.control.data_generation.queue_capacity = 2;
-
-    config.control.insert_control.insert_threads = 2;
-    config.control.insert_control.per_request_rows = 10;
-    config.control.insert_control.failure_handling.max_retries = 1;
-    config.control.insert_control.failure_handling.retry_interval_ms = 1000;
-    config.control.insert_control.failure_handling.on_failure = "exit";
-
-    // Data channel settings
-    config.control.data_channel.channel_type = "websocket";
+    config.schema.generation.per_table_rows = 100;
+    config.schema.generation.generate_threads = 2;
+    config.schema.generation.per_batch_rows = 10;
+    config.queue_capacity = 2;
+    config.insert_threads = 2;
+    config.failure_handling.max_retries = 1;
+    config.failure_handling.retry_interval_ms = 1000;
+    config.failure_handling.on_failure = "exit";
 
     // Data format settings
-    config.control.data_format.format_type = "stmt";
-    config.control.data_format.stmt_config.version = "v2";
+    config.data_format.format_type = "stmt";
+    config.data_format.stmt_config.version = "v2";
 
     // Setup target
-    config.target.timestamp_precision = "ms";
-    config.target.target_type = "tdengine";
-    config.target.tdengine.connection_info.host = "localhost";
-    config.target.tdengine.connection_info.port = 6041;
-    config.target.tdengine.database_info.name = "test_action";
-    config.target.tdengine.super_table_info.name = "test_super_table";
+    config.timestamp_precision = "ms";
+    config.target_type = "tdengine";
+    config.tdengine = TDengineConfig("taos+ws://localhost:6041/test_action");
+    config.schema.name = "test_super_table";
 
     return config;
 }
@@ -64,7 +58,7 @@ InsertDataConfig create_test_config() {
 void test_basic_initialization() {
     GlobalConfig global;
     auto config = create_test_config();
-    config.source.columns.generator.schema.clear();  // Clear schema to test error handling
+    config.schema.columns_cfg.generator.schema.clear();  // Clear schema to test error handling
 
     try {
         InsertDataAction action(global, config);
@@ -86,7 +80,7 @@ void test_table_name_generation() {
     assert(names[9] == "d9");
 
     auto split_names = name_manager.split_for_threads();
-    assert(split_names.size() == config.control.data_generation.generate_threads);
+    assert(split_names.size() == config.schema.generation.generate_threads);
     assert(split_names[0].size() == 5);  // Even split for 10 tables across 2 threads
 
     std::cout << "test_table_name_generation passed\n";
@@ -154,10 +148,10 @@ void test_data_pipeline() {
 
 void test_data_generation() {
     auto config = create_test_config();
-    config.control.data_generation.per_table_rows = 5;
-    config.control.data_generation.interlace_mode.enabled = false;
+    config.schema.generation.per_table_rows = 5;
+    config.schema.generation.interlace_mode.enabled = false;
 
-    auto col_instances = ColumnConfigInstanceFactory::create(config.source.columns.generator.schema);
+    auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
     MemoryPool pool(1, 1, 5, col_instances);
     TableDataManager manager(pool, config, col_instances);
 
@@ -203,18 +197,16 @@ void test_end_to_end_data_generation() {
 
             auto config = create_test_config();
 
-            config.control.data_channel = channel;
-            config.control.data_format = format;
-            config.target.tdengine.connection_info.port = ConnectionInfo::default_port(channel.channel_type);
+            config.data_format = format;
 
-            config.control.data_generation.per_table_rows = 10;
-            config.control.data_generation.generate_threads = 1;
-            config.control.data_generation.queue_capacity = 2;
-            config.control.insert_control.insert_threads = 1;
-            config.source.table_name.generator.count = 4;           // 4 tables total
-            config.target.target_type = "tdengine";
-            config.target.tdengine.database_info.name = "test_action";
-            config.target.tdengine.super_table_info.name = "test_super_table";
+            config.schema.generation.per_table_rows = 10;
+            config.schema.generation.generate_threads = 1;
+            config.queue_capacity = 2;
+            config.insert_threads = 1;
+            config.schema.tbname.generator.count = 4;           // 4 tables total
+            config.target_type = "tdengine";
+            config.tdengine.database = "test_action";
+            config.schema.name = "test_super_table";
 
             InsertDataAction action(global, config);
 
@@ -232,13 +224,13 @@ void test_end_to_end_data_generation() {
 void test_concurrent_data_generation() {
     GlobalConfig global;
     auto config = create_test_config();
-    config.control.data_generation.per_table_rows = 1000;     // More rows to test concurrency
-    config.control.data_generation.generate_threads = 4;      // More threads
-    config.control.insert_control.insert_threads = 4;
-    config.source.table_name.generator.count = 8;             // 8 tables
-    config.target.target_type = "tdengine";
-    config.target.tdengine.database_info.name = "test_action";
-    config.target.tdengine.super_table_info.name = "test_super_table";
+    config.schema.generation.per_table_rows = 1000;     // More rows to test concurrency
+    config.schema.generation.generate_threads = 4;      // More threads
+    config.insert_threads = 4;
+    config.schema.tbname.generator.count = 8;             // 8 tables
+    config.target_type = "tdengine";
+    config.tdengine.database = "test_action";
+    config.schema.name = "test_super_table";
 
     InsertDataAction action(global, config);
 
@@ -263,7 +255,7 @@ void test_error_handling() {
     // Test case 1: Invalid target type
     {
         auto invalid_config = config;
-        invalid_config.target.target_type = "invalid_target";
+        invalid_config.target_type = "invalid_target";
 
         InsertDataAction action(global, invalid_config);
         try {
@@ -277,7 +269,7 @@ void test_error_handling() {
     // Test case 2: Invalid table configuration
     {
         auto invalid_config = config;
-        invalid_config.source.table_name.generator.count = 0;
+        invalid_config.schema.tbname.generator.count = 0;
 
         InsertDataAction action(global, invalid_config);
         try {
@@ -291,7 +283,7 @@ void test_error_handling() {
     // Test case 3: Invalid thread configuration
     {
         auto invalid_config = config;
-        invalid_config.control.data_generation.generate_threads = 0;
+        invalid_config.schema.generation.generate_threads = 0;
 
         InsertDataAction action(global, invalid_config);
         try {

@@ -4,13 +4,13 @@
 #include <vector>
 #include <map>
 #include <optional>
-#include "ConnectionInfo.hpp"
+#include "TDengineConfig.hpp"
 #include "DataFormat.hpp"
 #include "DataChannel.hpp"
 
 struct SubscribeDataConfig {
     struct Source {
-        ConnectionInfo connection_info; // Database connection info
+        TDengineConfig connection_info; // Database connection info
     } source;
 
     struct Control {

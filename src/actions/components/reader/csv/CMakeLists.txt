@@ -2,9 +2,9 @@
 add_library(reader_csv STATIC
   src/CSVUtils.cpp
   src/CSVReader.cpp
-  src/TableNameCSV.cpp
-  src/TagsCSV.cpp
-  src/ColumnsCSV.cpp
+  src/TableNameCSVReader.cpp
+  src/TagsCSVReader.cpp
+  src/ColumnsCSVReader.cpp
 )
 
 # Set include directories

@@ -35,7 +35,7 @@
 `taosgen` 目前仅支持 Linux 系统。
 
 ## 2. 文档
-- 使用 `taosgen` 工具，请查阅[用户手册](./user-guide-cn.md)，其中包含运行、命令行参数、配置文件参数、配置文件示例等内容。
+- 使用 `taosgen` 工具，请查阅[参考手册](https://docs.taosdata.com/reference/tools/taosgen/)，其中包含运行、命令行参数、配置文件参数、配置文件示例等内容。
 - 本快速指南主要面向那些喜欢自己贡献、构建和测试 `taosgen` 工具的开发者。要了解更多关于 TDengine 的信息，您可以访问[官方文档](https://docs.taosdata.com/)。
 
 ## 3. 前置条件

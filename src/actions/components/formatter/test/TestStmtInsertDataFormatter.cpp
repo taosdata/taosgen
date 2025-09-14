@@ -9,7 +9,7 @@ void test_stmt_format_insert_data_single_table() {
     format.stmt_config.version = "v2";
 
     InsertDataConfig config;
-    config.target.tdengine.database_info.name = "test_db";
+    config.tdengine.database = "test_db";
 
     ColumnConfigInstanceVector col_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
@@ -43,7 +43,7 @@ void test_stmt_format_insert_data_multiple_tables() {
     format.stmt_config.version = "v2";
 
     InsertDataConfig config;
-    config.target.tdengine.database_info.name = "test_db";
+    config.tdengine.database = "test_db";
 
     ColumnConfigInstanceVector col_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
@@ -85,7 +85,7 @@ void test_stmt_format_insert_data_empty_batch() {
     format.stmt_config.version = "v2";
 
     InsertDataConfig config;
-    config.target.tdengine.database_info.name = "test_db";
+    config.tdengine.database = "test_db";
 
     ColumnConfigInstanceVector col_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
@@ -120,7 +120,7 @@ void test_stmt_format_insert_data_invalid_version() {
     format.stmt_config.version = "v1";  // Unsupported version
 
     InsertDataConfig config;
-    config.target.tdengine.database_info.name = "test_db";
+    config.tdengine.database = "test_db";
 
     ColumnConfigInstanceVector col_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
@@ -153,7 +153,7 @@ void test_stmt_format_insert_data_with_empty_rows() {
     format.stmt_config.version = "v2";
 
     InsertDataConfig config;
-    config.target.tdengine.database_info.name = "test_db";
+    config.tdengine.database = "test_db";
 
     ColumnConfigInstanceVector col_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});

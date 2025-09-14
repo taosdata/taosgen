@@ -12,14 +12,14 @@ struct CheckpointActionConfig {
 
     CheckpointActionConfig() = default;
     CheckpointActionConfig(const InsertDataConfig& config){
-        enabled = config.control.checkpoint_info.enabled;
-        interval_sec = config.control.checkpoint_info.interval_sec;
+        enabled = config.checkpoint_info.enabled;
+        interval_sec = config.checkpoint_info.interval_sec;
         if (enabled) {
-            TimestampGeneratorConfig timestampConfig = config.source.columns.generator.timestamp_strategy.timestamp_config;
-            this->start_timestamp = TimestampUtils::parse_timestamp(timestampConfig.start_timestamp, timestampConfig.timestamp_precision);
-            this->timestamp_step = timestampConfig.timestamp_step;
-            this->timestamp_precision = timestampConfig.timestamp_precision;
-            this->tableCount = config.source.table_name.generator.count - config.source.table_name.generator.from;
+            TimestampGeneratorConfig ts_config = config.schema.columns_cfg.generator.timestamp_strategy.timestamp_config;
+            this->start_timestamp = TimestampUtils::parse_timestamp(ts_config.start_timestamp, ts_config.timestamp_precision);
+            this->timestamp_step = std::get<Timestamp>(ts_config.timestamp_step);
+            this->timestamp_precision = ts_config.timestamp_precision;
+            this->tableCount = config.schema.tbname.generator.count - config.schema.tbname.generator.from;
         }
     }
 };

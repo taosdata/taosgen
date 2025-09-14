@@ -9,8 +9,8 @@ void test_format_create_child_table_single() {
     format.format_type = "sql";
 
     CreateChildTableConfig config;
-    config.database_info.name = "test_db";
-    config.super_table_info.name = "test_super_table";
+    config.tdengine.database = "test_db";
+    config.schema.name = "test_super_table";
 
     std::string table_name = "child_table_1";
     RowType tags = {3.14, std::string("California")};
@@ -18,7 +18,7 @@ void test_format_create_child_table_single() {
     SqlChildTableFormatter formatter(format);
     std::string result = formatter.format(config, table_name, tags);
 
-    assert(result == "CREATE TABLE IF NOT EXISTS `test_db`.`child_table_1` USING `test_db`.`test_super_table` TAGS (3.14, 'California')");
+    assert(result == "CREATE TABLE IF NOT EXISTS `test_db`.`child_table_1` USING `test_db`.`test_super_table` TAGS (3.140000, 'California')");
     std::cout << "test_format_create_child_table_single passed!" << std::endl;
 }
 
@@ -27,8 +27,8 @@ void test_format_create_child_table_multiple() {
     format.format_type = "sql";
 
     CreateChildTableConfig config;
-    config.database_info.name = "test_db";
-    config.super_table_info.name = "test_super_table";
+    config.tdengine.database = "test_db";
+    config.schema.name = "test_super_table";
 
     std::vector<std::string> table_names = {"child_table_1", "child_table_2"};
     std::vector<RowType> tags = {
@@ -41,8 +41,8 @@ void test_format_create_child_table_multiple() {
 
     assert(std::holds_alternative<std::string>(result));
     assert(std::get<std::string>(result) ==
-           "CREATE TABLE IF NOT EXISTS `test_db`.`child_table_1` USING `test_db`.`test_super_table` TAGS (3.14, 'California') "
-           "IF NOT EXISTS `test_db`.`child_table_2` USING `test_db`.`test_super_table` TAGS (2.71, 'New York');");
+           "CREATE TABLE IF NOT EXISTS `test_db`.`child_table_1` USING `test_db`.`test_super_table` TAGS (3.140000, 'California') "
+           "IF NOT EXISTS `test_db`.`child_table_2` USING `test_db`.`test_super_table` TAGS (2.710000, 'New York');");
     std::cout << "test_format_create_child_table_multiple passed!" << std::endl;
 }
 
@@ -51,8 +51,8 @@ void test_format_create_child_table_empty_tags() {
     format.format_type = "sql";
 
     CreateChildTableConfig config;
-    config.database_info.name = "test_db";
-    config.super_table_info.name = "test_super_table";
+    config.tdengine.database = "test_db";
+    config.schema.name = "test_super_table";
 
     std::string table_name = "child_table_1";
     RowType tags = {};

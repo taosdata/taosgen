@@ -2,13 +2,13 @@
 
 #include <string>
 #include <vector>
-#include "ConnectionInfo.hpp"
+#include "TDengineConfig.hpp"
 #include "DataFormat.hpp"
 #include "DataChannel.hpp"
 
 struct QueryDataConfig {
     struct Source {
-        ConnectionInfo connection_info;
+        TDengineConfig connection_info;
     } source;
 
     struct Control {

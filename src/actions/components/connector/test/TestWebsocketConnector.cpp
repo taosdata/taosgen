@@ -4,18 +4,10 @@
 
 void test_websocket_connector_create_database() {
     // Set connection info
-    ConnectionInfo conn_info;
-    conn_info.host = "localhost";
-    conn_info.port = 6041;
-    conn_info.user = "root";
-    conn_info.password = "taosdata";
-
-    // Set data channel
-    DataChannel channel;
-    channel.channel_type = "websocket";
+    TDengineConfig conn_info;
 
     // Create connector instance using ConnectorFactory::create
-    auto connector = ConnectorFactory::create(channel, conn_info);
+    auto connector = ConnectorFactory::create(conn_info);
 
     // Test connection
     if (!connector->connect()) {

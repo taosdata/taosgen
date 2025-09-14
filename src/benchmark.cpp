@@ -30,7 +30,7 @@ int main(int argc, char* argv[]) {
         try {
             // Create job scheduler instance
             JobScheduler scheduler(config);
-            
+
             // Run scheduler
             scheduler.run();
 

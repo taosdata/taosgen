@@ -8,32 +8,27 @@ InsertDataConfig create_test_config() {
     InsertDataConfig config;
 
     // Source config
-    config.source.table_name.source_type = "generator";
-    config.source.columns.source_type = "generator";
-    config.source.columns.generator.schema = {
+    config.schema.tbname.source_type = "generator";
+    config.schema.columns = {
         ColumnConfig{"col1", "INT"},
         ColumnConfig{"col2", "DOUBLE"}
     };
 
     // Target config
-    config.target.timestamp_precision = "ms";
-    config.target.tdengine.connection_info = ConnectionInfo{
-        "localhost",
-        6030,
-        "root",
-        "taosdata"
+    config.timestamp_precision = "ms";
+    config.tdengine = TDengineConfig{
+        "taos://root:taosdata@localhost:6030/test_action"
     };
-    config.target.tdengine.database_info.name = "test_action";
-    config.target.tdengine.super_table_info.name = "test_super_table";
+    config.schema.name = "test_super_table";
+    config.schema.apply();
 
     // Control config
-    config.control.data_channel.channel_type = "native";
-    config.control.data_format.format_type = "sql";
+    config.data_format.format_type = "sql";
 
     // Insert control for retry
-    config.control.insert_control.failure_handling.max_retries = 1;
-    config.control.insert_control.failure_handling.retry_interval_ms = 1;
-    config.control.insert_control.failure_handling.on_failure = "exit";
+    config.failure_handling.max_retries = 1;
+    config.failure_handling.retry_interval_ms = 1;
+    config.failure_handling.on_failure = "exit";
 
     return config;
 }
@@ -41,15 +36,15 @@ InsertDataConfig create_test_config() {
 void test_constructor() {
     // Test valid timestamp precision
     auto config = create_test_config();
-    auto col_instances = ColumnConfigInstanceFactory::create(config.source.columns.get_schema());
+    auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.get_schema());
     TDengineWriter writer(config, col_instances);
 
     // Test empty timestamp precision (should default to "ms")
-    config.target.timestamp_precision = "";
+    config.timestamp_precision = "";
     TDengineWriter writer_empty_ts(config, col_instances);
 
     // Test invalid timestamp precision
-    config.target.timestamp_precision = "invalid";
+    config.timestamp_precision = "invalid";
     try {
         TDengineWriter writer_invalid(config, col_instances);
         assert(false); // Should not reach here
@@ -62,7 +57,7 @@ void test_constructor() {
 
 void test_connection() {
     auto config = create_test_config();
-    auto col_instances = ColumnConfigInstanceFactory::create(config.source.columns.get_schema());
+    auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.get_schema());
 
     std::optional<ConnectorSource> conn_src;
     TDengineWriter writer(config, col_instances);
@@ -77,7 +72,7 @@ void test_connection() {
     assert(connected);
 
     // Test connection with invalid config
-    config.target.tdengine.connection_info.host = "invalid_host";
+    config.tdengine.host = "invalid_host";
     TDengineWriter invalid_writer(config, col_instances);
     connected = invalid_writer.connect(conn_src);
     assert(!connected);
@@ -87,7 +82,7 @@ void test_connection() {
 
 void test_select_db_and_prepare() {
     auto config = create_test_config();
-    auto col_instances = ColumnConfigInstanceFactory::create(config.source.columns.get_schema());
+    auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.get_schema());
     TDengineWriter writer(config, col_instances);
 
     // Not connected, should throw
@@ -122,7 +117,7 @@ void test_select_db_and_prepare() {
 
 void test_write_operations() {
     auto config = create_test_config();
-    auto col_instances = ColumnConfigInstanceFactory::create(config.source.columns.get_schema());
+    auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.get_schema());
 
     std::optional<ConnectorSource> conn_src;
     TDengineWriter writer(config, col_instances);
@@ -149,8 +144,8 @@ void test_write_operations() {
     // Test STMT write
     {
         std::string sql = "INSERT INTO `"
-            + config.target.tdengine.database_info.name + "`.`"
-            + config.target.tdengine.super_table_info.name + "`(tbname,ts,col1,col2) VALUES(?,?,?,?)";
+            + config.tdengine.database + "`.`"
+            + config.schema.name + "`(tbname,ts,col1,col2) VALUES(?,?,?,?)";
 
         auto prepared = writer.prepare(sql);
         (void)prepared;
@@ -197,7 +192,7 @@ void test_write_operations() {
 
 void test_write_without_connection() {
     auto config = create_test_config();
-    auto col_instances = ColumnConfigInstanceFactory::create(config.source.columns.get_schema());
+    auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.get_schema());
     TDengineWriter writer(config, col_instances);
 
     MultiBatch batch;
@@ -223,10 +218,10 @@ void test_write_without_connection() {
 
 void test_retry_mechanism() {
     auto config = create_test_config();
-    config.control.insert_control.failure_handling.max_retries = 2;
-    config.control.insert_control.failure_handling.retry_interval_ms = 1;
-    config.control.insert_control.failure_handling.on_failure = "exit";
-    auto col_instances = ColumnConfigInstanceFactory::create(config.source.columns.get_schema());
+    config.failure_handling.max_retries = 2;
+    config.failure_handling.retry_interval_ms = 1;
+    config.failure_handling.on_failure = "exit";
+    auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.get_schema());
     TDengineWriter writer(config, col_instances);
 
     std::optional<ConnectorSource> conn_src;
@@ -252,7 +247,7 @@ void test_retry_mechanism() {
 
 void test_metrics_and_time() {
     auto config = create_test_config();
-    auto col_instances = ColumnConfigInstanceFactory::create(config.source.columns.get_schema());
+    auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.get_schema());
     TDengineWriter writer(config, col_instances);
 
     assert(writer.get_timestamp_precision() == "ms");

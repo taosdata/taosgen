@@ -58,6 +58,7 @@ struct MultiBatch {
         bool has_data = false;
 
         for (const auto& [table_name, rows] : table_batches) {
+            (void)table_name;
             for (const auto& row : rows) {
                 start_time = std::min(start_time, row.timestamp);
                 end_time = std::max(end_time, row.timestamp);

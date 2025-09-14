@@ -53,7 +53,13 @@ private:
     // Register InsertDataAction to ActionFactory
     inline static bool registered_ = []() {
         ActionFactory::instance().register_action(
-            "actions/insert-data",
+            "tdengine/insert-data",
+            [](const GlobalConfig& global, const ActionConfigVariant& config) {
+                return std::make_unique<InsertDataAction>(global, std::get<InsertDataConfig>(config));
+            });
+
+        ActionFactory::instance().register_action(
+            "mqtt/publish-data",
             [](const GlobalConfig& global, const ActionConfigVariant& config) {
                 return std::make_unique<InsertDataAction>(global, std::get<InsertDataConfig>(config));
             });

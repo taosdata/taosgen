@@ -8,17 +8,15 @@
 #include "InsertDataConfig.hpp"
 #include "RowGenerator.hpp"
 #include "TimestampGenerator.hpp"
-#include "ColumnsCSV.hpp"
-#include "TableNameCSV.hpp"
+#include "ColumnsCSVReader.hpp"
+#include "TableNameCSVReader.hpp"
 #include "MemoryPool.hpp"
 
 class RowDataGenerator {
 public:
     RowDataGenerator(const std::string& table_name,
-                    const ColumnsConfig& columns_config,
-                    const ColumnConfigInstanceVector& instances,
-                    const InsertDataConfig::Control& control,
-                    const std::string& target_precision);
+                    const InsertDataConfig& config,
+                    const ColumnConfigInstanceVector& instances);
 
     // Get next row data
     std::optional<RowData> next_row();
@@ -86,7 +84,7 @@ private:
     const std::string& table_name_;
     const ColumnsConfig& columns_config_;
     const ColumnConfigInstanceVector& instances_;
-    const InsertDataConfig::Control& control_;
+    const InsertDataConfig& config_;
     const std::string& target_precision_;
 
     // Initialize cache line memory
@@ -94,7 +92,7 @@ private:
 
     // Data source components
     std::unique_ptr<RowGenerator> row_generator_;
-    std::unique_ptr<ColumnsCSV> columns_csv_;
+    std::unique_ptr<ColumnsCSVReader> columns_csv_;
     std::unique_ptr<TimestampGenerator> timestamp_generator_;
 
     // CSV data

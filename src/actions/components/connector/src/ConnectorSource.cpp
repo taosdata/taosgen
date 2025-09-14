@@ -4,12 +4,10 @@
 #include <iostream>
 #include <stdexcept>
 
-ConnectorSource::ConnectorSource(
-    const DataChannel& channel, const ConnectionInfo& conn_info)
-    : channel_(channel), conn_info_(conn_info)
+ConnectorSource::ConnectorSource(const TDengineConfig& conn_info) : conn_info_(conn_info)
 {
     if (conn_info_.pool.enabled) {
-        pool_impl_ = std::make_unique<ConnectionPoolImpl>(channel, conn_info);
+        pool_impl_ = std::make_unique<ConnectionPoolImpl>(conn_info);
     }
 }
 
@@ -31,7 +29,7 @@ std::unique_ptr<DatabaseConnector> ConnectorSource::get_connector() {
 }
 
 std::unique_ptr<DatabaseConnector> ConnectorSource::create_raw_connection() const {
-    return ConnectorFactory::create(channel_, conn_info_);
+    return ConnectorFactory::create(conn_info_);
 }
 
 size_t ConnectorSource::total_connections() const {

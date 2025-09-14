@@ -22,7 +22,7 @@ void test_checkpoint_recover() {
     nlohmann::json json_data;
     json_data["table_name"] = "t1";
     json_data["last_checkpoint_time"] = 1620000005000;
-    
+
     std::ofstream ofs(checkpoint_file);
     ofs << json_data.dump(4);
     ofs.close();
@@ -35,27 +35,29 @@ void test_checkpoint_recover() {
 
     // 3. Create InsertDataConfig and test recover
     InsertDataConfig insert_config;
-    insert_config.target.target_type = "tdengine";
-    insert_config.control.checkpoint_info.enabled = true;
-    insert_config.source.columns.generator.timestamp_strategy.timestamp_config.start_timestamp = "2021-05-03 08:00:00"; // 1620000000000
-    insert_config.source.columns.generator.timestamp_strategy.timestamp_config.timestamp_precision = "ms";
-    insert_config.source.columns.generator.timestamp_strategy.timestamp_config.timestamp_step = 1000;
-    insert_config.control.data_generation.per_table_rows = 100;
+    insert_config.target_type = "tdengine";
+    insert_config.checkpoint_info.enabled = true;
+    insert_config.schema.columns_cfg.generator.timestamp_strategy.timestamp_config = TimestampGeneratorConfig {
+        .start_timestamp = "2021-05-03 08:00:00", // 1620000000000
+        .timestamp_precision = "ms",
+        .timestamp_step = 1000
+    };
+    insert_config.schema.generation.per_table_rows = 100;
 
     CheckpointAction::checkpoint_recover(global, insert_config);
-    std::cout << "checkpoint_recover executed." << insert_config.control.data_generation.per_table_rows << std::endl;
+    std::cout << "checkpoint_recover executed." << insert_config.schema.generation.per_table_rows << std::endl;
     // 4. Assert config changes
     int64_t expected_start_ts = 1620000005000;
     int64_t recovered_rows = 5;
     int64_t expected_rows = 100 - recovered_rows;
 
-    assert(std::get<long int>(insert_config.source.columns.generator.timestamp_strategy.timestamp_config.start_timestamp) == expected_start_ts);
-    assert(insert_config.control.data_generation.per_table_rows == expected_rows);
+    assert(std::get<long int>(insert_config.schema.columns_cfg.generator.timestamp_strategy.timestamp_config.start_timestamp) == expected_start_ts);
+    assert(insert_config.schema.generation.per_table_rows == expected_rows);
 
     // 5. Clean up
     std::remove(checkpoint_file.c_str());
     std::cout << "Cleaned up dummy checkpoint file." << std::endl;
-    
+
     std::cout << "test_checkpoint_recover passed\n";
 }
 

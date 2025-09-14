@@ -3,37 +3,37 @@ add_executable(TestCSVReader
   TestCSVReader.cpp
 )
 target_link_libraries(TestCSVReader
-  PRIVATE 
+  PRIVATE
     reader_csv
 )
 add_test(NAME TestCSVReader COMMAND TestCSVReader)
 
-# Test TableNameCSV
-add_executable(TestTableNameCSV
-  TestTableNameCSV.cpp
+# Test TableNameCSVReader
+add_executable(TestTableNameCSVReader
+  TestTableNameCSVReader.cpp
 )
-target_link_libraries(TestTableNameCSV
-  PRIVATE 
+target_link_libraries(TestTableNameCSVReader
+  PRIVATE
     reader_csv
 )
-add_test(NAME TestTableNameCSV COMMAND TestTableNameCSV)
+add_test(NAME TestTableNameCSVReader COMMAND TestTableNameCSVReader)
 
-# Test TagsCSV
-add_executable(TestTagsCSV
-  TestTagsCSV.cpp
+# Test TagsCSVReader
+add_executable(TestTagsCSVReader
+  TestTagsCSVReader.cpp
 )
-target_link_libraries(TestTagsCSV
-  PRIVATE 
+target_link_libraries(TestTagsCSVReader
+  PRIVATE
     reader_csv
 )
-add_test(NAME TestTagsCSV COMMAND TestTagsCSV)
+add_test(NAME TestTagsCSVReader COMMAND TestTagsCSVReader)
 
-# Test ColumnsCSV
-add_executable(TestColumnsCSV
-  TestColumnsCSV.cpp
+# Test ColumnsCSVReader
+add_executable(TestColumnsCSVReader
+  TestColumnsCSVReader.cpp
 )
-target_link_libraries(TestColumnsCSV
-  PRIVATE 
+target_link_libraries(TestColumnsCSVReader
+  PRIVATE
     reader_csv
 )
-add_test(NAME TestColumnsCSV COMMAND TestColumnsCSV)
+add_test(NAME TestColumnsCSVReader COMMAND TestColumnsCSVReader)

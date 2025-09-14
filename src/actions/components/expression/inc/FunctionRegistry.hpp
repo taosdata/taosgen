@@ -32,6 +32,7 @@ public:
     // Register all modules to the Lua environment
     void register_all(lua_State* L) {
         for (auto& [name, func] : modules_) {
+            (void)name;
             func(L);
         }
     }

@@ -8,16 +8,16 @@ TableDataManager::TableDataManager(MemoryPool& pool, const InsertDataConfig& con
     : pool_(pool), config_(config), col_instances_(col_instances) {
 
     // Set interlace rows
-    if (config_.control.data_generation.interlace_mode.enabled) {
-        interlace_rows_ = config_.control.data_generation.interlace_mode.rows;
+    if (config_.schema.generation.interlace_mode.enabled) {
+        interlace_rows_ = config_.schema.generation.interlace_mode.rows;
     } else {
         interlace_rows_ = std::numeric_limits<int64_t>::max();
     }
 
     // Initialize flow control
-    if (config_.control.data_generation.flow_control.enabled) {
+    if (config_.schema.generation.flow_control.enabled) {
         rate_limiter_ = std::make_unique<RateLimiter>(
-            config_.control.data_generation.flow_control.rate_limit
+            config_.schema.generation.flow_control.rate_limit
         );
     }
 }
@@ -40,10 +40,8 @@ bool TableDataManager::init(const std::vector<std::string>& table_names) {
                 state.table_name = table_name;
                 state.generator = std::make_unique<RowDataGenerator>(
                     table_name,
-                    config_.source.columns,
-                    col_instances_,
-                    config_.control,
-                    config_.target.timestamp_precision
+                    config_,
+                    col_instances_
                 );
                 state.rows_generated = 0;
                 state.interlace_counter = 0;
@@ -54,7 +52,9 @@ bool TableDataManager::init(const std::vector<std::string>& table_names) {
                 // std::cerr << "Failed to create RowDataGenerator for table: " << table_name
                 //          << " - " << e.what() << std::endl;
                 // return false;
-                state.completed = true;
+                // state.completed = true;
+
+                throw std::runtime_error(std::string("Failed to create RowDataGenerator for table: ") + table_name + " - " + e.what());
             }
         }
 
@@ -84,7 +84,7 @@ std::optional<MemoryPool::MemoryBlock*> TableDataManager::next_multi_batch() {
     // }
 
     // Get maximum rows per request from config
-    size_t max_rows = config_.control.insert_control.per_request_rows;
+    size_t max_rows = config_.schema.generation.per_batch_rows;
     if (max_rows == 0) {
         max_rows = std::numeric_limits<size_t>::max();
     }
@@ -168,7 +168,7 @@ MemoryPool::MemoryBlock* TableDataManager::collect_batch_data(size_t max_rows) {
 
         // Update table state
         if (!table_state->completed &&
-            table_state->rows_generated >= config_.control.data_generation.per_table_rows) {
+            table_state->rows_generated >= config_.schema.generation.per_table_rows) {
             table_state->completed = true;
             if (active_table_count_ > 0) --active_table_count_;
         }
@@ -219,7 +219,7 @@ TableDataManager::TableState* TableDataManager::get_next_active_table() {
 
         // Check if table still has data and is not completed
         if (!state.completed &&
-            state.rows_generated < config_.control.data_generation.per_table_rows &&
+            state.rows_generated < config_.schema.generation.per_table_rows &&
             state.generator->has_more())
         {
             return &state;
@@ -235,7 +235,7 @@ TableDataManager::TableState* TableDataManager::get_next_active_table() {
 size_t TableDataManager::calculate_rows_to_generate(TableState& state) const {
     // Calculate remaining row limit
     int64_t remaining_rows = std::min(
-        config_.control.data_generation.per_table_rows - state.rows_generated,
+        config_.schema.generation.per_table_rows - state.rows_generated,
         state.generator->has_more() ? std::numeric_limits<int64_t>::max() : 0
     );
 
@@ -246,10 +246,10 @@ size_t TableDataManager::calculate_rows_to_generate(TableState& state) const {
     );
 
     // Consider flow control
-    // if (config_.control.data_generation.flow_control.rate_limit > 0) {
+    // if (config_.schema.generation.flow_control.rate_limit > 0) {
     //     rows_to_generate = std::min(
     //         rows_to_generate,
-    //         config_.control.data_generation.flow_control.rate_limit / static_cast<int>(table_order_.size())
+    //         config_.schema.generation.flow_control.rate_limit / static_cast<int>(table_order_.size())
     //     );
     // }
 

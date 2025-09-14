@@ -4,7 +4,7 @@
 #include "MsgInsertData.hpp"
 #include "InsertDataConfig.hpp"
 #include "FormatResult.hpp"
-#include "MqttInfo.hpp"
+#include "MqttConfig.hpp"
 #include "Compressor.hpp"
 #include "CompressionType.hpp"
 #include "EncodingConverter.hpp"
@@ -42,7 +42,7 @@ public:
 // MQTT client implementation wrapper
 class PahoMqttClient : public IMqttClient {
 public:
-    PahoMqttClient(const std::string& host, int port, const std::string& client_id, size_t max_buffered_messages,
+    PahoMqttClient(const std::string& uri, const std::string& client_id, size_t max_buffered_messages,
         const std::string& content_type, const std::string& compression, const std::string& encoding);
 
     ~PahoMqttClient();
@@ -57,11 +57,21 @@ public:
 private:
     std::unique_ptr<mqtt::async_client> client_;
     mqtt::properties default_props_;
+    mqtt::thread_queue<mqtt::delivery_token_ptr> token_queue_;
+
+    void token_wait_func() {
+        while (true) {
+            mqtt::delivery_token_ptr token = token_queue_.get();
+            if (!token)
+                break;
+            token->wait();
+        }
+    }
 };
 
 class MqttClient {
 public:
-    MqttClient(const MqttInfo& config, const ColumnConfigInstanceVector& col_instances, size_t no = 0);
+    MqttClient(const MqttConfig& config, const ColumnConfigInstanceVector& col_instances, size_t no = 0);
     ~MqttClient();
 
     // Connect to MQTT broker
@@ -89,7 +99,7 @@ public:
     );
 
 private:
-    const MqttInfo& config_;
+    const MqttConfig& config_;
     const ColumnConfigInstanceVector& col_instances_;
     CompressionType compression_type_;
     EncodingType encoding_type_;
