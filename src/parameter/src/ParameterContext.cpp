@@ -59,14 +59,14 @@ void ParameterContext::show_help() {
 
     std::cout << "\nExamples:\n"
               << "  taosgen --config-file=example.yaml\n"
-              << "  taosgen -h localhost -P 6030 -u root -p taosdata\n"
+              << "  taosgen -h localhost -P 6041 -u root -p taosdata\n"
               << "\nFor more information, visit: https://docs.taosdata.com/\n\n";
 }
 
 void ParameterContext::show_version() {
-    std::cout << "taosgen version: 0.3.0" << std::endl;
-    std::cout << "git: 8cd2b390ca6e10b7b42d6972d86e50a7fe4d4601" << std::endl;
-    std::cout << "build: Linux-x64 2025-08-21 21:51:41 +0800" << std::endl;
+    std::cout << "taosgen version: 0.5.0" << std::endl;
+    std::cout << "git: " << TSGEN_BUILD_GIT << std::endl;
+    std::cout << "build: " << TSGEN_BUILD_TARGET_OSTYPE << "-" << TSGEN_BUILD_TARGET_CPUTYPE << " " << TSGEN_BUILD_DATE << std::endl;
 }
 
 void ParameterContext::parse_tdengine(const YAML::Node& td_yaml) {

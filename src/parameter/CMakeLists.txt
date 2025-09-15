@@ -3,6 +3,13 @@ add_library(parameter STATIC
   src/ParameterContext.cpp
 )
 
+target_compile_definitions(parameter PRIVATE
+  TSGEN_BUILD_TARGET_OSTYPE="${TSGEN_BUILD_TARGET_OSTYPE}"
+  TSGEN_BUILD_TARGET_CPUTYPE="${TSGEN_BUILD_TARGET_CPUTYPE}"
+  TSGEN_BUILD_DATE="${TSGEN_BUILD_DATE}"
+  TSGEN_BUILD_GIT="${TSGEN_BUILD_GIT}"
+)
+
 # Set include directories
 target_include_directories(parameter
   PUBLIC
