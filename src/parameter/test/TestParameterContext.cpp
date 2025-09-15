@@ -343,6 +343,7 @@ void test_load_default_schema() {
 
     // tbname
     const auto& schema = ctx.get_global_config().schema;
+    (void)schema;
     assert(schema.name == "meters");
     assert(schema.tbname.generator.prefix == "d");
     assert(schema.tbname.generator.count == 10000);
@@ -384,6 +385,26 @@ void test_load_default_schema() {
     std::cout << "Default schema loaded test passed.\n";
 }
 
+void test_show_version() {
+  ParameterContext ctx;
+
+  std::stringstream buffer;
+  std::streambuf* old = std::cout.rdbuf(buffer.rdbuf());
+
+  ctx.show_version();
+
+  std::cout.rdbuf(old);
+
+  std::string output = buffer.str();
+
+  // Check the output content
+  assert(output.find("taosgen version: ") != std::string::npos);
+  assert(output.find("git:") != std::string::npos);
+  assert(output.find("build:") != std::string::npos);
+
+  std::cout << "show_version test passed.\n";
+}
+
 int main() {
     test_commandline_merge();
     test_environment_merge();
@@ -393,6 +414,7 @@ int main() {
     // test_missing_required_key_detection();
     test_nested_unknown_key_detection();
     test_load_default_schema();
+    test_show_version();
 
     std::cout << "All tests passed!\n";
     return 0;
