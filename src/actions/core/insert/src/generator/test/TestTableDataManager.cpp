@@ -81,6 +81,8 @@ void test_has_more() {
     (void)states;
     assert(states.size() == 1);
     assert(states[0].rows_generated == 5);
+    (void)rows_generated;
+    assert(rows_generated == 5);
 
     std::cout << "test_has_more passed.\n";
 }
@@ -238,6 +240,7 @@ void test_per_request_rows_limit() {
         block.value()->release();
     }
 
+    (void)total_rows;
     assert(total_rows == 20);
 
     std::cout << "test_per_request_rows_limit passed.\n";

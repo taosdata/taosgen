@@ -36,6 +36,7 @@ void test_generator_mode_basic() {
         count++;
     }
 
+    (void)count;
     assert(count == 5);
     assert(!generator.has_more());
 

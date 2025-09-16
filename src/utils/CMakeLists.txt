@@ -16,6 +16,7 @@ target_include_directories(utils
 target_link_libraries(utils
   PUBLIC
     Threads::Threads
+    Iconv::Iconv
 )
 
 # Enable tests

@@ -34,7 +34,9 @@ target_link_libraries(taosgen
     Threads::Threads
 )
 
-target_link_libraries(taosgen PRIVATE -static-libstdc++ -static-libgcc)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  target_link_libraries(taosgen PRIVATE -static-libstdc++ -static-libgcc)
+endif()
 
 # Install target
 install(TARGETS taosgen

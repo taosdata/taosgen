@@ -18,11 +18,11 @@ public:
     bool execute(const StmtV2InsertData& data) override;
 
     bool is_connected() const override;
-    bool is_valid() const;
+    bool is_valid() const override;
     void reset_state() noexcept override;
 
 private:
 
     TDengineConfig conn_info_;
-    bool is_connected_{false};
+    // bool is_connected_{false};
 };

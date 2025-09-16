@@ -18,7 +18,6 @@ public:
 private:
     template<typename T>
     bool handle_insert(const T& data);
-    size_t no_;
+    // size_t no_;
     std::unique_ptr<DatabaseConnector> connector_;
-    
 };

@@ -173,6 +173,7 @@ void test_data_generation() {
         block.value()->release();
     }
 
+    (void)row_count;
     assert(row_count == 5);
     std::cout << "test_data_generation passed\n";
 }

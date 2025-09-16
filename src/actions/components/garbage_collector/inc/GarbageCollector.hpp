@@ -55,9 +55,11 @@ public:
 
         using DataType = std::decay_t<T>;
         auto ptr = std::make_shared<DataType>(std::move(data));
-    
+
         Task task;
         task.destructor = [ptr, this]() {
+            (void)ptr;
+            (void)this;
             // if constexpr (is_variant<DataType>::value) {
             //     // DataType is a std::variant
             //     std::visit([this](auto& obj) {

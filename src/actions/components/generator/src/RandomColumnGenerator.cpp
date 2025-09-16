@@ -89,7 +89,7 @@ void RandomColumnGenerator::initialize_generator() {
         // 使用min/max范围生成
         switch (instance_.config().type_tag) {
             case ColumnTypeTag::BOOL:
-                generator_ = [this]() {
+                generator_ = []() {
                     std::bernoulli_distribution dist(0.5);
                     return dist(random_engine);
                 };
@@ -187,11 +187,11 @@ void RandomColumnGenerator::initialize_generator() {
             case ColumnTypeTag::NCHAR:
                 generator_ = [this]() {
                     int len = *instance_.config().len;
-                    std::uniform_int_distribution<char16_t> dist(0x4E00, 0x9FA5);
+                    std::uniform_int_distribution<uint16_t> dist(0x4E00, 0x9FA5);
                     std::u16string result;
                     result.reserve(len);
                     for (int i = 0; i < len; ++i) {
-                        result.push_back(dist(random_engine));
+                        result.push_back(static_cast<char16_t>(dist(random_engine)));
                     }
                     return result;
                 };
@@ -201,7 +201,7 @@ void RandomColumnGenerator::initialize_generator() {
                 if (instance_.config().corpus) {
                     const auto& corpus = instance_.config().corpus.value();
                     std::uniform_int_distribution<size_t> dist(0, corpus.size() - 1);
-                    generator_ = [this, corpus, dist]() mutable {
+                    generator_ = [corpus, dist]() mutable {
                         return std::string(1, corpus[dist(random_engine)]);
                     };
                 } else {
