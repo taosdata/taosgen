@@ -19,7 +19,7 @@
 
 
 void InsertDataAction::set_realtime_priority() {
-#if defined(__linux__) || defined(__APPLE__)
+#if defined(__linux__)
     struct sched_param param;
     param.sched_priority = sched_get_priority_max(SCHED_FIFO);
 
@@ -31,7 +31,7 @@ void InsertDataAction::set_realtime_priority() {
 }
 
 void InsertDataAction::set_thread_affinity(size_t thread_id, bool reverse, const std::string& purpose) {
-#if defined(__linux__) || defined(__APPLE__)
+#if defined(__linux__)
     // Get available CPU cores
     unsigned int num_cores = std::thread::hardware_concurrency();
     if (num_cores == 0) num_cores = 1;
@@ -62,6 +62,10 @@ void InsertDataAction::set_thread_affinity(size_t thread_id, bool reverse, const
                   << core_id << (reverse ? " (reverse binding)" : " (forward binding)")
                   << std::endl;
     }
+#else
+    (void)thread_id;
+    (void)reverse;
+    (void)purpose;
 #endif
 }
 
@@ -607,8 +611,8 @@ void InsertDataAction::print_writer_times(const std::vector<std::unique_ptr<IWri
         auto start = writers[i]->start_write_time();
         auto end = writers[i]->end_write_time();
 
-        auto start_sys = std::chrono::system_clock::now() + (start - std::chrono::steady_clock::now());
-        auto end_sys = std::chrono::system_clock::now() + (end - std::chrono::steady_clock::now());
+        auto start_sys = std::chrono::system_clock::now() + std::chrono::duration_cast<std::chrono::system_clock::duration>(start - std::chrono::steady_clock::now());
+        auto end_sys = std::chrono::system_clock::now() + std::chrono::duration_cast<std::chrono::system_clock::duration>(end - std::chrono::steady_clock::now());
 
         auto print_time = [](const std::chrono::system_clock::time_point& tp) {
             auto t = std::chrono::system_clock::to_time_t(tp);

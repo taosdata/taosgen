@@ -10,6 +10,7 @@ if(WIN32)
     set(TAOS_LIB_NAMES "taos.dll" "taos.lib")
 else()
     set(TAOS_SEARCH_PATHS
+        "/usr/local/lib"
         "/usr/local/taos"
         "/usr/local"
         "/usr"
@@ -33,13 +34,33 @@ find_library(TAOS_LIBRARY
     DOC "TDengine library"
 )
 
+if(NOT TAOS_LIBRARY)
+    foreach(libname ${TAOS_LIB_NAMES})
+        foreach(path ${TAOS_SEARCH_PATHS})
+            set(test_path "${path}/${libname}")
+            if(EXISTS ${test_path})
+                get_filename_component(real_path ${test_path} REALPATH)
+                if(EXISTS ${real_path})
+                    set(TAOS_LIBRARY ${real_path})
+                    break()
+                endif()
+            endif()
+        endforeach()
+        if(TAOS_LIBRARY)
+            break()
+        endif()
+    endforeach()
+endif()
+
 # Version check
 if(TAOS_INCLUDE_DIR AND TAOS_LIBRARY)
-    set(CMAKE_REQUIRED_INCLUDES ${TAOS_INCLUDE_DIR})
-    set(CMAKE_REQUIRED_LIBRARIES ${TAOS_LIBRARY})
+    message(STATUS "TAOS_INCLUDE_DIR: ${TAOS_INCLUDE_DIR}")
+    message(STATUS "TAOS_LIBRARY: ${TAOS_LIBRARY}")
 
-    include(CheckSymbolExists)
-    check_symbol_exists(taos_query "taos.h" HAVE_TAOS_QUERY)
+    include(CheckFunctionExists)
+    set(CMAKE_REQUIRED_LIBRARIES ${TAOS_LIBRARY})
+    set(CMAKE_REQUIRED_INCLUDES ${TAOS_INCLUDE_DIR})
+    check_function_exists(taos_query HAVE_TAOS_QUERY)
 
     if(NOT HAVE_TAOS_QUERY)
         message(FATAL_ERROR "${Red}Found TDengine files but symbols are missing${ColorReset}")

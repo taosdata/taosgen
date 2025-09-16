@@ -99,6 +99,7 @@ void CreateChildTableAction::execute() {
                         // Format the batch data
                         FormatResult formatted_result = formatter->format(config_, batch_table_names, batch_tags);
 
+                        (void)group_idx;
                         // std::cout << "Formatted result for batch " << group_idx << '#' << batch_idx << ": "
                         //           << std::get<std::string>(formatted_result) << std::endl;
 

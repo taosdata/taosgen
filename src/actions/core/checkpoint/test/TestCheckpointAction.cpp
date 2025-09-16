@@ -51,6 +51,8 @@ void test_checkpoint_recover() {
     int64_t recovered_rows = 5;
     int64_t expected_rows = 100 - recovered_rows;
 
+    (void)expected_start_ts;
+    (void)expected_rows;
     assert(std::get<long int>(insert_config.schema.columns_cfg.generator.timestamp_strategy.timestamp_config.start_timestamp) == expected_start_ts);
     assert(insert_config.schema.generation.per_table_rows == expected_rows);
 

@@ -84,6 +84,7 @@ find_package(PahoMqttCpp REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(TAOS REQUIRED)
 find_package(Threads REQUIRED)
+find_package(Iconv REQUIRED)
 
 if(HAVE_GIT)
   execute_process(COMMAND git log -1 --format=%H WORKING_DIRECTORY ${PROJECT_SOURCE_DIR} OUTPUT_VARIABLE GIT_COMMITID)

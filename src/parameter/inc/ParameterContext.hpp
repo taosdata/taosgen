@@ -41,7 +41,7 @@ public:
 
 
 private:
-    int concurrency = 1;
+    // int concurrency = 1;
     ConfigData config_data; // Top-level config data
 
     // Command line and environment variable storage

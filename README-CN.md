@@ -47,14 +47,21 @@
 - conan，2.19 或以上版本，请参阅 [conan](https://conan.io/)。
 
 ## 4. 构建
-本节提供了在 Linux 平台构建 `taosgen` 的详细说明。
+本节提供了在 Linux 或 macOS 平台构建 `taosgen` 的详细说明。
 在继续之前，请确保您位于该项目的根目录中。
+
+>**注意：本项目使用 C++17 标准进行开发和编译。请确保您的编译器支持 C++17。**
 
 ```shell
 mkdir build && cd build
 conan install .. --build=missing --output-folder=./conan --settings=build_type=Release
 cmake .. -DCMAKE_BUILD_TYPE=Release
 cmake --build .
+
+```
+在 macOS 平台中，如果你使用的编译器无法自行选择合适的默认 SDK，那么你需要在配置构建时明确指定 CMAKE_OSX_SYSROOT，例如：
+```shell
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_SYSROOT=$(xcrun --show-sdk-path) -DCMAKE_TOOLCHAIN_FILE=./conan/conan_toolchain.cmake
 ```
 
 ## 5. 测试
