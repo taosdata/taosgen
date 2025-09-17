@@ -97,7 +97,6 @@ void test_generate_multiple_values() {
     std::cout << "test_generate_multiple_values passed.\n";
 }
 
-
 void test_generate_int_column_with_values() {
     ColumnConfig config;
     config.type = "int";

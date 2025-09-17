@@ -1683,7 +1683,7 @@ namespace YAML {
             // Detect unknown configuration keys
             static const std::set<std::string> valid_keys = {
                 "tdengine", "mqtt", "schema", "target", "format",
-                "concurrency", "queue_capacity", "queue_warmup_ratio",
+                "concurrency", "queue_capacity", "queue_warmup_ratio", "shared_queue",
                 "failure_handling", "time_interval", "checkpoint"
             };
             check_unknown_keys(node, valid_keys, "tdengine/insert-data");
@@ -1744,6 +1744,10 @@ namespace YAML {
             }
             if (node["queue_warmup_ratio"]) {
                 rhs.queue_warmup_ratio = node["queue_warmup_ratio"].as<double>();
+            }
+
+            if (node["shared_queue"]) {
+                rhs.shared_queue = node["shared_queue"].as<bool>();
             }
 
             if (node["failure_handling"]) {

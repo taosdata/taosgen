@@ -92,8 +92,11 @@ void test_select_db_and_prepare() {
     } catch (const std::runtime_error& e) {
         assert(std::string(e.what()) == "TDengineWriter is not connected");
     }
+
+    std::string sql = "SELECT * FROM `information_schema`.`ins_dnodes` where id=?";
+
     try {
-        writer.prepare("sql");
+        writer.prepare(sql);
         assert(false);
     } catch (const std::runtime_error& e) {
         assert(std::string(e.what()) == "TDengineWriter is not connected");
@@ -106,7 +109,7 @@ void test_select_db_and_prepare() {
     assert(connected);
 
     auto db_ok = writer.select_db("information_schema");
-    auto prep_ok = writer.prepare("sql");
+    auto prep_ok = writer.prepare(sql);
     (void)db_ok;
     (void)prep_ok;
     assert(db_ok);

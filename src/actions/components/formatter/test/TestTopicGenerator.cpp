@@ -12,8 +12,8 @@ void test_basic_pattern() {
 
     MultiBatch batch;
     std::vector<RowData> rows;
-    rows.push_back({1500000000000, {"f01", 101}});
-    rows.push_back({1500000000001, {"f02", 102}});
+    rows.push_back({1500000000000, {std::string("f01"), 101}});
+    rows.push_back({1500000000001, {std::string("f02"), 102}});
     batch.table_batches.emplace_back("t1", std::move(rows));
     batch.update_metadata();
 
@@ -63,7 +63,7 @@ void test_col_not_found() {
 
     MultiBatch batch;
     std::vector<RowData> rows;
-    rows.push_back({1500000000000, {"x"}});
+    rows.push_back({1500000000000, {std::string("x")}});
     batch.table_batches.emplace_back("my_table", std::move(rows));
     batch.update_metadata();
 
@@ -86,7 +86,7 @@ void test_pattern_edge_cases() {
 
     MultiBatch batch;
     std::vector<RowData> rows;
-    rows.push_back({1500000000000, {"A"}});
+    rows.push_back({1500000000000, {std::string("A")}});
     batch.table_batches.emplace_back("my_table", std::move(rows));
     batch.update_metadata();
 

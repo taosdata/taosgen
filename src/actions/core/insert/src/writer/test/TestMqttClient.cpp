@@ -108,7 +108,7 @@ void test_execute_and_publish() {
     // Prepare mock data
     MultiBatch batch;
     std::vector<RowData> rows;
-    rows.push_back({1500000000000, {"f01", "d01"}});
+    rows.push_back({1500000000000, {std::string("f01"), std::string("d01")}});
     batch.table_batches.emplace_back("tb1", std::move(rows));
     batch.update_metadata();
 
@@ -143,7 +143,7 @@ void test_execute_not_connected() {
     // Prepare mock data
     MultiBatch batch;
     std::vector<RowData> rows;
-    rows.push_back({1500000000000, {"f01", "d01"}});
+    rows.push_back({1500000000000, {std::string("f01"), std::string("d01")}});
     batch.table_batches.emplace_back("tb1", std::move(rows));
     batch.update_metadata();
 
@@ -175,7 +175,7 @@ void test_execute_not_connected() {
 //     // Prepare mock data
 //     MultiBatch batch;
 //     std::vector<RowData> rows;
-//     rows.push_back({1500000000000, {"f01", "d01"}});
+//     rows.push_back({1500000000000, {std::string("f01"), std::string("d01")}});
 //     batch.table_batches.emplace_back("tb1", std::move(rows));
 //     batch.update_metadata();
 

@@ -114,6 +114,7 @@ void InsertDataAction::execute() {
         const size_t consumer_thread_count = config_.insert_threads;
         const size_t queue_capacity = config_.queue_capacity;
         const double queue_warmup_ratio = config_.queue_warmup_ratio;
+        const bool shared_queue = config_.shared_queue;
         const size_t per_request_rows = config_.schema.generation.per_batch_rows;
         const size_t interlace_rows = config_.schema.generation.interlace_mode.rows;
         const int64_t per_table_rows = config_.schema.generation.per_table_rows;
@@ -133,7 +134,7 @@ void InsertDataAction::execute() {
         MemoryPool pool(block_count, max_tables_per_block, max_rows_per_table, col_instances_);
 
         // Create data pipeline
-        DataPipeline<FormatResult> pipeline(block_count);
+        DataPipeline<FormatResult> pipeline(shared_queue, producer_thread_count, consumer_thread_count, queue_capacity);
         Barrier sync_barrier(consumer_thread_count + 1);
 
         // Start consumer threads
@@ -201,7 +202,8 @@ void InsertDataAction::execute() {
         }
 
         (void)ProcessUtils::get_cpu_usage_percent();
-        std::this_thread::sleep_for(std::chrono::seconds(2));
+        int64_t wait_seconds = std::min(static_cast<int64_t>(5), static_cast<int64_t>(producer_thread_count));
+        std::this_thread::sleep_for(std::chrono::seconds(wait_seconds));
 
         while (true) {
             size_t total_queued = pipeline.total_queued();
@@ -270,7 +272,7 @@ void InsertDataAction::execute() {
                     << "Queue: " << std::setw(3) << std::setfill(' ') << pipeline.total_queued() << " items | "
                     << "CPU Usage: " << std::setw(7) << std::fixed << std::setprecision(2) << ProcessUtils::get_cpu_usage_percent() << "% | "
                     << "Memory Usage: " << ProcessUtils::get_memory_usage_human_readable() << " | "
-                    << "Thread Count: " << std::setw(3) << std::setfill(' ') << ProcessUtils::get_thread_count() << "\n";
+                    << "Thread Count: " << std::setw(3) << std::setfill(' ') << ProcessUtils::get_thread_count() << std::endl;
         }
 
         std::cout << "All producer threads have finished." << std::endl;
@@ -294,7 +296,7 @@ void InsertDataAction::execute() {
                           << "Processing Rate: " << std::setw(6) << std::fixed << std::setprecision(2) << process_rate << " items/s | "
                           << "CPU Usage: " << std::setw(7) << std::fixed << std::setprecision(2) << ProcessUtils::get_cpu_usage_percent() << "% | "
                           << "Memory Usage: " << ProcessUtils::get_memory_usage_human_readable() << " | "
-                          << "Thread Count: " << std::setw(3) << std::setfill(' ') << ProcessUtils::get_thread_count() << "\n";
+                          << "Thread Count: " << std::setw(3) << std::setfill(' ') << ProcessUtils::get_thread_count() << std::endl;
 
                 last_queue_size = current_queue_size;
                 last_check_time = current_time;
@@ -485,7 +487,7 @@ void InsertDataAction::producer_thread_function(
         // }, formatted_result);
 
         // Push data to pipeline
-        pipeline.push_data(std::move(formatted_result));
+        pipeline.push_data(producer_id, std::move(formatted_result));
 
         // std::cout << "Producer " << producer_id << ": Pushed batch for table(s): "
         //           << batch_size << ", total rows: " << total_rows
@@ -531,7 +533,7 @@ void InsertDataAction::consumer_thread_function(
     // Data processing loop
     (void)running;
     while (true) {
-        auto result = pipeline.fetch_data();
+        auto result = pipeline.fetch_data(consumer_id);
 
         switch (result.status) {
         case DataPipeline<FormatResult>::Status::Success:
