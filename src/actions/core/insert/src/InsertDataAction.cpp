@@ -362,7 +362,7 @@ void InsertDataAction::execute() {
         double avg_wait_time = total_wait_time / consumer_thread_count; // average per thread
 
         // Calculate total duration (seconds)
-        const auto total_duration = std::chrono::duration<double>(max_end_write_time - min_start_write_time).count();
+        const auto total_duration = std::chrono::duration<double>(max_end_write_time - min_start_write_time).count() - avg_wait_time;
 
         // Calculate average insert rate
         const double avg_rows_per_sec = total_duration > 0 ?
@@ -393,7 +393,7 @@ void InsertDataAction::execute() {
         // Print performance statistics
         double thread_latency = global_write_metrics.get_sum() / consumer_thread_count / 1000;
         double effective_ratio = thread_latency / total_duration * 100.0;
-        double framework_ratio = (1 - (thread_latency + avg_wait_time) / total_duration) * 100.0;
+        double framework_ratio = (1 - thread_latency / total_duration) * 100.0;
         TimeIntervalStrategy time_strategy(config_.time_interval, config_.timestamp_precision);
         std::cout << "\n=============================================== Insert Latency & Efficiency Metrics ==========================================\n"
                 << "Total Operations: " << global_write_metrics.get_samples().size() << "\n"
