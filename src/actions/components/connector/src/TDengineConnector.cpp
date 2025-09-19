@@ -165,7 +165,9 @@ bool TDengineConnector::execute(const StmtV2InsertData& data) {
     );
     if (code != 0) {
         std::cerr << display_name_ << " failed to bind parameters: "
-                  << taos_stmt2_error(stmt_) << std::endl;
+                  << taos_stmt2_error(stmt_)
+                  << " [code: 0x" << std::hex << code << std::dec << "]"
+                  << std::endl;
         return false;
     }
 
@@ -174,7 +176,9 @@ bool TDengineConnector::execute(const StmtV2InsertData& data) {
     code = taos_stmt2_exec(stmt_, &affected_rows);
     if (code != 0) {
         std::cerr << display_name_ << " execute failed: "
-                  << taos_stmt2_error(stmt_) << std::endl;
+                  << taos_stmt2_error(stmt_)
+                  << " [code: 0x" << std::hex << code << std::dec << "]"
+                  << std::endl;
         return false;
     }
 

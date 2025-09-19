@@ -190,8 +190,12 @@ void InsertDataAction::execute() {
 
             producer_threads.emplace_back([this, i, &split_names, &pipeline, data_manager, &active_producers, &producer_finished] {
                 try {
-                    set_thread_affinity(i, false, "Producer");
-                    set_realtime_priority();
+                    if (config_.thread_affinity) {
+                        set_thread_affinity(i, false, "Producer");
+                    }
+                    if (config_.thread_realtime) {
+                        set_realtime_priority();
+                    }
                     producer_thread_function(i, split_names[i], pipeline, data_manager);
                     producer_finished[i].store(true);
                 } catch (const std::exception& e) {
