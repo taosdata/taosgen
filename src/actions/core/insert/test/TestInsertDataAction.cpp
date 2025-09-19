@@ -88,7 +88,7 @@ void test_table_name_generation() {
 
 void test_data_pipeline() {
     auto config = create_test_config();
-    DataPipeline<FormatResult> pipeline(1000);
+    DataPipeline<FormatResult> pipeline(false, 2, 2, 1000);
 
     std::atomic<bool> producer_done{false};
     std::atomic<size_t> rows_generated{0};
@@ -111,7 +111,7 @@ void test_data_pipeline() {
 
             auto* block = pool.convert_to_memory_block(std::move(batch));
 
-            pipeline.push_data(FormatResult{
+            pipeline.push_data(0, FormatResult{
                 SqlInsertData(block, col_instances, "INSERT INTO test_table VALUES (...)")
             });
             rows_generated++;
@@ -122,7 +122,7 @@ void test_data_pipeline() {
     // Start consumer thread
     std::thread consumer([&]() {
         while (!producer_done || pipeline.total_queued() > 0) {
-            auto result = pipeline.fetch_data();
+            auto result = pipeline.fetch_data(0);
             if (result.status == DataPipeline<FormatResult>::Status::Success) {
                 std::visit([&](const auto& data) {
                     using T = std::decay_t<decltype(data)>;

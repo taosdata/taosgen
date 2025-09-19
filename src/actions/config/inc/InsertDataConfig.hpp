@@ -27,7 +27,10 @@ struct InsertDataConfig {
     size_t insert_threads = 8;
     size_t queue_capacity = 10;
     double queue_warmup_ratio = 0.0;
+    bool shared_queue = false;
     std::string thread_allocation = "index_range";
+    bool thread_affinity = false;
+    bool thread_realtime = false;
 
     struct FailureHandling {
         size_t max_retries = 0;

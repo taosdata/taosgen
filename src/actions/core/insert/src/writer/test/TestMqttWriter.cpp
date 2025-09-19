@@ -138,7 +138,7 @@ void test_write_operations() {
     {
         MultiBatch batch;
         std::vector<RowData> rows;
-        rows.push_back({1500000000000, {"f01", "d01"}});
+        rows.push_back({1500000000000, {std::string("f01"), std::string("d01")}});
         batch.table_batches.emplace_back("tb1", std::move(rows));
         batch.update_metadata();
 
@@ -155,7 +155,7 @@ void test_write_operations() {
     {
         MultiBatch batch;
         std::vector<RowData> rows;
-        rows.push_back({1500000000000, {"f01", "d01"}});
+        rows.push_back({1500000000000, {std::string("f01"), std::string("d01")}});
         batch.table_batches.emplace_back("tb2", std::move(rows));
         batch.update_metadata();
 
@@ -187,8 +187,8 @@ void test_write_without_connection() {
 
     MultiBatch batch;
     std::vector<RowData> rows;
-    rows.push_back({1500000010000, {"f0", "d0"}});
-    rows.push_back({1500000010001, {"f1", "d1"}});
+    rows.push_back({1500000010000, {std::string("f0"), std::string("d0")}});
+    rows.push_back({1500000010001, {std::string("f1"), std::string("d1")}});
     batch.table_batches.emplace_back("d2", std::move(rows));
     batch.update_metadata();
 
