@@ -20,7 +20,7 @@ int main(int argc, char* argv[]) {
 
         // Initialize parameter context
         if (!context.init(argc, argv)) {
-            return 1;
+            return 0;
         }
 
         // 2. Get parsed configuration data
