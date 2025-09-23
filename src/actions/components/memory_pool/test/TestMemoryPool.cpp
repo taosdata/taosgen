@@ -164,12 +164,64 @@ void test_memory_pool_get_cell_null() {
     std::cout << "test_memory_pool_get_cell_null skipped (not implemented)." << std::endl;
 }
 
+void test_memory_pool_tables_reuse_data() {
+    ColumnConfigInstanceVector col_instances;
+    col_instances.emplace_back(ColumnConfig{"col1", "INT"});
+    col_instances.emplace_back(ColumnConfig{"col2", "VARCHAR(8)"});
+
+    // tables_reuse_data = true
+    MemoryPool pool(1, 2, 2, col_instances, true);
+
+    auto* block = pool.acquire_block();
+    assert(block != nullptr);
+    assert(block->tables.size() == 2);
+
+    // Write data to table 1
+    RowData row1;
+    row1.timestamp = 100;
+    row1.columns = {int32_t(11), std::string("foo")};
+    block->tables[0].add_row(row1);
+
+    // Write data to table 2
+    RowData row2;
+    row2.timestamp = 200;
+    row2.columns = {int32_t(22), std::string("bar")};
+    block->tables[1].add_row(row2);
+
+    // Check that table 1 and table 2 share the same data pointers
+    assert(block->tables[0].columns[0].fixed_data == block->tables[1].columns[0].fixed_data);
+    assert(block->tables[0].columns[1].var_data == block->tables[1].columns[1].var_data);
+
+    // Check that data is overwritten due to shared memory
+    // Table 1 row 0
+    assert(std::get<int32_t>(block->tables[0].get_cell(0, 0)) == 22);
+    assert(std::get<std::string>(block->tables[0].get_cell(0, 1)) == "bar");
+
+    // Table 2 row 0
+    assert(std::get<int32_t>(block->tables[1].get_cell(0, 0)) == 22);
+    assert(std::get<std::string>(block->tables[1].get_cell(0, 1)) == "bar");
+
+    // Write another row to table 1
+    RowData row3;
+    row3.timestamp = 300;
+    row3.columns = {int32_t(33), std::string("baz")};
+    block->tables[0].add_row(row3);
+
+    // Check that table 2 row count is not affected
+    assert(block->tables[1].used_rows == 1);
+
+    pool.release_block(block);
+
+    std::cout << "test_memory_pool_tables_reuse_data passed." << std::endl;
+}
+
 int main() {
     test_memory_pool_basic();
     test_memory_pool_multi_batch();
     test_memory_pool_acquire_release();
     test_memory_pool_get_cell_out_of_range();
     test_memory_pool_get_cell_null();
+    test_memory_pool_tables_reuse_data();
 
     std::cout << "All MemoryPool tests passed." << std::endl;
     return 0;

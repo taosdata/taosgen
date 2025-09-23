@@ -37,4 +37,5 @@ struct GenerationConfig {
     std::optional<size_t> generate_threads = 1;
     int64_t per_table_rows = 10000;
     size_t per_batch_rows = 10000;
+    bool tables_reuse_data = false;
 };
