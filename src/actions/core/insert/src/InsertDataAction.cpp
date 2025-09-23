@@ -118,6 +118,7 @@ void InsertDataAction::execute() {
         const size_t per_request_rows = config_.schema.generation.per_batch_rows;
         const size_t interlace_rows = config_.schema.generation.interlace_mode.rows;
         const int64_t per_table_rows = config_.schema.generation.per_table_rows;
+        const bool tables_reuse_data = config_.schema.generation.tables_reuse_data;
 
         size_t block_count = queue_capacity * consumer_thread_count;
         size_t max_tables_per_block = std::min(name_manager.chunk_size(), per_request_rows);
@@ -131,7 +132,7 @@ void InsertDataAction::execute() {
             max_tables_per_block = (per_request_rows + per_table_rows - 1) / per_table_rows;
         }
 
-        MemoryPool pool(block_count, max_tables_per_block, max_rows_per_table, col_instances_);
+        MemoryPool pool(block_count, max_tables_per_block, max_rows_per_table, col_instances_, tables_reuse_data);
 
         // Create data pipeline
         DataPipeline<FormatResult> pipeline(shared_queue, producer_thread_count, consumer_thread_count, queue_capacity);
@@ -229,8 +230,12 @@ void InsertDataAction::execute() {
         for (size_t i = 0; i < consumer_thread_count; i++) {
 
             consumer_threads.emplace_back([this, i, &pipeline, &consumer_running, &writers, &conn_source, &gc, &sync_barrier] {
-                set_thread_affinity(i, true, "Consumer");
-                set_realtime_priority();
+                if (config_.thread_affinity) {
+                    set_thread_affinity(i, true, "Consumer");
+                }
+                if (config_.thread_realtime) {
+                    set_realtime_priority();
+                }
                 consumer_thread_function(i, pipeline, consumer_running[i], writers[i].get(), conn_source, gc, sync_barrier);
             });
         }

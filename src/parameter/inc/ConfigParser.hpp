@@ -288,7 +288,8 @@ namespace YAML {
         static bool decode(const Node& node, GenerationConfig& rhs) {
             static const std::set<std::string> valid_keys = {
                 "interlace", "cache_size", "rate_limit", "data_disorder",
-                "concurrency", "per_table_rows", "per_batch_rows"
+                "concurrency", "per_table_rows", "per_batch_rows",
+                "tables_reuse_data"
             };
             check_unknown_keys(node, valid_keys, "generation");
 
@@ -349,6 +350,10 @@ namespace YAML {
 
             if (node["per_batch_rows"]) {
                 rhs.per_batch_rows = node["per_batch_rows"].as<size_t>();
+            }
+
+            if (node["tables_reuse_data"]) {
+                rhs.tables_reuse_data = node["tables_reuse_data"].as<bool>();
             }
 
             return true;

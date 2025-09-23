@@ -282,7 +282,7 @@ public:
                 if (is_checkpoint_recover) {
                     checkpoint_data_list_.emplace_back(CheckpointData(table.table_name, table.timestamps[table.used_rows - 1], table.used_rows));
                 }
-                
+
                 // Update timestamp row count
                 bind_lists_[i][0].num = table.used_rows;
 
@@ -319,7 +319,9 @@ public:
     MemoryPool(size_t block_count,
                size_t max_tables_per_block,
                size_t max_rows_per_table,
-               const ColumnConfigInstanceVector& col_instances);
+               const ColumnConfigInstanceVector& col_instances,
+               bool tables_reuse_data = false
+            );
 
     ~MemoryPool();
 

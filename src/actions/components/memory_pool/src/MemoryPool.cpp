@@ -5,21 +5,26 @@
 #include <limits>
 #include <stdexcept>
 
-MemoryPool::MemoryPool(size_t block_count, 
+MemoryPool::MemoryPool(size_t block_count,
                        size_t max_tables_per_block,
                        size_t max_rows_per_table,
-                       const ColumnConfigInstanceVector& col_instances)
+                       const ColumnConfigInstanceVector& col_instances,
+                       bool tables_reuse_data
+                    )
     : col_instances_(col_instances),
       col_handlers_(ColumnConverter::create_handlers_for_columns(col_instances)),
       blocks_(block_count),
       free_queue_(block_count)
 {
-    const size_t max_rows_per_block = max_tables_per_block * max_rows_per_table;
+    size_t max_rows_per_block = max_tables_per_block * max_rows_per_table;
+    if (tables_reuse_data) {
+        max_rows_per_block = max_rows_per_table;
+    }
     const size_t col_count = col_instances.size();
-    
+
     // Total size for timestamp section
-    const size_t timestamps_size = max_rows_per_block * sizeof(int64_t);
-    
+    const size_t timestamps_size = max_tables_per_block * max_rows_per_table * sizeof(int64_t);
+
     // Calculate total size for columns
     size_t common_meta_size = 0;
     size_t fixed_data_size = 0;
@@ -138,6 +143,13 @@ MemoryPool::MemoryPool(size_t block_count,
                     col.fixed_data = fixed_col_ptr;
                     fixed_col_ptr += col_data_size;
                 }
+            }
+
+            if (tables_reuse_data) {
+                fixed_col_ptr = static_cast<char*>(fixed_data_base);
+                var_meta_ptr = static_cast<char*>(var_meta_base);
+                var_data_ptr = var_data_base;
+                common_meta_ptr = common_meta_base;
             }
         }
         
