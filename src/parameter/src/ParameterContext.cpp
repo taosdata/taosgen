@@ -428,6 +428,17 @@ void ParameterContext::parse_comm_insert_data_action(Job& job, Step& step, std::
         }
     }
 
+    if (insert_config.schema.generation.data_cache.enabled) {
+        if (insert_config.queue_capacity < insert_config.schema.generation.data_cache.num_cached_batches) {
+            std::cerr << "[Config Warning] queue_capacity (" << insert_config.queue_capacity
+                      << ") is less than num_cached_batches ("
+                      << insert_config.schema.generation.data_cache.num_cached_batches
+                      << "). Adjusting queue_capacity to "
+                      << insert_config.schema.generation.data_cache.num_cached_batches << "." << std::endl;
+            insert_config.queue_capacity = insert_config.schema.generation.data_cache.num_cached_batches;
+        }
+    }
+
     // Print parse result
     std::cout << "Parsed insert-data action." << std::endl;
 
@@ -510,6 +521,8 @@ void ParameterContext::merge_yaml(const YAML::Node& config) {
         config_data.concurrency = config["concurrency"].as<int>();
     }
 
+    merge_commandline();
+
     // Parse job list
     if (config["jobs"]) {
         parse_jobs(config["jobs"]);
@@ -584,8 +597,8 @@ tags:
       - Austin
 generation:
   concurrency: 8
-  per_table_rows: 10000
-  per_batch_rows: 10000
+  rows_per_table: 10000
+  rows_per_batch: 10000
 )");
 
     parse_schema(schema);
@@ -641,8 +654,8 @@ schema:
         - Austin
   generation:
     concurrency: 8
-    per_table_rows: 10000
-    per_batch_rows: 10000
+    rows_per_table: 10000
+    rows_per_batch: 10000
 
 jobs:
   # TDengine insert job
@@ -811,7 +824,7 @@ bool ParameterContext::init(int argc, char* argv[]) {
     // Merge by priority from low to high
     merge_yaml();
     merge_environment_vars();
-    merge_commandline();
+    // merge_commandline();
     return true;
 }
 

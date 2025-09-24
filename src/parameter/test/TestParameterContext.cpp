@@ -83,8 +83,8 @@ schema:
       type: varchar(7)
   generation:
     interlace: 60
-    per_table_rows: 10000
-    per_batch_rows: 10000
+    rows_per_table: 10000
+    rows_per_batch: 10000
     concurrency: 8
 
 concurrency: 4
@@ -237,9 +237,9 @@ jobs:
     assert(insert_config.schema.generation.interlace_mode.enabled == true);
     assert(insert_config.schema.generation.interlace_mode.rows  == 60);
     assert(insert_config.schema.generation.generate_threads == 8);
-    assert(insert_config.schema.generation.per_table_rows == 10000);
+    assert(insert_config.schema.generation.rows_per_table == 10000);
 
-    assert(insert_config.schema.generation.per_batch_rows == 10000);
+    assert(insert_config.schema.generation.rows_per_batch == 10000);
     assert(insert_config.insert_threads == 8);
     assert(insert_config.thread_allocation == "index_range");
 
@@ -379,8 +379,8 @@ void test_load_default_schema() {
 
     // generation
     assert(schema.generation.interlace_mode.enabled == false);
-    assert(schema.generation.per_table_rows == 10000);
-    assert(schema.generation.per_batch_rows == 10000);
+    assert(schema.generation.rows_per_table == 10000);
+    assert(schema.generation.rows_per_batch == 10000);
 
     std::cout << "Default schema loaded test passed.\n";
 }

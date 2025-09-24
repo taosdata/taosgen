@@ -91,13 +91,13 @@ void RowDataGenerator::init_disorder() {
 void RowDataGenerator::init_raw_source() {
     if (columns_config_.source_type == "generator") {
         init_generator();
-        total_rows_ = config_.schema.generation.per_table_rows;
+        total_rows_ = config_.schema.generation.rows_per_table;
     } else if (columns_config_.source_type == "csv") {
         init_csv_reader();
         if (columns_config_.csv.repeat_read) {
-            total_rows_ = config_.schema.generation.per_table_rows;
+            total_rows_ = config_.schema.generation.rows_per_table;
         } else {
-            total_rows_ = std::min(static_cast<int64_t>(csv_rows_.size()), config_.schema.generation.per_table_rows);
+            total_rows_ = std::min(static_cast<int64_t>(csv_rows_.size()), config_.schema.generation.rows_per_table);
         }
     } else {
         throw std::invalid_argument("Unsupported source_type: " + columns_config_.source_type);

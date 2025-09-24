@@ -75,8 +75,8 @@ schema:
       expr: ({"京AD12345", "京AF67890", "京AD98765", "京AF43210", "京AD56789", "京AF01234", "京AD23456", "京AF78901", "京AD34567", "京AF89012", "京AD45678", "京AD67890", "京AD78901", "京AD89012", "京AD90123", "京AD01234", "京AD13579", "京AD24680", "京AD35791", "京AD46802", "京AD57913", "京AF12345", "京AF23456", "京AF56789", "京AF90123", "京AF13579", "京AF24680", "京AF35791"})[tonumber(string.match(_table, "%d+"))]
   generation:
     interlace: 1
-    per_table_rows: -1
-    per_batch_rows: 10000
+    rows_per_table: -1
+    rows_per_batch: 10000
 
 jobs:
   # MQTT publish job

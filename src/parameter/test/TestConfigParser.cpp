@@ -207,7 +207,7 @@ void test_GenerationConfig_DataDisorder() {
 void test_GenerationConfig() {
     std::string yaml = R"(
 interlace: 100
-cache_size: 2048
+num_cached_batches: 2048
 rate_limit: 5000
 data_disorder:
   - time_start: "2025-09-08T00:00:00Z"
@@ -215,8 +215,8 @@ data_disorder:
     ratio: 0.5
     latency_range: 100
 concurrency: 8
-per_table_rows: 10000
-per_batch_rows: 500
+rows_per_table: 10000
+rows_per_batch: 500
 )";
     YAML::Node node = YAML::Load(yaml);
     GenerationConfig cfg = node.as<GenerationConfig>();
@@ -225,7 +225,7 @@ per_batch_rows: 500
     assert(cfg.interlace_mode.rows == 100);
 
     assert(cfg.data_cache.enabled == true);
-    assert(cfg.data_cache.cache_size == 2048);
+    assert(cfg.data_cache.num_cached_batches == 2048);
 
     assert(cfg.flow_control.enabled == true);
     assert(cfg.flow_control.rate_limit == 5000);
@@ -243,8 +243,8 @@ per_batch_rows: 500
     assert(cfg.generate_threads.has_value());
     assert(cfg.generate_threads.value() == 8);
 
-    assert(cfg.per_table_rows == 10000);
-    assert(cfg.per_batch_rows == 500);
+    assert(cfg.rows_per_table == 10000);
+    assert(cfg.rows_per_batch == 500);
 }
 
 void test_SchemaConfig() {
@@ -270,11 +270,11 @@ tbname:
   count: 5
 generation:
   interlace: 10
-  cache_size: 1024
+  num_cached_batches: 1024
   rate_limit: 1000
   concurrency: 2
-  per_table_rows: 100
-  per_batch_rows: 10
+  rows_per_table: 100
+  rows_per_batch: 10
 )";
     YAML::Node node = YAML::Load(yaml);
     SchemaConfig cfg = node.as<SchemaConfig>();
@@ -294,13 +294,13 @@ generation:
     assert(cfg.generation.interlace_mode.enabled == true);
     assert(cfg.generation.interlace_mode.rows == 10);
     assert(cfg.generation.data_cache.enabled == true);
-    assert(cfg.generation.data_cache.cache_size == 1024);
+    assert(cfg.generation.data_cache.num_cached_batches == 1024);
     assert(cfg.generation.flow_control.enabled == true);
     assert(cfg.generation.flow_control.rate_limit == 1000);
     assert(cfg.generation.generate_threads.has_value());
     assert(cfg.generation.generate_threads.value() == 2);
-    assert(cfg.generation.per_table_rows == 100);
-    assert(cfg.generation.per_batch_rows == 10);
+    assert(cfg.generation.rows_per_table == 100);
+    assert(cfg.generation.rows_per_batch == 10);
 }
 
 void test_DatabaseInfo() {

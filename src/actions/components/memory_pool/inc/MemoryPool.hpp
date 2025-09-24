@@ -316,17 +316,28 @@ public:
         }
     };
 
+    struct CacheUnit {
+        void* data_chunk = nullptr;
+        size_t data_chunk_size = 0;
+        void* fixed_data_base = nullptr;
+        char* var_data_base = nullptr;
+        char* common_meta_base = nullptr;
+        void* var_meta_base = nullptr;
+    };
+
     MemoryPool(size_t block_count,
                size_t max_tables_per_block,
                size_t max_rows_per_table,
                const ColumnConfigInstanceVector& col_instances,
-               bool tables_reuse_data = false
+               bool tables_reuse_data = false,
+               size_t num_cached_blocks = 0
             );
+
 
     ~MemoryPool();
 
     // Get a free memory block (thread-safe)
-    MemoryBlock* acquire_block();
+    MemoryBlock* acquire_block(size_t sequence_num = 0);
 
     // Return a memory block (thread-safe)
     void release_block(MemoryBlock* block);
@@ -338,9 +349,30 @@ public:
         return col_handlers_;
     }
 
+    bool is_cache_mode() const { return num_cached_blocks_ > 0; }
+
 private:
     const ColumnConfigInstanceVector& col_instances_;
     std::vector<ColumnConverter::ColumnHandler> col_handlers_;
     std::vector<MemoryBlock> blocks_;
     moodycamel::BlockingConcurrentQueue<MemoryBlock*> free_queue_;
+
+    // 缓存相关成员
+    bool tables_reuse_data_ = false;
+    size_t num_cached_blocks_ = 0;
+    std::vector<CacheUnit> cache_units_;
+
+    // 内存大小计算
+    size_t max_tables_per_block_ = 0;
+    size_t max_rows_per_table_ = 0;
+    size_t timestamps_size_ = 0;
+    size_t common_meta_size_ = 0;
+    size_t fixed_data_size_ = 0;
+    size_t var_meta_size_ = 0;
+    size_t var_data_size_ = 0;
+    size_t total_cache_size_ = 0;
+
+    void init_cache_units();
+    void init_normal_blocks();
+    void init_cached_blocks();
 };

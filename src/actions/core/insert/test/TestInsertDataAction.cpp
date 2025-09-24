@@ -33,9 +33,9 @@ InsertDataConfig create_test_config() {
     config.schema.tbname.generator.from = 0;
 
     // Setup control parameters
-    config.schema.generation.per_table_rows = 100;
+    config.schema.generation.rows_per_table = 100;
     config.schema.generation.generate_threads = 2;
-    config.schema.generation.per_batch_rows = 10;
+    config.schema.generation.rows_per_batch = 10;
     config.queue_capacity = 2;
     config.insert_threads = 2;
     config.failure_handling.max_retries = 1;
@@ -148,7 +148,7 @@ void test_data_pipeline() {
 
 void test_data_generation() {
     auto config = create_test_config();
-    config.schema.generation.per_table_rows = 5;
+    config.schema.generation.rows_per_table = 5;
     config.schema.generation.interlace_mode.enabled = false;
 
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
@@ -200,7 +200,7 @@ void test_end_to_end_data_generation() {
 
             config.data_format = format;
 
-            config.schema.generation.per_table_rows = 10;
+            config.schema.generation.rows_per_table = 10;
             config.schema.generation.generate_threads = 1;
             config.queue_capacity = 2;
             config.insert_threads = 1;
@@ -225,7 +225,7 @@ void test_end_to_end_data_generation() {
 void test_concurrent_data_generation() {
     GlobalConfig global;
     auto config = create_test_config();
-    config.schema.generation.per_table_rows = 1000;     // More rows to test concurrency
+    config.schema.generation.rows_per_table = 1000;     // More rows to test concurrency
     config.schema.generation.generate_threads = 4;      // More threads
     config.insert_threads = 4;
     config.schema.tbname.generator.count = 8;             // 8 tables

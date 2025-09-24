@@ -287,10 +287,11 @@ namespace YAML {
     struct convert<GenerationConfig> {
         static bool decode(const Node& node, GenerationConfig& rhs) {
             static const std::set<std::string> valid_keys = {
-                "interlace", "cache_size", "rate_limit", "data_disorder",
-                "concurrency", "per_table_rows", "per_batch_rows",
+                "interlace", "num_cached_batches", "rate_limit", "data_disorder",
+                "concurrency", "rows_per_table", "rows_per_batch", "per_table_rows", "per_batch_rows"
                 "tables_reuse_data"
             };
+
             check_unknown_keys(node, valid_keys, "generation");
 
             if (node["interlace"]) {
@@ -303,13 +304,16 @@ namespace YAML {
                 }
             }
 
-            if (node["cache_size"]) {
-                const auto cache_size = node["cache_size"].as<size_t>();
-                if (cache_size == 0) {
+            if (node["num_cached_batches"]) {
+                int64_t val = node["num_cached_batches"].as<int64_t>();
+                const auto num_cached_batches = node["num_cached_batches"].as<size_t>();
+                if (val < 0) {
+                    throw std::runtime_error("num_cached_batches must be non-negative.");
+                } else if (val == 0) {
                     rhs.data_cache.enabled = false;
                 } else {
                     rhs.data_cache.enabled = true;
-                    rhs.data_cache.cache_size = cache_size;
+                    rhs.data_cache.num_cached_batches = val;
                 }
             }
 
@@ -337,19 +341,38 @@ namespace YAML {
                 rhs.generate_threads = std::nullopt;
             }
 
-            if (node["per_table_rows"]) {
-                int64_t val = node["per_table_rows"].as<int64_t>();
+            std::optional<int64_t> rows_per_table;
+            if (node["rows_per_table"]) {
+                rows_per_table = node["rows_per_table"].as<int64_t>();
+            } else if (node["per_table_rows"]) {
+                std::cerr << "[Config Warning] 'per_table_rows' is deprecated and will be removed in future versions. Please use 'rows_per_table' instead." << std::endl;
+                rows_per_table = node["per_table_rows"].as<int64_t>();
+            }
+            if (rows_per_table.has_value()) {
+                int64_t val = rows_per_table.value();
                 if (val == -1) {
-                    rhs.per_table_rows = std::numeric_limits<int64_t>::max();
+                    rhs.rows_per_table = std::numeric_limits<int64_t>::max();
                 } else if (val <= 0) {
-                    throw std::runtime_error("per_table_rows must be positive or -1 (for unlimited).");
+                    throw std::runtime_error("rows_per_table must be positive or -1 (for unlimited).");
                 } else {
-                    rhs.per_table_rows = val;
+                    rhs.rows_per_table = val;
                 }
             }
 
-            if (node["per_batch_rows"]) {
-                rhs.per_batch_rows = node["per_batch_rows"].as<size_t>();
+            std::optional<int64_t> rows_per_batch;
+            if (node["rows_per_batch"]) {
+                rows_per_batch = node["rows_per_batch"].as<int64_t>();
+            } else if (node["per_batch_rows"]) {
+                std::cerr << "[Config Warning] 'per_batch_rows' is deprecated and will be removed in future versions. Please use 'rows_per_batch' instead." << std::endl;
+                rows_per_batch = node["per_batch_rows"].as<int64_t>();
+            }
+            if (rows_per_batch.has_value()) {
+                int64_t val = rows_per_batch.value();
+                if (val <= 0) {
+                    throw std::runtime_error("rows_per_batch must be positive.");
+                } else {
+                    rhs.rows_per_batch = val;
+                }
             }
 
             if (node["tables_reuse_data"]) {
@@ -384,13 +407,6 @@ namespace YAML {
             // }
             if (node["tbname"]) {
                 rhs.tbname = node["tbname"].as<TableNameConfig>();
-            }
-
-            if (rhs.from_csv.enabled && rhs.from_csv.tags.enabled && rhs.from_csv.tags.tbname_index >= 0) {
-                rhs.tbname.enabled = true;
-                rhs.tbname.source_type = "csv";
-                rhs.tbname.csv.file_path = rhs.from_csv.tags.file_path;
-                rhs.tbname.csv.tbname_index = rhs.from_csv.tags.tbname_index;
             }
 
             // if (!node["columns"]) {

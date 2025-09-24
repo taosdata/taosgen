@@ -190,11 +190,11 @@ void CheckpointAction::checkpoint_recover(const GlobalConfig& global, InsertData
     checkpoint_data.table_name = json_data["table_name"].get<std::string>();
     checkpoint_data.last_checkpoint_time = json_data["last_checkpoint_time"].get<std::int64_t>();
     checkpoint_data.writeCount = (checkpoint_data.last_checkpoint_time - start_timestamp) / timestamp_step;
-    if (config.schema.generation.per_table_rows <= checkpoint_data.writeCount) {
+    if (config.schema.generation.rows_per_table <= checkpoint_data.writeCount) {
         return;
     }
     config.schema.columns_cfg.generator.timestamp_strategy.timestamp_config.start_timestamp = (Timestamp)checkpoint_data.last_checkpoint_time;
-    config.schema.generation.per_table_rows -= checkpoint_data.writeCount;
+    config.schema.generation.rows_per_table -= checkpoint_data.writeCount;
 }
 
 void CheckpointAction::delete_checkpoint() {

@@ -115,21 +115,21 @@ void InsertDataAction::execute() {
         const size_t queue_capacity = config_.queue_capacity;
         const double queue_warmup_ratio = config_.queue_warmup_ratio;
         const bool shared_queue = config_.shared_queue;
-        const size_t per_request_rows = config_.schema.generation.per_batch_rows;
+        const size_t per_request_rows = config_.schema.generation.rows_per_batch;
         const size_t interlace_rows = config_.schema.generation.interlace_mode.rows;
-        const int64_t per_table_rows = config_.schema.generation.per_table_rows;
+        const int64_t rows_per_table = config_.schema.generation.rows_per_table;
         const bool tables_reuse_data = config_.schema.generation.tables_reuse_data;
 
         size_t block_count = queue_capacity * consumer_thread_count;
         size_t max_tables_per_block = std::min(name_manager.chunk_size(), per_request_rows);
-        size_t max_rows_per_table = std::min(static_cast<size_t>(per_table_rows), per_request_rows);
+        size_t max_rows_per_table = std::min(static_cast<size_t>(rows_per_table), per_request_rows);
 
         if (config_.schema.generation.interlace_mode.enabled) {
             max_tables_per_block = (per_request_rows + interlace_rows - 1) / interlace_rows;
             max_rows_per_table = std::min(max_rows_per_table, interlace_rows);
 
         } else {
-            max_tables_per_block = (per_request_rows + per_table_rows - 1) / per_table_rows;
+            max_tables_per_block = (per_request_rows + rows_per_table - 1) / rows_per_table;
         }
 
         MemoryPool pool(block_count, max_tables_per_block, max_rows_per_table, col_instances_, tables_reuse_data);
@@ -246,7 +246,7 @@ void InsertDataAction::execute() {
         // Monitor
         size_t last_total_rows = 0;
         auto last_time = start_time;
-        size_t max_total_rows = all_names.size() * per_table_rows;
+        size_t max_total_rows = all_names.size() * rows_per_table;
         int total_col_width = std::to_string(max_total_rows).length();
 
         while (active_producers > 0) {

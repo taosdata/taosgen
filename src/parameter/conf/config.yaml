@@ -95,7 +95,7 @@ jobs:
                 prefix: s
                 count: 10000
                 from: 200
-            tags: 
+            tags:
               source_type: csv                  # Tag column data source: generator or csv
               csv:
                 file_path: /root/meta/cnnc_csv_1s.csv
@@ -125,7 +125,7 @@ jobs:
                 prefix: m
                 count: 10000
                 from: 200
-            tags: 
+            tags:
               source_type: csv                  # Tag column data source: generator or csv
               csv:
                 file_path: /root/meta/cnnc_csv_1m.csv
@@ -171,7 +171,7 @@ jobs:
               database_info:
                 name: testdb
                 precision: us
-            
+
               super_table_info:
                 name: points
                 columns: *columns_info            # Anchor reference to normal columns
@@ -188,7 +188,7 @@ jobs:
                 enabled: true
                 rows: 60
               generate_threads: 8
-              per_table_rows: 10000
+              rows_per_table: 10000
             insert_control:
               per_request_rows: 10000
               auto_create_table: false
@@ -236,7 +236,7 @@ jobs:
               database_info:
                 name: testdb
                 precision: us
-            
+
               super_table_info:
                 name: points
                 columns: *columns_info          # Anchor reference to normal columns
@@ -259,7 +259,7 @@ jobs:
           # source
           source:
             connection_info: *db_conn             # Inherit global connection info, default property, can be omitted
-          
+
           # control
           control:
             data_format:
@@ -296,7 +296,7 @@ jobs:
           # source
           source:
             connection_info: *db_conn             # Inherit global connection info, default property, can be omitted
-          
+
           # control
           control:
             data_format:

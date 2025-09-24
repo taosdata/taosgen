@@ -22,8 +22,8 @@ InsertDataConfig create_test_config() {
     };
 
     // Setup control parameters
-    config.schema.generation.per_table_rows = 100;
-    config.schema.generation.per_batch_rows = 10;
+    config.schema.generation.rows_per_table = 100;
+    config.schema.generation.rows_per_batch = 10;
     config.timestamp_precision = "ms";
 
     return config;
@@ -61,7 +61,7 @@ void test_init_with_valid_tables() {
 
 void test_has_more() {
     auto config = create_test_config();
-    config.schema.generation.per_table_rows = 5;
+    config.schema.generation.rows_per_table = 5;
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
     MemoryPool pool(1, 1, 5, col_instances);
     TableDataManager manager(pool, config, col_instances);
@@ -89,7 +89,7 @@ void test_has_more() {
 
 void test_table_completion() {
     auto config = create_test_config();
-    config.schema.generation.per_table_rows = 2;
+    config.schema.generation.rows_per_table = 2;
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
     MemoryPool pool(1, 2, 2, col_instances);
     TableDataManager manager(pool, config, col_instances);
@@ -106,7 +106,7 @@ void test_table_completion() {
     const auto& states = manager.table_states();
     for (const auto& state : states) {
         (void)state;
-        assert(state.completed  || state.rows_generated >= config.schema.generation.per_table_rows);
+        assert(state.completed  || state.rows_generated >= config.schema.generation.rows_per_table);
         assert(state.rows_generated == 2);
     }
 
@@ -115,7 +115,7 @@ void test_table_completion() {
 
 void test_data_generation_basic() {
     auto config = create_test_config();
-    config.schema.generation.per_table_rows = 5;
+    config.schema.generation.rows_per_table = 5;
     config.schema.generation.interlace_mode.enabled = false;
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
     MemoryPool pool(1, 1, 5, col_instances);
@@ -158,7 +158,7 @@ void test_data_generation_with_interlace() {
     auto config = create_test_config();
     config.schema.generation.interlace_mode.enabled = true;
     config.schema.generation.interlace_mode.rows = 2;
-    config.schema.generation.per_table_rows = 4;
+    config.schema.generation.rows_per_table = 4;
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
     MemoryPool pool(1, 2, 4, col_instances);
     TableDataManager manager(pool, config, col_instances);
@@ -217,8 +217,8 @@ void test_data_generation_with_interlace() {
 
 void test_per_request_rows_limit() {
     auto config = create_test_config();
-    config.schema.generation.per_batch_rows = 3;
-    config.schema.generation.per_table_rows = 10;
+    config.schema.generation.rows_per_batch = 3;
+    config.schema.generation.rows_per_table = 10;
     config.schema.generation.interlace_mode.enabled = false;
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
     MemoryPool pool(1, 2, 10, col_instances);
@@ -250,7 +250,7 @@ void test_data_generation_with_flow_control() {
     auto config = create_test_config();
     config.schema.generation.flow_control.enabled = true;
     config.schema.generation.flow_control.rate_limit = 100;  // 100 rows per second
-    config.schema.generation.per_table_rows = 5;
+    config.schema.generation.rows_per_table = 5;
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
     MemoryPool pool(1, 1, 5, col_instances);
     TableDataManager manager(pool, config, col_instances);

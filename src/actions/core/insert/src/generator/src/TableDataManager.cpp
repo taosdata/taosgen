@@ -84,7 +84,7 @@ std::optional<MemoryPool::MemoryBlock*> TableDataManager::next_multi_batch() {
     // }
 
     // Get maximum rows per request from config
-    size_t max_rows = config_.schema.generation.per_batch_rows;
+    size_t max_rows = config_.schema.generation.rows_per_batch;
     if (max_rows == 0) {
         max_rows = std::numeric_limits<size_t>::max();
     }
@@ -168,7 +168,7 @@ MemoryPool::MemoryBlock* TableDataManager::collect_batch_data(size_t max_rows) {
 
         // Update table state
         if (!table_state->completed &&
-            table_state->rows_generated >= config_.schema.generation.per_table_rows) {
+            table_state->rows_generated >= config_.schema.generation.rows_per_table) {
             table_state->completed = true;
             if (active_table_count_ > 0) --active_table_count_;
         }
@@ -219,7 +219,7 @@ TableDataManager::TableState* TableDataManager::get_next_active_table() {
 
         // Check if table still has data and is not completed
         if (!state.completed &&
-            state.rows_generated < config_.schema.generation.per_table_rows &&
+            state.rows_generated < config_.schema.generation.rows_per_table &&
             state.generator->has_more())
         {
             return &state;
@@ -235,7 +235,7 @@ TableDataManager::TableState* TableDataManager::get_next_active_table() {
 size_t TableDataManager::calculate_rows_to_generate(TableState& state) const {
     // Calculate remaining row limit
     int64_t remaining_rows = std::min(
-        config_.schema.generation.per_table_rows - state.rows_generated,
+        config_.schema.generation.rows_per_table - state.rows_generated,
         state.generator->has_more() ? std::numeric_limits<int64_t>::max() : 0
     );
 

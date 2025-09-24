@@ -14,7 +14,7 @@ struct GenerationConfig {
 
     struct DataCache {
         bool enabled = false;
-        size_t cache_size = 1000000;
+        size_t num_cached_batches = 1000;
     } data_cache;
 
     struct FlowControl {
@@ -35,7 +35,7 @@ struct GenerationConfig {
     } data_disorder;
 
     std::optional<size_t> generate_threads = 1;
-    int64_t per_table_rows = 10000;
-    size_t per_batch_rows = 10000;
+    int64_t rows_per_table = 10000;
+    size_t rows_per_batch = 10000;
     bool tables_reuse_data = false;
 };
