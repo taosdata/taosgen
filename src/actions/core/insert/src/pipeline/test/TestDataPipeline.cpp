@@ -92,7 +92,6 @@ void test_shared_termination() {
 
 void test_independent_concurrent() {
     DataPipeline<int> pipeline(false, 2, 2, 100);
-    std::atomic<bool> stop{false};
     std::atomic<int> produced{0};
     std::atomic<int> consumed{0};
 

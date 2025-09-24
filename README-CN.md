@@ -57,8 +57,8 @@ mkdir build && cd build
 conan install .. --build=missing --output-folder=./conan --settings=build_type=Release
 cmake .. -DCMAKE_BUILD_TYPE=Release
 cmake --build .
-
 ```
+
 在 macOS 平台中，如果您使用的编译器无法自行选择合适的默认 SDK，那么您需要在配置构建时明确指定 CMAKE_OSX_SYSROOT，例如：
 ```shell
 cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_SYSROOT=$(xcrun --show-sdk-path) -DCMAKE_TOOLCHAIN_FILE=./conan/conan_toolchain.cmake
