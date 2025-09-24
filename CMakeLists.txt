@@ -10,6 +10,8 @@ set(CMAKE_FIND_PACKAGE_PREFER_CONFIG ON)
 option(CMAKE_ENABLE_TEST "Enable testing" ON)
 option(CMAKE_ENABLE_COVERAGE "Enable code coverage" OFF)
 option(CMAKE_ENABLE_SANITIZER "Enable sanitizers" OFF)
+option(BUNDLE_JEMALLOC "Use jemalloc as allocator" OFF)
+option(BUNDLE_MIMALLOC "Use mimalloc as allocator" OFF)
 
 # Global settings
 set(CMAKE_CXX_STANDARD 17)
@@ -49,6 +51,27 @@ string(TOUPPER ${CMAKE_BUILD_TYPE} BUILD_TYPE_UPPER)
 
 string(TIMESTAMP TSGEN_BUILD_DATE "%Y-%m-%d %H:%M:%S %z")
 message(STATUS "Sys Info: ${TSGEN_BUILD_TARGET_OSTYPE}-${TSGEN_BUILD_TARGET_CPUTYPE} ${TSGEN_BUILD_DATE}")
+
+# Memory allocator settings
+if(BUNDLE_JEMALLOC AND BUNDLE_MIMALLOC)
+    message(FATAL_ERROR "Cannot use both jemalloc and mimalloc at the same time")
+endif()
+
+# Set link indicators
+set(ALLOCATOR_LINK_FLAGS "")
+set(ALLOCATOR_LIB "")
+
+if(BUNDLE_JEMALLOC)
+  message(STATUS "Using jemalloc memory allocator")
+  find_package(jemalloc REQUIRED)
+  set(ALLOCATOR_LIB jemalloc::jemalloc)
+elseif(BUNDLE_MIMALLOC)
+  message(STATUS "Using mimalloc memory allocator")
+  find_package(mimalloc REQUIRED)
+  set(ALLOCATOR_LIB mimalloc-static)
+else()
+  message(STATUS "Using system default memory allocator")
+endif()
 
 # Global compile options
 add_compile_options(

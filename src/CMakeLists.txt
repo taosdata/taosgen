@@ -35,7 +35,7 @@ target_link_libraries(taosgen
 )
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  target_link_libraries(taosgen PRIVATE -static-libstdc++ -static-libgcc)
+  target_link_libraries(taosgen PRIVATE -static-libstdc++ -static-libgcc ${ALLOCATOR_LIB})
 endif()
 
 # Install target
