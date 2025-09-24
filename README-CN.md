@@ -52,9 +52,6 @@
 
 >**注意：本项目使用 C++17 标准进行开发和编译。请确保您的编译器支持 C++17。**
 
->**支持构建选项：**
-> - `-DBUNDLE_JEMALLOC=ON`：使用 jemalloc 作为内存分配器
-
 ```shell
 mkdir build && cd build
 conan install .. --build=missing --output-folder=./conan --settings=build_type=Release

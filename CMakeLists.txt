@@ -10,7 +10,7 @@ set(CMAKE_FIND_PACKAGE_PREFER_CONFIG ON)
 option(CMAKE_ENABLE_TEST "Enable testing" ON)
 option(CMAKE_ENABLE_COVERAGE "Enable code coverage" OFF)
 option(CMAKE_ENABLE_SANITIZER "Enable sanitizers" OFF)
-option(BUNDLE_JEMALLOC "Use jemalloc as allocator" OFF)
+option(BUNDLE_JEMALLOC "Use jemalloc as allocator" ON)
 option(BUNDLE_MIMALLOC "Use mimalloc as allocator" OFF)
 
 # Global settings
