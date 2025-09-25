@@ -28,12 +28,13 @@ private:
     InsertDataConfig config_;
     ColumnConfigInstanceVector col_instances_;
     bool is_checkpoint_recover_ = false;
-    
+
     void set_realtime_priority();
     void set_thread_affinity(size_t thread_id, bool reverse = false, const std::string& purpose = "");
 
     ColumnConfigInstanceVector create_column_instances() const;
     void print_writer_times(const std::vector<std::unique_ptr<IWriter>>& writers);
+    void init_cache_units_data(MemoryPool& pool, size_t num_cached_batches, size_t max_tables_per_block, size_t max_rows_per_table);
 
     void producer_thread_function(
         size_t producer_id,

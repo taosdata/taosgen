@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <charconv>
 
-// 线程局部随机数引擎
+// Thread-local random number engine
 // static thread_local std::mt19937_64 random_engine(std::random_device{}());
 // static thread_local std::minstd_rand random_engine(std::random_device{}());
 static thread_local pcg32_fast random_engine(pcg_extras::seed_seq_from<std::random_device>{});
@@ -17,7 +17,7 @@ RandomColumnGenerator::RandomColumnGenerator(const ColumnConfigInstance& instanc
 }
 
 void RandomColumnGenerator::initialize_generator() {
-    // 如果有values配置，优先使用values
+    // If values are configured, use values first
     if (instance_.config().values_count > 0) {
         cached_values_.reserve(instance_.config().values_count);
 
@@ -77,16 +77,16 @@ void RandomColumnGenerator::initialize_generator() {
             }
         }
 
-        // 创建分布对象
+        // Create distribution object
         auto dist = std::uniform_int_distribution<size_t>(0, cached_values_.size() - 1);
 
-        // 设置从values中随机选择的生成器
+        // Set generator to randomly select from values
         generator_ = [this, dist]() mutable {
             return cached_values_[dist(random_engine)];
         };
 
     } else {
-        // 使用min/max范围生成
+        // Use min/max range to generate
         switch (instance_.config().type_tag) {
             case ColumnTypeTag::BOOL:
                 generator_ = []() {

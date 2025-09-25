@@ -20,9 +20,9 @@ RowDataGenerator::RowDataGenerator(const std::string& table_name,
     init_cached_row();
     init_raw_source();
 
-    if (config_.schema.generation.data_cache.enabled) {
-        init_cache();
-    }
+    // if (config_.schema.generation.data_cache.enabled) {
+    //     init_cache();
+    // }
 
     if (config_.schema.generation.data_disorder.enabled) {
         init_disorder();
@@ -41,20 +41,26 @@ void RowDataGenerator::init_cached_row() {
             case ColumnTypeTag::VARCHAR:
             case ColumnTypeTag::BINARY:
             case ColumnTypeTag::JSON:
-                cached_row_.columns[i] = std::string();
-                std::get<std::string>(cached_row_.columns[i]).reserve(config.len.value());
+            {
+                std::string s;
+                s.reserve(config.len.value());
+                cached_row_.columns[i] = std::move(s);
                 break;
-
+            }
             case ColumnTypeTag::NCHAR:
-                cached_row_.columns[i] = std::u16string();
-                std::get<std::u16string>(cached_row_.columns[i]).reserve(config.len.value());
+            {
+                std::u16string s;
+                s.reserve(config.len.value());
+                cached_row_.columns[i] = std::move(s);
                 break;
-
+            }
             case ColumnTypeTag::VARBINARY:
-                cached_row_.columns[i] = std::vector<uint8_t>();
-                std::get<std::vector<uint8_t>>(cached_row_.columns[i]).reserve(config.len.value());
+            {
+                std::vector<uint8_t> v;
+                v.reserve(config.len.value());
+                cached_row_.columns[i] = std::move(v);
                 break;
-
+            }
             default:
                 // No special handling required for fixed-length types
                 break;
@@ -65,8 +71,8 @@ void RowDataGenerator::init_cached_row() {
 void RowDataGenerator::init_cache() {
     // Pre-generate data to fill cache
     cache_.clear();
-    cache_.reserve(config_.schema.generation.data_cache.cache_size);
-    while (cache_.size() < config_.schema.generation.data_cache.cache_size && has_more()) {
+    cache_.reserve(config_.schema.generation.data_cache.num_cached_batches);
+    while (cache_.size() < config_.schema.generation.data_cache.num_cached_batches && has_more()) {
         if (auto row = fetch_raw_row()) {
             cache_.push_back(*row);
         } else {

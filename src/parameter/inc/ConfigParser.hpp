@@ -306,7 +306,6 @@ namespace YAML {
 
             if (node["num_cached_batches"]) {
                 int64_t val = node["num_cached_batches"].as<int64_t>();
-                const auto num_cached_batches = node["num_cached_batches"].as<size_t>();
                 if (val < 0) {
                     throw std::runtime_error("num_cached_batches must be non-negative.");
                 } else if (val == 0) {
