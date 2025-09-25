@@ -16,3 +16,4 @@ CMakeToolchain
 
 [options]
 *:shared=False
+mimalloc/*:override=True
