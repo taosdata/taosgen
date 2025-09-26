@@ -54,7 +54,6 @@ public:
     struct TableBlock : public TableBase {
         const char* table_name;
         int64_t* timestamps = nullptr;
-        size_t used_rows = 0;
         const CachedTableBlock* cached_table_block = nullptr;
 
         void init_from_cache(const CachedTableBlock& cached_block);
@@ -98,7 +97,7 @@ public:
         std::vector<CachedTableBlock> tables;
         void* data_chunk = nullptr;
         size_t data_chunk_size = 0;
-        std::atomic<bool> data_prefilled{false};
+        std::atomic<size_t> prefilled_count{0};
 
         CacheUnit() = default;
         ~CacheUnit();
@@ -110,7 +109,7 @@ public:
         CacheUnit& operator=(CacheUnit&& other) noexcept;
     };
 
-    MemoryPool(size_t block_count,
+    MemoryPool(size_t num_blocks,
                size_t max_tables_per_block,
                size_t max_rows_per_table,
                const ColumnConfigInstanceVector& col_instances,

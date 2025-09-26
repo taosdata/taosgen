@@ -320,11 +320,11 @@ MemoryPool::CacheUnit::CacheUnit(CacheUnit&& other) noexcept
     : tables(std::move(other.tables)),
     data_chunk(other.data_chunk),
     data_chunk_size(other.data_chunk_size),
-    data_prefilled(other.data_prefilled.load())
+    prefilled_count(other.prefilled_count.load())
 {
     other.data_chunk = nullptr;
     other.data_chunk_size = 0;
-    other.data_prefilled = false;
+    other.prefilled_count = 0;
 }
 
 MemoryPool::CacheUnit& MemoryPool::CacheUnit::operator=(CacheUnit&& other) noexcept {
@@ -336,17 +336,17 @@ MemoryPool::CacheUnit& MemoryPool::CacheUnit::operator=(CacheUnit&& other) noexc
         tables = std::move(other.tables);
         data_chunk = other.data_chunk;
         data_chunk_size = other.data_chunk_size;
-        data_prefilled = other.data_prefilled.load();
+        prefilled_count = other.prefilled_count.load();
 
         other.data_chunk = nullptr;
         other.data_chunk_size = 0;
-        other.data_prefilled = false;
+        other.prefilled_count = 0;
     }
     return *this;
 }
 
 // MemoryPool
-MemoryPool::MemoryPool(size_t block_count,
+MemoryPool::MemoryPool(size_t num_blocks,
                        size_t max_tables_per_block,
                        size_t max_rows_per_table,
                        const ColumnConfigInstanceVector& col_instances,
@@ -357,8 +357,8 @@ MemoryPool::MemoryPool(size_t block_count,
       max_rows_per_table_(max_rows_per_table),
       col_instances_(col_instances),
       col_handlers_(ColumnConverter::create_handlers_for_columns(col_instances)),
-      blocks_(block_count),
-      free_queue_(block_count),
+      blocks_(num_blocks),
+      free_queue_(num_blocks),
       tables_reuse_data_(tables_reuse_data),
       num_cached_blocks_(num_cached_blocks)
 {
@@ -658,9 +658,6 @@ void MemoryPool::init_cached_blocks() {
             table.timestamps = timestamps_base + i * max_rows_per_table_;
         }
 
-        // Initialize bindv structure
-        block.init_bindv();
-
         // reset block state
         block.reset();
     }
@@ -776,14 +773,15 @@ bool MemoryPool::fill_cache_unit_data(size_t cache_index, size_t table_index, co
 
     auto& cached_table = cache_unit.tables[table_index];
     cached_table.fill_cached_data_batch(data_rows);
-    cache_unit.data_prefilled = true;
+    cache_unit.prefilled_count++;
 
     return true;
 }
 
 bool MemoryPool::is_cache_unit_prefilled(size_t cache_index) const {
     if (cache_index < cache_units_.size()) {
-        return cache_units_[cache_index].data_prefilled.load();
+        auto& cache_unit = cache_units_[cache_index];
+        return cache_unit.prefilled_count.load() >= cache_unit.tables.size();
     }
     return false;
 }

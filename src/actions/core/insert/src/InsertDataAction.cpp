@@ -115,7 +115,7 @@ void InsertDataAction::execute() {
         const size_t queue_capacity = config_.queue_capacity;
         const double queue_warmup_ratio = config_.queue_warmup_ratio;
         const bool shared_queue = config_.shared_queue;
-        const size_t per_request_rows = config_.schema.generation.rows_per_batch;
+        const size_t rows_per_request = config_.schema.generation.rows_per_batch;
         const size_t interlace_rows = config_.schema.generation.interlace_mode.rows;
         const int64_t rows_per_table = config_.schema.generation.rows_per_table;
         const bool tables_reuse_data = config_.schema.generation.tables_reuse_data;
@@ -123,19 +123,19 @@ void InsertDataAction::execute() {
             config_.schema.generation.data_cache.num_cached_batches : 0;
 
 
-        size_t block_count = queue_capacity * consumer_thread_count;
-        size_t max_tables_per_block = std::min(name_manager.chunk_size(), per_request_rows);
-        size_t max_rows_per_table = std::min(static_cast<size_t>(rows_per_table), per_request_rows);
+        size_t num_blocks = queue_capacity * consumer_thread_count;
+        size_t max_tables_per_block = std::min(name_manager.chunk_size(), rows_per_request);
+        size_t max_rows_per_table = std::min(static_cast<size_t>(rows_per_table), rows_per_request);
 
         if (config_.schema.generation.interlace_mode.enabled) {
-            max_tables_per_block = (per_request_rows + interlace_rows - 1) / interlace_rows;
+            max_tables_per_block = (rows_per_request + interlace_rows - 1) / interlace_rows;
             max_rows_per_table = std::min(max_rows_per_table, interlace_rows);
 
         } else {
-            max_tables_per_block = (per_request_rows + rows_per_table - 1) / rows_per_table;
+            max_tables_per_block = (rows_per_request + rows_per_table - 1) / rows_per_table;
         }
 
-        MemoryPool pool(block_count, max_tables_per_block, max_rows_per_table, col_instances_, tables_reuse_data, num_cached_batches);
+        MemoryPool pool(num_blocks, max_tables_per_block, max_rows_per_table, col_instances_, tables_reuse_data, num_cached_batches);
 
         if (config_.schema.generation.data_cache.enabled) {
             std::cout << "Generation data cache mode enabled with "
@@ -222,7 +222,7 @@ void InsertDataAction::execute() {
 
         while (true) {
             size_t total_queued = pipeline.total_queued();
-            double queue_ratio = std::min(static_cast<double>(total_queued) / block_count, 1.0);
+            double queue_ratio = std::min(static_cast<double>(total_queued) / num_blocks, 1.0);
 
             std::cout << "[Warmup] Queue fill ratio: " << std::fixed << std::setprecision(2)
                       << (queue_ratio * 100) << "%, target: " << (queue_warmup_ratio * 100) << "%" << std::endl;
