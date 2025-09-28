@@ -338,6 +338,7 @@ void test_cache_units_data_initialization() {
     for (size_t cache_idx = 0; cache_idx < pool.get_cache_units_count(); ++cache_idx) {
         assert(pool.is_cache_unit_prefilled(cache_idx));
         auto* cache_unit = pool.get_cache_unit(cache_idx);
+        (void)cache_unit;
         assert(cache_unit != nullptr);
         for (size_t table_idx = 0; table_idx < static_cast<size_t>(config.schema.tbname.generator.count); ++table_idx) {
             assert(cache_unit->tables[table_idx].data_prefilled);
@@ -383,6 +384,7 @@ void test_cache_units_data_with_reuse() {
     // Only the first table should be initialized due to tables_reuse_data
     for (size_t cache_idx = 0; cache_idx < pool.get_cache_units_count(); ++cache_idx) {
         auto* cache_unit = pool.get_cache_unit(cache_idx);
+        (void)cache_unit;
         assert(cache_unit != nullptr);
         assert(cache_unit->tables[0].data_prefilled);
         assert(cache_unit->tables[0].used_rows == static_cast<size_t>(config.schema.generation.rows_per_batch));
@@ -427,6 +429,7 @@ void test_cache_units_data_generator_failure() {
         assert(std::string(e.what()).find("RowDataGenerator could not generate enough data for cache initialization") != std::string::npos);
         caught = true;
     }
+    (void)caught;
     assert(caught);
     std::cout << "test_cache_units_data_generator_failure passed\n";
 }

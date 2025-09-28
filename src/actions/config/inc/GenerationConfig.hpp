@@ -34,7 +34,7 @@ struct GenerationConfig {
         std::vector<Interval> intervals;
     } data_disorder;
 
-    std::optional<size_t> generate_threads = 1;
+    std::optional<size_t> generate_threads;
     int64_t rows_per_table = 10000;
     size_t rows_per_batch = 10000;
     bool tables_reuse_data = false;

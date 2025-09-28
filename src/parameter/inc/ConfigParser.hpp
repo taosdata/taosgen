@@ -288,7 +288,7 @@ namespace YAML {
         static bool decode(const Node& node, GenerationConfig& rhs) {
             static const std::set<std::string> valid_keys = {
                 "interlace", "num_cached_batches", "rate_limit", "data_disorder",
-                "concurrency", "rows_per_table", "rows_per_batch", "per_table_rows", "per_batch_rows"
+                "concurrency", "rows_per_table", "rows_per_batch", "per_table_rows", "per_batch_rows",
                 "tables_reuse_data"
             };
 

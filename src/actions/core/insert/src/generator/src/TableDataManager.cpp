@@ -41,7 +41,8 @@ bool TableDataManager::init(const std::vector<std::string>& table_names) {
                 state.generator = std::make_unique<RowDataGenerator>(
                     table_name,
                     config_,
-                    col_instances_
+                    col_instances_,
+                    pool_.is_cache_mode()
                 );
                 state.rows_generated = 0;
                 state.interlace_counter = 0;
@@ -100,7 +101,7 @@ std::optional<MemoryPool::MemoryBlock*> TableDataManager::next_multi_batch() {
 
 MemoryPool::MemoryBlock* TableDataManager::collect_batch_data(size_t max_rows) {
     // Get memory block from memory pool
-    MemoryPool::MemoryBlock* block = pool_.acquire_block(sequence_num_++);
+    MemoryPool::MemoryBlock* block = pool_.acquire_block(sequence_num_);
     // if (!block) {
     //     return nullptr;  // No available memory block
     // }

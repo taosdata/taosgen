@@ -10,12 +10,14 @@
 
 RowDataGenerator::RowDataGenerator(const std::string& table_name,
                                   const InsertDataConfig& config,
-                                  const ColumnConfigInstanceVector& instances)
+                                  const ColumnConfigInstanceVector& instances,
+                                  bool use_cache)
     : table_name_(table_name),
+      config_(config),
       columns_config_(config.schema.columns_cfg),
       instances_(instances),
-      config_(config),
-      target_precision_(config.timestamp_precision) {
+      target_precision_(config.timestamp_precision),
+      use_cache_(use_cache) {
 
     init_cached_row();
     init_raw_source();
@@ -303,15 +305,19 @@ void RowDataGenerator::generate_from_generator() {
     cached_row_.timestamp = TimestampUtils::convert_timestamp_precision(timestamp_generator_->generate(),
         timestamp_generator_->timestamp_precision(), target_precision_);
 
-    // Generate column data
-    row_generator_->generate(cached_row_.columns);
+    if (!use_cache_) {
+        // Generate column data
+        row_generator_->generate(cached_row_.columns);
+    }
 
     return;
 }
 
 bool RowDataGenerator::generate_from_csv() {
     cached_row_.timestamp =  csv_rows_[csv_row_index_].timestamp;
-    cached_row_.columns = csv_rows_[csv_row_index_].columns;
+    if (!use_cache_) {
+        cached_row_.columns = csv_rows_[csv_row_index_].columns;
+    }
     csv_row_index_ = (csv_row_index_ + 1) % csv_rows_.size();
     return true;
 }

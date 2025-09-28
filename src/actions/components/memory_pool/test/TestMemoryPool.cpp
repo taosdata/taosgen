@@ -358,6 +358,7 @@ void test_memory_pool_cache_mode_edge_cases() {
     // Test 2: invalid cache index
     MemoryPool pool(2, 1, 4, col_instances, false, 1);
     bool result = pool.fill_cache_unit_data(999, 0, {});
+    (void)result;
     assert(!result);
 
     result = pool.fill_cache_unit_data(0, 999, {});

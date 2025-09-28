@@ -276,7 +276,6 @@ void ParameterContext::parse_td_create_super_table_action(Job& job, Step& step) 
     create_stb_config.tdengine = job.tdengine;
     create_stb_config.schema = job.schema;
 
-
     if (step.with["schema"]) {
         const auto& schema = step.with["schema"];
 
@@ -443,6 +442,8 @@ void ParameterContext::parse_comm_insert_data_action(Job& job, Step& step, std::
     std::cout << "Parsed insert-data action." << std::endl;
 
     // Save result to Step's action_config field
+    job.tdengine = insert_config.tdengine;
+    job.mqtt = insert_config.mqtt;
     job.schema = insert_config.schema;
     step.action_config = std::move(insert_config);
 }
@@ -596,7 +597,6 @@ tags:
       - Dallas
       - Austin
 generation:
-  concurrency: 8
   rows_per_table: 10000
   rows_per_batch: 10000
 )");
