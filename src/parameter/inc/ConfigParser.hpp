@@ -378,6 +378,26 @@ namespace YAML {
                 rhs.tables_reuse_data = node["tables_reuse_data"].as<bool>();
             }
 
+            if (rhs.interlace_mode.enabled) {
+                if (rhs.interlace_mode.rows > rhs.rows_per_batch) {
+                    throw std::runtime_error("interlace rows cannot be greater than rows_per_batch.");
+                }
+
+                if (rhs.data_cache.enabled) {
+                    const auto batches_needed = (rhs.rows_per_table + rhs.interlace_mode.rows - 1) / rhs.interlace_mode.rows;
+                    if (rhs.data_cache.num_cached_batches > static_cast<size_t>(batches_needed)) {
+                        throw std::runtime_error("num_cached_batches cannot be greater than the number of batches needed to fill a table in interlace mode.");
+                    }
+                }
+            } else {
+                if (rhs.data_cache.enabled) {
+                    const auto batches_needed = (rhs.rows_per_table + rhs.rows_per_batch - 1) / rhs.rows_per_batch;
+                    if (rhs.data_cache.num_cached_batches > static_cast<size_t>(batches_needed)) {
+                        throw std::runtime_error("num_cached_batches cannot be greater than the number of batches needed to fill a table.");
+                    }
+                }
+            }
+
             return true;
         }
     };

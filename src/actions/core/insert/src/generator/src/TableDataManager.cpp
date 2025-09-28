@@ -101,7 +101,7 @@ std::optional<MemoryPool::MemoryBlock*> TableDataManager::next_multi_batch() {
 
 MemoryPool::MemoryBlock* TableDataManager::collect_batch_data(size_t max_rows) {
     // Get memory block from memory pool
-    MemoryPool::MemoryBlock* block = pool_.acquire_block(sequence_num_);
+    MemoryPool::MemoryBlock* block = pool_.acquire_block(sequence_num_++);
     // if (!block) {
     //     return nullptr;  // No available memory block
     // }

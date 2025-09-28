@@ -135,13 +135,16 @@ void InsertDataAction::execute() {
             max_tables_per_block = (rows_per_request + rows_per_table - 1) / rows_per_table;
         }
 
-        MemoryPool pool(num_blocks, max_tables_per_block, max_rows_per_table, col_instances_, tables_reuse_data, num_cached_batches);
+        auto pool = std::make_unique<MemoryPool>(
+            num_blocks, max_tables_per_block, max_rows_per_table,
+            col_instances_, tables_reuse_data, num_cached_batches
+        );
 
         if (config_.schema.generation.data_cache.enabled) {
             std::cout << "Generation data cache mode enabled with "
-                      << pool.get_cache_units_count() << " cache units." << std::endl;
+                      << pool->get_cache_units_count() << " cache units." << std::endl;
 
-            init_cache_units_data(pool, num_cached_batches, max_tables_per_block, max_rows_per_table);
+            init_cache_units_data(*pool, num_cached_batches, max_tables_per_block, max_rows_per_table);
         }
 
         // Create data pipeline
@@ -196,7 +199,7 @@ void InsertDataAction::execute() {
         std::atomic<size_t> active_producers(producer_thread_count);
 
         for (size_t i = 0; i < producer_thread_count; i++) {
-            auto data_manager = std::make_shared<TableDataManager>(pool, config_, col_instances_);
+            auto data_manager = std::make_shared<TableDataManager>(*pool, config_, col_instances_);
             data_managers.push_back(data_manager);
 
             producer_threads.emplace_back([this, i, &split_names, &pipeline, data_manager, &active_producers, &producer_finished] {
