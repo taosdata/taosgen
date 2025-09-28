@@ -1,4 +1,6 @@
 [requires]
+jemalloc/5.3.0
+mimalloc/2.1.7
 yaml-cpp/0.8.0
 luajit/2.1.0-beta3
 paho-mqtt-cpp/1.5.3
@@ -14,3 +16,4 @@ CMakeToolchain
 
 [options]
 *:shared=False
+mimalloc/*:override=True
