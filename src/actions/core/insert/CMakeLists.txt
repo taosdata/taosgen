@@ -4,7 +4,7 @@ add_subdirectory(src/pipeline)
 add_subdirectory(src/writer)
 
 # Create library target
-add_library(core_insert STATIC 
+add_library(core_insert STATIC
   src/InsertDataAction.cpp
   $<TARGET_OBJECTS:insert_generator>
   $<TARGET_OBJECTS:insert_pipeline>
@@ -47,6 +47,6 @@ target_link_libraries(core_insert
 )
 
 # Enable tests
-if(CMAKE_ENABLE_TEST)
+if(TSGEN_ENABLE_TEST)
   add_subdirectory(test)
 endif()

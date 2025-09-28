@@ -33,6 +33,6 @@ set_target_properties(components_expression PROPERTIES
 )
 
 # Enable tests
-if(CMAKE_ENABLE_TEST)
+if(TSGEN_ENABLE_TEST)
   add_subdirectory(test)
 endif()

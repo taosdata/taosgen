@@ -1,5 +1,5 @@
 # Create library target
-add_library(components_gc STATIC 
+add_library(components_gc STATIC
   src/GarbageCollector.cpp
 )
 
@@ -21,6 +21,6 @@ target_link_libraries(components_gc
 )
 
 # Enable tests
-if(CMAKE_ENABLE_TEST)
+if(TSGEN_ENABLE_TEST)
   add_subdirectory(test)
 endif()

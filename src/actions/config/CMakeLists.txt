@@ -20,6 +20,6 @@ target_link_libraries(actions_config
 )
 
 # Enable tests
-if(CMAKE_ENABLE_TEST)
+if(TSGEN_ENABLE_TEST)
   add_subdirectory(test)
 endif()
