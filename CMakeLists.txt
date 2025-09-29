@@ -10,8 +10,8 @@ set(CMAKE_FIND_PACKAGE_PREFER_CONFIG ON)
 option(TSGEN_ENABLE_TEST "Enable testing" ON)
 option(TSGEN_ENABLE_COVERAGE "Enable code coverage" OFF)
 option(TSGEN_ENABLE_SANITIZER "Enable sanitizers" OFF)
-option(TSGEN_BUNDLE_JEMALLOC "Use jemalloc as allocator" ON)
-option(TSGEN_BUNDLE_MIMALLOC "Use mimalloc as allocator" OFF)
+option(TSGEN_BUNDLE_JEMALLOC "Use jemalloc as allocator" OFF)
+option(TSGEN_BUNDLE_MIMALLOC "Use mimalloc as allocator" ON)
 
 # Global settings
 set(CMAKE_CXX_STANDARD 17)
