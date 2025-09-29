@@ -215,6 +215,290 @@ void test_memory_pool_tables_reuse_data() {
     std::cout << "test_memory_pool_tables_reuse_data passed." << std::endl;
 }
 
+void test_memory_pool_cache_mode_basic() {
+    ColumnConfigInstanceVector col_instances;
+    col_instances.emplace_back(ColumnConfig{"col1", "INT"});
+    col_instances.emplace_back(ColumnConfig{"col2", "VARCHAR(16)"});
+
+    const size_t num_blocks = 3;
+    const size_t num_cache_units = 2;
+    const size_t num_tables = 2;
+    const size_t num_rows = 4;
+    MemoryPool pool(num_blocks, num_tables, num_rows, col_instances, false, num_cache_units);
+
+    assert(pool.is_cache_mode());
+    assert(pool.get_cache_units_count() == 2);
+
+    // Pre-fill cache data
+    std::vector<RowData> cache_data_0, cache_data_1;
+    for (size_t i = 0; i < num_rows; ++i) {
+        RowData row0, row1;
+        row0.columns = {int32_t(i * 10), std::string("cache0_t0_" + std::to_string(i))};
+        row1.columns = {int32_t(i * 100), std::string("cache0_t1_" + std::to_string(i))};
+        cache_data_0.push_back(row0);
+        cache_data_1.push_back(row1);
+    }
+
+    bool fill_result = pool.fill_cache_unit_data(0, 0, cache_data_0);
+    (void)fill_result;
+    assert(fill_result);
+    assert(!pool.is_cache_unit_prefilled(0));
+
+    fill_result = pool.fill_cache_unit_data(0, 1, cache_data_1);
+    assert(fill_result);
+    assert(pool.is_cache_unit_prefilled(0));
+
+    // Acquire memory block and use cache data
+    auto* block = pool.acquire_block(0);
+    assert(block != nullptr);
+    assert(block->cache_index == 0);
+
+    // Write timestamp data
+    for (size_t i = 0; i < num_rows; ++i) {
+        RowData row;
+        row.timestamp = (i + 1) * 1000;
+        row.columns = {int32_t(i * 999), std::string("should_be_ignored")};
+        block->tables[0].add_row(row);
+        block->tables[1].add_row(row);
+    }
+
+    assert(block->tables[0].used_rows == num_rows);
+    assert(block->tables[1].used_rows == num_rows);
+
+    // Verify column data
+    for (size_t i = 0; i < num_rows; ++i) {
+        assert(block->tables[0].timestamps[i] == static_cast<int64_t>((i + 1) * 1000));
+        assert(block->tables[1].timestamps[i] == static_cast<int64_t>((i + 1) * 1000));
+
+        assert(std::get<int32_t>(block->tables[0].get_cell(i, 0)) == int32_t(i * 10));
+        assert(std::get<std::string>(block->tables[0].get_cell(i, 1)) == std::string("cache0_t0_" + std::to_string(i)));
+
+        assert(std::get<int32_t>(block->tables[1].get_cell(i, 0)) == int32_t(i * 100));
+        assert(std::get<std::string>(block->tables[1].get_cell(i, 1)) == std::string("cache0_t1_" + std::to_string(i)));
+    }
+
+    pool.release_block(block);
+    std::cout << "test_memory_pool_cache_mode_basic passed." << std::endl;
+}
+
+void test_memory_pool_cache_mode_shared() {
+    ColumnConfigInstanceVector col_instances;
+    col_instances.emplace_back(ColumnConfig{"col1", "INT"});
+    col_instances.emplace_back(ColumnConfig{"col2", "VARCHAR(16)"});
+
+    const size_t num_blocks = 3;
+    const size_t num_cache_units = 2;
+    const size_t num_tables = 2;
+    const size_t num_rows = 4;
+    MemoryPool pool(num_blocks, num_tables, num_rows, col_instances, false, num_cache_units);
+
+    // Pre-fill cache data
+    for (size_t c = 0; c < num_cache_units; ++c) {
+        for (size_t t = 0; t < num_tables; ++t) {
+            std::vector<RowData> cache_data;
+            for (size_t i = 0; i < num_rows; ++i) {
+                RowData row;
+                row.timestamp = 0;
+                row.columns = {int32_t(i * 10 + c * 100), std::string("cache" + std::to_string(c) + "_t" + std::to_string(t) + "_" + std::to_string(i))};
+                cache_data.push_back(row);
+            }
+            bool fill_result = pool.fill_cache_unit_data(c, t, cache_data);
+            (void)fill_result;
+            assert(fill_result);
+        }
+    }
+
+    auto* block0 = pool.acquire_block(0);
+    auto* block1 = pool.acquire_block(1);
+    auto* block2 = pool.acquire_block(2);
+
+    // Write timestamp data
+    for (size_t i = 0; i < num_rows; ++i) {
+        RowData row;
+        row.timestamp = 1000 + i;
+        row.columns = {int32_t(999), std::string("ignored")};
+        block0->tables[0].add_row(row);
+
+        row.timestamp = 2000 + i;
+        block1->tables[0].add_row(row);
+
+        row.timestamp = 3000 + i;
+        block2->tables[0].add_row(row);
+    }
+
+    for (size_t i = 0; i < num_rows; ++i) {
+        assert(block0->tables[0].timestamps[i] == static_cast<int64_t>(1000 + i));
+        assert(block1->tables[0].timestamps[i] == static_cast<int64_t>(2000 + i));
+        assert(block2->tables[0].timestamps[i] == static_cast<int64_t>(3000 + i));
+
+        assert(std::get<int32_t>(block0->tables[0].get_cell(i, 0)) == int32_t(i * 10));
+        assert(std::get<int32_t>(block1->tables[0].get_cell(i, 0)) == int32_t(i * 10 + 100));
+        assert(std::get<int32_t>(block2->tables[0].get_cell(i, 0)) == int32_t(i * 10));
+
+        assert(std::get<std::string>(block0->tables[0].get_cell(i, 1)) == "cache0_t0_" + std::to_string(i));
+        assert(std::get<std::string>(block1->tables[0].get_cell(i, 1)) == "cache1_t0_" + std::to_string(i));
+        assert(std::get<std::string>(block2->tables[0].get_cell(i, 1)) == "cache0_t0_" + std::to_string(i));
+    }
+
+    pool.release_block(block0);
+    pool.release_block(block1);
+    pool.release_block(block2);
+
+    std::cout << "test_memory_pool_cache_mode_shared passed." << std::endl;
+}
+
+void test_memory_pool_cache_mode_edge_cases() {
+    ColumnConfigInstanceVector col_instances;
+    col_instances.emplace_back(ColumnConfig{"col1", "INT"});
+
+    // Test 1: cache unit count is 0
+    MemoryPool pool_no_cache(2, 1, 4, col_instances, false, 0);
+    assert(!pool_no_cache.is_cache_mode());
+    assert(pool_no_cache.get_cache_units_count() == 0);
+
+    // Test 2: invalid cache index
+    MemoryPool pool(2, 1, 4, col_instances, false, 1);
+    bool result = pool.fill_cache_unit_data(999, 0, {});
+    (void)result;
+    assert(!result);
+
+    result = pool.fill_cache_unit_data(0, 999, {});
+    assert(!result);
+
+    // Test 3: empty data fill
+    result = pool.fill_cache_unit_data(0, 0, {});
+    assert(result);
+
+    std::cout << "test_memory_pool_cache_mode_edge_cases passed." << std::endl;
+}
+
+void test_memory_pool_cache_mode_performance() {
+    ColumnConfigInstanceVector col_instances;
+    col_instances.emplace_back(ColumnConfig{"col1", "INT"});
+    col_instances.emplace_back(ColumnConfig{"col2", "VARCHAR(32)"});
+
+    const size_t num_blocks = 10;
+    const size_t num_cache_units = 3;
+    const size_t num_tables = 2;
+    const size_t num_rows = 1000;
+    MemoryPool pool(num_blocks, num_tables, num_rows, col_instances, false, num_cache_units);
+
+    // Pre-fill cache data
+    std::vector<RowData> cache_data;
+    for (size_t i = 0; i < num_rows; ++i) {
+        RowData row;
+        row.timestamp = 0;
+        row.columns = {int32_t(i), std::string("data_" + std::to_string(i))};
+        cache_data.push_back(row);
+    }
+
+    for (size_t i = 0; i < num_cache_units; ++i) {
+        for (size_t t = 0; t < num_tables; ++t) {
+            bool fill_result = pool.fill_cache_unit_data(i, t, cache_data);
+            (void)fill_result;
+            assert(fill_result);
+        }
+    }
+
+    std::atomic<int> completed_threads{0};
+    const int num_threads = 4;
+    const int iterations = 100;
+
+    auto worker = [&](int thread_id) {
+        for (int i = 0; i < iterations; ++i) {
+            auto sequence_num = thread_id * iterations + i;
+            auto* block = pool.acquire_block(sequence_num);
+
+            if (block) {
+                for (size_t j = 0; j < num_rows; ++j) {
+                    RowData row;
+                    row.timestamp = sequence_num * 100 + j;
+                    row.columns = {int32_t(999), std::string("ignored")};
+                    for (size_t t = 0; t < num_tables; ++t) {
+                        block->tables[t].add_row(row);
+                    }
+                }
+
+                for (size_t t = 0; t < num_tables; ++t) {
+                    assert(block->tables[t].used_rows == num_rows);
+                    for (size_t j = 0; j < num_rows; ++j) {
+                        assert(block->tables[t].timestamps[j] == static_cast<int64_t >(sequence_num * 100 + j));
+                        assert(std::get<int32_t>(block->tables[t].get_cell(j, 0)) == static_cast<int32_t>(j));
+                        assert(std::get<std::string>(block->tables[t].get_cell(j, 1)) == "data_" + std::to_string(j));
+                    }
+                }
+                pool.release_block(block);
+            }
+        }
+        completed_threads++;
+    };
+
+    std::vector<std::thread> threads;
+    for (int i = 0; i < num_threads; ++i) {
+        threads.emplace_back(worker, i);
+    }
+
+    for (auto& t : threads) {
+        t.join();
+    }
+
+    assert(completed_threads == num_threads);
+    std::cout << "test_memory_pool_cache_mode_performance passed." << std::endl;
+}
+
+void test_memory_pool_cache_mode_with_reuse() {
+    ColumnConfigInstanceVector col_instances;
+    col_instances.emplace_back(ColumnConfig{"col1", "INT"});
+    col_instances.emplace_back(ColumnConfig{"col2", "VARCHAR(16)"});
+
+    const size_t num_blocks = 2;
+    const size_t num_cache_units = 1;
+    const size_t num_tables = 2;
+    const size_t num_rows = 4;
+    MemoryPool pool(num_blocks, num_tables, num_rows, col_instances, true, num_cache_units);
+
+    assert(pool.is_cache_mode());
+
+    // Pre-fill cache data
+    std::vector<RowData> cache_data;
+    for (size_t i = 0; i < num_rows; ++i) {
+        RowData row;
+        row.timestamp = 0;
+        row.columns = {int32_t(i * 5), std::string("cache_" + std::to_string(i))};
+        cache_data.push_back(row);
+    }
+
+    pool.fill_cache_unit_data(0, 0, cache_data);
+    pool.fill_cache_unit_data(0, 1, cache_data);
+
+    auto* block = pool.acquire_block(0);
+
+    for (size_t t = 0; t < num_tables; ++t) {
+        for (size_t i = 0; i < num_rows; ++i) {
+            RowData row;
+            row.timestamp = (t + 1) * 1000 + i;
+            row.columns = {int32_t(99), std::string("ignored")};
+            block->tables[t].add_row(row);
+        }
+    }
+
+    assert(block->tables[0].columns[0].fixed_data == block->tables[1].columns[0].fixed_data);
+    assert(std::get<int32_t>(block->tables[0].get_cell(0, 0)) == 0);
+    assert(std::get<int32_t>(block->tables[1].get_cell(0, 0)) == 0);
+
+    for (size_t t = 0; t < num_tables; ++t) {
+        assert(block->tables[t].used_rows == num_rows);
+        for (size_t i = 0; i < num_rows; ++i) {
+            assert(block->tables[t].timestamps[i] == static_cast<int64_t >((t + 1) * 1000 + i));
+            assert(std::get<int32_t>(block->tables[t].get_cell(i, 0)) == int32_t(i * 5));
+            assert(std::get<std::string>(block->tables[t].get_cell(i, 1)) == std::string("cache_" + std::to_string(i)));
+        }
+    }
+
+    pool.release_block(block);
+    std::cout << "test_memory_pool_cache_mode_with_reuse passed." << std::endl;
+}
+
 int main() {
     test_memory_pool_basic();
     test_memory_pool_multi_batch();
@@ -222,6 +506,12 @@ int main() {
     test_memory_pool_get_cell_out_of_range();
     test_memory_pool_get_cell_null();
     test_memory_pool_tables_reuse_data();
+
+    test_memory_pool_cache_mode_basic();
+    test_memory_pool_cache_mode_shared();
+    test_memory_pool_cache_mode_edge_cases();
+    test_memory_pool_cache_mode_performance();
+    test_memory_pool_cache_mode_with_reuse();
 
     std::cout << "All MemoryPool tests passed." << std::endl;
     return 0;

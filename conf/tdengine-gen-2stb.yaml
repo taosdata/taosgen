@@ -46,8 +46,8 @@ schema:
         - Austin
   generation:
     interlace: 1
-    per_table_rows: 100
-    per_batch_rows: 10000
+    rows_per_table: 100
+    rows_per_batch: 10000
 
 ev_schema: &ev_schema
   name: ev
@@ -104,8 +104,8 @@ ev_schema: &ev_schema
         - Chengdu
   generation:
     interlace: 2
-    per_table_rows: 500
-    per_batch_rows: 5000
+    rows_per_table: 500
+    rows_per_batch: 5000
 
 concurrency: 2
 jobs:

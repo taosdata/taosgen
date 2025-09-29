@@ -42,10 +42,10 @@ void test_checkpoint_recover() {
         .timestamp_precision = "ms",
         .timestamp_step = 1000
     };
-    insert_config.schema.generation.per_table_rows = 100;
+    insert_config.schema.generation.rows_per_table = 100;
 
     CheckpointAction::checkpoint_recover(global, insert_config);
-    std::cout << "checkpoint_recover executed." << insert_config.schema.generation.per_table_rows << std::endl;
+    std::cout << "checkpoint_recover executed." << insert_config.schema.generation.rows_per_table << std::endl;
     // 4. Assert config changes
     int64_t expected_start_ts = 1620000005000;
     int64_t recovered_rows = 5;
@@ -54,7 +54,7 @@ void test_checkpoint_recover() {
     (void)expected_start_ts;
     (void)expected_rows;
     assert(std::get<long int>(insert_config.schema.columns_cfg.generator.timestamp_strategy.timestamp_config.start_timestamp) == expected_start_ts);
-    assert(insert_config.schema.generation.per_table_rows == expected_rows);
+    assert(insert_config.schema.generation.rows_per_table == expected_rows);
 
     // 5. Clean up
     std::remove(checkpoint_file.c_str());

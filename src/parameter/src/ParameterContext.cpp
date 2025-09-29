@@ -276,7 +276,6 @@ void ParameterContext::parse_td_create_super_table_action(Job& job, Step& step) 
     create_stb_config.tdengine = job.tdengine;
     create_stb_config.schema = job.schema;
 
-
     if (step.with["schema"]) {
         const auto& schema = step.with["schema"];
 
@@ -432,6 +431,8 @@ void ParameterContext::parse_comm_insert_data_action(Job& job, Step& step, std::
     std::cout << "Parsed insert-data action." << std::endl;
 
     // Save result to Step's action_config field
+    job.tdengine = insert_config.tdengine;
+    job.mqtt = insert_config.mqtt;
     job.schema = insert_config.schema;
     step.action_config = std::move(insert_config);
 }
@@ -510,6 +511,8 @@ void ParameterContext::merge_yaml(const YAML::Node& config) {
         config_data.concurrency = config["concurrency"].as<int>();
     }
 
+    merge_commandline();
+
     // Parse job list
     if (config["jobs"]) {
         parse_jobs(config["jobs"]);
@@ -583,9 +586,8 @@ tags:
       - Dallas
       - Austin
 generation:
-  concurrency: 8
-  per_table_rows: 10000
-  per_batch_rows: 10000
+  rows_per_table: 10000
+  rows_per_batch: 10000
 )");
 
     parse_schema(schema);
@@ -641,8 +643,8 @@ schema:
         - Austin
   generation:
     concurrency: 8
-    per_table_rows: 10000
-    per_batch_rows: 10000
+    rows_per_table: 10000
+    rows_per_batch: 10000
 
 jobs:
   # TDengine insert job
@@ -811,7 +813,7 @@ bool ParameterContext::init(int argc, char* argv[]) {
     // Merge by priority from low to high
     merge_yaml();
     merge_environment_vars();
-    merge_commandline();
+    // merge_commandline();
     return true;
 }
 

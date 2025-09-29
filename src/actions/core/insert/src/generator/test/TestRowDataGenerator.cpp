@@ -20,7 +20,7 @@ void test_generator_mode_basic() {
         {"col1", "INT", "random", 1, 100},
         {"col2", "FLOAT", "random", 0.0, 1.0}
     };
-    config.schema.generation.per_table_rows = 5;
+    config.schema.generation.rows_per_table = 5;
     config.schema.columns_cfg = columns_config;
     config.schema.columns_cfg.generator.schema = config.schema.columns;
 
@@ -54,7 +54,7 @@ void test_generator_reset() {
 
     InsertDataConfig config;
     config.schema.columns.emplace_back(ColumnConfig{"col1", "INT", "random", 1, 100});
-    config.schema.generation.per_table_rows = 3;
+    config.schema.generation.rows_per_table = 3;
     config.schema.columns_cfg = columns_config;
     config.schema.columns_cfg.generator.schema = config.schema.columns;
 
@@ -96,9 +96,9 @@ void test_generator_with_cache() {
 
     InsertDataConfig config;
     config.schema.columns.emplace_back(ColumnConfig{"col1", "INT", "random", 1, 100});
-    config.schema.generation.per_table_rows = 10;
+    config.schema.generation.rows_per_table = 10;
     config.schema.generation.data_cache.enabled = true;
-    config.schema.generation.data_cache.cache_size = 5;
+    config.schema.generation.data_cache.num_cached_batches = 1;
     config.schema.columns_cfg = columns_config;
     config.schema.columns_cfg.generator.schema = config.schema.columns;
 
@@ -136,7 +136,7 @@ void test_generator_with_disorder() {
 
     InsertDataConfig config;
     config.schema.columns.emplace_back(ColumnConfig{"col1", "INT", "random", 1, 100});
-    config.schema.generation.per_table_rows = 30;
+    config.schema.generation.rows_per_table = 30;
     config.schema.generation.data_disorder.enabled = true;
     config.schema.columns_cfg = columns_config;
     config.schema.columns_cfg.generator.schema = config.schema.columns;
@@ -218,7 +218,7 @@ void test_csv_mode_basic() {
     InsertDataConfig config;
     config.schema.columns.emplace_back(ColumnConfig{"age", "INT"});
     config.schema.columns.emplace_back(ColumnConfig{"city", "VARCHAR(20)"});
-    config.schema.generation.per_table_rows = 3;
+    config.schema.generation.rows_per_table = 3;
     config.schema.columns_cfg = columns_config;
     config.schema.columns_cfg.generator.schema = config.schema.columns;
 
@@ -296,7 +296,7 @@ void test_csv_precision_conversion() {
     InsertDataConfig config;
     config.schema.columns.emplace_back(ColumnConfig{"age", "INT"});
     config.schema.columns.emplace_back(ColumnConfig{"city", "VARCHAR(20)"});
-    config.schema.generation.per_table_rows = 3;
+    config.schema.generation.rows_per_table = 3;
     config.timestamp_precision = "us";
     config.schema.columns_cfg = columns_config;
     config.schema.columns_cfg.generator.schema = config.schema.columns;
@@ -327,7 +327,7 @@ void test_invalid_source_type() {
 
     InsertDataConfig config;
     config.schema.columns.emplace_back(ColumnConfig{"col1", "INT", "random", 1, 100});
-    config.schema.generation.per_table_rows = 3;
+    config.schema.generation.rows_per_table = 3;
     config.schema.columns_cfg = columns_config;
     config.schema.columns_cfg.generator.schema = config.schema.columns;
     auto instances = ColumnConfigInstanceFactory::create(config.schema.columns);

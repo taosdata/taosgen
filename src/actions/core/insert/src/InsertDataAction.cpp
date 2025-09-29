@@ -115,24 +115,37 @@ void InsertDataAction::execute() {
         const size_t queue_capacity = config_.queue_capacity;
         const double queue_warmup_ratio = config_.queue_warmup_ratio;
         const bool shared_queue = config_.shared_queue;
-        const size_t per_request_rows = config_.schema.generation.per_batch_rows;
+        const size_t rows_per_request = config_.schema.generation.rows_per_batch;
         const size_t interlace_rows = config_.schema.generation.interlace_mode.rows;
-        const int64_t per_table_rows = config_.schema.generation.per_table_rows;
+        const int64_t rows_per_table = config_.schema.generation.rows_per_table;
         const bool tables_reuse_data = config_.schema.generation.tables_reuse_data;
+        const size_t num_cached_batches = config_.schema.generation.data_cache.enabled ?
+            config_.schema.generation.data_cache.num_cached_batches : 0;
 
-        size_t block_count = queue_capacity * consumer_thread_count;
-        size_t max_tables_per_block = std::min(name_manager.chunk_size(), per_request_rows);
-        size_t max_rows_per_table = std::min(static_cast<size_t>(per_table_rows), per_request_rows);
+
+        size_t num_blocks = queue_capacity * consumer_thread_count;
+        size_t max_tables_per_block = std::min(name_manager.chunk_size(), rows_per_request);
+        size_t max_rows_per_table = std::min(static_cast<size_t>(rows_per_table), rows_per_request);
 
         if (config_.schema.generation.interlace_mode.enabled) {
-            max_tables_per_block = (per_request_rows + interlace_rows - 1) / interlace_rows;
+            max_tables_per_block = (rows_per_request + interlace_rows - 1) / interlace_rows;
             max_rows_per_table = std::min(max_rows_per_table, interlace_rows);
 
         } else {
-            max_tables_per_block = (per_request_rows + per_table_rows - 1) / per_table_rows;
+            max_tables_per_block = (rows_per_request + rows_per_table - 1) / rows_per_table;
         }
 
-        MemoryPool pool(block_count, max_tables_per_block, max_rows_per_table, col_instances_, tables_reuse_data);
+        auto pool = std::make_unique<MemoryPool>(
+            num_blocks, max_tables_per_block, max_rows_per_table,
+            col_instances_, tables_reuse_data, num_cached_batches
+        );
+
+        if (config_.schema.generation.data_cache.enabled) {
+            std::cout << "Generation data cache mode enabled with "
+                      << pool->get_cache_units_count() << " cache units." << std::endl;
+
+            init_cache_units_data(*pool, num_cached_batches, max_tables_per_block, max_rows_per_table);
+        }
 
         // Create data pipeline
         DataPipeline<FormatResult> pipeline(shared_queue, producer_thread_count, consumer_thread_count, queue_capacity);
@@ -186,7 +199,7 @@ void InsertDataAction::execute() {
         std::atomic<size_t> active_producers(producer_thread_count);
 
         for (size_t i = 0; i < producer_thread_count; i++) {
-            auto data_manager = std::make_shared<TableDataManager>(pool, config_, col_instances_);
+            auto data_manager = std::make_shared<TableDataManager>(*pool, config_, col_instances_);
             data_managers.push_back(data_manager);
 
             producer_threads.emplace_back([this, i, &split_names, &pipeline, data_manager, &active_producers, &producer_finished] {
@@ -212,7 +225,7 @@ void InsertDataAction::execute() {
 
         while (true) {
             size_t total_queued = pipeline.total_queued();
-            double queue_ratio = std::min(static_cast<double>(total_queued) / block_count, 1.0);
+            double queue_ratio = std::min(static_cast<double>(total_queued) / num_blocks, 1.0);
 
             std::cout << "[Warmup] Queue fill ratio: " << std::fixed << std::setprecision(2)
                       << (queue_ratio * 100) << "%, target: " << (queue_warmup_ratio * 100) << "%" << std::endl;
@@ -246,7 +259,7 @@ void InsertDataAction::execute() {
         // Monitor
         size_t last_total_rows = 0;
         auto last_time = start_time;
-        size_t max_total_rows = all_names.size() * per_table_rows;
+        size_t max_total_rows = all_names.size() * rows_per_table;
         int total_col_width = std::to_string(max_total_rows).length();
 
         while (active_producers > 0) {
@@ -434,6 +447,50 @@ void InsertDataAction::execute() {
     } catch (const std::exception& e) {
         std::cerr << "InsertDataAction failed: " << e.what() << std::endl;
         throw;
+    }
+}
+
+void InsertDataAction::init_cache_units_data(
+    MemoryPool& pool,
+    size_t num_cached_batches,
+    size_t max_tables_per_block,
+    size_t max_rows_per_table
+) {
+    for (size_t table_idx = 0; table_idx < max_tables_per_block; ++table_idx) {
+        std::string table_name = "cache_table_" + std::to_string(table_idx);
+        RowDataGenerator generator(table_name, config_, col_instances_);
+
+        for (size_t cache_idx = 0; cache_idx < num_cached_batches; ++cache_idx) {
+            std::vector<RowData> data_rows;
+            data_rows.reserve(max_rows_per_table);
+
+            for (size_t row = 0; row < max_rows_per_table; ++row) {
+                auto row_opt = generator.next_row();
+                if (row_opt.has_value()) {
+                    data_rows.push_back(std::move(row_opt.value()));
+                } else {
+                    if (cache_idx + 1 != num_cached_batches) {
+                        throw std::runtime_error("RowDataGenerator could not generate enough data for cache initialization");
+                    }
+                }
+            }
+
+            if (!data_rows.size()) {
+                throw std::runtime_error("RowDataGenerator generated zero rows for cache " + std::to_string(cache_idx) + " initialization");
+            }
+
+            pool.fill_cache_unit_data(cache_idx, table_idx, data_rows);
+        }
+
+        if (global_.verbose) {
+            std::cout << "[Debug] Initialized cache data for table: " << table_name
+                      << " with " << max_rows_per_table << " rows per batch, "
+                      << num_cached_batches << " cached batches." << std::endl;
+        }
+
+        if (config_.schema.generation.tables_reuse_data) {
+            break;
+        }
     }
 }
 

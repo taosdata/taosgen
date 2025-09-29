@@ -13,8 +13,8 @@ struct GenerationConfig {
     } interlace_mode;
 
     struct DataCache {
-        bool enabled = false;
-        size_t cache_size = 1000000;
+        bool enabled = true;
+        size_t num_cached_batches = 10000;
     } data_cache;
 
     struct FlowControl {
@@ -34,8 +34,8 @@ struct GenerationConfig {
         std::vector<Interval> intervals;
     } data_disorder;
 
-    std::optional<size_t> generate_threads = 1;
-    int64_t per_table_rows = 10000;
-    size_t per_batch_rows = 10000;
-    bool tables_reuse_data = false;
+    std::optional<size_t> generate_threads;
+    int64_t rows_per_table = 10000;
+    size_t rows_per_batch = 10000;
+    bool tables_reuse_data = true;
 };

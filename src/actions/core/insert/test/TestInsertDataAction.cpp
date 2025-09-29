@@ -33,9 +33,9 @@ InsertDataConfig create_test_config() {
     config.schema.tbname.generator.from = 0;
 
     // Setup control parameters
-    config.schema.generation.per_table_rows = 100;
+    config.schema.generation.rows_per_table = 100;
     config.schema.generation.generate_threads = 2;
-    config.schema.generation.per_batch_rows = 10;
+    config.schema.generation.rows_per_batch = 10;
     config.queue_capacity = 2;
     config.insert_threads = 2;
     config.failure_handling.max_retries = 1;
@@ -148,7 +148,7 @@ void test_data_pipeline() {
 
 void test_data_generation() {
     auto config = create_test_config();
-    config.schema.generation.per_table_rows = 5;
+    config.schema.generation.rows_per_table = 5;
     config.schema.generation.interlace_mode.enabled = false;
 
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
@@ -200,7 +200,7 @@ void test_end_to_end_data_generation() {
 
             config.data_format = format;
 
-            config.schema.generation.per_table_rows = 10;
+            config.schema.generation.rows_per_table = 10;
             config.schema.generation.generate_threads = 1;
             config.queue_capacity = 2;
             config.insert_threads = 1;
@@ -225,7 +225,7 @@ void test_end_to_end_data_generation() {
 void test_concurrent_data_generation() {
     GlobalConfig global;
     auto config = create_test_config();
-    config.schema.generation.per_table_rows = 1000;     // More rows to test concurrency
+    config.schema.generation.rows_per_table = 1000;     // More rows to test concurrency
     config.schema.generation.generate_threads = 4;      // More threads
     config.insert_threads = 4;
     config.schema.tbname.generator.count = 8;             // 8 tables
@@ -298,6 +298,142 @@ void test_error_handling() {
     std::cout << "test_error_handling passed\n";
 }
 
+void test_cache_units_data_initialization() {
+    GlobalConfig global;
+    auto config = create_test_config();
+
+    // Enable cache mode
+    config.schema.generation.data_cache.enabled = true;
+    config.schema.generation.data_cache.num_cached_batches = 2;
+    config.schema.generation.tables_reuse_data = false;
+    config.schema.generation.rows_per_table = 10;
+    config.schema.generation.rows_per_batch = 5;
+    config.schema.generation.generate_threads = 1;
+    config.insert_threads = 1;
+    config.queue_capacity = 1;
+    config.schema.tbname.generator.count = 2;
+
+    auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
+
+    MemoryPool pool(
+        config.queue_capacity * config.insert_threads,
+        config.schema.tbname.generator.count,
+        config.schema.generation.rows_per_batch,
+        col_instances,
+        config.schema.generation.tables_reuse_data,
+        config.schema.generation.data_cache.num_cached_batches
+    );
+
+    // Should initialize cache data for all tables and batches
+    InsertDataAction action(global, config);
+    action.init_cache_units_data(pool,
+                                 config.schema.generation.data_cache.num_cached_batches,
+                                 config.schema.tbname.generator.count,
+                                 config.schema.generation.rows_per_batch);
+
+    // Check cache units count
+    assert(pool.get_cache_units_count() == config.schema.generation.data_cache.num_cached_batches);
+
+    // Check each cache unit and table is prefilled
+    for (size_t cache_idx = 0; cache_idx < pool.get_cache_units_count(); ++cache_idx) {
+        assert(pool.is_cache_unit_prefilled(cache_idx));
+        auto* cache_unit = pool.get_cache_unit(cache_idx);
+        (void)cache_unit;
+        assert(cache_unit != nullptr);
+        for (size_t table_idx = 0; table_idx < static_cast<size_t>(config.schema.tbname.generator.count); ++table_idx) {
+            assert(cache_unit->tables[table_idx].data_prefilled);
+            assert(cache_unit->tables[table_idx].used_rows == static_cast<size_t>(config.schema.generation.rows_per_batch));
+        }
+    }
+
+    std::cout << "test_cache_units_data_initialization passed\n";
+}
+
+void test_cache_units_data_with_reuse() {
+    GlobalConfig global;
+    auto config = create_test_config();
+
+    // Enable cache mode and table data reuse
+    config.schema.generation.data_cache.enabled = true;
+    config.schema.generation.data_cache.num_cached_batches = 1;
+    config.schema.generation.tables_reuse_data = true;
+    config.schema.generation.rows_per_table = 3;
+    config.schema.generation.rows_per_batch = 3;
+    config.schema.generation.generate_threads = 1;
+    config.insert_threads = 1;
+    config.queue_capacity = 1;
+    config.schema.tbname.generator.count = 2;
+
+    auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
+
+    MemoryPool pool(
+        config.queue_capacity * config.insert_threads,
+        config.schema.tbname.generator.count,
+        config.schema.generation.rows_per_batch,
+        col_instances,
+        config.schema.generation.tables_reuse_data,
+        config.schema.generation.data_cache.num_cached_batches
+    );
+
+    InsertDataAction action(global, config);
+    action.init_cache_units_data(pool,
+                                 config.schema.generation.data_cache.num_cached_batches,
+                                 config.schema.tbname.generator.count,
+                                 config.schema.generation.rows_per_batch);
+
+    // Only the first table should be initialized due to tables_reuse_data
+    for (size_t cache_idx = 0; cache_idx < pool.get_cache_units_count(); ++cache_idx) {
+        auto* cache_unit = pool.get_cache_unit(cache_idx);
+        (void)cache_unit;
+        assert(cache_unit != nullptr);
+        assert(cache_unit->tables[0].data_prefilled);
+        assert(cache_unit->tables[0].used_rows == static_cast<size_t>(config.schema.generation.rows_per_batch));
+        // The second table should not be initialized
+        assert(!cache_unit->tables[1].data_prefilled);
+        assert(cache_unit->tables[1].used_rows == 0);
+    }
+
+    std::cout << "test_cache_units_data_with_reuse passed\n";
+}
+
+void test_cache_units_data_generator_failure() {
+    GlobalConfig global;
+    auto config = create_test_config();
+
+    config.schema.generation.data_cache.enabled = true;
+    config.schema.generation.data_cache.num_cached_batches = 1;
+    config.schema.tbname.generator.count = 1;
+    config.schema.generation.rows_per_table = 2;
+    config.schema.generation.rows_per_batch = 10;
+
+    auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
+
+    MemoryPool pool(
+        1,
+        config.schema.tbname.generator.count,
+        config.schema.generation.rows_per_batch,
+        col_instances,
+        false,
+        config.schema.generation.data_cache.num_cached_batches
+    );
+
+    InsertDataAction action(global, config);
+
+    bool caught = false;
+    try {
+        action.init_cache_units_data(pool,
+                                     config.schema.generation.data_cache.num_cached_batches,
+                                     config.schema.tbname.generator.count,
+                                     config.schema.generation.rows_per_batch);
+    } catch (const std::exception& e) {
+        assert(std::string(e.what()).find("RowDataGenerator could not generate enough data for cache initialization") != std::string::npos);
+        caught = true;
+    }
+    (void)caught;
+    assert(caught);
+    std::cout << "test_cache_units_data_generator_failure passed\n";
+}
+
 int main() {
     test_basic_initialization();
     test_table_name_generation();
@@ -306,6 +442,10 @@ int main() {
     test_end_to_end_data_generation();
     test_concurrent_data_generation();
     test_error_handling();
+
+    test_cache_units_data_initialization();
+    test_cache_units_data_with_reuse();
+    test_cache_units_data_generator_failure();
 
     std::cout << "All InsertDataAction tests passed.\n";
     return 0;

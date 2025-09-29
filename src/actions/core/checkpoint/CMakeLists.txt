@@ -1,5 +1,5 @@
 # Create library target
-add_library(core_checkpoint STATIC 
+add_library(core_checkpoint STATIC
   src/CheckpointAction.cpp
 )
 
@@ -23,6 +23,6 @@ target_link_libraries(core_checkpoint
 )
 
 # Enable tests
-if(CMAKE_ENABLE_TEST)
+if(TSGEN_ENABLE_TEST)
   add_subdirectory(test)
 endif()

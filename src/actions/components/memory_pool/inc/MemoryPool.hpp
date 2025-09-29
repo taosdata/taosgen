@@ -17,11 +17,11 @@
 
 class MemoryPool {
 public:
-    struct TableBlock {
+    struct TableBase {
         struct Column {
             bool is_fixed;
-            size_t element_size;  // Fixed column: element size
-            size_t max_length;    // Variable column: max length
+            size_t element_size;            // Fixed column: element size
+            size_t max_length;              // Variable column: max length
 
             // Fixed column data pointer
             void* fixed_data = nullptr;
@@ -36,153 +36,33 @@ public:
             char* is_nulls = nullptr;
         };
 
-        const char* table_name;
-        int64_t* timestamps = nullptr;  // Timestamp column continuous storage
         size_t max_rows = 0;
-        size_t used_rows = 0;           // Actual used row count
+        size_t used_rows = 0;
         std::vector<Column> columns;
         const std::vector<ColumnConverter::ColumnHandler>* col_handlers_ptr = nullptr;
 
+        void fill_row(size_t row_index, const RowData& row);
+    };
 
-        // Add a row to the table (efficient implementation)
-        void add_row(const RowData& row) {
-            // Write timestamp
-            timestamps[used_rows] = row.timestamp;
+    struct CachedTableBlock : public TableBase {
+        bool data_prefilled = false;
 
-            // Process by column
-            for (size_t col_idx = 0; col_idx < columns.size(); ++col_idx) {
-                auto& col_block = columns[col_idx];
-                const auto& col_value = row.columns[col_idx];
-                const auto& handler = (*col_handlers_ptr)[col_idx];
+        void fill_cached_data(size_t row_index, const RowData& row);
+        void fill_cached_data_batch(const std::vector<RowData>& rows, size_t start_row = 0);
+    };
 
-                // Handle NULL value
-                // if (std::holds_alternative<std::monostate>(col_value)) {
-                //     col_block.is_nulls[used_rows] = 1;
-                //     continue;
-                // }
+    struct TableBlock : public TableBase {
+        const char* table_name;
+        int64_t* timestamps = nullptr;
+        const CachedTableBlock* cached_table_block = nullptr;
 
-                col_block.is_nulls[used_rows] = 0;
-
-                if (col_block.is_fixed) {
-                    // Fixed-length column
-                    void* dest = static_cast<char*>(col_block.fixed_data)
-                            + used_rows * col_block.element_size;
-
-                    handler.to_fixed(col_value, dest, col_block.element_size);
-                } else {
-                    // Variable-length column
-                    char* dest = col_block.var_data + col_block.current_offset;
-
-                    size_t data_len = handler.to_var(col_value, dest, col_block.max_length);
-
-                    // Update metadata
-                    col_block.lengths[used_rows] = static_cast<int32_t>(data_len);
-                    col_block.var_offsets[used_rows] = col_block.current_offset;
-                    col_block.current_offset += data_len;
-                }
-            }
-
-            used_rows += 1;
-        }
-
-        // Batch add rows (more efficient version)
-        void add_rows(const std::vector<RowData>& rows) {
-            size_t start_index = used_rows;
-
-            // Ensure enough space
-            if (start_index + rows.size() > max_rows) {
-                throw std::out_of_range("Not enough space in table block");
-            }
-
-            // Process all timestamps first
-            for (size_t i = 0; i < rows.size(); ++i) {
-                timestamps[start_index + i] = rows[i].timestamp;
-            }
-
-            // Process by column, improve cache utilization
-            for (size_t col_idx = 0; col_idx < columns.size(); ++col_idx) {
-                auto& col_block = columns[col_idx];
-                const auto& handler = (*col_handlers_ptr)[col_idx];
-
-                if (col_block.is_fixed) {
-                    // Fixed-length column - batch copy
-                    for (size_t i = 0; i < rows.size(); ++i) {
-                        const auto& col_value = rows[i].columns[col_idx];
-
-                        // Handle NULL value
-                        // if (std::holds_alternative<std::monostate>(col_value)) {
-                        //     col_block.is_nulls[start_index + i] = 1;
-                        //     continue;
-                        // }
-
-                        col_block.is_nulls[start_index + i] = 0;
-
-                        void* dest = static_cast<char*>(col_block.fixed_data)
-                                + (start_index + i) * col_block.element_size;
-
-                        handler.to_fixed(col_value, dest, col_block.element_size);
-                    }
-                } else {
-                    // Batch copy data
-                    for (size_t i = 0; i < rows.size(); ++i) {
-                        if (col_block.is_nulls[start_index + i]) continue;
-
-                        const auto& col_value = rows[i].columns[col_idx];
-
-                        // if (std::holds_alternative<std::monostate>(col_value)) {
-                        //     col_block.is_nulls[start_index + i] = 1;
-                        //     continue;
-                        // }
-
-                        col_block.is_nulls[start_index + i] = 0;
-
-                        char* dest = col_block.var_data + col_block.current_offset;
-
-                        size_t data_len = handler.to_var(
-                            col_value, dest, col_block.max_length
-                        );
-
-                        // Update metadata
-                        col_block.lengths[start_index + i] = static_cast<int32_t>(data_len);
-                        col_block.var_offsets[start_index + i] = col_block.current_offset;
-                        col_block.current_offset += data_len;
-                    }
-                }
-            }
-
-            // Update used row count
-            used_rows += rows.size();
-        }
-
-        ColumnType get_cell(size_t row_index, size_t col_index) const {
-            if (row_index >= used_rows)
-                throw std::out_of_range("row_index out of range");
-            if (col_index >= columns.size())
-                throw std::out_of_range("col_index out of range");
-
-            const auto& col = columns[col_index];
-            const auto& handler = (*col_handlers_ptr)[col_index];
-
-            if (col.is_nulls[row_index])
-                throw std::runtime_error("NULL value not supported");
-
-            if (col.is_fixed) {
-                // Fixed-length column handling
-                void* data_ptr = static_cast<char*>(col.fixed_data) + row_index * col.element_size;
-                return handler.to_column_fixed(data_ptr);
-            } else {
-                // Variable-length column handling
-                char* data_start = col.var_data + col.var_offsets[row_index];
-                return handler.to_column_var(data_start, col.lengths[row_index]);
-            }
-        }
-
-        std::string get_cell_as_string(size_t row_index, size_t col_index) const {
-            ColumnType cell = get_cell(row_index, col_index);
-            const auto& handler = (*col_handlers_ptr)[col_index];
-            return handler.to_string(cell);
-        }
-
+        void init_from_cache(const CachedTableBlock& cached_block);
+        void add_row_cached(const RowData& row);
+        void add_rows_cached(const std::vector<RowData>& rows);
+        void add_row(const RowData& row);
+        void add_rows(const std::vector<RowData>& rows);
+        ColumnType get_cell(size_t row_index, size_t col_index) const;
+        std::string get_cell_as_string(size_t row_index, size_t col_index) const;
     };
 
     struct MemoryBlock {
@@ -190,143 +70,58 @@ public:
         int64_t start_time = std::numeric_limits<int64_t>::max();
         int64_t end_time = std::numeric_limits<int64_t>::min();
         size_t total_rows = 0;
-        size_t used_tables = 0;         // Actual used table count
+        size_t used_tables = 0;                                 // Actual used table count
         size_t col_count = 0;
+        size_t cache_index = 0;
         bool in_use = false;
         MemoryPool* owning_pool = nullptr;
 
-        void* data_chunk = nullptr;  // Continuous memory block for all data
-        size_t data_chunk_size = 0;  // Memory block size
+        void* data_chunk = nullptr;                             // Continuous memory block for all data
+        size_t data_chunk_size = 0;                             // Memory block size
 
         TAOS_STMT2_BINDV bindv_{};
-        std::vector<const char*> tbnames_;          // Table name pointer array
-        std::vector<TAOS_STMT2_BIND*> bind_ptrs_;   // Bind pointer array
-        std::vector<std::vector<TAOS_STMT2_BIND>> bind_lists_; // Bind data storage
-        std::vector<CheckpointData> checkpoint_data_list_; // Checkpoint info for each table
+        std::vector<const char*> tbnames_;                      // Table name pointer array
+        std::vector<TAOS_STMT2_BIND*> bind_ptrs_;               // Bind pointer array
+        std::vector<std::vector<TAOS_STMT2_BIND>> bind_lists_;  // Bind data storage
+        std::vector<CheckpointData> checkpoint_data_list_;      // Checkpoint info for each table
 
-        void release() {
-            if (owning_pool) {
-                owning_pool->release_block(this);
-            }
-        }
+        void release();
+        void free_data_chunk();
 
-        // Release large memory block
-        void release_data_chunk() {
-            if (data_chunk) {
-                std::free(data_chunk);
-                data_chunk = nullptr;
-                data_chunk_size = 0;
-            }
-        }
-
-        // Initialize bindv structure
-        void init_bindv() {
-            size_t max_tables = tables.size();
-            const ColumnConfigInstanceVector& col_instances = owning_pool->col_instances_;
-            col_count = col_instances.size();
-
-            // Pre-allocate data structures
-            tbnames_.resize(max_tables, nullptr);
-            bind_ptrs_.resize(max_tables, nullptr);
-            bind_lists_.resize(max_tables);
-
-            // Pre-allocate bind list for each table
-            for (size_t i = 0; i < max_tables; ++i) {
-                bind_lists_[i].resize(1 + col_count);
-                bind_ptrs_[i] = bind_lists_[i].data();
-                auto& table = tables[i];
-
-                // Initialize timestamp column binding
-                bind_lists_[i][0] = {
-                    TSDB_DATA_TYPE_TIMESTAMP,
-                    table.timestamps,
-                    nullptr,
-                    nullptr,
-                    static_cast<int>(table.max_rows)
-                };
-
-                // Initialize data column binding
-                for (size_t col_idx = 0; col_idx < col_count; ++col_idx) {
-                    auto& bind = bind_lists_[i][1 + col_idx];
-                    const auto& config = col_instances[col_idx].config();
-                    auto& col = table.columns[col_idx];
-
-                    bind.buffer_type = config.get_taos_type();
-                    bind.num = static_cast<int>(table.max_rows);
-
-                    if (config.is_var_length()) {
-                        bind.buffer = col.var_data;
-                        bind.length = col.lengths;
-                        bind.is_null = col.is_nulls;
-                    } else {
-                        bind.buffer = col.fixed_data;
-                        bind.length = nullptr;
-                        bind.is_null = col.is_nulls;
-                    }
-                }
-            }
-
-            // Set pointers
-            bindv_.tbnames = const_cast<char**>(tbnames_.data());
-            bindv_.bind_cols = bind_ptrs_.data();
-        }
-
-        void build_bindv(bool is_checkpoint_recover = false) {
-            bindv_.count = used_tables;
-
-            // Update table names and row counts
-            for (size_t i = 0; i < used_tables; ++i) {
-                auto& table = tables[i];
-                tbnames_[i] = table.table_name;
-
-                if (is_checkpoint_recover) {
-                    checkpoint_data_list_.emplace_back(CheckpointData(table.table_name, table.timestamps[table.used_rows - 1], table.used_rows));
-                }
-
-                // Update timestamp row count
-                bind_lists_[i][0].num = table.used_rows;
-
-                // Update data column row count
-                for (size_t col_idx = 0; col_idx < col_count; ++col_idx) {
-                    bind_lists_[i][1 + col_idx].num = table.used_rows;
-                }
-            }
-        }
-
-        // Reset method
-        void reset() {
-            total_rows = 0;
-            start_time = std::numeric_limits<int64_t>::max();
-            end_time = std::numeric_limits<int64_t>::min();
-            used_tables = 0;
-
-            for (auto& table : tables) {
-                table.used_rows = 0;
-                for (auto& col : table.columns) {
-                    col.current_offset = 0;
-                    // No need to clear data, will be overwritten later
-                    // if (col.is_nulls) { // Is this reset necessary?
-                    //     memset(col.is_nulls, 0, table.max_rows * sizeof(char));
-                    // }
-                }
-            }
-
-            // Reset bindv count
-            bindv_.count = 0;
-        }
+        void init_bindv();
+        void build_bindv(bool is_checkpoint_recover = false);
+        void reset();
     };
 
-    MemoryPool(size_t block_count,
+    struct CacheUnit {
+        std::vector<CachedTableBlock> tables;
+        void* data_chunk = nullptr;
+        size_t data_chunk_size = 0;
+        std::atomic<size_t> prefilled_count{0};
+
+        CacheUnit() = default;
+        ~CacheUnit();
+
+        CacheUnit(const CacheUnit&) = delete;
+        CacheUnit& operator=(const CacheUnit&) = delete;
+
+        CacheUnit(CacheUnit&& other) noexcept;
+        CacheUnit& operator=(CacheUnit&& other) noexcept;
+    };
+
+    MemoryPool(size_t num_blocks,
                size_t max_tables_per_block,
                size_t max_rows_per_table,
                const ColumnConfigInstanceVector& col_instances,
-               bool tables_reuse_data = false
+               bool tables_reuse_data = false,
+               size_t num_cached_blocks = 0
             );
+
 
     ~MemoryPool();
 
     // Get a free memory block (thread-safe)
-    MemoryBlock* acquire_block();
+    MemoryBlock* acquire_block(size_t sequence_num = 0);
 
     // Return a memory block (thread-safe)
     void release_block(MemoryBlock* block);
@@ -334,13 +129,36 @@ public:
     // Write MultiBatch data into MemoryBlock
     MemoryBlock* convert_to_memory_block(MultiBatch&& batch);
 
-    const std::vector<ColumnConverter::ColumnHandler>& col_handlers() const {
-        return col_handlers_;
-    }
+    const std::vector<ColumnConverter::ColumnHandler>& col_handlers() const;
+
+    bool is_cache_mode() const;
+    CacheUnit* get_cache_unit(size_t index);
+    size_t get_cache_units_count() const;
+    bool fill_cache_unit_data(size_t cache_index, size_t table_index, const std::vector<RowData>& data_rows);
+    bool is_cache_unit_prefilled(size_t cache_index) const;
 
 private:
+    size_t max_tables_per_block_;
+    size_t max_rows_per_table_;
     const ColumnConfigInstanceVector& col_instances_;
     std::vector<ColumnConverter::ColumnHandler> col_handlers_;
     std::vector<MemoryBlock> blocks_;
     moodycamel::BlockingConcurrentQueue<MemoryBlock*> free_queue_;
+
+    // Cache related members
+    bool tables_reuse_data_ = false;
+    size_t num_cached_blocks_ = 0;
+    std::vector<CacheUnit> cache_units_;
+
+    // Memory size calculation
+    size_t timestamps_size_ = 0;
+    size_t common_meta_size_ = 0;
+    size_t fixed_data_size_ = 0;
+    size_t var_meta_size_ = 0;
+    size_t var_data_size_ = 0;
+    size_t total_cache_size_ = 0;
+
+    void init_cache_units();
+    void init_normal_blocks();
+    void init_cached_blocks();
 };

@@ -51,7 +51,10 @@ void CreateChildTableAction::execute() {
                 std::cout << "Read tag from CSV: " << tag << std::endl;
             }
             if (tags.size() != table_names.size()) {
-                throw std::runtime_error("Number of tags does not match number of table names");
+                throw std::runtime_error(
+                    "Number of tags (" + std::to_string(tags.size()) +
+                    ") does not match number of table names (" + std::to_string(table_names.size()) + ")"
+                );
             }
         } else {
             throw std::runtime_error("Unsupported tags source type: " + config_.schema.tags_cfg.source_type);

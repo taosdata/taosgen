@@ -1,5 +1,5 @@
 # Create library target
-add_library(insert_generator STATIC 
+add_library(insert_generator STATIC
   src/RowDataGenerator.cpp
   src/RateLimiter.cpp
   src/TableDataManager.cpp
@@ -28,6 +28,6 @@ target_link_libraries(insert_generator
 )
 
 # Enable tests
-if(CMAKE_ENABLE_TEST)
+if(TSGEN_ENABLE_TEST)
   add_subdirectory(test)
 endif()

@@ -7,11 +7,11 @@ list(APPEND CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR}/conan)
 set(CMAKE_FIND_PACKAGE_PREFER_CONFIG ON)
 
 # Options
-option(CMAKE_ENABLE_TEST "Enable testing" ON)
-option(CMAKE_ENABLE_COVERAGE "Enable code coverage" OFF)
-option(CMAKE_ENABLE_SANITIZER "Enable sanitizers" OFF)
-option(BUNDLE_JEMALLOC "Use jemalloc as allocator" ON)
-option(BUNDLE_MIMALLOC "Use mimalloc as allocator" OFF)
+option(TSGEN_ENABLE_TEST "Enable testing" ON)
+option(TSGEN_ENABLE_COVERAGE "Enable code coverage" OFF)
+option(TSGEN_ENABLE_SANITIZER "Enable sanitizers" OFF)
+option(TSGEN_BUNDLE_JEMALLOC "Use jemalloc as allocator" OFF)
+option(TSGEN_BUNDLE_MIMALLOC "Use mimalloc as allocator" ON)
 
 # Global settings
 set(CMAKE_CXX_STANDARD 17)
@@ -52,8 +52,21 @@ string(TOUPPER ${CMAKE_BUILD_TYPE} BUILD_TYPE_UPPER)
 string(TIMESTAMP TSGEN_BUILD_DATE "%Y-%m-%d %H:%M:%S %z")
 message(STATUS "Sys Info: ${TSGEN_BUILD_TARGET_OSTYPE}-${TSGEN_BUILD_TARGET_CPUTYPE} ${TSGEN_BUILD_DATE}")
 
+# Sanitizer
+if(TSGEN_ENABLE_SANITIZER AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  add_compile_options(-fsanitize=address)
+
+  if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.13")
+    add_link_options(-fsanitize=address)
+  else()
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
+  endif()
+
+  message(STATUS "AddressSanitizer enabled")
+endif()
+
 # Memory allocator settings
-if(BUNDLE_JEMALLOC AND BUNDLE_MIMALLOC)
+if(TSGEN_BUNDLE_JEMALLOC AND TSGEN_BUNDLE_MIMALLOC)
     message(FATAL_ERROR "Cannot use both jemalloc and mimalloc at the same time")
 endif()
 
@@ -61,11 +74,11 @@ endif()
 set(ALLOCATOR_LINK_FLAGS "")
 set(ALLOCATOR_LIB "")
 
-if(BUNDLE_JEMALLOC)
+if(TSGEN_BUNDLE_JEMALLOC)
   message(STATUS "Using jemalloc memory allocator")
   find_package(jemalloc REQUIRED)
   set(ALLOCATOR_LIB jemalloc::jemalloc)
-elseif(BUNDLE_MIMALLOC)
+elseif(TSGEN_BUNDLE_MIMALLOC)
   message(STATUS "Using mimalloc memory allocator")
   find_package(mimalloc REQUIRED)
   set(ALLOCATOR_LIB mimalloc-static)
@@ -126,12 +139,12 @@ endif()
 message(STATUS "Git Info: ${TSGEN_BUILD_GIT}")
 
 # Test support
-if(CMAKE_ENABLE_TEST)
+if(TSGEN_ENABLE_TEST)
   enable_testing()
 endif()
 
 # Add main program and test directories
 add_subdirectory(src)
-# if(CMAKE_ENABLE_TEST)
+# if(TSGEN_ENABLE_TEST)
 #   add_subdirectory(test)
 # endif()

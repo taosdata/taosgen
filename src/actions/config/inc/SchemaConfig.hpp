@@ -24,6 +24,13 @@ struct SchemaConfig {
             columns.insert(columns.begin(), ColumnConfig("ts", "TIMESTAMP"));
         }
 
+        if (from_csv.enabled && from_csv.tags.enabled && from_csv.tags.tbname_index >= 0) {
+            tbname.enabled = true;
+            tbname.source_type = "csv";
+            tbname.csv.file_path = from_csv.tags.file_path;
+            tbname.csv.tbname_index = from_csv.tags.tbname_index;
+        }
+
         if (from_csv.tags.enabled) {
             tags_cfg.source_type = "csv";
             tags_cfg.csv = from_csv.tags;

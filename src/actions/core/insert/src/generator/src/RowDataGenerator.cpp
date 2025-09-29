@@ -10,19 +10,21 @@
 
 RowDataGenerator::RowDataGenerator(const std::string& table_name,
                                   const InsertDataConfig& config,
-                                  const ColumnConfigInstanceVector& instances)
+                                  const ColumnConfigInstanceVector& instances,
+                                  bool use_cache)
     : table_name_(table_name),
+      config_(config),
       columns_config_(config.schema.columns_cfg),
       instances_(instances),
-      config_(config),
-      target_precision_(config.timestamp_precision) {
+      target_precision_(config.timestamp_precision),
+      use_cache_(use_cache) {
 
     init_cached_row();
     init_raw_source();
 
-    if (config_.schema.generation.data_cache.enabled) {
-        init_cache();
-    }
+    // if (config_.schema.generation.data_cache.enabled) {
+    //     init_cache();
+    // }
 
     if (config_.schema.generation.data_disorder.enabled) {
         init_disorder();
@@ -41,20 +43,26 @@ void RowDataGenerator::init_cached_row() {
             case ColumnTypeTag::VARCHAR:
             case ColumnTypeTag::BINARY:
             case ColumnTypeTag::JSON:
-                cached_row_.columns[i] = std::string();
-                std::get<std::string>(cached_row_.columns[i]).reserve(config.len.value());
+            {
+                std::string s;
+                s.reserve(config.len.value());
+                cached_row_.columns[i] = std::move(s);
                 break;
-
+            }
             case ColumnTypeTag::NCHAR:
-                cached_row_.columns[i] = std::u16string();
-                std::get<std::u16string>(cached_row_.columns[i]).reserve(config.len.value());
+            {
+                std::u16string s;
+                s.reserve(config.len.value());
+                cached_row_.columns[i] = std::move(s);
                 break;
-
+            }
             case ColumnTypeTag::VARBINARY:
-                cached_row_.columns[i] = std::vector<uint8_t>();
-                std::get<std::vector<uint8_t>>(cached_row_.columns[i]).reserve(config.len.value());
+            {
+                std::vector<uint8_t> v;
+                v.reserve(config.len.value());
+                cached_row_.columns[i] = std::move(v);
                 break;
-
+            }
             default:
                 // No special handling required for fixed-length types
                 break;
@@ -65,8 +73,8 @@ void RowDataGenerator::init_cached_row() {
 void RowDataGenerator::init_cache() {
     // Pre-generate data to fill cache
     cache_.clear();
-    cache_.reserve(config_.schema.generation.data_cache.cache_size);
-    while (cache_.size() < config_.schema.generation.data_cache.cache_size && has_more()) {
+    cache_.reserve(config_.schema.generation.data_cache.num_cached_batches);
+    while (cache_.size() < config_.schema.generation.data_cache.num_cached_batches && has_more()) {
         if (auto row = fetch_raw_row()) {
             cache_.push_back(*row);
         } else {
@@ -91,13 +99,13 @@ void RowDataGenerator::init_disorder() {
 void RowDataGenerator::init_raw_source() {
     if (columns_config_.source_type == "generator") {
         init_generator();
-        total_rows_ = config_.schema.generation.per_table_rows;
+        total_rows_ = config_.schema.generation.rows_per_table;
     } else if (columns_config_.source_type == "csv") {
         init_csv_reader();
         if (columns_config_.csv.repeat_read) {
-            total_rows_ = config_.schema.generation.per_table_rows;
+            total_rows_ = config_.schema.generation.rows_per_table;
         } else {
-            total_rows_ = std::min(static_cast<int64_t>(csv_rows_.size()), config_.schema.generation.per_table_rows);
+            total_rows_ = std::min(static_cast<int64_t>(csv_rows_.size()), config_.schema.generation.rows_per_table);
         }
     } else {
         throw std::invalid_argument("Unsupported source_type: " + columns_config_.source_type);
@@ -297,15 +305,19 @@ void RowDataGenerator::generate_from_generator() {
     cached_row_.timestamp = TimestampUtils::convert_timestamp_precision(timestamp_generator_->generate(),
         timestamp_generator_->timestamp_precision(), target_precision_);
 
-    // Generate column data
-    row_generator_->generate(cached_row_.columns);
+    if (!use_cache_) {
+        // Generate column data
+        row_generator_->generate(cached_row_.columns);
+    }
 
     return;
 }
 
 bool RowDataGenerator::generate_from_csv() {
     cached_row_.timestamp =  csv_rows_[csv_row_index_].timestamp;
-    cached_row_.columns = csv_rows_[csv_row_index_].columns;
+    if (!use_cache_) {
+        cached_row_.columns = csv_rows_[csv_row_index_].columns;
+    }
     csv_row_index_ = (csv_row_index_ + 1) % csv_rows_.size();
     return true;
 }

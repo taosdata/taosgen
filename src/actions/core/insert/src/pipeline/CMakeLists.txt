@@ -1,5 +1,5 @@
 # Create library target
-add_library(insert_pipeline STATIC 
+add_library(insert_pipeline STATIC
   src/DataPipeline.cpp
 )
 
@@ -19,6 +19,6 @@ target_link_libraries(insert_pipeline
 )
 
 # Enable tests
-if(CMAKE_ENABLE_TEST)
+if(TSGEN_ENABLE_TEST)
   add_subdirectory(test)
 endif()

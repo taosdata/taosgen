@@ -1,5 +1,5 @@
 # Create library target
-add_library(core_create STATIC 
+add_library(core_create STATIC
   src/CreateDatabaseAction.cpp
   src/CreateSuperTableAction.cpp
   src/CreateChildTableAction.cpp
@@ -33,6 +33,6 @@ target_link_libraries(core_create
 )
 
 # Enable tests
-if(CMAKE_ENABLE_TEST)
+if(TSGEN_ENABLE_TEST)
   add_subdirectory(test)
 endif()

@@ -22,27 +22,27 @@ public:
 
         TableState(const TableState&) = delete;
         TableState& operator=(const TableState&) = delete;
-    
+
         TableState(TableState&&) = default;
         TableState& operator=(TableState&&) = default;
-    
+
         TableState() = default;
     };
-    
+
     explicit TableDataManager(MemoryPool& pool, const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances);
-    
+
     // Initialize the table data manager
     bool init(const std::vector<std::string>& table_names);
-    
+
     // Get the next batch of data
     std::optional<MemoryPool::MemoryBlock*> next_multi_batch();
-    
+
     // Check if there is more data available
     bool has_more() const;
-    
+
     // Get the current table name
     std::string current_table() const;
-    
+
     // Get table states
     const std::vector<TableState>&  table_states() const;
 
@@ -61,13 +61,14 @@ private:
     size_t current_table_index_ = 0;            // Current table index
     size_t active_table_count_ = 0;             // Count of active tables with data available
     int64_t interlace_rows_ = 1;                // Number of rows to generate per table in interlace mode
-    
+    size_t sequence_num_ = 0;
+
     // Get the next table with available data
     TableState* get_next_active_table();
-    
+
     // Calculate number of rows to generate for current table
     size_t calculate_rows_to_generate(TableState& state) const;
-    
+
     // Switch to the next table
     void advance_to_next_table();
 
