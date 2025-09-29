@@ -207,7 +207,7 @@ void test_GenerationConfig_DataDisorder() {
 void test_GenerationConfig() {
     std::string yaml = R"(
 interlace: 100
-num_cached_batches: 2048
+num_cached_batches: 18
 rate_limit: 5000
 data_disorder:
   - time_start: "2025-09-08T00:00:00Z"
@@ -225,7 +225,7 @@ rows_per_batch: 500
     assert(cfg.interlace_mode.rows == 100);
 
     assert(cfg.data_cache.enabled == true);
-    assert(cfg.data_cache.num_cached_batches == 2048);
+    assert(cfg.data_cache.num_cached_batches == 18);
 
     assert(cfg.flow_control.enabled == true);
     assert(cfg.flow_control.rate_limit == 5000);
@@ -270,7 +270,7 @@ tbname:
   count: 5
 generation:
   interlace: 10
-  num_cached_batches: 1024
+  num_cached_batches: 8
   rate_limit: 1000
   concurrency: 2
   rows_per_table: 100
@@ -294,7 +294,7 @@ generation:
     assert(cfg.generation.interlace_mode.enabled == true);
     assert(cfg.generation.interlace_mode.rows == 10);
     assert(cfg.generation.data_cache.enabled == true);
-    assert(cfg.generation.data_cache.num_cached_batches == 1024);
+    assert(cfg.generation.data_cache.num_cached_batches == 8);
     assert(cfg.generation.flow_control.enabled == true);
     assert(cfg.generation.flow_control.rate_limit == 1000);
     assert(cfg.generation.generate_threads.has_value());

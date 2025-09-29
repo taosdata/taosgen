@@ -298,6 +298,7 @@ void test_memory_pool_cache_mode_shared() {
             std::vector<RowData> cache_data;
             for (size_t i = 0; i < num_rows; ++i) {
                 RowData row;
+                row.timestamp = 0;
                 row.columns = {int32_t(i * 10 + c * 100), std::string("cache" + std::to_string(c) + "_t" + std::to_string(t) + "_" + std::to_string(i))};
                 cache_data.push_back(row);
             }
@@ -386,6 +387,7 @@ void test_memory_pool_cache_mode_performance() {
     std::vector<RowData> cache_data;
     for (size_t i = 0; i < num_rows; ++i) {
         RowData row;
+        row.timestamp = 0;
         row.columns = {int32_t(i), std::string("data_" + std::to_string(i))};
         cache_data.push_back(row);
     }
@@ -461,6 +463,7 @@ void test_memory_pool_cache_mode_with_reuse() {
     std::vector<RowData> cache_data;
     for (size_t i = 0; i < num_rows; ++i) {
         RowData row;
+        row.timestamp = 0;
         row.columns = {int32_t(i * 5), std::string("cache_" + std::to_string(i))};
         cache_data.push_back(row);
     }
