@@ -427,17 +427,6 @@ void ParameterContext::parse_comm_insert_data_action(Job& job, Step& step, std::
         }
     }
 
-    if (insert_config.schema.generation.data_cache.enabled) {
-        if (insert_config.queue_capacity < insert_config.schema.generation.data_cache.num_cached_batches) {
-            std::cerr << "[Config Warning] queue_capacity (" << insert_config.queue_capacity
-                      << ") is less than num_cached_batches ("
-                      << insert_config.schema.generation.data_cache.num_cached_batches
-                      << "). Adjusting queue_capacity to "
-                      << insert_config.schema.generation.data_cache.num_cached_batches << "." << std::endl;
-            insert_config.queue_capacity = insert_config.schema.generation.data_cache.num_cached_batches;
-        }
-    }
-
     // Print parse result
     std::cout << "Parsed insert-data action." << std::endl;
 

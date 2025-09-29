@@ -17,7 +17,7 @@ void test_format_drop_database() {
     const auto& stmts = std::get<std::vector<std::string>>(result);
     (void)stmts;
     assert(stmts.size() == 2);
-    assert(stmts[0] == "DROP DATABASE IF EXISTS `test_db` FORCE");
+    assert(stmts[0] == "DROP DATABASE IF EXISTS `test_db`");
     std::cout << "test_format_drop_database passed!" << std::endl;
 }
 
@@ -53,7 +53,7 @@ void test_format_create_database_with_properties() {
     const auto& stmts = std::get<std::vector<std::string>>(result);
     (void)stmts;
     assert(stmts.size() == 2);
-    assert(stmts[0] == "DROP DATABASE IF EXISTS `test_db` FORCE");
+    assert(stmts[0] == "DROP DATABASE IF EXISTS `test_db`");
     assert(stmts[1] == "CREATE DATABASE IF NOT EXISTS `test_db` KEEP 3650");
     std::cout << "test_format_create_database_with_properties passed!" << std::endl;
 }
