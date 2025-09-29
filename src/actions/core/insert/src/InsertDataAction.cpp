@@ -469,8 +469,14 @@ void InsertDataAction::init_cache_units_data(
                 if (row_opt.has_value()) {
                     data_rows.push_back(std::move(row_opt.value()));
                 } else {
-                    throw std::runtime_error("RowDataGenerator could not generate enough data for cache initialization");
+                    if (cache_idx + 1 != num_cached_batches) {
+                        throw std::runtime_error("RowDataGenerator could not generate enough data for cache initialization");
+                    }
                 }
+            }
+
+            if (!data_rows.size()) {
+                throw std::runtime_error("RowDataGenerator generated zero rows for cache " + std::to_string(cache_idx) + " initialization");
             }
 
             pool.fill_cache_unit_data(cache_idx, table_idx, data_rows);
