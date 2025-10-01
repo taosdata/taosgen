@@ -52,7 +52,7 @@ struct SchemaConfig {
                 }
                 columns_cfg.csv.timestamp_strategy = from_csv.columns.timestamp_strategy;
             } else {
-                columns_cfg.generator.timestamp_strategy.timestamp_config = columns[0].ts.generator;
+                columns_cfg.csv.timestamp_strategy = columns[0].ts;
             }
         } else {
             columns_cfg.source_type = "generator";
