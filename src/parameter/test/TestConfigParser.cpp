@@ -303,6 +303,69 @@ generation:
     assert(cfg.generation.rows_per_batch == 10);
 }
 
+void test_SchemaConfig_csv_ts_gen() {
+  std::string yaml = R"(
+name: test_schema
+from_csv:
+  tags:
+    file_path: "tags.csv"
+    has_header: true
+    tbname_index: 1
+    exclude_indices: "2,3"
+  columns:
+    file_path: "cols.csv"
+    has_header: false
+    repeat_read: true
+    tbname_index: 0
+columns:
+- name: ts
+  type: BIGINT
+  precision: ms
+  start: "2025-09-08T00:00:00Z"
+  step: "1000"
+- name: value
+  type: DOUBLE
+  min: 0
+  max: 100
+tags:
+- name: tag1
+  type: INT
+  min: 1
+  max: 10
+)";
+  YAML::Node node = YAML::Load(yaml);
+  SchemaConfig cfg = node.as<SchemaConfig>();
+
+  assert(cfg.name == "test_schema");
+
+  assert(cfg.from_csv.enabled == true);
+  assert(cfg.from_csv.tags.enabled == true);
+  assert(cfg.from_csv.tags.file_path == "tags.csv");
+  assert(cfg.from_csv.tags.has_header == true);
+  assert(cfg.from_csv.tags.tbname_index == 1);
+  assert(cfg.from_csv.tags.exclude_indices_str == "2,3");
+  assert(!cfg.from_csv.tags.exclude_indices.empty());
+  assert(cfg.from_csv.columns.enabled == true);
+  assert(cfg.from_csv.columns.file_path == "cols.csv");
+  assert(cfg.from_csv.columns.has_header == false);
+  assert(cfg.from_csv.columns.repeat_read == true);
+  assert(cfg.from_csv.columns.tbname_index == 0);
+
+  assert(cfg.columns.size() == 2);
+  assert(cfg.columns[0].name == "ts");
+  assert(cfg.columns[0].type == "BIGINT");
+  assert(cfg.columns[1].name == "value");
+  assert(cfg.columns[1].type == "DOUBLE");
+  assert(cfg.tags.size() == 1);
+  assert(cfg.tags[0].name == "tag1");
+  assert(cfg.tags[0].type == "INT");
+
+  assert(cfg.columns_cfg.csv.timestamp_strategy.strategy_type == "generator");
+  assert(std::get<std::string>(cfg.columns_cfg.csv.timestamp_strategy.generator.start_timestamp) == "2025-09-08T00:00:00Z");
+  assert(std::get<Timestamp>(cfg.columns_cfg.csv.timestamp_strategy.generator.timestamp_step) == 1000);
+  assert(cfg.columns_cfg.csv.timestamp_strategy.generator.timestamp_precision == "ms");
+}
+
 void test_DatabaseInfo() {
     std::string yaml = R"(
 name: testdb
@@ -942,6 +1005,7 @@ int main() {
     test_GenerationConfig_DataDisorder();
     test_GenerationConfig();
     test_SchemaConfig();
+    test_SchemaConfig_csv_ts_gen();
 
     test_DataFormat_csv();
     test_DataChannel();
