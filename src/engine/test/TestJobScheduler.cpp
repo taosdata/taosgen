@@ -163,7 +163,7 @@ void test_job_scheduler_with_delay() {
     public:
         DelayStepStrategy(const GlobalConfig& global) : StepExecutionStrategy(global) {}
 
-        void execute(const Step& step) override {
+        bool execute(const Step& step) override {
             // Print debug info
             std::cout << "Executing step: " << step.name << " (" << step.uses << ")" << std::endl;
 
@@ -199,7 +199,9 @@ void test_job_scheduler_with_delay() {
                 throw std::runtime_error("Unknown action type: " + step.uses);
             }
 
-            std::cout << "Step completed: " << step.name << std::endl;        }
+            std::cout << "Step completed: " << step.name << std::endl;
+            return true;
+        }
     };
 
     // Build complex config data

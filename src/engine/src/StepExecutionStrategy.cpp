@@ -10,7 +10,7 @@
 
 
 // Implementation of production environment strategy
-void ProductionStepStrategy::execute(const Step& step) {
+bool ProductionStepStrategy::execute(const Step& step) {
     try {
         std::cout << "Executing step: " << step.name << " (" << step.uses << ")" << std::endl;
 
@@ -18,17 +18,18 @@ void ProductionStepStrategy::execute(const Step& step) {
         action->execute();
 
         std::cout << "Step completed: " << step.name << std::endl;
+        return true;
 
     } catch (const std::exception& e) {
         std::cerr << "Error executing step: " << step.name << " (" << step.uses << ")" << std::endl;
         // std::cerr << "Reason: Exception - " << e.what() << std::endl;
-        throw;
+        return false;
     }
 }
 
 
 // Implementation of debug environment strategy
-void DebugStepStrategy::execute(const Step& step) {
+bool DebugStepStrategy::execute(const Step& step) {
     std::cout << "Executing step: " << step.name << " (" << step.uses << ")" << std::endl;
 
     if (step.uses == "tdengine/create-database") {
@@ -49,4 +50,5 @@ void DebugStepStrategy::execute(const Step& step) {
     }
 
     std::cout << "Step completed: " << step.name << std::endl;
+    return true;
 }

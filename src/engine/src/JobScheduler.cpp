@@ -51,7 +51,13 @@ void JobScheduler::worker_loop() {
 
         // Execute job steps
         for (const auto& step : node->job.steps) {
-            step_strategy_->execute(step);
+            bool success = step_strategy_->execute(step);
+            if (!success) {
+                std::cerr << "Job step execution failed, exiting. "
+                          << "[job: " << node->job.name << ", step: " << step.name << "]"
+                          << std::endl;
+                std::exit(EXIT_FAILURE);
+            }
         }
 
         // Update successor nodes
