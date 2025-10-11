@@ -33,6 +33,8 @@ RowDataGenerator::RowDataGenerator(const std::string& table_name,
 
 // Initialize cached row memory
 void RowDataGenerator::init_cached_row() {
+    if (use_cache_) return;
+
     cached_row_.columns.resize(instances_.size());
 
     for (size_t i = 0; i < instances_.size(); ++i) {
@@ -127,7 +129,9 @@ void RowDataGenerator::init_generator() {
     use_generator_ = true;
 
     // Create row generator
-    row_generator_ = std::make_unique<RowGenerator>(table_name_, instances_);
+    if (!use_cache_) {
+        row_generator_ = std::make_unique<RowGenerator>(table_name_, instances_);
+    }
 }
 
 void RowDataGenerator::init_csv_reader() {

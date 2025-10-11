@@ -1,4 +1,5 @@
 #include "CSVReader.hpp"
+#include "StringUtils.hpp"
 #include <sstream>
 #include <algorithm>
 #include <cctype>
@@ -8,18 +9,18 @@
 
 CSVReader::CSVReader(const std::string& file_path, bool has_header, char delimiter)
     : file_path_(file_path), has_header_(has_header), delimiter_(delimiter) {
-    
+
     // Open the file
     file_stream_.open(file_path);
     if (!file_stream_.is_open()) {
         throw std::runtime_error("Failed to open CSV file: " + file_path + " - " + std::strerror(errno));
     }
-    
+
     // Skip the header row if necessary
     if (has_header_) {
         skip_header();
     }
-    
+
     // Determine the number of columns
     if (auto first_row = read_next()) {
         column_count_ = first_row->size();
@@ -41,14 +42,14 @@ std::optional<CSVRow> CSVReader::read_next() {
     if (!std::getline(file_stream_, line)) {
         return std::nullopt;
     }
-    
+
     // Skip empty lines
     while (line.empty() && std::getline(file_stream_, line)) {}
-    
+
     if (line.empty()) {
         return std::nullopt;
     }
-    
+
     return parse_line(line);
 }
 
@@ -78,7 +79,7 @@ CSVRow CSVReader::parse_line(const std::string& line) {
     std::string current_field;
     ParseState state = ParseState::START_FIELD;
     bool escape_next = false;
-    
+
     for (char c : line) {
         switch (state) {
             case ParseState::START_FIELD:
@@ -92,7 +93,7 @@ CSVRow CSVReader::parse_line(const std::string& line) {
                     state = ParseState::IN_UNQUOTED_FIELD;
                 }
                 break;
-                
+
             case ParseState::IN_UNQUOTED_FIELD:
                 if (c == delimiter_) {
                     fields.push_back(std::move(current_field));
@@ -102,7 +103,7 @@ CSVRow CSVReader::parse_line(const std::string& line) {
                     current_field += c;
                 }
                 break;
-                
+
             case ParseState::IN_QUOTED_FIELD:
                 if (escape_next) {
                     current_field += c;
@@ -115,7 +116,7 @@ CSVRow CSVReader::parse_line(const std::string& line) {
                     current_field += c;
                 }
                 break;
-                
+
             case ParseState::QUOTE_IN_QUOTED_FIELD:
                 if (c == '"') {
                     // Two consecutive quotes represent an escaped quote
@@ -132,12 +133,12 @@ CSVRow CSVReader::parse_line(const std::string& line) {
                     state = ParseState::IN_UNQUOTED_FIELD;
                 }
                 break;
-                
+
             case ParseState::END_OF_ROW:
                 break;
         }
     }
-    
+
     // Handle the state at the end of the line
     switch (state) {
         case ParseState::START_FIELD:
@@ -156,6 +157,17 @@ CSVRow CSVReader::parse_line(const std::string& line) {
         case ParseState::END_OF_ROW:
             break;
     }
-    
+
+    for (auto& field : fields) {
+        StringUtils::trim(field);
+        if (field.size() >= 2) {
+            char first = field.front();
+            char last = field.back();
+            if ((first == last) && (first == '"' || first == '\'')) {
+                field = field.substr(1, field.size() - 2);
+            }
+        }
+    }
+
     return fields;
 }
