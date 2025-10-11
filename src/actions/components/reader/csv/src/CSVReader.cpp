@@ -164,7 +164,8 @@ CSVRow CSVReader::parse_line(const std::string& line) {
             char first = field.front();
             char last = field.back();
             if ((first == last) && (first == '"' || first == '\'')) {
-                field = field.substr(1, field.size() - 2);
+                field.pop_back();
+                field.erase(0, 1);
             }
         }
     }
