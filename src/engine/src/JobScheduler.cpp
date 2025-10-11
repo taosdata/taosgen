@@ -34,7 +34,7 @@ void JobScheduler::run() {
     // Wait for all jobs to complete
     {
         std::unique_lock<std::mutex> lock(done_mutex_);
-        done_cv_.wait(lock, [this] { return remaining_jobs_ == 0; });
+        done_cv_.wait(lock, [this] { return remaining_jobs_ == 0 || stop_execution_.load(); });
     }
 
     // Stop queue and wait for threads
@@ -42,21 +42,34 @@ void JobScheduler::run() {
     for (auto& worker : workers) {
         if (worker.joinable()) worker.join();
     }
+
+    if (stop_execution_.load()) {
+        throw std::runtime_error(failure_message_);
+    }
 }
 
 void JobScheduler::worker_loop() {
     while (true) {
+        if (stop_execution_.load()) return;
+
         DAGNode* node = queue_->dequeue();
         if (!node) return;
 
         // Execute job steps
         for (const auto& step : node->job.steps) {
+            if (stop_execution_.load()) return;
+
             bool success = step_strategy_->execute(step);
             if (!success) {
-                std::cerr << "Job step execution failed, exiting. "
-                          << "[job: " << node->job.name << ", step: " << step.name << "]"
-                          << std::endl;
-                std::exit(EXIT_FAILURE);
+                stop_execution_.store(true);
+                failure_message_ = "Job step execution failed, exiting (job: " + node->job.name + ", step: " + step.name + ")";
+                // std::cerr << failure_message_ << std::endl;
+                queue_->stop();
+                {
+                    std::unique_lock<std::mutex> lock(done_mutex_);
+                    done_cv_.notify_all();
+                }
+                return;
             }
         }
 

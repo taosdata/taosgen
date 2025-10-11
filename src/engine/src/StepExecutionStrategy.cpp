@@ -46,7 +46,7 @@ bool DebugStepStrategy::execute(const Step& step) {
         std::cout << "Action type: Subscribe Data" << std::endl;
     } else {
         std::cerr << "Unknown action type: " << step.uses << std::endl;
-        throw std::runtime_error("Unknown action type: " + step.uses);
+        return false;
     }
 
     std::cout << "Step completed: " << step.name << std::endl;
