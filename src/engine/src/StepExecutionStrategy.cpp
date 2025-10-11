@@ -21,8 +21,8 @@ bool ProductionStepStrategy::execute(const Step& step) {
         return true;
 
     } catch (const std::exception& e) {
-        std::cerr << "Error executing step: " << step.name << " (" << step.uses << ")" << std::endl;
-        // std::cerr << "Reason: Exception - " << e.what() << std::endl;
+        std::cerr << "Error executing step: " << step.name << ", "
+                  << "reason: \"Exception - " << e.what() << "\"" << std::endl;
         return false;
     }
 }
