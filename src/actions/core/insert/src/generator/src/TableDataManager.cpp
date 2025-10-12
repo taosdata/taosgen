@@ -101,7 +101,7 @@ std::optional<MemoryPool::MemoryBlock*> TableDataManager::next_multi_batch() {
 
 MemoryPool::MemoryBlock* TableDataManager::collect_batch_data(size_t max_rows) {
     // Get memory block from memory pool
-    MemoryPool::MemoryBlock* block = pool_.acquire_block(sequence_num_++);
+    MemoryPool::MemoryBlock* block = pool_.acquire_block(sequence_num_);
     // if (!block) {
     //     return nullptr;  // No available memory block
     // }
@@ -113,10 +113,12 @@ MemoryPool::MemoryBlock* TableDataManager::collect_batch_data(size_t max_rows) {
     size_t total_rows = 0;
     size_t table_loops = 0;
     const size_t max_loops = table_states_.size();
+    prev_table_index_ = current_table_index_;
 
     while (total_rows < max_rows &&
            has_more() &&
            table_loops < max_loops &&
+           current_table_index_ >= prev_table_index_ &&
            block->used_tables < block->tables.size())
     {
         TableState* table_state = get_next_active_table();
@@ -192,6 +194,10 @@ MemoryPool::MemoryBlock* TableDataManager::collect_batch_data(size_t max_rows) {
     block->start_time = start_time;
     block->end_time = end_time;
     block->total_rows = total_rows;
+
+    if (current_table_index_ <= prev_table_index_) {
+        ++sequence_num_;
+    }
 
     return block;
 }
