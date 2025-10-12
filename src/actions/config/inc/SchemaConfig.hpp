@@ -28,6 +28,8 @@ struct SchemaConfig {
             tbname.enabled = true;
             tbname.source_type = "csv";
             tbname.csv.file_path = from_csv.tags.file_path;
+            tbname.csv.has_header = from_csv.tags.has_header;
+            tbname.csv.delimiter = from_csv.tags.delimiter;
             tbname.csv.tbname_index = from_csv.tags.tbname_index;
         }
 

@@ -202,6 +202,7 @@ void test_end_to_end_data_generation() {
 
             config.schema.generation.rows_per_table = 10;
             config.schema.generation.generate_threads = 1;
+            config.schema.generation.data_cache.enabled = false;
             config.queue_capacity = 2;
             config.insert_threads = 1;
             config.schema.tbname.generator.count = 4;           // 4 tables total
@@ -227,6 +228,7 @@ void test_concurrent_data_generation() {
     auto config = create_test_config();
     config.schema.generation.rows_per_table = 1000;     // More rows to test concurrency
     config.schema.generation.generate_threads = 4;      // More threads
+    config.schema.generation.data_cache.enabled = false;
     config.insert_threads = 4;
     config.schema.tbname.generator.count = 8;             // 8 tables
     config.target_type = "tdengine";
@@ -421,6 +423,7 @@ void test_cache_units_data_generator_failure() {
 
     bool caught = false;
     try {
+        config.schema.generation.data_cache.num_cached_batches = 2;
         action.init_cache_units_data(pool,
                                      config.schema.generation.data_cache.num_cached_batches,
                                      config.schema.tbname.generator.count,

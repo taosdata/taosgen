@@ -58,6 +58,7 @@ private:
     const InsertDataConfig& config_;
     const ColumnConfigInstanceVector& col_instances_;
     std::vector<TableState> table_states_;
+    size_t prev_table_index_ = 0;
     size_t current_table_index_ = 0;            // Current table index
     size_t active_table_count_ = 0;             // Count of active tables with data available
     int64_t interlace_rows_ = 1;                // Number of rows to generate per table in interlace mode
