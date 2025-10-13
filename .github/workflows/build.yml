@@ -38,9 +38,13 @@ jobs:
       - name: Setup Conan
         uses: conan-io/setup-conan@v1
         with:
-          conan-version: 2.0.10
+          version: 2.0.10
+
+      - name: Create build directory
+        run: mkdir build
 
       - name: Install dependencies
+        working-directory: build
         run: |
           conan install .. \
             --build=missing \
@@ -57,7 +61,7 @@ jobs:
             -DCMAKE_PREFIX_PATH=./conan
 
       - name: Build
-        run: cmake --build . --config Debug -j 8
+        run: cmake --build . --config Debug -j $(nproc || sysctl -n hw.ncpu)
 
       - name: Test (optional)
         run: ctest --output-on-failure
