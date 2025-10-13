@@ -30,10 +30,9 @@ public:
     }
 
     // Run scheduler
-    void run();
+    bool run();
 
     bool has_failure() const { return stop_execution_.load(); }
-    std::string failure_message() const { return failure_message_; }
 
 private:
     // Worker thread loop
@@ -48,5 +47,4 @@ private:
     std::unique_ptr<StepExecutionStrategy> step_strategy_;  // Step execution strategy
 
     std::atomic<bool> stop_execution_{false};
-    std::string failure_message_;
 };

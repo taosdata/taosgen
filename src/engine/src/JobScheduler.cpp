@@ -23,7 +23,7 @@ JobScheduler::JobScheduler(const ConfigData& config, std::unique_ptr<StepExecuti
     }
 }
 
-void JobScheduler::run() {
+bool JobScheduler::run() {
     // Create thread pool
     const size_t concurrency = config_.concurrency;
     std::vector<std::thread> workers;
@@ -43,9 +43,7 @@ void JobScheduler::run() {
         if (worker.joinable()) worker.join();
     }
 
-    if (stop_execution_.load()) {
-        throw std::runtime_error(failure_message_);
-    }
+    return !stop_execution_.load();
 }
 
 void JobScheduler::worker_loop() {
@@ -62,8 +60,8 @@ void JobScheduler::worker_loop() {
             bool success = step_strategy_->execute(step);
             if (!success) {
                 stop_execution_.store(true);
-                failure_message_ = "Job step execution failed, exiting (job: " + node->job.name + ", step: " + step.name + ")";
-                // std::cerr << failure_message_ << std::endl;
+                std::string failure_message = "Job step execution failed, exiting (job: " + node->job.name + ", step: " + step.name + ")";
+                std::cerr << failure_message << std::endl;
                 queue_->stop();
                 {
                     std::unique_lock<std::mutex> lock(done_mutex_);
