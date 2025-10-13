@@ -36,9 +36,9 @@ jobs:
           cmake-version: '3.20.0'
 
       - name: Setup Conan
-        uses: turtlebrowser/get-conan@v1
+        uses: conan-io/setup-conan@v2
         with:
-          version: 2.0.10
+          conan-version: 2.0.10
 
       - name: Install dependencies
         run: |
