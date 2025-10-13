@@ -38,7 +38,7 @@ jobs:
       - name: Setup Conan
         uses: conan-io/setup-conan@v1
         with:
-          version: 2.0.10
+          version: 2.20.1
 
       - name: Create build directory
         run: mkdir build
