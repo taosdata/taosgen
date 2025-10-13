@@ -1,0 +1,63 @@
+name: taosgen Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-20.04
+            arch: x64
+            conan_arch: x86_64
+          - runner: ubuntu-20.04
+            arch: arm64
+            conan_arch: armv8
+
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup CMake 3.20
+        uses: jwlawson/actions-setup-cmake@v1
+        with:
+          cmake-version: '3.20.0'
+
+      - name: Setup Conan
+        uses: conan-io/conan-action@v2
+        with:
+          version: 2.0.10
+
+      - name: Install dependencies
+        run: |
+          conan install .. \
+            --build=missing \
+            --output-folder=./conan \
+            --settings=build_type=Debug \
+            --settings=arch=${{ matrix.conan_arch }} \
+            --settings=compiler.cppstd=17
+
+      - name: Configure CMake
+        run: |
+          cmake .. \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=./install \
+            -DCMAKE_PREFIX_PATH=./conan
+
+      - name: Build
+        run: cmake --build . --config Release -j 8
+
+      - name: Test (optional)
+        run: ctest --output-on-failure
