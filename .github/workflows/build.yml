@@ -30,7 +30,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup CMake 3.20
+      - name: Setup CMake
         uses: jwlawson/actions-setup-cmake@v1
         with:
           cmake-version: '3.20.0'
@@ -39,6 +39,13 @@ jobs:
         uses: conan-io/setup-conan@v1
         with:
           version: 2.20.1
+
+      - name: Cache Conan packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.conan2/p
+          key: conan2-${{ runner.os }}-${{ hashFiles('conanfile.*') }}
+          restore-keys: conan2-${{ runner.os }}-
 
       - name: Create build directory
         run: mkdir build
@@ -54,6 +61,7 @@ jobs:
             --settings=compiler.cppstd=17
 
       - name: Configure CMake
+        working-directory: build
         run: |
           cmake .. \
             -DCMAKE_BUILD_TYPE=Debug \
@@ -61,7 +69,9 @@ jobs:
             -DCMAKE_PREFIX_PATH=./conan
 
       - name: Build
+        working-directory: build
         run: cmake --build . --config Debug -j $(nproc || sysctl -n hw.ncpu)
 
-      - name: Test (optional)
+      - name: Test
+        working-directory: build
         run: ctest --output-on-failure
