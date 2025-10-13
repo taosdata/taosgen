@@ -36,7 +36,7 @@ jobs:
           cmake-version: '3.20.0'
 
       - name: Setup Conan
-        uses: conan-io/setup-conan@v2
+        uses: conan-io/setup-conan@v1
         with:
           conan-version: 2.0.10
 
