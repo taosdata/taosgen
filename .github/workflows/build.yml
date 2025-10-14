@@ -20,7 +20,7 @@ jobs:
           # - runner: ubuntu-22.04
           #   arch: x64
           #   conan_arch: x86_64
-          - runner: ubuntu-20.04
+          - runner: ubuntu-22.04
             arch: arm64
             conan_arch: armv8
 
