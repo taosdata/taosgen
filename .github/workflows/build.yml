@@ -27,13 +27,12 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     steps:
-      - name: Install jq (macOS only)
-        if: runner.os == 'macOS'
-        run: brew install jq
-
       - name: Get latest TDengine version
         id: get_td_version
         run: |
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            brew install jq
+          fi
           version=$(curl -s https://api.github.com/repos/taosdata/TDengine/releases/latest | jq -r .name)
           version=${version#v}
           echo "version=$version" >> $GITHUB_OUTPUT
@@ -72,7 +71,7 @@ jobs:
             tar -xzf "$pkg"
             pwd
             ls -al
-            dir="tdengine-tsdb-enterprise-${version}-linux-${arch}"
+            dir="tdengine-tsdb-enterprise-${version}"
             cd "$dir"
             # Install
             sudo ./install.sh
@@ -89,59 +88,50 @@ jobs:
             echo "TODO: macOS extract logic"
           fi
 
+      - name: Checkout taosgen code
+        uses: actions/checkout@v4
 
+      - name: Setup CMake
+        uses: jwlawson/actions-setup-cmake@v1
+        with:
+          cmake-version: '3.20.0'
 
-      # - name: Checkout TDengine code
-      #   uses: actions/checkout@v4
-      #   with:
-      #     repository: "taosdata/TDengine"
-      #     path: "TDengine"
-      #     ref: "main"
+      - name: Setup Conan
+        uses: conan-io/setup-conan@v1
+        with:
+          version: 2.20.1
 
-      # - name: Checkout taosgen code
-      #   uses: actions/checkout@v4
+      - name: Cache Conan packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.conan2/p
+          key: conan2-${{ runner.os }}-${{ hashFiles('conanfile.*') }}
+          restore-keys: conan2-${{ runner.os }}-
 
-      # - name: Setup CMake
-      #   uses: jwlawson/actions-setup-cmake@v1
-      #   with:
-      #     cmake-version: '3.20.0'
+      - name: Create build directory
+        run: mkdir build
 
-      # - name: Setup Conan
-      #   uses: conan-io/setup-conan@v1
-      #   with:
-      #     version: 2.20.1
+      - name: Install dependencies
+        working-directory: build
+        run: |
+          conan install .. \
+            --build=missing \
+            --output-folder=./conan \
+            --settings=build_type=Debug \
+            --settings=arch=${{ matrix.conan_arch }} \
+            --settings=compiler.cppstd=17
 
-      # - name: Cache Conan packages
-      #   uses: actions/cache@v4
-      #   with:
-      #     path: ~/.conan2/p
-      #     key: conan2-${{ runner.os }}-${{ hashFiles('conanfile.*') }}
-      #     restore-keys: conan2-${{ runner.os }}-
+      - name: Configure CMake
+        working-directory: build
+        run: |
+          cmake .. \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_INSTALL_PREFIX=./install \
+            -DCMAKE_PREFIX_PATH=./conan
 
-      # - name: Create build directory
-      #   run: mkdir build
-
-      # - name: Install dependencies
-      #   working-directory: build
-      #   run: |
-      #     conan install .. \
-      #       --build=missing \
-      #       --output-folder=./conan \
-      #       --settings=build_type=Debug \
-      #       --settings=arch=${{ matrix.conan_arch }} \
-      #       --settings=compiler.cppstd=17
-
-      # - name: Configure CMake
-      #   working-directory: build
-      #   run: |
-      #     cmake .. \
-      #       -DCMAKE_BUILD_TYPE=Debug \
-      #       -DCMAKE_INSTALL_PREFIX=./install \
-      #       -DCMAKE_PREFIX_PATH=./conan
-
-      # - name: Build
-      #   working-directory: build
-      #   run: cmake --build . --config Debug -j $(nproc || sysctl -n hw.ncpu)
+      - name: Build
+        working-directory: build
+        run: cmake --build . --config Debug -j $(nproc || sysctl -n hw.ncpu)
 
       # - name: Test
       #   working-directory: build
