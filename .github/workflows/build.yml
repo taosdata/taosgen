@@ -47,6 +47,7 @@ jobs:
           key: tdengine-${{ steps.get_td_version.outputs.version }}-${{ runner.os }}-${{ matrix.arch }}
 
       - name: Download TDengine binary
+        if: steps.cache-tdengine.outputs.cache-hit != 'true'
         run: |
           if [ "${{ runner.os }}" = "Linux" ]; then
             arch="${{ matrix.arch }}"
@@ -69,6 +70,8 @@ jobs:
             pkg="tdengine-tsdb-enterprise-${version}-linux-${arch}.tar.gz"
             # Extract
             tar -xzf "$pkg"
+            pwd
+            ls -al
             dir="tdengine-tsdb-enterprise-${version}-linux-${arch}"
             cd "$dir"
             # Install
