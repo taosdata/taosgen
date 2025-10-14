@@ -133,6 +133,7 @@ jobs:
         working-directory: build
         run: cmake --build . --config Debug -j $(nproc || sysctl -n hw.ncpu)
 
-      # - name: Test
-      #   working-directory: build
-      #   run: ctest --output-on-failure
+      - name: Test
+        if: runner.os == 'Linux'
+        working-directory: build
+        run: ctest --output-on-failure
