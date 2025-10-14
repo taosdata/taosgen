@@ -17,12 +17,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: ubuntu-22.04
-            arch: x64
-            conan_arch: x86_64
-          # - runner: ubuntu-20.04
-          #   arch: arm64
-          #   conan_arch: armv8
+          # - runner: ubuntu-22.04
+          #   arch: x64
+          #   conan_arch: x86_64
+          - runner: ubuntu-20.04
+            arch: arm64
+            conan_arch: armv8
 
     runs-on: ${{ matrix.runner }}
 
@@ -37,7 +37,7 @@ jobs:
           version=${version#v}
           echo "version=$version" >> $GITHUB_OUTPUT
 
-      - name: Cache TDengine binary
+      - name: Cache TDengine
         id: cache-tdengine
         uses: actions/cache@v4
         with:
@@ -45,7 +45,7 @@ jobs:
             tdengine-tsdb-enterprise-*.tar.gz
           key: tdengine-${{ steps.get_td_version.outputs.version }}-${{ runner.os }}-${{ matrix.arch }}
 
-      - name: Download TDengine binary
+      - name: Download TDengine
         if: steps.cache-tdengine.outputs.cache-hit != 'true'
         run: |
           if [ "${{ runner.os }}" = "Linux" ]; then
