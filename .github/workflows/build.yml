@@ -61,16 +61,31 @@ jobs:
             echo "TODO: macOS download logic"
           fi
 
-      - name: Extract TDengine
+      - name: Install & Start TDengine
         run: |
           if [ "${{ runner.os }}" = "Linux" ]; then
             arch="${{ matrix.arch }}"
             version="${{ steps.get_td_version.outputs.version }}"
             pkg="tdengine-tsdb-enterprise-${version}-linux-${arch}.tar.gz"
+            # Extract
             tar -xzf "$pkg"
+            dir="tdengine-tsdb-enterprise-${version}-linux-${arch}"
+            cd "$dir"
+            # Install
+            sudo ./install.sh
+            # Start TDengine
+            sudo systemctl start taosd
+            sudo systemctl start taosadapter
+            # Check status
+            sudo systemctl status taosd
+            sudo systemctl status taosadapter
+            # Verify installation
+            taos -V
+
           elif [ "${{ runner.os }}" = "macOS" ]; then
             echo "TODO: macOS extract logic"
           fi
+
 
 
       # - name: Checkout TDengine code
