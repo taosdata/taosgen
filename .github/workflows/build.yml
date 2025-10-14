@@ -74,7 +74,7 @@ jobs:
             dir="tdengine-tsdb-enterprise-${version}"
             cd "$dir"
             # Install
-            sudo ./install.sh
+            sudo ./install.sh -e no
             # Start TDengine
             sudo systemctl start taosd
             sudo systemctl start taosadapter
