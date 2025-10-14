@@ -51,7 +51,7 @@ void test_create_super_table_action() {
     // bool table_exists = false;
     // connector->query("SHOW TABLES", [&](const QueryResult& result) {
     //     for (const auto& row : result.rows) {
-    //         if (row[0] == config.super_table_info.name) {
+    //         if (row[0] == config.schema.name) {
     //             table_exists = true;
     //             break;
     //         }
@@ -61,7 +61,7 @@ void test_create_super_table_action() {
     // connector->close();
 
     // if (table_exists) {
-    //     std::cout << "Verification succeeded: super table '" << config.super_table_info.name
+    //     std::cout << "Verification succeeded: super table '" << config.schema.name
     //               << "' created" << std::endl;
     // } else {
     //     std::cerr << "Verification failed: super table not created" << std::endl;
@@ -71,7 +71,7 @@ void test_create_super_table_action() {
     // std::cout << "Cleaning up test super table..." << std::endl;
     // auto cleanup_connector = ConnectorFactory::create(conn_info);
     // if (cleanup_connector->connect()) {
-    //     cleanup_connector->execute("DROP TABLE IF EXISTS `" + config.super_table_info.name + "`");
+    //     cleanup_connector->execute("DROP TABLE IF EXISTS `" + config.schema.name + "`");
     //     cleanup_connector->close();
     // }
 

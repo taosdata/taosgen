@@ -13,11 +13,11 @@ void test_checkpoint_recover() {
     std::cout << "\n--- Running test_checkpoint_recover ---" << std::endl;
     GlobalConfig global;
     global.yaml_cfg_dir = "./b";
-    global.database_info.name = "test_db";
-    global.super_table_info.name = "test_super_table_recover"; // Use a different name to avoid conflict
+    global.tdengine.database = "test_db";
+    global.schema.name = "test_super_table_recover"; // Use a different name to avoid conflict
 
     // 1. Manually create a checkpoint file
-    std::string checkpoint_file = global.yaml_cfg_dir + "_" + global.database_info.name + "_" + global.super_table_info.name + "_checkpoints.json";
+    std::string checkpoint_file = global.yaml_cfg_dir + "_" + global.tdengine.database + "_" + global.schema.name + "_checkpoints.json";
     std::cout << "Creating dummy checkpoint file: " << checkpoint_file << std::endl;
     nlohmann::json json_data;
     json_data["table_name"] = "t1";
@@ -53,7 +53,11 @@ void test_checkpoint_recover() {
 
     (void)expected_start_ts;
     (void)expected_rows;
-    assert(std::get<long int>(insert_config.schema.columns_cfg.generator.timestamp_strategy.timestamp_config.start_timestamp) == expected_start_ts);
+    std::cout << "Recovered start_timestamp: " << std::get<int64_t>(insert_config.schema.columns_cfg.generator.timestamp_strategy.timestamp_config.start_timestamp) << std::endl;
+    std::cout << "expected_start_ts: " << expected_start_ts << std::endl;
+    std::cout << "Adjusted rows_per_table: " << insert_config.schema.generation.rows_per_table << std::endl;
+    std::cout << "expected_rows: " << expected_rows << std::endl;
+    assert(std::get<int64_t>(insert_config.schema.columns_cfg.generator.timestamp_strategy.timestamp_config.start_timestamp) == expected_start_ts);
     assert(insert_config.schema.generation.rows_per_table == expected_rows);
 
     // 5. Clean up
@@ -67,8 +71,8 @@ void test_checkpoint_interrupt() {
     std::cout << "\n--- Running test_checkpoint_interrupt ---" << std::endl;
     GlobalConfig global;
     global.yaml_cfg_dir = "./c";
-    global.database_info.name = "test_db";
-    global.super_table_info.name = "test_super_table_interrupt"; // Use a different name
+    global.tdengine.database = "test_db";
+    global.schema.name = "test_super_table_interrupt"; // Use a different name
 
     CheckpointActionConfig config;
     config.enabled = true;
@@ -90,7 +94,7 @@ void test_checkpoint_interrupt() {
     CheckpointAction::stop_all(true); // true for interrupt
 
     // Check that the file was created
-    std::string checkpoint_file = global.yaml_cfg_dir + "_" + global.database_info.name + "_" + global.super_table_info.name + "_checkpoints.json";
+    std::string checkpoint_file = global.yaml_cfg_dir + "_" + global.tdengine.database + "_" + global.schema.name + "_checkpoints.json";
 
     // Check that the file was NOT deleted
     std::cout << "Checking if checkpoint file still exists after interrupt..." << std::endl;
