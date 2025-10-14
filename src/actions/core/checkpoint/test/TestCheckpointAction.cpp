@@ -16,12 +16,20 @@ void test_checkpoint_recover() {
     global.tdengine.database = "test_db";
     global.schema.name = "test_super_table_recover"; // Use a different name to avoid conflict
 
+    std::string timestamp_precision = "ms";
+    int64_t start_timestamp = TimestampUtils::parse_timestamp("2021-05-03 08:00:00", timestamp_precision);
+    int64_t timestamp_step = 1000;
+    int64_t rows_per_table = 100;
+    int64_t recovered_rows = 5;
+    int64_t expected_start_ts = start_timestamp + recovered_rows * timestamp_step;
+    int64_t expected_rows = 100 - recovered_rows;
+
     // 1. Manually create a checkpoint file
     std::string checkpoint_file = global.yaml_cfg_dir + "_" + global.tdengine.database + "_" + global.schema.name + "_checkpoints.json";
     std::cout << "Creating dummy checkpoint file: " << checkpoint_file << std::endl;
     nlohmann::json json_data;
     json_data["table_name"] = "t1";
-    json_data["last_checkpoint_time"] = 1620000005000;
+    json_data["last_checkpoint_time"] = expected_start_ts;
 
     std::ofstream ofs(checkpoint_file);
     ofs << json_data.dump(4);
@@ -38,21 +46,16 @@ void test_checkpoint_recover() {
     insert_config.target_type = "tdengine";
     insert_config.checkpoint_info.enabled = true;
     insert_config.schema.columns_cfg.generator.timestamp_strategy.timestamp_config = TimestampGeneratorConfig {
-        .start_timestamp = "2021-05-03 08:00:00", // 1620000000000
-        .timestamp_precision = "ms",
-        .timestamp_step = 1000
+        .start_timestamp = start_timestamp,
+        .timestamp_precision = timestamp_precision,
+        .timestamp_step = timestamp_step
     };
-    insert_config.schema.generation.rows_per_table = 100;
+    insert_config.schema.generation.rows_per_table = rows_per_table;
 
     CheckpointAction::checkpoint_recover(global, insert_config);
     std::cout << "checkpoint_recover executed." << insert_config.schema.generation.rows_per_table << std::endl;
-    // 4. Assert config changes
-    int64_t expected_start_ts = 1620000005000;
-    int64_t recovered_rows = 5;
-    int64_t expected_rows = 100 - recovered_rows;
 
-    (void)expected_start_ts;
-    (void)expected_rows;
+    // 4. Assert config changes
     std::cout << "Recovered start_timestamp: " << std::get<int64_t>(insert_config.schema.columns_cfg.generator.timestamp_strategy.timestamp_config.start_timestamp) << std::endl;
     std::cout << "expected_start_ts: " << expected_start_ts << std::endl;
     std::cout << "Adjusted rows_per_table: " << insert_config.schema.generation.rows_per_table << std::endl;

@@ -184,25 +184,18 @@ void CheckpointAction::checkpoint_recover(const GlobalConfig& global, InsertData
         config.schema.columns_cfg.generator.timestamp_strategy.timestamp_config.start_timestamp,
         config.schema.columns_cfg.generator.timestamp_strategy.timestamp_config.timestamp_precision
     );
-    std::cout << "[Checkpoint] Recovering from checkpoint at timestamp " << json_data["last_checkpoint_time"].get<std::int64_t>()
-              << " starting from " << start_timestamp << std::endl;
 
     int timestamp_step = std::get<Timestamp>(config.schema.columns_cfg.generator.timestamp_strategy.timestamp_config.timestamp_step);
 
     checkpoint_data.table_name = json_data["table_name"].get<std::string>();
     checkpoint_data.last_checkpoint_time = json_data["last_checkpoint_time"].get<std::int64_t>();
     checkpoint_data.writeCount = (checkpoint_data.last_checkpoint_time - start_timestamp) / timestamp_step;
-    std::cout << "[Checkpoint] Recovered checkpoint for table '" << checkpoint_data.table_name
-              << "' at timestamp " << checkpoint_data.last_checkpoint_time
-              << " with write count " << checkpoint_data.writeCount
-              << " rows_per_table " <<  config.schema.generation.rows_per_table << std::endl;
+
     if (config.schema.generation.rows_per_table <= checkpoint_data.writeCount) {
         return;
     }
     config.schema.columns_cfg.generator.timestamp_strategy.timestamp_config.start_timestamp = (Timestamp)checkpoint_data.last_checkpoint_time;
     config.schema.generation.rows_per_table -= checkpoint_data.writeCount;
-    std::cout << "[Checkpoint] Adjusted start_timestamp to " << checkpoint_data.last_checkpoint_time
-              << " and rows_per_table to " << config.schema.generation.rows_per_table << std::endl;
 }
 
 void CheckpointAction::delete_checkpoint() {
