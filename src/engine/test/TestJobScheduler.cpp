@@ -70,7 +70,9 @@ void test_job_scheduler_base() {
     auto scheduler = JobScheduler::create_for_testing(config);
 
     // Run scheduler
-    scheduler->run();
+    bool success = scheduler->run();
+    (void)success;
+    assert(success);
 
     // Print test passed info
     std::cout << "test_job_scheduler_base passed!" << std::endl;
@@ -131,7 +133,9 @@ void test_job_scheduler_with_order() {
     auto scheduler = JobScheduler::create_for_testing(config);
 
     // Run scheduler
-    scheduler->run();
+    bool success = scheduler->run();
+    (void)success;
+    assert(success);
 
     // Restore std::cout
     std::cout.rdbuf(original_cout);
@@ -163,7 +167,7 @@ void test_job_scheduler_with_delay() {
     public:
         DelayStepStrategy(const GlobalConfig& global) : StepExecutionStrategy(global) {}
 
-        void execute(const Step& step) override {
+        bool execute(const Step& step) override {
             // Print debug info
             std::cout << "Executing step: " << step.name << " (" << step.uses << ")" << std::endl;
 
@@ -199,7 +203,9 @@ void test_job_scheduler_with_delay() {
                 throw std::runtime_error("Unknown action type: " + step.uses);
             }
 
-            std::cout << "Step completed: " << step.name << std::endl;        }
+            std::cout << "Step completed: " << step.name << std::endl;
+            return true;
+        }
     };
 
     // Build complex config data
@@ -220,7 +226,9 @@ void test_job_scheduler_with_delay() {
     JobScheduler scheduler(config, std::move(delay_strategy));
 
     // Run scheduler
-    scheduler.run();
+    bool success = scheduler.run();
+    (void)success;
+    assert(success);
 
     // Restore std::cout
     std::cout.rdbuf(original_cout);

@@ -30,7 +30,9 @@ public:
     }
 
     // Run scheduler
-    void run();
+    bool run();
+
+    bool has_failure() const { return stop_execution_.load(); }
 
 private:
     // Worker thread loop
@@ -43,4 +45,6 @@ private:
     std::mutex done_mutex_;
     std::condition_variable done_cv_;
     std::unique_ptr<StepExecutionStrategy> step_strategy_;  // Step execution strategy
+
+    std::atomic<bool> stop_execution_{false};
 };
