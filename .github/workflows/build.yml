@@ -39,6 +39,9 @@ jobs:
             if ! command -v python >/dev/null; then
               sudo ln -sf /usr/bin/python3 /usr/bin/python
             fi
+            if ! command -v pip >/dev/null && command -v pip3 >/dev/null; then
+              sudo ln -sf $(command -v pip3) /usr/bin/pip
+            fi
           elif [ "${{ runner.os }}" = "macOS" ]; then
             if ! command -v python3 >/dev/null; then
               brew install python
@@ -49,6 +52,7 @@ jobs:
           fi
           python --version || true
           python3 --version || true
+          pip --version || true
           pip3 --version || true
 
       - name: Get latest TDengine version
