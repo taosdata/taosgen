@@ -48,6 +48,16 @@ int64_t TimestampUtils::convert_timestamp_precision(
     return (ts * multiplier) / divisor;
 }
 
+double TimestampUtils::convert_timestamp_precision_double(
+    int64_t ts,
+    const std::string& from_precision,
+    const std::string& to_precision) {
+
+    if (from_precision == to_precision) return static_cast<double>(ts);
+
+    auto [multiplier, divisor] = get_precision_factor(from_precision, to_precision);
+    return static_cast<double>(ts) * static_cast<double>(multiplier) / static_cast<double>(divisor);
+}
 
 int64_t TimestampUtils::convert_to_timestamp(const std::string& precision) {
     auto now = std::chrono::system_clock::now();

@@ -21,14 +21,17 @@ void test_timestamp_conversion() {
     // Test millisecond precision
     TimeIntervalStrategy strategy_ms(config, "ms");
     assert(strategy_ms.to_milliseconds(1000) == 1000);
+    assert(strategy_ms.to_microseconds(1000) == 1000000);
 
     // Test microsecond precision
     TimeIntervalStrategy strategy_us(config, "us");
     assert(strategy_us.to_milliseconds(1000) == 1);
+    assert(strategy_us.to_microseconds(1000) == 1000);
 
     // Test nanosecond precision
     TimeIntervalStrategy strategy_ns(config, "ns");
     assert(strategy_ns.to_milliseconds(1000000) == 1);
+    assert(strategy_ns.to_microseconds(1000) == 1);
 
     // Test unknown precision throws
     bool thrown = false;
@@ -47,7 +50,7 @@ void test_timestamp_conversion() {
 void test_fixed_interval() {
     auto config = create_test_config();
     TimeIntervalStrategy strategy(config, "ms");
-    assert(strategy.fixed_interval_strategy() == 1000);
+    assert(strategy.fixed_interval_strategy() == 1000 * 1000);
     std::cout << "test_fixed_interval passed." << std::endl;
 }
 
@@ -56,20 +59,20 @@ void test_clamp_interval() {
     TimeIntervalStrategy strategy(config, "ms");
 
     // Test minimum clamping
-    assert(strategy.clamp_interval(50) == 100);
+    assert(strategy.clamp_interval(50 * 1000) == 100 * 1000);
 
     // Test maximum clamping
-    assert(strategy.clamp_interval(6000) == 5000);
+    assert(strategy.clamp_interval(6000 * 1000) == 5000 * 1000);
 
     // Test within range
-    assert(strategy.clamp_interval(1000) == 1000);
+    assert(strategy.clamp_interval(1000 * 1000) == 1000 * 1000);
 
     // Test negative min/max (should not clamp)
     config.dynamic_interval.min_interval = -1;
     config.dynamic_interval.max_interval = -1;
     TimeIntervalStrategy strategy2(config, "ms");
-    assert(strategy2.clamp_interval(10) == 10);
-    assert(strategy2.clamp_interval(10000) == 10000);
+    assert(strategy2.clamp_interval(10 * 1000) == 10 * 1000);
+    assert(strategy2.clamp_interval(10000 * 1000) == 10000 * 1000);
 
     std::cout << "test_clamp_interval passed." << std::endl;
 }
@@ -168,24 +171,23 @@ void test_literal_strategy() {
     config.interval_strategy = "literal";
     config.wait_strategy = "sleep";
 
-    TimeIntervalStrategy strategy(config, "ms");
+    TimeIntervalStrategy strategy(config, "us");
 
     // Set current_start to "current time + 200ms"
-    auto now = std::chrono::system_clock::now();
-    auto now_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now);
-    auto epoch = now_ms.time_since_epoch();
-    int64_t now_timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(epoch).count();
+    int64_t now_timestamp = std::chrono::duration_cast<std::chrono::microseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
 
-    int64_t current_start = now_timestamp + 200;
+    int64_t current_start = now_timestamp + 200000;
 
     auto start_time = std::chrono::steady_clock::now();
     strategy.apply_wait_strategy(current_start, 0, 0, 0, false);
-    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::steady_clock::now() - start_time).count();
+    auto end_time = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+        end_time - start_time).count();
 
     // The elapsed time should be approximately between 200 and 230 milliseconds
-    std::cout << "in func test_literal_strategy elapsed: " << elapsed << " ms" << std::endl;
-    assert(elapsed >= 200 && elapsed <= 230);
+    std::cout << "in func test_literal_strategy elapsed: " << elapsed << " us" << std::endl;
+    assert(elapsed >= 200000 && elapsed <= 210000);
 
     // Test is_literal_strategy
     assert(strategy.is_literal_strategy());
