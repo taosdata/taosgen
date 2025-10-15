@@ -20,6 +20,7 @@ void test_column_config_default_constructor() {
     ColumnConfig config;
     assert(config.name.empty());
     assert(config.type.empty());
+    std::cout << "type_tag: " << static_cast<int>(config.type_tag) << std::endl;
     assert(config.type_tag == ColumnTypeTag::UNKNOWN);
     assert(config.primary_key == false);
     assert(config.count == 1);
