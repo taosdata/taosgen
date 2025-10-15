@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.19)
 project(taosbenchmark LANGUAGES CXX)
 
+set(CMAKE_SKIP_RPATH ON)
+
 # Conan 2.x integration
 include(${CMAKE_BINARY_DIR}/conan/conan_toolchain.cmake)
 list(APPEND CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR}/conan)
@@ -118,7 +120,7 @@ find_package(yaml-cpp REQUIRED)
 find_package(luajit REQUIRED)
 find_package(PahoMqttCpp REQUIRED)
 find_package(nlohmann_json REQUIRED)
-find_package(TAOS REQUIRED)
+# find_package(TAOS REQUIRED)
 find_package(Threads REQUIRED)
 find_package(Iconv REQUIRED)
 

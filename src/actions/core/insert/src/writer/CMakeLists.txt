@@ -29,7 +29,7 @@ target_link_libraries(insert_writer
     components_connector
     components_formatter
     utils
-    TAOS::TAOS
+    # TAOS::TAOS
     PahoMqttCpp::paho-mqttpp3-static
 )
 

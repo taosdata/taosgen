@@ -17,12 +17,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # - runner: ubuntu-22.04
-          #   arch: x64
-          #   conan_arch: x86_64
           - runner: ubuntu-22.04
-            arch: arm64
-            conan_arch: armv8
+            arch: x64
+            conan_arch: x86_64
+          # - runner: ubuntu-22.04
+          #   arch: arm64
+          #   conan_arch: armv8
 
     runs-on: ${{ matrix.runner }}
 

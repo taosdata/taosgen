@@ -30,7 +30,7 @@ target_link_libraries(taosgen
     utils
     yaml-cpp::yaml-cpp
     luajit::luajit
-    TAOS::TAOS
+    # TAOS::TAOS
     Threads::Threads
 )
 
