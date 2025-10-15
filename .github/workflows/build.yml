@@ -31,6 +31,28 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     steps:
+      - name: Ensure Python3 and pip
+        run: |
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            if ! command -v python3 >/dev/null; then
+              sudo apt-get update
+              sudo apt-get install -y python3 python3-pip
+            fi
+            if ! command -v python >/dev/null; then
+              sudo ln -sf /usr/bin/python3 /usr/bin/python
+            fi
+          elif [ "${{ runner.os }}" = "macOS" ]; then
+            if ! command -v python3 >/dev/null; then
+              brew install python
+            fi
+            if ! command -v python >/dev/null; then
+              ln -sf /usr/local/bin/python3 /usr/local/bin/python || true
+            fi
+          fi
+          python --version || true
+          python3 --version || true
+          pip3 --version || true
+
       - name: Get latest TDengine version
         id: get_td_version
         run: |
