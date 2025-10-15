@@ -17,10 +17,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: ubuntu-22.04
+          # - runner: ubuntu-22.04
+          #   arch: x64
+          #   conan_arch: x86_64
+
+          - runner: [self-hosted, Linux, X64, taosgen]
             arch: x64
             conan_arch: x86_64
-          # - runner: ubuntu-22.04
+          # - runner: [self-hosted, Linux, ARM64, taosgen]
           #   arch: arm64
           #   conan_arch: armv8
 
