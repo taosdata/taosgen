@@ -1,7 +1,37 @@
 #include "TimeIntervalStrategy.hpp"
 #include <chrono>
 #include <thread>
+#include <unistd.h>
+#include <stdint.h>
+#include <cstring>
+#if defined(__linux__)
+#include <sys/timerfd.h>
+#endif
 
+static bool precise_sleep_us(uint64_t usec) {
+#if defined(__linux__)
+    int tfd = timerfd_create(CLOCK_MONOTONIC, 0);
+    if (tfd == -1) return false;
+
+    struct itimerspec ts;
+    memset(&ts, 0, sizeof(ts));
+    ts.it_value.tv_sec = usec / 1000000;
+    ts.it_value.tv_nsec = (usec % 1000000) * 1000;
+
+    if (timerfd_settime(tfd, 0, &ts, nullptr) == -1) {
+        close(tfd);
+        return false;
+    }
+
+    uint64_t exp;
+    ssize_t s = read(tfd, &exp, sizeof(exp));
+    close(tfd);
+    return s == sizeof(exp);
+#else
+    std::this_thread::sleep_for(std::chrono::microseconds(usec));
+    return true;
+#endif
+}
 
 IntervalStrategyType parse_strategy(const std::string& s) {
     if (s == "fixed") return IntervalStrategyType::Fixed;
@@ -108,7 +138,7 @@ void TimeIntervalStrategy::apply_wait_strategy(
     // Execute wait strategy
     if (wait_time > 0) {
         if (config_.wait_strategy == "sleep") {
-            std::this_thread::sleep_for(std::chrono::microseconds(wait_time));
+            precise_sleep_us(wait_time);
         } else { // busy_wait
             auto start = std::chrono::steady_clock::now();
             while (std::chrono::duration_cast<std::chrono::microseconds>(
