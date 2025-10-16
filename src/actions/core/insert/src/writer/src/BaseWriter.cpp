@@ -57,9 +57,9 @@ void BaseWriter::notify(const BaseInsertData& data, bool success) {
 
 void BaseWriter::update_play_metrics(const BaseInsertData& data) {
     if (time_strategy_.is_literal_strategy()) {
-        double now = TimestampUtils::convert_to_timestamp("ns") / 1e3;
+        double now = TimestampUtils::convert_to_timestamp("us");
         double start_time = TimestampUtils::convert_timestamp_precision_double(data.start_time, timestamp_precision_, "us");
-        double elapsed_ms = (now - start_time) / 1e3;
+        double elapsed_ms = (now - start_time) / 1000.0;
         elapsed_ms = elapsed_ms < 0 ? 0.0 : elapsed_ms;
         play_metrics_.add_sample(elapsed_ms);
     }

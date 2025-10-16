@@ -2,16 +2,21 @@
 #include <chrono>
 #include <thread>
 #include <unistd.h>
-#include <stdint.h>
+#include <cstdint>
 #include <cstring>
 #if defined(__linux__)
 #include <sys/timerfd.h>
 #endif
 
-static bool precise_sleep_us(uint64_t usec) {
+constexpr int64_t k_ms_to_us = 1000;
+
+static void precise_sleep_us(uint64_t usec) {
 #if defined(__linux__)
     int tfd = timerfd_create(CLOCK_MONOTONIC, 0);
-    if (tfd == -1) return false;
+    if (tfd == -1) {
+        std::this_thread::sleep_for(std::chrono::microseconds(usec));
+        return;
+    }
 
     struct itimerspec ts;
     memset(&ts, 0, sizeof(ts));
@@ -20,16 +25,23 @@ static bool precise_sleep_us(uint64_t usec) {
 
     if (timerfd_settime(tfd, 0, &ts, nullptr) == -1) {
         close(tfd);
-        return false;
+        std::this_thread::sleep_for(std::chrono::microseconds(usec));
+        return;
     }
 
     uint64_t exp;
-    ssize_t s = read(tfd, &exp, sizeof(exp));
+    ssize_t s;
+    do {
+        s = read(tfd, &exp, sizeof(exp));
+    } while (s == -1 && errno == EINTR);
+
     close(tfd);
-    return s == sizeof(exp);
+
+    if (s != sizeof(exp)) {
+        std::this_thread::sleep_for(std::chrono::microseconds(usec));
+    }
 #else
     std::this_thread::sleep_for(std::chrono::microseconds(usec));
-    return true;
 #endif
 }
 
@@ -66,17 +78,17 @@ int64_t TimeIntervalStrategy::to_microseconds(int64_t ts) const {
 
 int64_t TimeIntervalStrategy::clamp_interval(int64_t interval) const {
     const auto& dyn_cfg = config_.dynamic_interval;
-    if (dyn_cfg.min_interval >= 0 && interval < dyn_cfg.min_interval * 1000) {
-        return dyn_cfg.min_interval * 1000;
+    if (dyn_cfg.min_interval >= 0 && interval < dyn_cfg.min_interval * k_ms_to_us) {
+        return dyn_cfg.min_interval * k_ms_to_us;
     }
-    if (dyn_cfg.max_interval >= 0 && interval > dyn_cfg.max_interval * 1000) {
-        return dyn_cfg.max_interval * 1000;
+    if (dyn_cfg.max_interval >= 0 && interval > dyn_cfg.max_interval * k_ms_to_us) {
+        return dyn_cfg.max_interval * k_ms_to_us;
     }
     return interval;
 }
 
 int64_t TimeIntervalStrategy::fixed_interval_strategy() const {
-    return config_.fixed_interval.base_interval * 1000;
+    return config_.fixed_interval.base_interval * k_ms_to_us;
 }
 
 int64_t TimeIntervalStrategy::first_to_first_strategy(
