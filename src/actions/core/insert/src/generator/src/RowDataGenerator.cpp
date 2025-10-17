@@ -137,37 +137,38 @@ void RowDataGenerator::init_generator() {
 void RowDataGenerator::init_csv_reader() {
     use_generator_ = false;
 
+    if (use_cache_ && timestamp_generator_) {
+        return;
+    }
+
     csv_precision_ = columns_config_.csv.timestamp_strategy.get_precision();
 
-    // Create ColumnsCSV Reader
-    columns_csv_ = std::make_unique<ColumnsCSVReader>(columns_config_.csv, instances_);
+    static std::once_flag csv_once_flag;
+    static std::unordered_map<std::string, TableData> all_tables;
 
-    // TODO: ColumnsCSV Reader needs to support table name index interface
-    // Get all table data
-    std::vector<TableData> all_tables = columns_csv_->generate();
+    std::call_once(csv_once_flag, [this]() {
+        // Create ColumnsCSV Reader
+        auto columns_csv = std::make_unique<ColumnsCSVReader>(columns_config_.csv, instances_);
+        all_tables = columns_csv->generate();
+    });
 
     // Find current table data
-    bool found = false;
-    for (const auto& table_data : all_tables) {
-        if (table_data.table_name == table_name_ || table_data.table_name == "default_table") {
-            found = true;
-
-            for (size_t i = 0; i < table_data.rows.size(); i++) {
-                RowData row;
-                // row.table_name = table_name_;
-                row.timestamp = TimestampUtils::convert_timestamp_precision(table_data.timestamps[i], csv_precision_, target_precision_);
-                row.columns = table_data.rows[i];
-                csv_rows_.push_back(row);
-            }
-            break;
-        }
+    auto it = all_tables.find(table_name_);
+    if (it == all_tables.end()) {
+        it = all_tables.find("default_table");
     }
-
-    if (!found) {
+    if (it == all_tables.end()) {
         throw std::runtime_error("Table '" + table_name_ + "' not found in CSV file");
     }
-}
 
+    const auto& table_data = it->second;
+    for (size_t i = 0; i < table_data.rows.size(); i++) {
+        RowData row;
+        row.timestamp = TimestampUtils::convert_timestamp_precision(table_data.timestamps[i], csv_precision_, target_precision_);
+        row.columns = table_data.rows[i];
+        csv_rows_.push_back(row);
+    }
+}
 
 std::optional<RowData> RowDataGenerator::next_row() {
     if (generated_rows_ >= total_rows_) {
@@ -318,10 +319,19 @@ void RowDataGenerator::generate_from_generator() {
 }
 
 bool RowDataGenerator::generate_from_csv() {
-    cached_row_.timestamp =  csv_rows_[csv_row_index_].timestamp;
+    if (timestamp_generator_) {
+        cached_row_.timestamp = TimestampUtils::convert_timestamp_precision(timestamp_generator_->generate(),
+            timestamp_generator_->timestamp_precision(), target_precision_);
+    } else {
+        cached_row_.timestamp =  csv_rows_[csv_row_index_].timestamp;
+    }
+
     if (!use_cache_) {
         cached_row_.columns = csv_rows_[csv_row_index_].columns;
     }
-    csv_row_index_ = (csv_row_index_ + 1) % csv_rows_.size();
+
+    if (!use_cache_ || !timestamp_generator_) {
+        csv_row_index_ = (csv_row_index_ + 1) % csv_rows_.size();
+    }
     return true;
 }

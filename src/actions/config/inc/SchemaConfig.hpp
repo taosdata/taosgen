@@ -61,5 +61,19 @@ struct SchemaConfig {
             columns_cfg.generator.schema = ColumnConfigVector(columns.begin() + 1, columns.end());
             columns_cfg.generator.timestamp_strategy.timestamp_config = columns[0].ts.generator;
         }
+
+        if (generation.data_cache.enabled) {
+            if (from_csv.columns.enabled) {
+                if (from_csv.columns.tbname_index >= 0) {
+                    std::cerr << "[Config Warning] data_cache.enabled is set to false because from_csv.columns.tbname_index in effect." << std::endl;
+                    generation.data_cache.enabled = false;
+                }
+
+                if (from_csv.columns.enabled && !generation.tables_reuse_data) {
+                    std::cerr << "[Config Warning] data_cache.enabled is set to false because tables_reuse_data is false." << std::endl;
+                    generation.data_cache.enabled = false;
+                }
+            }
+        }
     }
 };
