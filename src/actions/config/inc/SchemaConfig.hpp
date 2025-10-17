@@ -69,7 +69,7 @@ struct SchemaConfig {
                     generation.data_cache.enabled = false;
                 }
 
-                if (!generation.tables_reuse_data) {
+                if (from_csv.columns.enabled && !generation.tables_reuse_data) {
                     std::cerr << "[Config Warning] data_cache.enabled is set to false because tables_reuse_data is false." << std::endl;
                     generation.data_cache.enabled = false;
                 }

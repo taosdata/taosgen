@@ -23,7 +23,7 @@ public:
 
     ~ColumnsCSVReader() = default;
 
-    std::vector<TableData> generate() const;
+    std::unordered_map<std::string, TableData> generate() const;
 
 private:
     ColumnsCSV config_;

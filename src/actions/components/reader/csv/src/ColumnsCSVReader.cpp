@@ -90,7 +90,7 @@ ColumnType ColumnsCSVReader::convert_to_type(const std::string& value, ColumnTyp
     return CSVUtils::convert_to_type(value, target_type);
 }
 
-std::vector<TableData> ColumnsCSVReader::generate() const {
+std::unordered_map<std::string, TableData> ColumnsCSVReader::generate() const {
     try {
         // Create CSV reader
         CSVReader reader(
@@ -242,12 +242,7 @@ std::vector<TableData> ColumnsCSVReader::generate() const {
             data.rows.push_back(std::move(data_row));
         }
 
-        // Convert to std::vector
-        table_data.reserve(table_map.size());
-        for (auto& [_, data] : table_map) {
-            table_data.push_back(std::move(data));
-        }
-        return table_data;
+        return table_map;
 
     } catch (const std::exception& e) {
         std::stringstream ss;
