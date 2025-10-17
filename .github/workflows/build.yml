@@ -84,6 +84,7 @@ jobs:
             pwd
             ls -al
             for f in tdengine-tsdb-enterprise-*-linux-*.tar.gz; do
+              [ -e "$f" ] || continue
               if [ "$f" != "$pkg" ]; then
                 echo "Deleting old package: $f"
                 rm -f "$f"
@@ -132,10 +133,41 @@ jobs:
       - name: Checkout taosgen code
         uses: actions/checkout@v4
 
-      - name: Setup CMake
-        uses: jwlawson/actions-setup-cmake@v1
-        with:
-          cmake-version: '3.20.0'
+      - name: Install CMake (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget
+          version=3.20.0
+          if ! cmake --version | grep -q "$version"; then
+            sudo apt-get remove --purge --auto-remove cmake -y || true
+            arch=$(uname -m)
+            if [ "$arch" = "x86_64" ]; then
+              arch_str="x86_64"
+            elif [ "$arch" = "aarch64" ]; then
+              arch_str="aarch64"
+            else
+              echo "Unsupported arch: $arch"
+              exit 1
+            fi
+            wget -qO- "https://github.com/Kitware/CMake/releases/download/v${version}/cmake-${version}-linux-${arch_str}.tar.gz" | sudo tar --strip-components=1 -xz -C /usr/local
+          fi
+          file $(which cmake)
+          cmake --version
+
+      - name: Install CMake (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew update
+          brew install cmake
+          file $(which cmake)
+          cmake --version
+
+      - name: Install CMake (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          choco install cmake --version=3.20.0 -y
+          cmake --version
 
       - name: Setup Conan
         uses: conan-io/setup-conan@v1
