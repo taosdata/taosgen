@@ -732,6 +732,9 @@ void ParameterContext::parse_commandline(int argc, char* argv[]) {
 
             cli_params[key] = value;
         }
+        else {
+            throw std::runtime_error("Unknown argument: " + arg);
+        }
     }
 }
 

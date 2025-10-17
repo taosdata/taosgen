@@ -137,6 +137,10 @@ void RowDataGenerator::init_generator() {
 void RowDataGenerator::init_csv_reader() {
     use_generator_ = false;
 
+    if (use_cache_) {
+        return;
+    }
+
     csv_precision_ = columns_config_.csv.timestamp_strategy.get_precision();
 
     // Create ColumnsCSV Reader
@@ -167,7 +171,6 @@ void RowDataGenerator::init_csv_reader() {
         throw std::runtime_error("Table '" + table_name_ + "' not found in CSV file");
     }
 }
-
 
 std::optional<RowData> RowDataGenerator::next_row() {
     if (generated_rows_ >= total_rows_) {
@@ -318,10 +321,16 @@ void RowDataGenerator::generate_from_generator() {
 }
 
 bool RowDataGenerator::generate_from_csv() {
-    cached_row_.timestamp =  csv_rows_[csv_row_index_].timestamp;
+    if (timestamp_generator_) {
+        cached_row_.timestamp = TimestampUtils::convert_timestamp_precision(timestamp_generator_->generate(),
+            timestamp_generator_->timestamp_precision(), target_precision_);
+    } else {
+        cached_row_.timestamp =  csv_rows_[csv_row_index_].timestamp;
+    }
+
     if (!use_cache_) {
         cached_row_.columns = csv_rows_[csv_row_index_].columns;
+        csv_row_index_ = (csv_row_index_ + 1) % csv_rows_.size();
     }
-    csv_row_index_ = (csv_row_index_ + 1) % csv_rows_.size();
     return true;
 }

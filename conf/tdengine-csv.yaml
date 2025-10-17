@@ -22,9 +22,6 @@ schema:
   columns:
     - name: ts
       type: timestamp
-      start: now
-      precision : us
-      step: 1
     - name: current
       type: float
     - name: voltage
