@@ -156,15 +156,27 @@ void test_shared_concurrent() {
     std::thread consumer1([&]() {
         while (consumed < 100) {
             auto r = pipeline.fetch_data(0);
-            if (r.status == DataPipeline<int>::Status::Success) consumed++;
-            else if (r.status == DataPipeline<int>::Status::Terminated) break;
+            if (r.status == DataPipeline<int>::Status::Success) {
+                std::cout << "consumed: " << consumed << " Consumer 1 got: " << *r.data << "\n";
+                consumed++;
+            }
+            else if (r.status == DataPipeline<int>::Status::Terminated) {
+                std::cout << "Consumer 1 terminated.\n";
+                break;
+            }
         }
     });
     std::thread consumer2([&]() {
         while (consumed < 100) {
             auto r = pipeline.fetch_data(1);
-            if (r.status == DataPipeline<int>::Status::Success) consumed++;
-            else if (r.status == DataPipeline<int>::Status::Terminated) break;
+            if (r.status == DataPipeline<int>::Status::Success) {
+                std::cout << "consumed: " << consumed << " Consumer 2 got: " << *r.data << "\n";
+                consumed++;
+            }
+            else if (r.status == DataPipeline<int>::Status::Terminated) {
+                std::cout << "Consumer 2 terminated.\n";
+                break;
+            }
         }
     });
 
@@ -175,6 +187,7 @@ void test_shared_concurrent() {
     consumer2.join();
 
     assert(produced == 100);
+    std::cout << "Total consumed: " << consumed << "\n";
     assert(consumed == 100);
 
     std::cout << "test_shared_concurrent passed.\n";

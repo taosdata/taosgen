@@ -31,6 +31,25 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     steps:
+      - name: Show environment info
+        run: |
+          echo "OS: $(uname -a)"
+          echo "User: $(whoami)"
+          echo "HOME: $HOME"
+          echo "PWD: $(pwd)"
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            id
+            ls -ld $HOME
+          elif [ "${{ runner.os }}" = "macOS" ]; then
+            id
+            ls -ld $HOME
+          elif [ "${{ runner.os }}" = "Windows" ]; then
+            whoami
+            echo "USERPROFILE: $USERPROFILE"
+            echo "HOMEPATH: $HOMEPATH"
+            echo "HOMEDRIVE: $HOMEDRIVE"
+          fi
+
       - name: Ensure Python3 and pip
         run: |
           if [ "${{ runner.os }}" = "Linux" ]; then
@@ -83,7 +102,6 @@ jobs:
             pkg="tdengine-tsdb-enterprise-${version}-linux-${arch}.tar.gz"
 
             # Clean up old packages
-            echo $HOME
             pwd
             ls -al
             for f in tdengine-tsdb-enterprise-*-linux-*.tar.gz; do
