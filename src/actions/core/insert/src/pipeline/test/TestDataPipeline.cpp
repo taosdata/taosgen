@@ -162,6 +162,7 @@ void test_shared_concurrent() {
             }
             else if (r.status == DataPipeline<int>::Status::Terminated) {
                 std::cout << "Consumer 1 terminated." << std::endl;
+                break;
             }
         }
     });
@@ -174,6 +175,7 @@ void test_shared_concurrent() {
             }
             else if (r.status == DataPipeline<int>::Status::Terminated) {
                 std::cout << "Consumer 2 terminated." << std::endl;
+                break;
             }
         }
     });

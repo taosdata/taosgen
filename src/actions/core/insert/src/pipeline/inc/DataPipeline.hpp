@@ -257,17 +257,24 @@ private:
 
         Result fetch_data(size_t /* consumer_id */) override {
             std::unique_ptr<T> item;
-            if (queue_.wait_dequeue_timed(item, std::chrono::milliseconds(100))) {
-                if (item) {
-                    return Result{std::move(*item), Status::Success};
+
+            while (true) {
+                if (queue_.wait_dequeue_timed(item, std::chrono::milliseconds(100))) {
+                    if (item) {
+                        return Result{std::move(*item), Status::Success};
+                    } else {
+                        if (queue_.size_approx() == 0) {
+                            queue_.enqueue(nullptr);
+                            return Result{std::nullopt, Status::Terminated};
+                        } else {
+                            continue;
+                        }
+                    }
                 } else {
-                    queue_.enqueue(nullptr);
-                    return Result{std::nullopt, Status::Terminated};
+                    if (terminated_.load(std::memory_order_acquire) && queue_.size_approx() == 0) {
+                        return Result{std::nullopt, Status::Terminated};
+                    }
                 }
-            } else {
-                return terminated_.load(std::memory_order_acquire)
-                    ? Result{std::nullopt, Status::Terminated}
-                    : Result{std::nullopt, Status::Timeout};
             }
         }
 
