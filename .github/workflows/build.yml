@@ -236,4 +236,4 @@ jobs:
       - name: Test
         if: runner.os == 'Linux'
         working-directory: build
-        run: ctest --output-on-failure
+        run: ctest --output-on-failure --verbose

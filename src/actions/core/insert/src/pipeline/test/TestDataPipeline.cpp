@@ -22,7 +22,7 @@ void test_independent_basic() {
     (void)r1;
     (void)r2;
 
-    std::cout << "test_independent_basic passed.\n";
+    std::cout << "test_independent_basic passed." << std::endl;
 }
 
 void test_shared_basic() {
@@ -41,7 +41,7 @@ void test_shared_basic() {
     (void)r1;
     (void)r2;
 
-    std::cout << "test_shared_basic passed.\n";
+    std::cout << "test_shared_basic passed." << std::endl;
 }
 
 void test_independent_termination() {
@@ -64,7 +64,7 @@ void test_independent_termination() {
         assert(false && "Should throw after termination");
     } catch (const std::runtime_error&) {}
 
-    std::cout << "test_independent_termination passed.\n";
+    std::cout << "test_independent_termination passed." << std::endl;
 }
 
 void test_shared_termination() {
@@ -87,7 +87,7 @@ void test_shared_termination() {
         assert(false && "Should throw after termination");
     } catch (const std::runtime_error&) {}
 
-    std::cout << "test_shared_termination passed.\n";
+    std::cout << "test_shared_termination passed." << std::endl;
 }
 
 void test_independent_concurrent() {
@@ -132,7 +132,7 @@ void test_independent_concurrent() {
     assert(produced == 100);
     assert(consumed == 100);
 
-    std::cout << "test_independent_concurrent passed.\n";
+    std::cout << "test_independent_concurrent passed." << std::endl;
 }
 
 void test_shared_concurrent() {
@@ -157,11 +157,11 @@ void test_shared_concurrent() {
         while (consumed < 100) {
             auto r = pipeline.fetch_data(0);
             if (r.status == DataPipeline<int>::Status::Success) {
-                std::cout << "consumed: " << consumed << " Consumer 1 got: " << *r.data << "\n";
+                std::cout << "consumed: " << consumed << " Consumer 1 got: " << *r.data << std::endl;
                 consumed++;
             }
             else if (r.status == DataPipeline<int>::Status::Terminated) {
-                std::cout << "Consumer 1 terminated.\n";
+                std::cout << "Consumer 1 terminated." << std::endl;
                 break;
             }
         }
@@ -170,11 +170,11 @@ void test_shared_concurrent() {
         while (consumed < 100) {
             auto r = pipeline.fetch_data(1);
             if (r.status == DataPipeline<int>::Status::Success) {
-                std::cout << "consumed: " << consumed << " Consumer 2 got: " << *r.data << "\n";
+                std::cout << "consumed: " << consumed << " Consumer 2 got: " << *r.data << std::endl;
                 consumed++;
             }
             else if (r.status == DataPipeline<int>::Status::Terminated) {
-                std::cout << "Consumer 2 terminated.\n";
+                std::cout << "Consumer 2 terminated." << std::endl;
                 break;
             }
         }
@@ -187,10 +187,10 @@ void test_shared_concurrent() {
     consumer2.join();
 
     assert(produced == 100);
-    std::cout << "Total consumed: " << consumed << "\n";
+    std::cout << "Total consumed: " << consumed << std::endl;
     assert(consumed == 100);
 
-    std::cout << "test_shared_concurrent passed.\n";
+    std::cout << "test_shared_concurrent passed." << std::endl;
 }
 
 void test_total_queued() {
@@ -207,7 +207,7 @@ void test_total_queued() {
     pipeline.fetch_data(1);
     assert(pipeline.total_queued() == 0);
 
-    std::cout << "test_total_queued passed.\n";
+    std::cout << "test_total_queued passed." << std::endl;
 }
 
 
@@ -223,7 +223,7 @@ void test_invalid_producer_consumer_id() {
         assert(false && "Should throw for invalid consumer_id");
     } catch (const std::out_of_range&) {}
 
-    std::cout << "test_invalid_producer_consumer_id passed.\n";
+    std::cout << "test_invalid_producer_consumer_id passed." << std::endl;
 }
 
 void test_capacity_limit_independent() {
@@ -245,7 +245,7 @@ void test_capacity_limit_independent() {
     assert(pushed);
 
     t.join();
-    std::cout << "test_capacity_limit_independent passed.\n";
+    std::cout << "test_capacity_limit_independent passed." << std::endl;
 }
 
 void test_capacity_limit_shared() {
@@ -263,7 +263,7 @@ void test_capacity_limit_shared() {
     assert(pushed);
 
     t.join();
-    std::cout << "test_capacity_limit_shared passed.\n";
+    std::cout << "test_capacity_limit_shared passed." << std::endl;
 }
 
 void test_timeout_fetch() {
@@ -271,7 +271,7 @@ void test_timeout_fetch() {
     auto r = pipeline.fetch_data(0);
     assert(r.status == DataPipeline<int>::Status::Timeout);
     (void)r;
-    std::cout << "test_timeout_fetch passed.\n";
+    std::cout << "test_timeout_fetch passed." << std::endl;
 }
 
 void test_terminate_twice() {
@@ -281,7 +281,7 @@ void test_terminate_twice() {
     auto r = pipeline.fetch_data(0);
     assert(r.status == DataPipeline<int>::Status::Terminated);
     (void)r;
-    std::cout << "test_terminate_twice passed.\n";
+    std::cout << "test_terminate_twice passed." << std::endl;
 }
 
 void test_terminate_no_data() {
@@ -290,14 +290,14 @@ void test_terminate_no_data() {
     auto r = pipeline.fetch_data(0);
     assert(r.status == DataPipeline<int>::Status::Terminated);
     (void)r;
-    std::cout << "test_terminate_no_data passed.\n";
+    std::cout << "test_terminate_no_data passed." << std::endl;
 }
 
 void test_empty_total_queued() {
     DataPipeline<int> pipeline(false, 2, 2, 4);
     assert(pipeline.total_queued() == 0);
     (void)pipeline;
-    std::cout << "test_empty_total_queued passed.\n";
+    std::cout << "test_empty_total_queued passed." << std::endl;
 }
 
 void test_push_after_terminate() {
@@ -307,13 +307,13 @@ void test_push_after_terminate() {
         pipeline.push_data(0, 1);
         assert(false && "Should throw after terminate");
     } catch (const std::runtime_error&) {}
-    std::cout << "test_push_after_terminate passed.\n";
+    std::cout << "test_push_after_terminate passed." << std::endl;
 }
 
 void test_no_producer_consumer() {
     DataPipeline<int> pipeline(false, 0, 0, 2);
     assert(pipeline.total_queued() == 0);
-    std::cout << "test_no_producer_consumer passed.\n";
+    std::cout << "test_no_producer_consumer passed." << std::endl;
 }
 
 void test_shared_multiple_terminate() {
@@ -325,7 +325,7 @@ void test_shared_multiple_terminate() {
     assert(r.status == DataPipeline<int>::Status::Success);
     r = pipeline.fetch_data(0);
     assert(r.status == DataPipeline<int>::Status::Terminated);
-    std::cout << "test_shared_multiple_terminate passed.\n";
+    std::cout << "test_shared_multiple_terminate passed." << std::endl;
 }
 
 int main() {
@@ -348,6 +348,6 @@ int main() {
     test_no_producer_consumer();
     test_shared_multiple_terminate();
 
-    std::cout << "All DataPipeline tests passed.\n";
+    std::cout << "All DataPipeline tests passed." << std::endl;
     return 0;
 }
