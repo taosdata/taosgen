@@ -21,12 +21,12 @@ jobs:
           #   arch: x64
           #   conan_arch: x86_64
 
-          - runner: [self-hosted, Linux, X64, taosgen]
-            arch: x64
-            conan_arch: x86_64
-          # - runner: [self-hosted, Linux, ARM64, taosgen]
-          #   arch: arm64
-          #   conan_arch: armv8
+          # - runner: [self-hosted, Linux, X64, taosgen]
+          #   arch: x64
+          #   conan_arch: x86_64
+          - runner: [self-hosted, Linux, ARM64, taosgen]
+            arch: arm64
+            conan_arch: armv8
 
     runs-on: ${{ matrix.runner }}
 
@@ -81,6 +81,8 @@ jobs:
             version="${{ steps.get_td_version.outputs.version }}"
             pkg="tdengine-tsdb-enterprise-${version}-linux-${arch}.tar.gz"
             # Clean up old packages
+            pwd
+            ls -al
             for f in tdengine-tsdb-enterprise-*-linux-*.tar.gz; do
               if [ "$f" != "$pkg" ]; then
                 echo "Deleting old package: $f"
@@ -95,7 +97,6 @@ jobs:
               echo "Download URL: $url"
               curl -fSL "$url" -o "$pkg"
             fi
-            pwd
             ls -al
           elif [ "${{ runner.os }}" = "macOS" ]; then
             echo "TODO: macOS download logic"
