@@ -12,7 +12,7 @@ public:
     virtual ~StepExecutionStrategy() = default;
 
     // Interface for executing a step
-    virtual void execute(const Step& step) = 0;
+    virtual bool execute(const Step& step) = 0;
 
 protected:
     const GlobalConfig& global_;
@@ -23,7 +23,7 @@ class ProductionStepStrategy : public StepExecutionStrategy {
 public:
     ProductionStepStrategy(const GlobalConfig& global) : StepExecutionStrategy(global) {}
 
-    void execute(const Step& step) override;
+    bool execute(const Step& step) override;
 };
 
 // Debug environment strategy
@@ -31,5 +31,5 @@ class DebugStepStrategy : public StepExecutionStrategy {
 public:
     DebugStepStrategy(const GlobalConfig& global) : StepExecutionStrategy(global) {}
 
-    void execute(const Step& step) override;
+    bool execute(const Step& step) override;
 };

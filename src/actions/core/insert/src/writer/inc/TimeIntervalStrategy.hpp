@@ -23,6 +23,7 @@ public:
 
     // Timestamp conversion
     int64_t to_milliseconds(int64_t ts) const;
+    int64_t to_microseconds(int64_t ts) const;
 
     // Fixed interval strategy
     int64_t fixed_interval_strategy() const;

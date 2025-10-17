@@ -96,8 +96,8 @@ bool TDengineConnector::connect() {
     if (!conn_) {
         std::cerr << display_name_ << " connection failed: "
                   << taos_errstr_(nullptr)
-                  << " [host: " << conn_info_.host
-                  << ", port: " << conn_info_.port << "]"
+                  << " (host: " << conn_info_.host
+                  << ", port: " << conn_info_.port << ")"
                   << std::endl;
         return false;
     }

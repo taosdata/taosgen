@@ -32,7 +32,10 @@ int main(int argc, char* argv[]) {
             JobScheduler scheduler(config);
 
             // Run scheduler
-            scheduler.run();
+            bool success = scheduler.run();
+            if (!success) {
+                return 1;
+            }
 
             std::cout << "All jobs completed successfully!" << std::endl;
             return 0;

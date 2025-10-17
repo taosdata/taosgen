@@ -43,6 +43,10 @@ std::optional<CSVRow> CSVReader::read_next() {
         return std::nullopt;
     }
 
+    if (!line.empty() && line.back() == '\r') {
+        line.pop_back();
+    }
+
     // Skip empty lines
     while (line.empty() && std::getline(file_stream_, line)) {}
 
