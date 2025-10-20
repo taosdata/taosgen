@@ -182,10 +182,10 @@ jobs:
             pwd
             ls -al
             # Install
-            sudo installer -pkg "$pkg" -target /
+            installer -pkg "$pkg" -target /
             # Start TDengine
-            sudo taosd &
-            sudo taosadapter &
+            taosd &
+            taosadapter &
             # Verify installation
             taos -V || true
           fi
