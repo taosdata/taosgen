@@ -269,10 +269,11 @@ jobs:
       - name: Configure CMake
         working-directory: build
         run: |
-          cmake .. \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_INSTALL_PREFIX=./install \
-            -DCMAKE_PREFIX_PATH=./conan
+          CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=./install -DCMAKE_PREFIX_PATH=./conan"
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_OSX_SYSROOT=$(xcrun --show-sdk-path) -DCMAKE_TOOLCHAIN_FILE=./conan/conan_toolchain.cmake"
+          fi
+          cmake .. $CMAKE_ARGS
 
       - name: Build
         working-directory: build
