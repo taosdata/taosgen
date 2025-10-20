@@ -219,6 +219,8 @@ jobs:
           fi
           file $(which cmake)
           cmake --version
+          echo "PWD: $(pwd)"
+          ls -l
 
       - name: Install CMake (macOS)
         if: runner.os == 'macOS'
@@ -227,6 +229,8 @@ jobs:
           # brew install cmake
           file $(which cmake)
           cmake --version
+          echo "PWD: $(pwd)"
+          ls -l
 
       - name: Install CMake (Windows)
         if: runner.os == 'Windows'
