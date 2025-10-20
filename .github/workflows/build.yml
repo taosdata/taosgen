@@ -276,7 +276,18 @@ jobs:
 
       - name: Build
         working-directory: build
-        run: cmake --build . --config Debug -j $(nproc || sysctl -n hw.ncpu)
+        run: |
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            CPU_CORES=$(nproc)
+          elif [ "${{ runner.os }}" = "macOS" ]; then
+            CPU_CORES=$(sysctl -n hw.ncpu)
+          elif [ "${{ runner.os }}" = "Windows" ]; then
+            CPU_CORES=$(powershell -Command "(Get-CimInstance -ClassName Win32_Processor).NumberOfCores")
+          else
+            CPU_CORES=2
+          fi
+          echo "CPU cores: $CPU_CORES"
+          cmake --build . --config Debug -j $CPU_CORES
 
       - name: Test
         working-directory: build
