@@ -197,6 +197,8 @@ jobs:
 
       - name: Checkout taosgen code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install CMake (Linux)
         if: runner.os == 'Linux'
@@ -220,7 +222,7 @@ jobs:
           file $(which cmake)
           cmake --version
           echo "PWD: $(pwd)"
-          ls -l
+          ls -la
 
       - name: Install CMake (macOS)
         if: runner.os == 'macOS'
@@ -230,7 +232,7 @@ jobs:
           file $(which cmake)
           cmake --version
           echo "PWD: $(pwd)"
-          ls -l
+          ls -la
 
       - name: Install CMake (Windows)
         if: runner.os == 'Windows'
