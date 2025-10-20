@@ -236,10 +236,9 @@ jobs:
           cmake --version
 
       - name: Setup Conan
-        uses: conan-io/setup-conan@v1
-        with:
-          version: 2.20.1
-          use_venv: true
+        run: |
+          python3 -m pip install "conan==2.20.1"
+          conan --version
 
       - name: Cache Conan packages
         uses: actions/cache@v4
