@@ -33,21 +33,26 @@ jobs:
     steps:
       - name: Show environment info
         run: |
+          echo "Time: $(date)"
           echo "OS: $(uname -a)"
           echo "User: $(whoami)"
           echo "HOME: $HOME"
           echo "PWD: $(pwd)"
+          # Print IP address
           if [ "${{ runner.os }}" = "Linux" ]; then
             id
             ls -ld $HOME
+            ip addr show | grep 'inet ' || hostname -I || true
           elif [ "${{ runner.os }}" = "macOS" ]; then
             id
             ls -ld $HOME
+            ipconfig getifaddr en0 || ipconfig getifaddr en1 || ifconfig | grep 'inet ' || true
           elif [ "${{ runner.os }}" = "Windows" ]; then
             whoami
             echo "USERPROFILE: $USERPROFILE"
             echo "HOMEPATH: $HOMEPATH"
             echo "HOMEDRIVE: $HOMEDRIVE"
+            ipconfig | findstr IPv4 || true
           fi
 
       - name: Ensure Python3 and pip
@@ -185,8 +190,8 @@ jobs:
             # Install
             sudo installer -pkg "$pkg" -target /
             # Start TDengine
-            sudo taosd &
-            sudo taosadapter &
+            nohup sudo taosd > /dev/null 2>&1 &
+            nohup sudo taosadapter > /dev/null 2>&1 &
             # Verify installation
             taos -V || true
           fi
@@ -219,8 +224,8 @@ jobs:
       - name: Install CMake (macOS)
         if: runner.os == 'macOS'
         run: |
-          brew update
-          brew install cmake
+          # brew update
+          # brew install cmake
           file $(which cmake)
           cmake --version
 
