@@ -4,8 +4,10 @@
 #include <taos.h>
 #if defined(_WIN32)
   #include <windows.h>
-#else
+#elif defined(__linux__) || defined(__APPLE__)
   #include <dlfcn.h>
+#else
+  #error "Dynamic library loading is only supported on Windows, Linux, and macOS."
 #endif
 #include <mutex>
 #include <map>
@@ -15,11 +17,13 @@
   #define DYNLIB_LOAD(lib) LoadLibraryA(lib)
   #define DYNLIB_SYM(handle, sym) GetProcAddress(handle, sym)
   #define DYNLIB_CLOSE(handle) FreeLibrary(handle)
-#else
+#elif defined(__linux__) || defined(__APPLE__)
   #define DYNLIB_HANDLE void*
   #define DYNLIB_LOAD(lib) dlopen(lib, RTLD_LAZY)
   #define DYNLIB_SYM(handle, sym) dlsym(handle, sym)
   #define DYNLIB_CLOSE(handle) dlclose(handle)
+#else
+  #error "Dynamic library loading is only supported on Windows, Linux, and macOS."
 #endif
 
 class TDengineConnector : public DatabaseConnector {
