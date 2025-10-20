@@ -73,12 +73,14 @@ jobs:
           pip --version || true
           pip3 --version || true
 
+      - name: Setup jq
+        uses: dcarbone/install-jq-action@v2
+        with:
+          version: '1.6'
+
       - name: Get latest TDengine version
         id: get_td_version
         run: |
-          if [ "${{ runner.os }}" = "macOS" ]; then
-            brew install jq
-          fi
           version=$(curl -s https://api.github.com/repos/taosdata/TDengine/releases/latest | jq -r .name)
           version=${version#v}
           echo "version=$version" >> $GITHUB_OUTPUT
