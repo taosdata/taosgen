@@ -293,6 +293,14 @@ jobs:
           echo "CPU cores: $CPU_CORES"
           cmake --build . --config Debug -j $CPU_CORES
 
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            install_name_tool -add_rpath /usr/local/lib ./src/taosgen
+          fi
+
       - name: Test
         working-directory: build
-        run: ctest --output-on-failure --verbose
+        run: |
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            export DYLD_LIBRARY_PATH=/usr/local/lib:$DYLD_LIBRARY_PATH
+          fi
+          ctest --output-on-failure --verbose

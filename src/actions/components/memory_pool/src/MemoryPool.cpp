@@ -369,6 +369,7 @@ MemoryPool::MemoryPool(size_t num_blocks,
 
     // Total size for timestamp section
     timestamps_size_ = max_tables_per_block * max_rows_per_table * sizeof(int64_t);
+    timestamps_size_ = align_up(timestamps_size_, MEMORY_POOL_ALIGNMENT);
 
     // Calculate total size for columns
     common_meta_size_ = 0;
