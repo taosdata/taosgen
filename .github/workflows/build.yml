@@ -341,7 +341,6 @@ jobs:
           fi
 
           # Packaging
-          cd ..
           tar zcvf taosgen-${VERSION}-${OS_NAME}-${ARCH}.tar.gz taosgen
         shell: bash
 
