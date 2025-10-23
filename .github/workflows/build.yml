@@ -1,15 +1,12 @@
 name: taosgen Build
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  workflow_call:
+    inputs:
+      build_type:
+        required: false
+        type: string
+        default: Debug
 
 jobs:
   build:
@@ -273,14 +270,14 @@ jobs:
           conan install .. \
             --build=missing \
             --output-folder=./conan \
-            --settings=build_type=Debug \
+            --settings=build_type=${{ inputs.build_type }} \
             --settings=arch=${{ matrix.conan_arch }} \
             --settings=compiler.cppstd=17
 
       - name: Configure CMake
         working-directory: build
         run: |
-          CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=./install -DCMAKE_PREFIX_PATH=./conan"
+          CMAKE_ARGS="-DCMAKE_BUILD_TYPE=${{ inputs.build_type }} -DCMAKE_INSTALL_PREFIX=./install -DCMAKE_PREFIX_PATH=./conan"
           if [ "${{ runner.os }}" = "macOS" ]; then
             CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_OSX_SYSROOT=$(xcrun --show-sdk-path) -DCMAKE_TOOLCHAIN_FILE=./conan/conan_toolchain.cmake"
           fi
@@ -299,7 +296,7 @@ jobs:
             CPU_CORES=2
           fi
           echo "CPU cores: $CPU_CORES"
-          cmake --build . --config Debug -j $CPU_CORES
+          cmake --build . --config ${{ inputs.build_type }} -j $CPU_CORES
 
           if [ "${{ runner.os }}" = "macOS" ]; then
             install_name_tool -add_rpath /usr/local/lib ./src/taosgen
