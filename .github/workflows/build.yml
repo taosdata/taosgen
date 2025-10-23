@@ -267,11 +267,6 @@ jobs:
       - name: Install dependencies
         working-directory: build
         run: |
-          if [ "${{ runner.os }}" = "macOS" ]; then
-            export XCFLAGS="-DLUAJIT_ENABLE_GC64"
-            export CFLAGS="-DLUAJIT_ENABLE_GC64"
-            export CXXFLAGS="-DLUAJIT_ENABLE_GC64"
-          fi
           conan install .. \
             --build=missing \
             --output-folder=./conan \
