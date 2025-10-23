@@ -309,3 +309,40 @@ jobs:
             export DYLD_LIBRARY_PATH=/usr/local/lib:$DYLD_LIBRARY_PATH
           fi
           ctest --output-on-failure --verbose
+
+      - name: Prepare release artifact
+        if: ${{ inputs.build_type == 'Release' }}
+        run: |
+          OS_NAME=$(echo "${{ runner.os }}" | tr '[:upper:]' '[:lower:]')
+          ARCH="${{ matrix.arch }}"
+          VERSION="${{ github.ref_name }}"
+
+          # Create release directory
+          if [ -d release/taosgen ]; then
+            rm -rf release/taosgen/*
+          else
+            mkdir -p release/taosgen
+          fi
+
+          # Copy the executable file and configuration
+          cp ./src/taosgen release/taosgen/
+          cp -rf ../conf release/taosgen/
+          cd release/taosgen/
+
+          if [ "$OS_NAME" = "linux" ]; then
+            sed -i 's|\.\./conf|\./conf|g' taosgen/conf/*.yaml
+          elif [ "$OS_NAME" = "macos" ]; then
+            sed -i '' 's|\.\./conf|\./conf|g' taosgen/conf/*.yaml
+          fi
+
+          # Packaging
+          cd ..
+          tar zcvf taosgen-${VERSION}-${OS_NAME}-${ARCH}.tar.gz taosgen
+        shell: bash
+
+      - name: Upload release artifact
+        if: ${{ inputs.build_type == 'Release' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: taosgen-${{ runner.os }}-${{ matrix.arch }}
+          path: release/taosgen-*.tar.gz
