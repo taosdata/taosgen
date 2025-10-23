@@ -350,3 +350,4 @@ jobs:
         with:
           name: taosgen-${{ runner.os }}-${{ matrix.arch }}
           path: release/taosgen-v*.tar.gz
+          if-no-files-found: error

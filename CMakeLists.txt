@@ -99,7 +99,7 @@ add_compile_options(
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   add_compile_options(-O0 -g)
 else()
-  add_compile_options(-O3)
+  add_compile_options(-O3 -g)
 endif()
 
 # Add cmake modules path
