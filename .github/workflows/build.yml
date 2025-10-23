@@ -90,12 +90,12 @@ jobs:
           version=${version#v}
           echo "version=$version" >> $GITHUB_OUTPUT
 
-      - name: Cache TDengine
-        id: cache-tdengine
-        uses: actions/cache@v4
-        with:
-          path: ~/.tdengine-cache
-          key: tdengine-${{ steps.get_td_version.outputs.version }}-${{ runner.os }}-${{ matrix.arch }}
+      # - name: Cache TDengine
+      #   id: cache-tdengine
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: ~/.tdengine-cache
+      #     key: tdengine-${{ steps.get_td_version.outputs.version }}-${{ runner.os }}-${{ matrix.arch }}
 
       - name: Download TDengine
         if: steps.cache-tdengine.outputs.cache-hit != 'true'
@@ -267,6 +267,11 @@ jobs:
       - name: Install dependencies
         working-directory: build
         run: |
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            export XCFLAGS="-DLUAJIT_ENABLE_GC64"
+            export CFLAGS="-DLUAJIT_ENABLE_GC64"
+            export CXXFLAGS="-DLUAJIT_ENABLE_GC64"
+          fi
           conan install .. \
             --build=missing \
             --output-folder=./conan \
