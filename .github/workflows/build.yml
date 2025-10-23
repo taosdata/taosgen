@@ -325,8 +325,8 @@ jobs:
           fi
 
           # Copy the executable file and configuration
-          cp ./src/taosgen release/taosgen/
-          cp -rf ../conf release/taosgen/
+          cp ./build/src/taosgen release/taosgen/
+          cp -rf ./conf release/taosgen/
           cd release/taosgen/
 
           if [ "$OS_NAME" = "linux" ]; then
