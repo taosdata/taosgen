@@ -50,13 +50,13 @@ void test_string_type_handler() {
 }
 
 void test_u16string_type_handler() {
-    ColumnType value = std::u16string(u"你好");
-    char buf[16] = {};
+    ColumnType value = std::u16string(u"你好世界");
+    char buf[32] = {};
     size_t len = ColumnConverter::u16string_type_handler(value, buf, sizeof(buf));
     (void)len;
-    assert(len == 2 * sizeof(char16_t));
-    std::u16string restored(reinterpret_cast<const char16_t*>(buf), 2);
-    assert(restored == std::u16string(u"你好"));
+    assert(len == std::string("你好世界").size()); // 12
+    std::string restored(buf, len);
+    assert(restored == "你好世界");
     std::cout << "test_u16string_type_handler passed." << std::endl;
 }
 
@@ -100,10 +100,12 @@ void test_string_to_column() {
 }
 
 void test_u16string_to_column() {
-    std::u16string u16str = u"世界";
-    const char* src = reinterpret_cast<const char*>(u16str.data());
-    ColumnType value = ColumnConverter::u16string_to_column(src, u16str.size() * sizeof(char16_t));
-    assert(std::get<std::u16string>(value) == u16str);
+    std::string utf8 = "你好世界";
+    ColumnType value = ColumnConverter::u16string_to_column(utf8.data(), utf8.size());
+    std::u16string expected(u"你好世界");
+    (void)value;
+    (void)expected;
+    assert(std::get<std::u16string>(value) == expected);
     std::cout << "test_u16string_to_column passed." << std::endl;
 }
 

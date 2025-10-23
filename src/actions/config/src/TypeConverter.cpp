@@ -1,7 +1,13 @@
-#include "CSVUtils.hpp"
+#include "TypeConverter.hpp"
 #include "StringUtils.hpp"
+#include <codecvt>
+#include <sstream>
+#include <vector>
+#include <stdexcept>
+#include <algorithm>
+#include <cctype>
 
-namespace CSVUtils {
+namespace TypeConverter {
 
     template <typename T>
     T convert_value(const std::string& value) {
@@ -35,11 +41,7 @@ namespace CSVUtils {
         } else if constexpr (std::is_same_v<T, std::string>) {
             return trimmed;
         } else if constexpr (std::is_same_v<T, std::u16string>) {
-            std::u16string utf16;
-            for (char c : trimmed) {
-                utf16.push_back(static_cast<char16_t>(c));
-            }
-            return utf16;
+            return StringUtils::utf8_to_u16string(trimmed);
         } else if constexpr (std::is_same_v<T, std::vector<uint8_t>>) {
             return std::vector<uint8_t>(trimmed.begin(), trimmed.end());
         } else {
@@ -93,5 +95,4 @@ namespace CSVUtils {
             throw std::runtime_error(ss.str());
         }
     }
-
 }

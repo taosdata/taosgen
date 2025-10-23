@@ -1,15 +1,9 @@
 #pragma once
 
 #include <string>
-#include <vector>
-#include <stdexcept>
-#include <algorithm>
-#include <cctype>
-#include <variant>
-#include <sstream>
 #include "ColumnType.hpp"
 
-namespace CSVUtils {
+namespace TypeConverter {
 
     // Convert a string value to a specific type
     template <typename T>
