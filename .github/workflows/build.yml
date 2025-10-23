@@ -332,7 +332,7 @@ jobs:
           # Copy the executable file and configuration
           cp ./build/src/taosgen release/taosgen/
           cp -rf ./conf release/taosgen/
-          cd release/taosgen/
+          cd release/
 
           if [ "$OS_NAME" = "linux" ]; then
             sed -i 's|\.\./conf|\./conf|g' taosgen/conf/*.yaml
@@ -350,4 +350,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: taosgen-${{ runner.os }}-${{ matrix.arch }}
-          path: release/taosgen-*.tar.gz
+          path: release/taosgen-v*.tar.gz
