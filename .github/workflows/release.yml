@@ -32,25 +32,25 @@ jobs:
       - name: Download build artifact (linux-x64)
         uses: actions/download-artifact@v4
         with:
-          name: taosgen-linux-x64
+          name: taosgen-Linux-x64
           path: ./artifacts
 
       - name: Download build artifact (linux-arm64)
         uses: actions/download-artifact@v4
         with:
-          name: taosgen-linux-arm64
+          name: taosgen-Linux-arm64
           path: ./artifacts
 
       - name: Download build artifact (macos-x64)
         uses: actions/download-artifact@v4
         with:
-          name: taosgen-macos-x64
+          name: taosgen-macOS-x64
           path: ./artifacts
 
       - name: Download build artifact (macos-arm64)
         uses: actions/download-artifact@v4
         with:
-          name: taosgen-macos-arm64
+          name: taosgen-macOS-arm64
           path: ./artifacts
 
       - name: Create GitHub Release

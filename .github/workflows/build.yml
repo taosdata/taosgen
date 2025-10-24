@@ -104,6 +104,7 @@ jobs:
           cd ~/.tdengine-cache
           arch="${{ matrix.arch }}"
           version="${{ steps.get_td_version.outputs.version }}"
+          tdengine_server="${{ secrets.TDENGINE_SERVER_URL }}"
 
           if [ "${{ runner.os }}" = "Linux" ]; then
             pkg="tdengine-tsdb-enterprise-${version}-linux-${arch}.tar.gz"
@@ -120,7 +121,7 @@ jobs:
             done
 
             # Download if not exists
-            url="http://192.168.1.131/data/nas/TDengine/3.3/v${version}/enterprise/${pkg}"
+            url="${tdengine_server}/3.3/v${version}/enterprise/${pkg}"
             if [ -f "$pkg" ] && [ $(stat -c%s "$pkg") -gt $((300*1024*1024)) ]; then
               echo "$pkg already exists and is larger than 300MB, skip download."
             else
@@ -146,7 +147,7 @@ jobs:
             done
 
             # Download if not exists
-            url="http://192.168.1.131/data/nas/TDengine/3.3/v${version}/community/${pkg}"
+            url="${tdengine_server}/3.3/v${version}/community/${pkg}"
             if [ -f "$pkg" ] && [ $(stat -f%z "$pkg") -gt $((100*1024*1024)) ]; then
               echo "$pkg already exists and is larger than 100MB, skip download."
             else
