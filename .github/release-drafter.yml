@@ -1,3 +1,16 @@
+name-template: 'taosgen v$NEXT_PATCH_VERSION Release'
+tag-template: 'v$NEXT_PATCH_VERSION'
+categories:
+  - title: '🚀 Features'
+    labels:
+      - 'feature'
+  - title: '🐛 Bug Fixes'
+    labels:
+      - 'bug'
+  - title: '🧰 Maintenance'
+    labels:
+      - 'chore'
+change-template: '- $TITLE (#$NUMBER) @$AUTHOR'
 template: |
   ## This release includes:
 
