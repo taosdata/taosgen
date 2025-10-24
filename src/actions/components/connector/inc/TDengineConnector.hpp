@@ -61,7 +61,7 @@ protected:
 private:
     void init_driver();
 
-    void* taos_lib_handle_{nullptr};
+    DYNLIB_HANDLE taos_lib_handle_{nullptr};
 
     // Base API
     using taos_options_func = int (*)(TSDB_OPTION, const void*, ...);
