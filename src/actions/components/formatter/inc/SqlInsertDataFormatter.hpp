@@ -20,7 +20,7 @@ public:
     FormatResult format(const InsertDataConfig& config,
                         const ColumnConfigInstanceVector& col_instances,
                         MemoryPool::MemoryBlock* batch, bool is_checkpoint_recover = false) const override{
-                            
+
         (void)is_checkpoint_recover;
         if (!batch || batch->total_rows == 0) {
             return FormatResult("");
@@ -127,29 +127,7 @@ public:
                             result << "'";
 
                             if (tag == ColumnTypeTag::NCHAR) {
-                                // UTF-16 to UTF-8 conversion
-                                const char16_t* u16str = reinterpret_cast<const char16_t*>(data_start);
-                                size_t u16len = data_len / sizeof(char16_t);
-                                std::u16string u16(u16str, u16len);
-
-                                // Convert to UTF-8
-                                std::string utf8;
-                                {
-                                    std::u16string u16(u16str, u16len);
-                                    utf8.reserve(u16.size() * 2);
-                                    for (char16_t c : u16) {
-                                        if (c <= 0x7F) {
-                                            utf8.push_back(static_cast<char>(c));
-                                        } else if (c <= 0x7FF) {
-                                            utf8.push_back(static_cast<char>(0xC0 | ((c >> 6) & 0x1F)));
-                                            utf8.push_back(static_cast<char>(0x80 | (c & 0x3F)));
-                                        } else {
-                                            utf8.push_back(static_cast<char>(0xE0 | ((c >> 12) & 0x0F)));
-                                            utf8.push_back(static_cast<char>(0x80 | ((c >> 6) & 0x3F)));
-                                            utf8.push_back(static_cast<char>(0x80 | (c & 0x3F)));
-                                        }
-                                    }
-                                }
+                                std::string utf8(data_start, data_len);
 
                                 // Escape single quotes
                                 for (char c : utf8) {

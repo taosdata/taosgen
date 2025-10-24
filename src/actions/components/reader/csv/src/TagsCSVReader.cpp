@@ -1,4 +1,5 @@
 #include "TagsCSVReader.hpp"
+#include "TypeConverter.hpp"
 #include <stdexcept>
 #include <algorithm>
 #include <sstream>
@@ -7,9 +8,6 @@
 #include <cmath>
 #include <locale>
 #include <iomanip>
-#include "ColumnType.hpp"
-#include "CSVUtils.hpp"
-
 
 TagsCSVReader::TagsCSVReader(const TagsCSV& config, std::optional<ColumnConfigInstanceVector> instances)
     : config_(config), instances_(instances) {
@@ -58,11 +56,11 @@ void TagsCSVReader::validate_config() {
 
 template <typename T>
 T TagsCSVReader::convert_value(const std::string& value) const {
-    return CSVUtils::convert_value<T>(value);
+    return TypeConverter::convert_value<T>(value);
 }
 
 ColumnType TagsCSVReader::convert_to_type(const std::string& value, ColumnTypeTag target_type) const {
-    return CSVUtils::convert_to_type(value, target_type);
+    return TypeConverter::convert_to_type(value, target_type);
 }
 
 std::vector<ColumnTypeVector> TagsCSVReader::generate() const {

@@ -12,9 +12,9 @@ namespace ColumnConverter {
 
     size_t u16string_type_handler(const ColumnType& value, char* dest, size_t max_len) {
         const auto& str = std::get<std::u16string>(value);
-        size_t byte_len = str.size() * sizeof(char16_t);
-        size_t len = std::min(byte_len, max_len);
-        memcpy(dest, str.data(), len);
+        std::string utf8 = StringUtils::u16string_to_utf8(str);
+        size_t len = std::min(utf8.size(), max_len);
+        memcpy(dest, utf8.data(), len);
         return len;
     }
 
@@ -37,11 +37,8 @@ namespace ColumnConverter {
     }
 
     ColumnType u16string_to_column(const char* src, size_t len) {
-        size_t char_count = len / sizeof(char16_t);
-        return std::u16string(
-            reinterpret_cast<const char16_t*>(src),
-            char_count
-        );
+        std::string utf8_str(src, len);
+        return StringUtils::utf8_to_u16string(utf8_str);
     }
 
     ColumnType json_to_column(const char* src, size_t len) {

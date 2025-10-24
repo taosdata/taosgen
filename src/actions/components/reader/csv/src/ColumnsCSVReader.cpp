@@ -13,11 +13,8 @@
 #include <ctime>
 #include <unordered_map>
 #include "StringUtils.hpp"
+#include "TypeConverter.hpp"
 #include "TimestampUtils.hpp"
-#include "ColumnType.hpp"
-#include "CSVUtils.hpp"
-
-
 
 
 ColumnsCSVReader::ColumnsCSVReader(const ColumnsCSV& config, std::optional<ColumnConfigInstanceVector> instances)
@@ -83,11 +80,11 @@ void ColumnsCSVReader::validate_config() {
 
 template <typename T>
 T ColumnsCSVReader::convert_value(const std::string& value) const {
-    return CSVUtils::convert_value<T>(value);
+    return TypeConverter::convert_value<T>(value);
 }
 
 ColumnType ColumnsCSVReader::convert_to_type(const std::string& value, ColumnTypeTag target_type) const {
-    return CSVUtils::convert_to_type(value, target_type);
+    return TypeConverter::convert_to_type(value, target_type);
 }
 
 std::unordered_map<std::string, TableData> ColumnsCSVReader::generate() const {
