@@ -229,6 +229,11 @@ void ColumnConfig::parse_type() {
         type_tag = get_type_tag(base);
         type_index = get_type_index();
         len = len_val;
+        if (type_tag == ColumnTypeTag::NCHAR) {
+            cap = len_val * 4;
+        } else {
+            cap = len_val;
+        }
         precision.reset();
         scale.reset();
         return;
@@ -240,6 +245,7 @@ void ColumnConfig::parse_type() {
         precision = std::stoi(match[1].str());
         scale = std::stoi(match[2].str());
         len.reset();
+        cap.reset();
         return;
     }
 
@@ -251,6 +257,7 @@ void ColumnConfig::parse_type() {
         precision = std::stoi(match[1].str());
         scale.reset();
         len.reset();
+        cap.reset();
         return;
     }
 
@@ -272,8 +279,10 @@ void ColumnConfig::parse_type() {
         }
     } else if (type_tag == ColumnTypeTag::JSON) {
         len = 200;
+        cap = len;
     } else {
         len.reset();
+        cap.reset();
     }
 
     precision.reset();

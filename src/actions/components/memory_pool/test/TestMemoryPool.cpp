@@ -233,6 +233,8 @@ void test_memory_pool_cache_mode_basic() {
     std::vector<RowData> cache_data_0, cache_data_1;
     for (size_t i = 0; i < num_rows; ++i) {
         RowData row0, row1;
+        row0.timestamp = 0;
+        row1.timestamp = 0;
         row0.columns = {int32_t(i * 10), std::string("cache0_t0_" + std::to_string(i))};
         row1.columns = {int32_t(i * 100), std::string("cache0_t1_" + std::to_string(i))};
         cache_data_0.push_back(row0);

@@ -3,6 +3,7 @@ add_library(actions_config STATIC
   src/TDengineConfig.cpp
   src/ColumnType.cpp
   src/ColumnConfig.cpp
+  src/TypeConverter.cpp
 )
 
 # Set include directories

@@ -18,6 +18,7 @@ struct ColumnConfig {
     size_t type_index = std::variant_npos;
     bool primary_key = false;
     std::optional<int> len;
+    std::optional<int> cap;
     size_t count = 1;
     std::optional<int> precision;
     std::optional<int> scale;

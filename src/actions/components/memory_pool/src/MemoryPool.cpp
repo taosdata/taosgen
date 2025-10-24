@@ -384,7 +384,7 @@ MemoryPool::MemoryPool(size_t num_blocks,
         if (col_instance.config().is_var_length()) {
             // lengths + offsets
             var_meta_size_ += max_rows_per_block * (sizeof(int32_t) + sizeof(size_t));
-            var_data_size_ += max_rows_per_block * col_instance.config().len.value();
+            var_data_size_ += max_rows_per_block * col_instance.config().cap.value();
         } else {
             fixed_data_size_ += max_rows_per_block * col_instance.config().get_fixed_type_size();
         }
@@ -475,7 +475,7 @@ void MemoryPool::init_cache_units() {
 
                 if (config.is_var_length()) {
                     col.is_fixed = false;
-                    col.max_length = config.len.value();
+                    col.max_length = config.cap.value();
                     col.element_size = 0;
 
                     // lengths array
@@ -487,7 +487,7 @@ void MemoryPool::init_cache_units() {
                     var_meta_ptr += offsets_size;
 
                     // var_data data area
-                    const size_t col_data_size = max_rows_per_table_ * config.len.value();
+                    const size_t col_data_size = max_rows_per_table_ * config.cap.value();
                     col.var_data = var_data_ptr;
                     var_data_ptr += col_data_size;
                 } else {
@@ -585,7 +585,7 @@ void MemoryPool::init_normal_blocks() {
 
                 if (config.is_var_length()) {
                     col.is_fixed = false;
-                    col.max_length = config.len.value();
+                    col.max_length = config.cap.value();
                     col.element_size = 0;
 
                     // lengths array
@@ -597,7 +597,7 @@ void MemoryPool::init_normal_blocks() {
                     var_meta_ptr += offsets_size;
 
                     // var_data data area
-                    const size_t col_data_size = max_rows_per_table_ * config.len.value();
+                    const size_t col_data_size = max_rows_per_table_ * config.cap.value();
                     col.var_data = var_data_ptr;
                     var_data_ptr += col_data_size;
                 } else {

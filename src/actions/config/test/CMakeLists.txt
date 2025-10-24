@@ -27,3 +27,13 @@ target_link_libraries(TestColumnConfigInstance
     actions_config
 )
 add_test(NAME TestColumnConfigInstance COMMAND TestColumnConfigInstance)
+
+# Test TypeConverter
+add_executable(TestTypeConverter
+  TestTypeConverter.cpp
+)
+target_link_libraries(TestTypeConverter
+  PRIVATE
+    actions_config
+)
+add_test(NAME TestTypeConverter COMMAND TestTypeConverter)

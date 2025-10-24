@@ -1,6 +1,5 @@
 # Create library target
 add_library(reader_csv STATIC
-  src/CSVUtils.cpp
   src/CSVReader.cpp
   src/TableNameCSVReader.cpp
   src/TagsCSVReader.cpp
