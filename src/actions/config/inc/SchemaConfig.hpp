@@ -50,7 +50,9 @@ struct SchemaConfig {
             if (from_csv.columns.timestamp_strategy.csv.enabled) {
                 if(!from_csv.columns.timestamp_strategy.csv.timestamp_precision.has_value()) {
                     from_csv.columns.timestamp_strategy.csv.timestamp_precision = columns[0].ts.generator.timestamp_precision;
-                    from_csv.columns.timestamp_strategy.csv.offset_config->parse_offset(from_csv.columns.timestamp_strategy.csv.timestamp_precision.value());
+                    if (from_csv.columns.timestamp_strategy.csv.offset_config.has_value()) {
+                        from_csv.columns.timestamp_strategy.csv.offset_config->parse_offset(from_csv.columns.timestamp_strategy.csv.timestamp_precision.value());
+                    }
                 }
                 columns_cfg.csv.timestamp_strategy = from_csv.columns.timestamp_strategy;
             } else {
