@@ -96,7 +96,7 @@ void CheckpointAction::save_checkpoint() {
     );
     std::string min_table_name = min_it->first;
     // Save checkpoint_data to a file or database
-    std::string file_path = global_.yaml_cfg_dir + "_"+ global_.database_info.name+ "_"+ global_.super_table_info.name + "_checkpoints.json"; // Example file path
+    std::string file_path = global_.yaml_cfg_dir + "_"+ global_.tdengine.database+ "_"+ global_.schema.name + "_checkpoints.json"; // Example file path
     nlohmann::json json_data;
     json_data["table_name"] = min_table_name;
     json_data["last_checkpoint_time"] = min_it->second.last_checkpoint_time;
@@ -153,7 +153,7 @@ bool CheckpointAction::is_recover(const GlobalConfig& global, const CheckpointIn
         return false;
     }
 
-    std::string file_path = global.yaml_cfg_dir + "_" + global.database_info.name + "_" + global.super_table_info.name + "_checkpoints.json"; // Example file path
+    std::string file_path = global.yaml_cfg_dir + "_" + global.tdengine.database + "_" + global.schema.name + "_checkpoints.json"; // Example file path
 
     std::ifstream ifs(file_path);
     if (!ifs) {
@@ -168,7 +168,7 @@ void CheckpointAction::checkpoint_recover(const GlobalConfig& global, InsertData
         return;
     }
 
-    std::string file_path = global.yaml_cfg_dir + "_" + global.database_info.name + "_" + global.super_table_info.name + "_checkpoints.json"; // Example file path
+    std::string file_path = global.yaml_cfg_dir + "_" + global.tdengine.database + "_" + global.schema.name + "_checkpoints.json"; // Example file path
 
     std::ifstream ifs(file_path);
     if (!ifs) {
@@ -190,6 +190,7 @@ void CheckpointAction::checkpoint_recover(const GlobalConfig& global, InsertData
     checkpoint_data.table_name = json_data["table_name"].get<std::string>();
     checkpoint_data.last_checkpoint_time = json_data["last_checkpoint_time"].get<std::int64_t>();
     checkpoint_data.writeCount = (checkpoint_data.last_checkpoint_time - start_timestamp) / timestamp_step;
+
     if (config.schema.generation.rows_per_table <= checkpoint_data.writeCount) {
         return;
     }
@@ -199,7 +200,7 @@ void CheckpointAction::checkpoint_recover(const GlobalConfig& global, InsertData
 
 void CheckpointAction::delete_checkpoint() {
     std::lock_guard<std::mutex> lock(map_mutex_);
-    std::string file_path = global_.yaml_cfg_dir + "_" + global_.database_info.name + "_" + global_.super_table_info.name + "_checkpoints.json";
+    std::string file_path = global_.yaml_cfg_dir + "_" + global_.tdengine.database + "_" + global_.schema.name + "_checkpoints.json";
     std::remove(file_path.c_str());
     checkpoint_map_.clear();
     std::cout << "[Checkpoint] delete checkpoint file and cleared all in-memory checkpoint data." << std::endl;

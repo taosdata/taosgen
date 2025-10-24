@@ -98,10 +98,20 @@ void test_parse_timestamp_now_plus_100_default_precision() {
 
 // Test: ISO time string
 void test_parse_timestamp_iso_string() {
-    // 2023-01-01 00:00:00 = 1672502400
+    // 2023-01-01 00:00:00
+    std::tm tm = {};
+    tm.tm_year = 2023 - 1900;
+    tm.tm_mon = 0;
+    tm.tm_mday = 1;
+    tm.tm_hour = 0;
+    tm.tm_min = 0;
+    tm.tm_sec = 0;
+    tm.tm_isdst = -1;
+    time_t expected = std::mktime(&tm);
     int64_t result = TimestampUtils::parse_timestamp("2023-01-01 00:00:00", "s");
+    (void)expected;
     (void)result;
-    assert(result == 1672502400);
+    assert(result == static_cast<int64_t>(expected));
     std::cout << "test_parse_timestamp_iso_string passed\n";
 }
 

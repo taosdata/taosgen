@@ -22,8 +22,12 @@ target_link_libraries(components_connector
   PUBLIC
     components_formatter
     actions_config
-    TAOS::TAOS
+    # TAOS::TAOS
 )
+
+if(UNIX AND NOT APPLE)
+  target_link_libraries(components_connector PUBLIC dl)
+endif()
 
 # Enable tests
 if(TSGEN_ENABLE_TEST)

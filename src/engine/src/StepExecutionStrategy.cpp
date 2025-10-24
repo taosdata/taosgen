@@ -1,5 +1,4 @@
 #include "StepExecutionStrategy.hpp"
-#include <iostream>
 #include "ActionFactory.hpp"
 #include "CreateDatabaseAction.hpp"
 #include "CreateSuperTableAction.hpp"
@@ -7,6 +6,8 @@
 #include "InsertDataAction.hpp"
 #include "QueryDataAction.hpp"
 #include "SubscribeDataAction.hpp"
+#include <iostream>
+#include <mutex>
 
 
 // Implementation of production environment strategy
@@ -29,7 +30,10 @@ bool ProductionStepStrategy::execute(const Step& step) {
 
 
 // Implementation of debug environment strategy
+static std::mutex log_mutex;
 bool DebugStepStrategy::execute(const Step& step) {
+    std::lock_guard<std::mutex> lock(log_mutex);
+
     std::cout << "Executing step: " << step.name << " (" << step.uses << ")" << std::endl;
 
     if (step.uses == "tdengine/create-database") {

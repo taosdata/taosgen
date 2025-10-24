@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.19)
 project(taosbenchmark LANGUAGES CXX)
 
+set(CMAKE_SKIP_RPATH ON)
+
 # Conan 2.x integration
 include(${CMAKE_BINARY_DIR}/conan/conan_toolchain.cmake)
 list(APPEND CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR}/conan)
@@ -50,6 +52,9 @@ endif()
 string(TOUPPER ${CMAKE_BUILD_TYPE} BUILD_TYPE_UPPER)
 
 string(TIMESTAMP TSGEN_BUILD_DATE "%Y-%m-%d %H:%M:%S %z")
+if(TSGEN_BUILD_DATE MATCHES " %z$")
+  string(REPLACE " %z" " +0800" TSGEN_BUILD_DATE "${TSGEN_BUILD_DATE}")
+endif()
 message(STATUS "Sys Info: ${TSGEN_BUILD_TARGET_OSTYPE}-${TSGEN_BUILD_TARGET_CPUTYPE} ${TSGEN_BUILD_DATE}")
 
 # Sanitizer
@@ -97,7 +102,7 @@ add_compile_options(
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   add_compile_options(-O0 -g)
 else()
-  add_compile_options(-O3)
+  add_compile_options(-O3 -g)
 endif()
 
 # Add cmake modules path
@@ -118,9 +123,17 @@ find_package(yaml-cpp REQUIRED)
 find_package(luajit REQUIRED)
 find_package(PahoMqttCpp REQUIRED)
 find_package(nlohmann_json REQUIRED)
-find_package(TAOS REQUIRED)
+# find_package(TAOS REQUIRED)
 find_package(Threads REQUIRED)
 find_package(Iconv REQUIRED)
+
+if(TSGEN_DARWIN)
+  include_directories(/usr/local/include)
+elseif(TSGEN_LINUX)
+  include_directories(/usr/include)
+elseif(TSGEN_WINDOWS)
+  include_directories("C:/TDengine/include")
+endif()
 
 if(HAVE_GIT)
   execute_process(COMMAND git log -1 --format=%H WORKING_DIRECTORY ${PROJECT_SOURCE_DIR} OUTPUT_VARIABLE GIT_COMMITID)

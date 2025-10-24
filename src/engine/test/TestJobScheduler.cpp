@@ -7,6 +7,7 @@
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
+#include <mutex>
 
 
 struct ConfigWithDependencies {
@@ -108,7 +109,7 @@ void validate_execution_order(const std::vector<std::string>& actual_order,
         // Check if dependencies are completed
         if (dependencies.find(job_key) != dependencies.end()) {
             for (const auto& dependency : dependencies.at(job_key)) {
-                (void)dependency;
+                std::cout << "Validating that " << job_key << " depends on " << dependency << std::endl;
                 assert(completed_jobs.find(dependency) != completed_jobs.end() && "Dependency not satisfied");
             }
         }
@@ -168,17 +169,31 @@ void test_job_scheduler_with_delay() {
         DelayStepStrategy(const GlobalConfig& global) : StepExecutionStrategy(global) {}
 
         bool execute(const Step& step) override {
+            static std::mutex log_mutex;
+
             // Print debug info
-            std::cout << "Executing step: " << step.name << " (" << step.uses << ")" << std::endl;
+            {
+                std::lock_guard<std::mutex> lock(log_mutex);
+                std::cout << "Executing step: " << step.name << " (" << step.uses << ")" << std::endl;
+            }
 
             if (step.uses == "tdengine/create-database") {
-                std::cout << "Action type: Create Database" << std::endl;
+                {
+                    std::lock_guard<std::mutex> lock(log_mutex);
+                    std::cout << "Action type: Create Database" << std::endl;
+                }
                 std::this_thread::sleep_for(std::chrono::seconds(7));
             } else if (step.uses == "tdengine/create-super-table") {
-                std::cout << "Action type: Create Super Table" << std::endl;
+                {
+                    std::lock_guard<std::mutex> lock(log_mutex);
+                    std::cout << "Action type: Create Super Table" << std::endl;
+                }
                 std::this_thread::sleep_for(std::chrono::seconds(6));
             } else if (step.uses == "tdengine/create-child-table") {
-                std::cout << "Action type: Create Child Table" << std::endl;
+                {
+                    std::lock_guard<std::mutex> lock(log_mutex);
+                    std::cout << "Action type: Create Child Table" << std::endl;
+                }
                 if (step.name == "Create Second Child Table") {
                     std::this_thread::sleep_for(std::chrono::seconds(5));
                 } else if (step.name == "Create Minute Child Table") {
@@ -186,7 +201,10 @@ void test_job_scheduler_with_delay() {
                 }
                 std::this_thread::sleep_for(std::chrono::seconds(3));
             } else if (step.uses == "tdengine/insert-data") {
-                std::cout << "Action type: Insert Data" << std::endl;
+                {
+                    std::lock_guard<std::mutex> lock(log_mutex);
+                    std::cout << "Action type: Insert Data" << std::endl;
+                }
                 if (step.name == "Insert Second-Level Data") {
                     std::this_thread::sleep_for(std::chrono::seconds(1));
                 } else if (step.name == "Insert Minute-Level Data") {
@@ -194,16 +212,28 @@ void test_job_scheduler_with_delay() {
                 }
                 std::this_thread::sleep_for(std::chrono::seconds(3));
             } else if (step.uses == "actions/query-data") {
-                std::cout << "Action type: Query Data" << std::endl;
+                {
+                    std::lock_guard<std::mutex> lock(log_mutex);
+                    std::cout << "Action type: Query Data" << std::endl;
+                }
             } else if (step.uses == "actions/subscribe-data") {
-                std::cout << "Action type: Subscribe Data" << std::endl;
+                {
+                    std::lock_guard<std::mutex> lock(log_mutex);
+                    std::cout << "Action type: Subscribe Data" << std::endl;
+                }
                 std::this_thread::sleep_for(std::chrono::seconds(2));
             } else {
-                std::cerr << "Unknown action type: " << step.uses << std::endl;
+                {
+                    std::lock_guard<std::mutex> lock(log_mutex);
+                    std::cerr << "Unknown action type: " << step.uses << std::endl;
+                }
                 throw std::runtime_error("Unknown action type: " + step.uses);
             }
 
-            std::cout << "Step completed: " << step.name << std::endl;
+            {
+                std::lock_guard<std::mutex> lock(log_mutex);
+                std::cout << "Step completed: " << step.name << std::endl;
+            }
             return true;
         }
     };

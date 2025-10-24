@@ -185,9 +185,9 @@ void test_literal_strategy() {
     auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
         end_time - start_time).count();
 
-    // The elapsed time should be approximately between 200 and 230 milliseconds
+    // The elapsed time should be approximately between 200 and 220 milliseconds
     std::cout << "in func test_literal_strategy elapsed: " << elapsed << " us" << std::endl;
-    assert(elapsed >= 200000 && elapsed <= 210000);
+    assert(elapsed >= 200000 && elapsed <= 220000);
 
     // Test is_literal_strategy
     assert(strategy.is_literal_strategy());

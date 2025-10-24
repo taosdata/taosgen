@@ -24,7 +24,7 @@ target_link_libraries(components_formatter
     components_encoding
     actions_config
     utils
-    TAOS::TAOS
+    # TAOS::TAOS
     nlohmann_json::nlohmann_json
 )
 

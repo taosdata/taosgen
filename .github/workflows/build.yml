@@ -1,0 +1,354 @@
+name: taosgen Build
+
+on:
+  workflow_call:
+    inputs:
+      build_type:
+        required: false
+        type: string
+        default: Debug
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: [self-hosted, Linux, X64, taosgen]
+            arch: x64
+            conan_arch: x86_64
+          - runner: [self-hosted, Linux, ARM64, taosgen]
+            arch: arm64
+            conan_arch: armv8
+          - runner: [self-hosted, macOS, X64, taosgen]
+            arch: x64
+            conan_arch: x86_64
+          - runner: [self-hosted, macOS, ARM64, taosgen]
+            arch: arm64
+            conan_arch: armv8
+
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - name: Show environment info
+        run: |
+          echo "Time: $(date)"
+          echo "OS: $(uname -a)"
+          echo "User: $(whoami)"
+          echo "HOME: $HOME"
+          echo "PWD: $(pwd)"
+          # Print IP address
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            id
+            ls -ld $HOME
+            ip addr show | grep 'inet ' || hostname -I || true
+          elif [ "${{ runner.os }}" = "macOS" ]; then
+            id
+            ls -ld $HOME
+            ipconfig getifaddr en0 || ipconfig getifaddr en1 || ifconfig | grep 'inet ' || true
+          elif [ "${{ runner.os }}" = "Windows" ]; then
+            whoami
+            echo "USERPROFILE: $USERPROFILE"
+            echo "HOMEPATH: $HOMEPATH"
+            echo "HOMEDRIVE: $HOMEDRIVE"
+            ipconfig | findstr IPv4 || true
+          fi
+
+      - name: Ensure Python3 and pip
+        run: |
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            sudo apt-get update
+            sudo apt-get install -y python3 python3-pip python3-venv
+            if ! command -v python >/dev/null; then
+              sudo ln -sf /usr/bin/python3 /usr/bin/python
+            fi
+            if ! command -v pip >/dev/null && command -v pip3 >/dev/null; then
+              sudo ln -sf $(command -v pip3) /usr/bin/pip
+            fi
+          elif [ "${{ runner.os }}" = "macOS" ]; then
+            if ! command -v python3 >/dev/null; then
+              brew install python
+            fi
+            if ! command -v python >/dev/null; then
+              ln -sf /usr/local/bin/python3 /usr/local/bin/python || true
+            fi
+          fi
+          python --version || true
+          python3 --version || true
+          pip --version || true
+          pip3 --version || true
+
+      - name: Setup jq
+        uses: dcarbone/install-jq-action@v2
+        with:
+          version: '1.6'
+
+      - name: Get latest TDengine version
+        id: get_td_version
+        run: |
+          version=$(curl -s https://api.github.com/repos/taosdata/TDengine/releases/latest | jq -r .name)
+          version=${version#v}
+          echo "version=$version" >> $GITHUB_OUTPUT
+
+      # - name: Cache TDengine
+      #   id: cache-tdengine
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: ~/.tdengine-cache
+      #     key: tdengine-${{ steps.get_td_version.outputs.version }}-${{ runner.os }}-${{ matrix.arch }}
+
+      - name: Download TDengine
+        if: steps.cache-tdengine.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.tdengine-cache
+          cd ~/.tdengine-cache
+          arch="${{ matrix.arch }}"
+          version="${{ steps.get_td_version.outputs.version }}"
+
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            pkg="tdengine-tsdb-enterprise-${version}-linux-${arch}.tar.gz"
+
+            # Clean up old packages
+            pwd
+            ls -al
+            for f in tdengine-tsdb-enterprise-*-linux-*.tar.gz; do
+              [ -e "$f" ] || continue
+              if [ "$f" != "$pkg" ]; then
+                echo "Deleting old package: $f"
+                rm -f "$f"
+              fi
+            done
+
+            # Download if not exists
+            url="http://192.168.1.131/data/nas/TDengine/3.3/v${version}/enterprise/${pkg}"
+            if [ -f "$pkg" ] && [ $(stat -c%s "$pkg") -gt $((300*1024*1024)) ]; then
+              echo "$pkg already exists and is larger than 300MB, skip download."
+            else
+              echo "Download URL: $url"
+              curl -fSL "$url" -o "$pkg"
+            fi
+            pwd
+            ls -al
+
+          elif [ "${{ runner.os }}" = "macOS" ]; then
+            version="3.3.8.1"
+            pkg="tdengine-tsdb-oss-${version}-macos-${arch}.pkg"
+
+            # Clean up old packages
+            pwd
+            ls -al
+            for f in tdengine-tsdb-oss-*-macos-*.pkg; do
+              [ -e "$f" ] || continue
+              if [ "$f" != "$pkg" ]; then
+                echo "Deleting old package: $f"
+                rm -f "$f"
+              fi
+            done
+
+            # Download if not exists
+            url="http://192.168.1.131/data/nas/TDengine/3.3/v${version}/community/${pkg}"
+            if [ -f "$pkg" ] && [ $(stat -f%z "$pkg") -gt $((100*1024*1024)) ]; then
+              echo "$pkg already exists and is larger than 100MB, skip download."
+            else
+              echo "Download URL: $url"
+              curl -fSL "$url" -o "$pkg"
+            fi
+            pwd
+            ls -al
+          fi
+
+      - name: Install & Start TDengine
+        run: |
+          cd ~/.tdengine-cache
+          arch="${{ matrix.arch }}"
+          version="${{ steps.get_td_version.outputs.version }}"
+
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            pkg="tdengine-tsdb-enterprise-${version}-linux-${arch}.tar.gz"
+            # Extract
+            tar -xzf "$pkg"
+            pwd
+            ls -al
+            dir="tdengine-tsdb-enterprise-${version}"
+            cd "$dir"
+            # Install
+            sudo ./install.sh -e no
+            # Start TDengine
+            sudo systemctl start taosd
+            sudo systemctl start taosadapter
+            # Check status
+            sudo systemctl status taosd
+            sudo systemctl status taosadapter
+            # Verify installation
+            taos -V
+
+          elif [ "${{ runner.os }}" = "macOS" ]; then
+            pkg="tdengine-tsdb-oss-${version}-macos-${arch}.pkg"
+            pwd
+            ls -al
+            # Install
+            sudo installer -pkg "$pkg" -target /
+            # Start TDengine
+            nohup sudo taosd > /dev/null 2>&1 &
+            nohup sudo taosadapter > /dev/null 2>&1 &
+            # Verify installation
+            taos -V || true
+          fi
+
+      - name: Checkout taosgen code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install CMake (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget
+          version=3.20.0
+          if ! cmake --version | grep -q "$version"; then
+            sudo apt-get remove --purge --auto-remove cmake -y || true
+            arch=$(uname -m)
+            if [ "$arch" = "x86_64" ]; then
+              arch_str="x86_64"
+            elif [ "$arch" = "aarch64" ]; then
+              arch_str="aarch64"
+            else
+              echo "Unsupported arch: $arch"
+              exit 1
+            fi
+            wget -qO- "https://github.com/Kitware/CMake/releases/download/v${version}/cmake-${version}-linux-${arch_str}.tar.gz" | sudo tar --strip-components=1 -xz -C /usr/local
+          fi
+          file $(which cmake)
+          cmake --version
+          echo "PWD: $(pwd)"
+          ls -la
+
+      - name: Install CMake (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          # brew update
+          # brew install cmake
+          file $(which cmake)
+          cmake --version
+          echo "PWD: $(pwd)"
+          ls -la
+
+      - name: Install CMake (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          choco install cmake --version=3.20.0 -y
+          cmake --version
+
+      - name: Setup Conan (Linux)
+        if: runner.os == 'Linux'
+        uses: conan-io/setup-conan@v1
+        with:
+          version: 2.20.1
+          use_venv: true
+
+      - name: Setup Conan (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          python3 -m pip install "conan==2.20.1"
+          conan --version
+          conan profile detect --force
+
+      - name: Cache Conan packages
+        uses: actions/cache@v4
+        with:
+          path: $HOME/.conan2/p
+          key: conan2-${{ runner.os }}-${{ matrix.conan_arch }}-${{ hashFiles('conanfile.*') }}
+          restore-keys: conan2-${{ runner.os }}-${{ matrix.conan_arch }}-
+
+      - name: Create build directory
+        run: mkdir build
+
+      - name: Install dependencies
+        working-directory: build
+        run: |
+          conan install .. \
+            --build=missing \
+            --output-folder=./conan \
+            --settings=build_type=${{ inputs.build_type }} \
+            --settings=arch=${{ matrix.conan_arch }} \
+            --settings=compiler.cppstd=17
+
+      - name: Configure CMake
+        working-directory: build
+        run: |
+          CMAKE_ARGS="-DCMAKE_BUILD_TYPE=${{ inputs.build_type }} -DCMAKE_INSTALL_PREFIX=./install -DCMAKE_PREFIX_PATH=./conan"
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_OSX_SYSROOT=$(xcrun --show-sdk-path) -DCMAKE_TOOLCHAIN_FILE=./conan/conan_toolchain.cmake"
+          fi
+          cmake .. $CMAKE_ARGS
+
+      - name: Build
+        working-directory: build
+        run: |
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            CPU_CORES=$(nproc)
+          elif [ "${{ runner.os }}" = "macOS" ]; then
+            CPU_CORES=$(sysctl -n hw.ncpu)
+          elif [ "${{ runner.os }}" = "Windows" ]; then
+            CPU_CORES=$(powershell -Command "(Get-CimInstance -ClassName Win32_Processor).NumberOfCores")
+          else
+            CPU_CORES=2
+          fi
+          echo "CPU cores: $CPU_CORES"
+          cmake --build . --config ${{ inputs.build_type }} -j $CPU_CORES
+
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            install_name_tool -add_rpath /usr/local/lib ./src/taosgen
+          fi
+
+      - name: Test
+        working-directory: build
+        run: |
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            export DYLD_LIBRARY_PATH=/usr/local/lib:$DYLD_LIBRARY_PATH
+          fi
+          ctest --output-on-failure --verbose
+
+      - name: Prepare release artifact
+        if: ${{ inputs.build_type == 'Release' }}
+        run: |
+          OS_NAME=$(echo "${{ runner.os }}" | tr '[:upper:]' '[:lower:]')
+          ARCH="${{ matrix.arch }}"
+          VERSION="${{ github.ref_name }}"
+
+          # Create release directory
+          if [ -d release/taosgen ]; then
+            rm -rf release/taosgen/*
+          else
+            mkdir -p release/taosgen
+          fi
+
+          # Copy the executable file and configuration
+          cp ./build/src/taosgen release/taosgen/
+          cp -rf ./conf release/taosgen/
+          cd release/
+
+          # Pre-processing before packaging
+          if [ "$OS_NAME" = "linux" ]; then
+            objcopy --only-keep-debug taosgen/taosgen taosgen/taosgen.debug
+            strip --strip-debug --strip-unneeded taosgen/taosgen
+            objcopy --add-gnu-debuglink=taosgen/taosgen.debug taosgen/taosgen
+            sed -i 's|\.\./conf|\./conf|g' taosgen/conf/*.yaml
+          elif [ "$OS_NAME" = "macos" ]; then
+            dsymutil taosgen/taosgen -o taosgen/taosgen.dSYM
+            strip -u -r taosgen/taosgen
+            sed -i '' 's|\.\./conf|\./conf|g' taosgen/conf/*.yaml
+          fi
+
+          # Packaging
+          tar zcvf taosgen-${VERSION}-${OS_NAME}-${ARCH}.tar.gz taosgen
+        shell: bash
+
+      - name: Upload release artifact
+        if: ${{ inputs.build_type == 'Release' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: taosgen-${{ runner.os }}-${{ matrix.arch }}
+          path: release/taosgen-v*.tar.gz
+          if-no-files-found: error
