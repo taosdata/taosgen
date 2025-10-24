@@ -74,6 +74,7 @@ void test_generate_table_data_with_default_timestamp() {
     const auto& table_pair = *table_data.begin();
     const auto& table = table_pair.second;
 
+    (void)table;
     assert(table.timestamps.size() == 2 && "Expected 2 timestamps");
     assert(table.timestamps[0] == 1622505600000 && "Expected first timestamp to match");
     assert(table.timestamps[1] == 1622592000000 && "Expected second timestamp to match");
@@ -112,6 +113,7 @@ void test_generate_table_data_with_timestamp() {
     const auto& table_pair = *table_data.begin();
     const auto& table = table_pair.second;
 
+    (void)table;
     assert(table.timestamps.size() == 2 && "Expected 2 timestamps");
     assert(table.timestamps[0] == 1622505600000 && "Expected first timestamp to match");
     assert(table.timestamps[1] == 1622592000000 && "Expected second timestamp to match");
@@ -149,6 +151,7 @@ void test_generate_table_data_with_generated_timestamp() {
     const auto& table_pair = *table_data.begin();
     const auto& table = table_pair.second;
 
+    (void)table;
     assert(table.timestamps.size() == 2 && "Expected 2 timestamps");
     assert(table.rows.size() == 2 && "Expected 2 rows of data");
     assert(std::get<std::string>(table.rows[0][0]) == "Alice" && "Expected first column to be 'Alice'");
@@ -187,6 +190,7 @@ void test_generate_table_data_include_tbname() {
     assert(table_data.find("table2") != table_data.end() && "Expected table2 to be found");
 
     const auto& table1 = table_data.at("table1");
+    (void)table1;
     assert(table1.timestamps.size() == 1 && "Expected 1 timestamp for table1");
     assert(table1.rows.size() == 1 && "Expected 1 row of data for table1");
     assert(std::get<int32_t>(table1.rows[0][0]) == 30 && "Expected first column to be 30 for table1");
@@ -195,6 +199,7 @@ void test_generate_table_data_include_tbname() {
     const auto& table2 = table_data.at("table2");
     assert(table2.timestamps.size() == 1 && "Expected 1 timestamp for table2");
     assert(table2.rows.size() == 1 && "Expected 1 row of data for table2");
+    (void)table2;
     assert(std::get<int32_t>(table2.rows[0][0]) == 25 && "Expected first column to be 25 for table2");
     assert(std::get<std::string>(table2.rows[0][1]) == "Los Angeles" && "Expected second column to be 'Los Angeles' for table2");
 
@@ -224,6 +229,7 @@ void test_generate_table_data_default_column_types() {
     const auto& table_pair = *table_data.begin();
     const auto& table = table_pair.second;
 
+    (void)table;
     assert(table.rows.size() == 2 && "Expected 2 rows of data");
     assert(std::get<std::string>(table.rows[0][0]) == "Alice" && "Expected first column to be 'Alice'");
     assert(std::get<std::string>(table.rows[0][1]) == "30" && "Expected second column to be '30'");
