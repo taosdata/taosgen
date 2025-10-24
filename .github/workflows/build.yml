@@ -329,9 +329,15 @@ jobs:
           cp -rf ./conf release/taosgen/
           cd release/
 
+          # Pre-processing before packaging
           if [ "$OS_NAME" = "linux" ]; then
+            objcopy --only-keep-debug taosgen/taosgen taosgen/taosgen.debug
+            strip --strip-debug --strip-unneeded taosgen/taosgen
+            objcopy --add-gnu-debuglink=taosgen/taosgen.debug taosgen/taosgen
             sed -i 's|\.\./conf|\./conf|g' taosgen/conf/*.yaml
           elif [ "$OS_NAME" = "macos" ]; then
+            dsymutil taosgen/taosgen -o taosgen/taosgen.dSYM
+            strip -u -r taosgen/taosgen
             sed -i '' 's|\.\./conf|\./conf|g' taosgen/conf/*.yaml
           fi
 
