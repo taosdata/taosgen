@@ -12,13 +12,18 @@ categories:
       - 'chore'
 change-template: '- $TITLE (#$NUMBER) @$AUTHOR'
 template: |
-  ## This release includes:
+  ### This release includes:
 
-  $CHANGES
+  {% for category in categories %}
+  {% if category.changes %}
+  #### {{ category.title }}
+  {{ category.changes }}
+  {% endif %}
+  {% endfor %}
 
   ## Download
 
-  - [taosgen-${{ nextRelease.version }}-linux-x64.tar.gz](https://github.com/taosdata/taosgen/releases/download/v${{ nextRelease.version }}/taosgen-v${{ nextRelease.version }}-linux-x64.tar.gz)
-  - [taosgen-${{ nextRelease.version }}-linux-arm64.tar.gz](https://github.com/taosdata/taosgen/releases/download/v${{ nextRelease.version }}/taosgen-v${{ nextRelease.version }}-linux-arm64.tar.gz)
-  - [taosgen-${{ nextRelease.version }}-macos-x64.tar.gz](https://github.com/taosdata/taosgen/releases/download/v${{ nextRelease.version }}/taosgen-v${{ nextRelease.version }}-macos-x64.tar.gz)
-  - [taosgen-${{ nextRelease.version }}-macos-arm64.tar.gz](https://github.com/taosdata/taosgen/releases/download/v${{ nextRelease.version }}/taosgen-v${{ nextRelease.version }}-macos-arm64.tar.gz)
+  - [taosgen-v$NEXT_PATCH_VERSION-linux-x64.tar.gz](https://github.com/taosdata/taosgen/releases/download/v$NEXT_PATCH_VERSION/taosgen-v$NEXT_PATCH_VERSION-linux-x64.tar.gz)
+  - [taosgen-v$NEXT_PATCH_VERSION-linux-arm64.tar.gz](https://github.com/taosdata/taosgen/releases/download/v$NEXT_PATCH_VERSION/taosgen-v$NEXT_PATCH_VERSION-linux-arm64.tar.gz)
+  - [taosgen-v$NEXT_PATCH_VERSION-macos-x64.tar.gz](https://github.com/taosdata/taosgen/releases/download/v$NEXT_PATCH_VERSION/taosgen-v$NEXT_PATCH_VERSION-macos-x64.tar.gz)
+  - [taosgen-v$NEXT_PATCH_VERSION-macos-arm64.tar.gz](https://github.com/taosdata/taosgen/releases/download/v$NEXT_PATCH_VERSION/taosgen-v$NEXT_PATCH_VERSION-macos-arm64.tar.gz)
