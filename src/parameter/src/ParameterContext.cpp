@@ -1,4 +1,5 @@
 #include "ParameterContext.hpp"
+#include "version.hpp"
 #include <cstdlib>
 #include <iostream>
 #include <stdexcept>
@@ -64,7 +65,7 @@ void ParameterContext::show_help() {
 }
 
 void ParameterContext::show_version() {
-    std::cout << "taosgen version: 0.7.0" << std::endl;
+    std::cout << "taosgen version: " << TAOSGEN_VERSION << std::endl;
     std::cout << "git: " << TSGEN_BUILD_GIT << std::endl;
     std::cout << "build: " << TSGEN_BUILD_TARGET_OSTYPE << "-" << TSGEN_BUILD_TARGET_CPUTYPE << " " << TSGEN_BUILD_DATE << std::endl;
 }

@@ -14,6 +14,7 @@ target_compile_definitions(parameter PRIVATE
 target_include_directories(parameter
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/..
     ${CMAKE_CURRENT_SOURCE_DIR}/../workflow/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../actions/config/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../actions/core/checkpoint/inc
