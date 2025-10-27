@@ -26,10 +26,17 @@ PahoMqttClient::PahoMqttClient(const std::string& uri, const std::string& client
     if (!encoding.empty()) {
         default_props_.add(mqtt::property(mqtt::property::USER_PROPERTY, "encoding", encoding));
     }
+
+    token_wait_thread_ = std::thread(&PahoMqttClient::token_wait_func, this);
 }
 
 PahoMqttClient::~PahoMqttClient() {
-    token_queue_.put(mqtt::delivery_token_ptr());
+    token_queue_.put(nullptr);
+
+    if (token_wait_thread_.joinable()) {
+        token_wait_thread_.join();
+    }
+
     disconnect();
 }
 

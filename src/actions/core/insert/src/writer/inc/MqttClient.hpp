@@ -56,6 +56,7 @@ public:
 
 private:
     std::unique_ptr<mqtt::async_client> client_;
+    std::thread token_wait_thread_;
     mqtt::properties default_props_;
     mqtt::thread_queue<mqtt::delivery_token_ptr> token_queue_;
 
