@@ -75,7 +75,7 @@ cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_SYSROOT=$(xcrun --show-sdk-path)
 - 新增测试文件：在文件内编写测试用例和 `main` 函数，并在同目录下的 `CMakeLists.txt` 文件中，添加编译控制相关配置。
 
 ## 6. CI/CD
-- [Build Workflow] -TODO
+- [Build Workflow](https://github.com/taosdata/tsgen/actions/workflows/build.yml)
 - [Code Coverage] -TODO
 
 ## 7. 提交 Issue

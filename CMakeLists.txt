@@ -57,6 +57,18 @@ if(TSGEN_BUILD_DATE MATCHES " %z$")
 endif()
 message(STATUS "Sys Info: ${TSGEN_BUILD_TARGET_OSTYPE}-${TSGEN_BUILD_TARGET_CPUTYPE} ${TSGEN_BUILD_DATE}")
 
+# Code coverage
+if(TSGEN_LINUX)
+  if(TSGEN_ENABLE_COVERAGE)
+    message(STATUS "Enable code coverage")
+    set(COVERAGE_COMPILE_FLAGS "-fprofile-arcs -ftest-coverage -fprofile-update=atomic")
+    set(COVERAGE_LINK_FLAGS "--coverage -lgcov")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COVERAGE_COMPILE_FLAGS} ${COVERAGE_LINK_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COVERAGE_COMPILE_FLAGS} ${COVERAGE_LINK_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${COVERAGE_LINK_FLAGS}")
+  endif()
+endif()
+
 # Sanitizer
 if(TSGEN_ENABLE_SANITIZER AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   add_compile_options(-fsanitize=address)
