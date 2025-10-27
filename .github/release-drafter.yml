@@ -1,5 +1,5 @@
-name-template: 'taosgen v$NEXT_PATCH_VERSION Release'
-tag-template: 'v$NEXT_PATCH_VERSION'
+name-template: 'taosgen v$RESOLVED_VERSION Release'
+tag-template: 'v$RESOLVED_VERSION'
 categories:
   - title: '🚀 Features'
     labels:
@@ -14,16 +14,11 @@ change-template: '- $TITLE (#$NUMBER) @$AUTHOR'
 template: |
   ### This release includes:
 
-  {% for category in categories %}
-  {% if category.changes %}
-  #### {{ category.title }}
-  {{ category.changes }}
-  {% endif %}
-  {% endfor %}
+  $CATEGORY_CHANGELOG
 
   ## Download
 
-  - [taosgen-v$NEXT_PATCH_VERSION-linux-x64.tar.gz](https://github.com/taosdata/taosgen/releases/download/v$NEXT_PATCH_VERSION/taosgen-v$NEXT_PATCH_VERSION-linux-x64.tar.gz)
-  - [taosgen-v$NEXT_PATCH_VERSION-linux-arm64.tar.gz](https://github.com/taosdata/taosgen/releases/download/v$NEXT_PATCH_VERSION/taosgen-v$NEXT_PATCH_VERSION-linux-arm64.tar.gz)
-  - [taosgen-v$NEXT_PATCH_VERSION-macos-x64.tar.gz](https://github.com/taosdata/taosgen/releases/download/v$NEXT_PATCH_VERSION/taosgen-v$NEXT_PATCH_VERSION-macos-x64.tar.gz)
-  - [taosgen-v$NEXT_PATCH_VERSION-macos-arm64.tar.gz](https://github.com/taosdata/taosgen/releases/download/v$NEXT_PATCH_VERSION/taosgen-v$NEXT_PATCH_VERSION-macos-arm64.tar.gz)
+  - [taosgen-v$RESOLVED_VERSION-linux-x64.tar.gz](https://github.com/taosdata/taosgen/releases/download/v$RESOLVED_VERSION/taosgen-v$RESOLVED_VERSION-linux-x64.tar.gz)
+  - [taosgen-v$RESOLVED_VERSION-linux-arm64.tar.gz](https://github.com/taosdata/taosgen/releases/download/v$RESOLVED_VERSION/taosgen-v$RESOLVED_VERSION-linux-arm64.tar.gz)
+  - [taosgen-v$RESOLVED_VERSION-macos-x64.tar.gz](https://github.com/taosdata/taosgen/releases/download/v$RESOLVED_VERSION/taosgen-v$RESOLVED_VERSION-macos-x64.tar.gz)
+  - [taosgen-v$RESOLVED_VERSION-macos-arm64.tar.gz](https://github.com/taosdata/taosgen/releases/download/v$RESOLVED_VERSION/taosgen-v$RESOLVED_VERSION-macos-arm64.tar.gz)
