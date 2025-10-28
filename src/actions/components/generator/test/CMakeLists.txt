@@ -3,7 +3,7 @@ add_executable(TestTimestampGenerator
   TestTimestampGenerator.cpp
 )
 target_link_libraries(TestTimestampGenerator
-  PRIVATE 
+  PRIVATE
     components_generator
 )
 add_test(NAME TestTimestampGenerator COMMAND TestTimestampGenerator)
@@ -13,17 +13,27 @@ add_executable(TestTableNameGenerator
   TestTableNameGenerator.cpp
 )
 target_link_libraries(TestTableNameGenerator
-  PRIVATE 
+  PRIVATE
     components_generator
 )
 add_test(NAME TestTableNameGenerator COMMAND TestTableNameGenerator)
+
+# Test OrderColumnGenerator
+add_executable(TestOrderColumnGenerator
+  TestOrderColumnGenerator.cpp
+)
+target_link_libraries(TestOrderColumnGenerator
+  PRIVATE
+    components_generator
+)
+add_test(NAME TestOrderColumnGenerator COMMAND TestOrderColumnGenerator)
 
 # Test RandomColumnGenerator
 add_executable(TestRandomColumnGenerator
   TestRandomColumnGenerator.cpp
 )
 target_link_libraries(TestRandomColumnGenerator
-  PRIVATE 
+  PRIVATE
     components_generator
 )
 add_test(NAME TestRandomColumnGenerator COMMAND TestRandomColumnGenerator)
@@ -33,7 +43,7 @@ add_executable(TestExprColumnGenerator
   TestExprColumnGenerator.cpp
 )
 target_link_libraries(TestExprColumnGenerator
-  PRIVATE 
+  PRIVATE
     components_generator
 )
 add_test(NAME TestExprColumnGenerator COMMAND TestExprColumnGenerator)
@@ -43,7 +53,7 @@ add_executable(TestColumnGeneratorFactory
   TestColumnGeneratorFactory.cpp
 )
 target_link_libraries(TestColumnGeneratorFactory
-  PRIVATE 
+  PRIVATE
     components_generator
 )
 add_test(NAME TestColumnGeneratorFactory COMMAND TestColumnGeneratorFactory)
@@ -53,7 +63,7 @@ add_executable(TestRowGenerator
   TestRowGenerator.cpp
 )
 target_link_libraries(TestRowGenerator
-  PRIVATE 
+  PRIVATE
     components_generator
 )
 add_test(NAME TestRowGenerator COMMAND TestRowGenerator)

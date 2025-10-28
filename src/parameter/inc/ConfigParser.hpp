@@ -688,6 +688,12 @@ namespace YAML {
 
                 if (node["min"]) rhs.order_min = node["min"].as<int64_t>();
                 if (node["max"]) rhs.order_max = node["max"].as<int64_t>();
+
+                if (rhs.order_min && rhs.order_max) {
+                    if (*rhs.order_min >= *rhs.order_max) {
+                        throw std::runtime_error("min value must be less than max value in column: " + rhs.name);
+                    }
+                }
             } else if (*rhs.gen_type == "expression") {
                 // Detect forbidden keys in expression
                 check_unknown_keys(node, merge_keys<std::string>({common_keys, timestamp_allowed, expression_allowed}), "columns or tags::expression");

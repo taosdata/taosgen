@@ -18,6 +18,7 @@ target_include_directories(parameter
     ${CMAKE_CURRENT_SOURCE_DIR}/../actions/config/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../actions/core/checkpoint/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../actions/base
+    ${PROJECT_SOURCE_DIR}/src
 )
 
 # Link dependent libraries
