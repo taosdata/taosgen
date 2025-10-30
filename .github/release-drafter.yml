@@ -14,7 +14,7 @@ change-template: '- $TITLE (#$NUMBER) @$AUTHOR'
 template: |
   ### This release includes:
 
-  $CATEGORY_CHANGELOG
+  $CHANGES
 
   ## Download
 

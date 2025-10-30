@@ -1,23 +1,23 @@
 #include "LogUtils.hpp"
+#include "SignalManager.hpp"
 #include "ParameterContext.hpp"
 #include "JobScheduler.hpp"
 #include <iostream>
-#include <csignal>
-#include "actions/core/checkpoint/inc/CheckpointAction.hpp"
+#include <chrono>
+#include <thread>
 
-void signal_handler(int signum) {
-    LogUtils::info("Interrupt signal (" + std::to_string(signum) + ") received. Shutting down gracefully...");
-    CheckpointAction::stop_all(true);
+void exit_handler(int signum) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    LogUtils::info("Interrupt signal ({}) received. Shutting down gracefully...", signum);
     exit(signum);
 }
 
 int main(int argc, char* argv[]) {
-    int result = 0;
+    LogUtils::LoggerGuard logger_guard(LogUtils::Level::Info);
 
-    LogUtils::init(LogUtils::Level::Info);
-
-    signal(SIGINT, signal_handler);
-    signal(SIGTERM, signal_handler);
+    SignalManager::register_signal(SIGINT, exit_handler, true);
+    SignalManager::register_signal(SIGTERM, exit_handler, true);
+    SignalManager::setup();
 
     try {
         // 1. Create parameter context and initialize
@@ -25,11 +25,11 @@ int main(int argc, char* argv[]) {
 
         // Initialize parameter context
         if (!context.init(argc, argv)) {
-            goto end;
+            return 0;
         }
 
         if (context.get_global_config().verbose) {
-            LogUtils::set_level(LogUtils::Level::Debug);
+            logger_guard.set_level(LogUtils::Level::Debug);
         }
 
         // 2. Get parsed configuration data
@@ -43,27 +43,20 @@ int main(int argc, char* argv[]) {
             // Run scheduler
             bool success = scheduler.run();
             if (!success) {
-                result = 1;
-                goto end;
+                return 1;
             }
 
             LogUtils::info("All jobs completed successfully!");
-            goto end;
+            return 0;
 
         } catch (const std::exception& e) {
             LogUtils::error("Error during job execution: " + std::string(e.what()));
-            result = 1;
-            goto end;
+            return 1;
         }
 
     } catch (const std::exception& e) {
         LogUtils::error("Error: " + std::string(e.what()));
         LogUtils::error("Use --help or -? to show usage information");
-        result = 1;
-        goto end;
+        return 1;
     }
-
-end:
-    LogUtils::shutdown();
-    return result;
 }

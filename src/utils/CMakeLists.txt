@@ -5,6 +5,7 @@ add_library(utils STATIC
   src/TimestampUtils.cpp
   src/ProcessUtils.cpp
   src/Barrier.cpp
+  src/SignalManager.cpp
 )
 
 # Set include directories
