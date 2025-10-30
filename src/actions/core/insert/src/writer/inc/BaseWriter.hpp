@@ -58,7 +58,7 @@ protected:
                 bool success = operation();
                 if (success) return true;
             } catch (const std::exception& e) {
-                LogUtils::error(error_context + " failed reason: " + e.what());
+                LogUtils::error("{} failed reason: {}", error_context, e.what());
                 break;
             }
 
@@ -74,7 +74,7 @@ protected:
             throw std::runtime_error(error_context + " operation failed");
         }
 
-        LogUtils::error(error_context + " failed after " + std::to_string(MAX_RETRIES) + " retries");
+        LogUtils::error("{} failed after {} retries", error_context, MAX_RETRIES);
         return false;
     }
 

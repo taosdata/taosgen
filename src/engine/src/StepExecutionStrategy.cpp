@@ -14,16 +14,16 @@
 // Implementation of production environment strategy
 bool ProductionStepStrategy::execute(const Step& step) {
     try {
-        LogUtils::info("Executing step: " + step.name + " (" + step.uses + ")");
+        LogUtils::info("Executing step: {} ({})", step.name, step.uses);
 
         auto action = ActionFactory::instance().create_action(global_, step.uses, step.action_config);
         action->execute();
 
-        LogUtils::info("Step completed: " + step.name);
+        LogUtils::info("Step completed: {}", step.name);
         return true;
 
     } catch (const std::exception& e) {
-        LogUtils::error("Error executing step: " + step.name + ", reason: \"" + std::string(e.what()) + "\"");
+        LogUtils::error("Error executing step: {}, reason: \"{}\"", step.name, e.what());
         return false;
     }
 }
@@ -34,7 +34,7 @@ static std::mutex log_mutex;
 bool DebugStepStrategy::execute(const Step& step) {
     std::lock_guard<std::mutex> lock(log_mutex);
 
-    LogUtils::info("Executing step: " + step.name + " (" + step.uses + ")");
+    LogUtils::info("Executing step: {} ({})", step.name, step.uses);
 
     if (step.uses == "tdengine/create-database") {
         LogUtils::info("Action type: Create Database");
@@ -49,10 +49,10 @@ bool DebugStepStrategy::execute(const Step& step) {
     } else if (step.uses == "actions/subscribe-data") {
         LogUtils::info("Action type: Subscribe Data");
     } else {
-        LogUtils::error("Unknown action type: " + step.uses);
+        LogUtils::error("Unknown action type: {}", step.uses);
         return false;
     }
 
-    LogUtils::info("Step completed: " + step.name);
+    LogUtils::info("Step completed: {}", step.name);
     return true;
 }

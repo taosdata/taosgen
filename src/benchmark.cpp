@@ -50,12 +50,12 @@ int main(int argc, char* argv[]) {
             return 0;
 
         } catch (const std::exception& e) {
-            LogUtils::error("Error during job execution: " + std::string(e.what()));
+            LogUtils::error("Error during job execution: {}", e.what());
             return 1;
         }
 
     } catch (const std::exception& e) {
-        LogUtils::error("Error: " + std::string(e.what()));
+        LogUtils::error("Error: {}", e.what());
         LogUtils::error("Use --help or -? to show usage information");
         return 1;
     }

@@ -73,9 +73,9 @@ void ParameterContext::show_help() {
 }
 
 void ParameterContext::show_version() {
-    LogUtils::info("taosgen version: " + std::string(TAOSGEN_VERSION));
-    LogUtils::info("git: " + std::string(TSGEN_BUILD_GIT));
-    LogUtils::info("build: " + std::string(TSGEN_BUILD_TARGET_OSTYPE) + "-" + std::string(TSGEN_BUILD_TARGET_CPUTYPE) + " " + std::string(TSGEN_BUILD_DATE));
+    LogUtils::info("taosgen version: {}", TAOSGEN_VERSION);
+    LogUtils::info("git: {}", TSGEN_BUILD_GIT);
+    LogUtils::info("build: {}-{} {}", TSGEN_BUILD_TARGET_OSTYPE, TSGEN_BUILD_TARGET_CPUTYPE, TSGEN_BUILD_DATE);
 }
 
 void ParameterContext::parse_tdengine(const YAML::Node& td_yaml) {
@@ -272,7 +272,7 @@ void ParameterContext::parse_td_create_database_action(Job& job, Step& step) {
         create_db_config.checkpoint_info = step.with["checkpoint"].as<CheckpointInfo>();
     }
     // Print parse result
-    LogUtils::info("Parsed create-database action: " + create_db_config.tdengine.database);
+    LogUtils::info("Parsed create-database action: {}", create_db_config.tdengine.database);
 
     // Save result to Step's action_config field
     step.action_config = std::move(create_db_config);
@@ -320,7 +320,7 @@ void ParameterContext::parse_td_create_super_table_action(Job& job, Step& step) 
     }
 
     // Print parse result
-    LogUtils::info("Parsed create-super-table action: " + create_stb_config.schema.name);
+    LogUtils::info("Parsed create-super-table action: {}", create_stb_config.schema.name);
 
     // Save result to Step's action_config field
     job.schema = create_stb_config.schema;
@@ -369,7 +369,7 @@ void ParameterContext::parse_td_create_child_table_action(Job& job, Step& step) 
     }
 
     // Print parse result
-    LogUtils::info("Parsed create-child-table action for super table: " + create_ctb_config.schema.name);
+    LogUtils::info("Parsed create-child-table action for super table: {}", create_ctb_config.schema.name);
 
     // Save result to Step's action_config field
     job.schema = create_ctb_config.schema;

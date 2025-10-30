@@ -27,3 +27,13 @@ target_link_libraries(TestProcessUtils
     utils
 )
 add_test(NAME TestProcessUtils COMMAND TestProcessUtils)
+
+# Test SignalManager
+add_executable(TestSignalManager
+  TestSignalManager.cpp
+)
+target_link_libraries(TestSignalManager
+  PRIVATE
+    utils
+)
+add_test(NAME TestSignalManager COMMAND TestSignalManager)

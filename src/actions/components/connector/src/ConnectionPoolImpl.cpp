@@ -38,7 +38,7 @@ void ConnectionPoolImpl::create_connections_locked(size_t count) {
                 LogUtils::error("Connection creation failed: connect error");
             }
         } catch (const std::exception& e) {
-            LogUtils::error("Connection creation failed: " + std::string(e.what()));
+            LogUtils::error("Connection creation failed: {}", e.what());
         }
     }
 }

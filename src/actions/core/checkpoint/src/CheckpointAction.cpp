@@ -1,5 +1,6 @@
 #include "CheckpointAction.hpp"
 #include "LogUtils.hpp"
+#include "SignalManager.hpp"
 #include <chrono>
 #include <fstream>
 #include <cstdio> // For std::remove
@@ -10,6 +11,15 @@ std::atomic<bool> CheckpointAction::global_interrupt_flag_{false};
 std::mutex CheckpointAction::global_mutex_;
 std::condition_variable CheckpointAction::global_cv_;
 std::atomic<int> CheckpointAction::active_threads_count_{0};
+
+void CheckpointAction::register_signal_handlers() {
+    static std::once_flag flag;
+    std::call_once(flag, [] {
+        SignalManager::register_signal(SIGINT, [](int){ CheckpointAction::stop_all(true); });
+        SignalManager::register_signal(SIGTERM, [](int){ CheckpointAction::stop_all(true); });
+        LogUtils::info("[Checkpoint] Signal handlers registered for SIGINT and SIGTERM");
+    });
+}
 
 CheckpointAction::~CheckpointAction() {
     if (timer_thread_.joinable()) {
@@ -29,8 +39,7 @@ void CheckpointAction::execute() {
             this->run_timer();
         });
 
-        LogUtils::info("Starting checkpoint timer with an interval of " +
-            std::to_string(config_.interval_sec) + " seconds.");
+        LogUtils::info("Starting checkpoint timer with an interval of {} seconds.", config_.interval_sec);
     }
 }
 
@@ -43,7 +52,7 @@ void CheckpointAction::run_timer() {
         try {
             save_checkpoint();
         } catch (const std::exception& e) {
-            LogUtils::error("[Checkpoint] Error saving checkpoint: " + std::string(e.what()));
+            LogUtils::error("[Checkpoint] Error saving checkpoint: {}", e.what());
         }
     }
 
@@ -51,7 +60,7 @@ void CheckpointAction::run_timer() {
         try {
             delete_checkpoint();
         } catch (const std::exception& e) {
-            LogUtils::error("[Checkpoint] Error deleting checkpoint: " + std::string(e.what()));
+            LogUtils::error("[Checkpoint] Error deleting checkpoint: {}", e.what());
         }
     }
 
@@ -74,6 +83,7 @@ void CheckpointAction::wait_for_all_to_stop() {
 void CheckpointAction::stop_all(bool is_interrupt) {
     if (is_interrupt) {
         global_interrupt_flag_.store(true);
+        LogUtils::debug("[Checkpoint] CheckpointAction received interrupt signal, will not delete checkpoints.");
     }
     global_stop_flag_.store(true);
     global_cv_.notify_all();
@@ -83,7 +93,7 @@ void CheckpointAction::stop_all(bool is_interrupt) {
 void CheckpointAction::save_checkpoint() {
     std::lock_guard<std::mutex> lock(map_mutex_);
     if (checkpoint_map_.empty() || static_cast<size_t>(config_.tableCount) > checkpoint_map_.size()) {
-        LogUtils::info("[Checkpoint] No progress data to save. " + std::to_string(checkpoint_map_.size()));
+        LogUtils::info("[Checkpoint] No progress data to save. {}", checkpoint_map_.size());
         return;
     }
     // Find the entry with the smallest last_checkpoint_time
@@ -104,14 +114,17 @@ void CheckpointAction::save_checkpoint() {
     if (ofs) {
         ofs << json_data.dump(4) << std::endl; // Pretty print with 4 spaces indentation
         ofs.close();
-        LogUtils::info("[Checkpoint] Saved progress for table '" + min_table_name
-            + "' at timestamp " + std::to_string(min_it->second.last_checkpoint_time)
-            + " with write count " + std::to_string(min_it->second.writeCount)
-            + " starting from " + std::to_string(config_.start_timestamp)
-            + " write count " + std::to_string((min_it->second.last_checkpoint_time - config_.start_timestamp) / config_.timestamp_step + 1)
-            + " to " + file_path);
+        LogUtils::info(
+            "[Checkpoint] Saved progress for table '{}' at timestamp {} with write count {} starting from {} write count {} to {}",
+            min_table_name,
+            min_it->second.last_checkpoint_time,
+            min_it->second.writeCount,
+            config_.start_timestamp,
+            (min_it->second.last_checkpoint_time - config_.start_timestamp) / config_.timestamp_step + 1,
+            file_path
+        );
     } else {
-        LogUtils::error("[Checkpoint] Failed to open file for writing: " + file_path);
+        LogUtils::error("[Checkpoint] Failed to open file for writing: {}", file_path);
     }
 }
 
@@ -121,7 +134,7 @@ void CheckpointAction::notify(const std::any& payload) {
             const auto& wrapper = std::any_cast<std::reference_wrapper<const std::vector<CheckpointData>>>(payload);
             update_checkpoint(wrapper.get());
         } catch (const std::bad_any_cast& e) {
-            LogUtils::error("[Checkpoint] update_checkpoint call failed: " + std::string(e.what()));
+            LogUtils::error("[Checkpoint] update_checkpoint call failed: {}", e.what());
         }
     }
 }

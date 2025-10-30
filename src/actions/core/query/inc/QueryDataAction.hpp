@@ -10,7 +10,8 @@ public:
     explicit QueryDataAction(const GlobalConfig& global, const QueryDataConfig& config) : global_(global), config_(config) {}
 
     void execute() override {
-        LogUtils::info("Querying data from database: " + config_.source.connection_info.host);
+        LogUtils::info("Querying data from database: {}", config_.source.connection_info.host);
+
         // Implement the specific data query logic here
     }
 

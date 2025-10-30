@@ -62,7 +62,7 @@ bool TableDataManager::init(const std::vector<std::string>& table_names) {
         current_table_index_ = 0;
         return true;
     } catch (const std::exception& e) {
-        LogUtils::error("Failed to initialize TableDataManager: " + std::string(e.what()));
+        LogUtils::error("Failed to initialize TableDataManager: {}", e.what());
         return false;
     }
 }

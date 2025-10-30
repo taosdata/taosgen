@@ -11,7 +11,7 @@
 
 
 void CreateChildTableAction::execute() {
-    LogUtils::info("Creating child table: " + config_.tdengine.database + "." + config_.schema.name);
+    LogUtils::info("Creating child table: {}.{}", config_.tdengine.database, config_.schema.name);
 
     try {
         // Generate table names
@@ -26,14 +26,13 @@ void CreateChildTableAction::execute() {
             TableNameCSVReader csv_reader(config_.schema.tbname.csv);
             table_names = csv_reader.generate();
             for (const auto& name : table_names) {
-                LogUtils::info("Read table name from CSV: " + name);
+                LogUtils::info("Read table name from CSV: {}", name);
             }
         } else {
             throw std::runtime_error("Unsupported table name source type: " + config_.schema.tbname.source_type);
         }
 
-        LogUtils::info("Total table names generated: " + std::to_string(table_names.size()));
-
+        LogUtils::info("Total table names generated: {}", table_names.size());
 
         // Generate tags
         std::vector<RowType> tags;
@@ -50,9 +49,7 @@ void CreateChildTableAction::execute() {
             tags = tags_csv.generate();
             if (global_.verbose) {
                 for (const auto& tag : tags) {
-                    std::ostringstream oss;
-                    oss << "Read tag from CSV: " << tag;
-                    LogUtils::info(oss.str());
+                    LogUtils::info("Read tag from CSV: {}", fmt::streamed(tag));
                 }
             }
             if (tags.size() != table_names.size()) {
@@ -65,7 +62,7 @@ void CreateChildTableAction::execute() {
             throw std::runtime_error("Unsupported tags source type: " + config_.schema.tags_cfg.source_type);
         }
 
-        LogUtils::info("Total tags generated: " + std::to_string(tags.size()));
+        LogUtils::info("Total tags generated: {}", tags.size());
 
         // Split data into groups based on concurrency
         int concurrency = config_.batch.concurrency;
@@ -131,7 +128,7 @@ void CreateChildTableAction::execute() {
             thread.join();
         }
     } catch (const std::exception& e) {
-        LogUtils::error("An error occurred: " + std::string(e.what()));
+        LogUtils::error("An error occurred: {}", e.what());
         throw;
     }
 }

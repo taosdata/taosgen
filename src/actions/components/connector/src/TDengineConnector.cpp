@@ -95,10 +95,13 @@ bool TDengineConnector::connect() {
     );
 
     if (!conn_) {
-        LogUtils::error(display_name_ + " connection failed: " +
-                        taos_errstr_(nullptr) +
-                        " (host: " + conn_info_.host +
-                        ", port: " + std::to_string(conn_info_.port) + ")");
+        LogUtils::error(
+            "{} connection failed: {} (host: {}, port: {})",
+            display_name_,
+            taos_errstr_(nullptr),
+            conn_info_.host,
+            conn_info_.port
+        );
         return false;
     }
 
@@ -127,7 +130,7 @@ bool TDengineConnector::select_db(const std::string& db_name) {
 
     int code = taos_select_db_(conn_, db_name.c_str());
     if (code != 0) {
-        LogUtils::error(display_name_ + " select database failed: " + taos_errstr_(conn_));
+        LogUtils::error("{} select database failed: {}", display_name_, taos_errstr_(conn_));
         return false;
     }
 
@@ -154,15 +157,14 @@ bool TDengineConnector::prepare(const std::string& sql) {
     // Init
     stmt_ = taos_stmt2_init_(conn_, &option);
     if (!stmt_) {
-        LogUtils::error(display_name_ + " init stmt failed: " + taos_errstr_(conn_));
+        LogUtils::error("{} init stmt failed: {}", display_name_, taos_errstr_(conn_));
         return false;
     }
 
     // Prepare
     int code = taos_stmt2_prepare_(stmt_, sql.c_str(), sql.size());
     if (code != 0) {
-        LogUtils::error(display_name_ + " prepare failed: " +
-                        taos_stmt2_error_(stmt_) + ", SQL: " + sql);
+        LogUtils::error("{} prepare failed: {}, SQL: {}", display_name_, taos_stmt2_error_(stmt_), sql);
         taos_stmt2_close_(stmt_);
         stmt_ = nullptr;
         return false;
@@ -182,9 +184,14 @@ bool TDengineConnector::execute(const std::string& sql) {
     if (!success) {
         constexpr size_t max_sql_preview = 300;
         const bool is_truncated = sql.length() > max_sql_preview;
-        LogUtils::error(display_name_ + " execute failed [" + std::to_string(code) + "]: " + taos_errstr_(res));
-        LogUtils::error((is_truncated ? "SQL (truncated): " : "SQL: ") + sql.substr(0, max_sql_preview) +
-                        (is_truncated ? "..." : "") + ", SQL length: " + std::to_string(sql.length()) + " bytes");
+        LogUtils::error("{} execute failed [{}]: {}", display_name_, code, taos_errstr_(res));
+        LogUtils::error(
+            "{}SQL: {}{}, SQL length: {} bytes",
+            is_truncated ? "(truncated) " : "",
+            sql.substr(0, max_sql_preview),
+            is_truncated ? "..." : "",
+            sql.length()
+        );
     }
 
     taos_free_result_(res);
@@ -199,7 +206,7 @@ bool TDengineConnector::execute(const StmtV2InsertData& data) {
     if (!is_connected_) return false;
 
     if (!stmt_) {
-        LogUtils::error(display_name_ + " statement is not prepared. Call prepare() first");
+        LogUtils::error("{} statement is not prepared. Call prepare() first", display_name_);
         return false;
     }
 
@@ -210,11 +217,12 @@ bool TDengineConnector::execute(const StmtV2InsertData& data) {
         -1
     );
     if (code != 0) {
-        std::ostringstream oss;
-        oss << display_name_ << " failed to bind parameters: "
-            << taos_stmt2_error_(stmt_)
-            << " [code: 0x" << std::hex << code << "]";
-        LogUtils::error(oss.str());
+        LogUtils::error(
+            "{} failed to bind parameters: {} [code: 0x{:x}]",
+            display_name_,
+            taos_stmt2_error_(stmt_),
+            code
+        );
         return false;
     }
 
@@ -222,11 +230,12 @@ bool TDengineConnector::execute(const StmtV2InsertData& data) {
     int affected_rows = 0;
     code = taos_stmt2_exec_(stmt_, &affected_rows);
     if (code != 0) {
-        std::ostringstream oss;
-        oss << display_name_ << " execute failed: "
-            << taos_stmt2_error_(stmt_)
-            << " [code: 0x" << std::hex << code << std::dec << "]";
-        LogUtils::error(oss.str());
+        LogUtils::error(
+            "{} execute failed: {} [code: 0x{:x}]",
+            display_name_,
+            taos_stmt2_error_(stmt_),
+            code
+        );
         return false;
     }
 

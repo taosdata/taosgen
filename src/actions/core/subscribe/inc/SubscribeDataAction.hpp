@@ -15,7 +15,7 @@ public:
         for (const auto& topic : config_.control.subscribe_control.topics) {
             oss << topic.name << " ";
         }
-        LogUtils::info(oss.str());
+        LogUtils::info("Subscribing to data from topics: {}", oss.str());
 
         // Implement the specific data subscription logic here
     }

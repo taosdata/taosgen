@@ -12,7 +12,7 @@ void CreateDatabaseAction::prepare_connector() {
 }
 
 void CreateDatabaseAction::execute() {
-    LogUtils::info("Creating database: " + config_.tdengine.database);
+    LogUtils::info("Creating database: {}", config_.tdengine.database);
 
     try {
         prepare_connector();
@@ -33,7 +33,7 @@ void CreateDatabaseAction::execute() {
             }
         }
     } catch (const std::exception& e) {
-        LogUtils::error("An error occurred: " + std::string(e.what()));
+        LogUtils::error("An error occurred: {}", e.what());
         throw;
     }
 

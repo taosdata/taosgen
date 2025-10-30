@@ -9,7 +9,7 @@
 
 namespace LogUtils {
 
-static std::shared_ptr<spdlog::logger> logger;
+std::shared_ptr<spdlog::logger> logger;
 
 spdlog::level::level_enum to_spdlog_level(Level level) {
     switch (level) {
@@ -58,23 +58,43 @@ void set_level(Level level) {
 }
 
 void debug(const std::string& msg) {
-    if (logger) logger->debug(msg);
+    if (logger) {
+        logger->debug(msg);
+    } else {
+        std::cout << "[DEBUG] " << msg << std::endl;
+    }
 }
 
 void info(const std::string& msg) {
-    if (logger) logger->info(msg);
+    if (logger) {
+        logger->info(msg);
+    } else {
+        std::cout << "[INFO] " << msg << std::endl;
+    }
 }
 
 void warn(const std::string& msg) {
-    if (logger) logger->warn(msg);
+    if (logger) {
+        logger->warn(msg);
+    } else {
+        std::cout << "[WARN] " << msg << std::endl;
+    }
 }
 
 void error(const std::string& msg) {
-    if (logger) logger->error(msg);
+    if (logger) {
+        logger->error(msg);
+    } else {
+        std::cerr << "[ERROR] " << msg << std::endl;
+    }
 }
 
 void fatal(const std::string& msg) {
-    if (logger) logger->critical(msg);
+    if (logger) {
+        logger->critical(msg);
+    } else {
+        std::cerr << "[FATAL] " << msg << std::endl;
+    }
 }
 
 }

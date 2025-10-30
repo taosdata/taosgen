@@ -11,7 +11,7 @@ void CreateSuperTableAction::prepare_connector() {
 }
 
 void CreateSuperTableAction::execute() {
-    LogUtils::info("Creating super table: " + config_.tdengine.database + "." + config_.schema.name);
+    LogUtils::info("Creating super table: {}.{}", config_.tdengine.database, config_.schema.name);
 
     try {
         prepare_connector();
@@ -24,7 +24,7 @@ void CreateSuperTableAction::execute() {
         }
 
     } catch (const std::exception& e) {
-        LogUtils::error("An error occurred: " + std::string(e.what()));
+        LogUtils::error("An error occurred: {}", e.what());
         throw;
     }
 
