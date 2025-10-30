@@ -82,7 +82,7 @@ struct SchemaConfig {
             if (from_csv.columns.enabled) {
                 if (from_csv.columns.tbname_index >= 0) {
                     LogUtils::warn("tables_reuse_data is set to false because from_csv.columns.tbname_index in effect");
-                    generation.data_cache.enabled = false;
+                    generation.tables_reuse_data = false;
                 }
             }
         }
