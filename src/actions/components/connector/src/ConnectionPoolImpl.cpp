@@ -1,6 +1,7 @@
 #include "ConnectionPoolImpl.hpp"
 #include "ConnectorFactory.hpp"
 #include "PooledConnector.hpp"
+#include "LogUtils.hpp"
 #include <iostream>
 #include <stdexcept>
 
@@ -34,10 +35,10 @@ void ConnectionPoolImpl::create_connections_locked(size_t count) {
                 available_connections_.push(std::move(conn));
                 total_count_++;
             } else {
-                std::cerr << "Connection creation failed: connect error" << std::endl;
+                LogUtils::error("Connection creation failed: connect error");
             }
         } catch (const std::exception& e) {
-            std::cerr << "Connection creation failed: " << e.what() << std::endl;
+            LogUtils::error("Connection creation failed: " + std::string(e.what()));
         }
     }
 }

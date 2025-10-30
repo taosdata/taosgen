@@ -138,6 +138,7 @@ find_package(nlohmann_json REQUIRED)
 # find_package(TAOS REQUIRED)
 find_package(Threads REQUIRED)
 find_package(Iconv REQUIRED)
+find_package(spdlog REQUIRED)
 
 if(TSGEN_DARWIN)
   include_directories(/usr/local/include)

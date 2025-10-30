@@ -1,16 +1,17 @@
 #include "CreateChildTableAction.hpp"
-#include <iostream>
-#include <thread>
+#include "LogUtils.hpp"
 #include "FormatterRegistrar.hpp"
 #include "TableNameGenerator.hpp"
 #include "TableNameCSVReader.hpp"
 #include "RowGenerator.hpp"
 #include "TagsCSVReader.hpp"
 #include "ConnectorSource.hpp"
+#include <iostream>
+#include <thread>
 
 
 void CreateChildTableAction::execute() {
-    std::cout << "Creating child table: " << config_.tdengine.database << "." << config_.schema.name << std::endl;
+    LogUtils::info("Creating child table: " + config_.tdengine.database + "." + config_.schema.name);
 
     try {
         // Generate table names
@@ -19,19 +20,19 @@ void CreateChildTableAction::execute() {
             TableNameGenerator generator(config_.schema.tbname.generator);
             table_names = generator.generate();
             // for (const auto& name : table_names) {
-            //     std::cout << "Generated table name: " << name << std::endl;
+            //     LogUtils::info("Generated table name: " + name);
             // }
         } else if (config_.schema.tbname.source_type == "csv") {
             TableNameCSVReader csv_reader(config_.schema.tbname.csv);
             table_names = csv_reader.generate();
             for (const auto& name : table_names) {
-                std::cout << "Read table name from CSV: " << name << std::endl;
+                LogUtils::info("Read table name from CSV: " + name);
             }
         } else {
             throw std::runtime_error("Unsupported table name source type: " + config_.schema.tbname.source_type);
         }
 
-        std::cout << "Total table names generated: " << table_names.size() << std::endl;
+        LogUtils::info("Total table names generated: " + std::to_string(table_names.size()));
 
 
         // Generate tags
@@ -41,14 +42,18 @@ void CreateChildTableAction::execute() {
             RowGenerator row_generator(instances);
             tags = row_generator.generate(table_names.size());
             // for (const auto& tag : tags) {
-            //     std::cout << "Generated tag: " << tag << std::endl;
+            //     LogUtils::info("Generated tag: " + tag);
             // }
         } else if (config_.schema.tags_cfg.source_type == "csv") {
             auto instances = ColumnConfigInstanceFactory::create(config_.schema.tags_cfg.get_schema());
             TagsCSVReader tags_csv(config_.schema.tags_cfg.csv, instances);
             tags = tags_csv.generate();
-            for (const auto& tag : tags) {
-                std::cout << "Read tag from CSV: " << tag << std::endl;
+            if (global_.verbose) {
+                for (const auto& tag : tags) {
+                    std::ostringstream oss;
+                    oss << "Read tag from CSV: " << tag;
+                    LogUtils::info(oss.str());
+                }
             }
             if (tags.size() != table_names.size()) {
                 throw std::runtime_error(
@@ -60,8 +65,7 @@ void CreateChildTableAction::execute() {
             throw std::runtime_error("Unsupported tags source type: " + config_.schema.tags_cfg.source_type);
         }
 
-        std::cout << "Total tags generated: " << tags.size() << std::endl;
-
+        LogUtils::info("Total tags generated: " + std::to_string(tags.size()));
 
         // Split data into groups based on concurrency
         int concurrency = config_.batch.concurrency;
@@ -103,8 +107,7 @@ void CreateChildTableAction::execute() {
                         FormatResult formatted_result = formatter->format(config_, batch_table_names, batch_tags);
 
                         (void)group_idx;
-                        // std::cout << "Formatted result for batch " << group_idx << '#' << batch_idx << ": "
-                        //           << std::get<std::string>(formatted_result) << std::endl;
+                        // LogUtils::info("Formatted result for batch " + std::to_string(group_idx) + "#" + std::to_string(batch_idx) + ": " + std::get<std::string>(formatted_result));
 
                         // Execute the formatted result
                         local_connector->execute(std::get<std::string>(formatted_result));
@@ -128,7 +131,7 @@ void CreateChildTableAction::execute() {
             thread.join();
         }
     } catch (const std::exception& e) {
-        std::cerr << "An error occurred: " << e.what() << std::endl;
+        LogUtils::error("An error occurred: " + std::string(e.what()));
         throw;
     }
 }

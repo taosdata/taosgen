@@ -1,4 +1,5 @@
 #include "CreateSuperTableAction.hpp"
+#include "LogUtils.hpp"
 #include "FormatterRegistrar.hpp"
 #include "ConnectorFactory.hpp"
 #include <iostream>
@@ -10,7 +11,7 @@ void CreateSuperTableAction::prepare_connector() {
 }
 
 void CreateSuperTableAction::execute() {
-    std::cout << "Creating super table: " << config_.tdengine.database << "." << config_.schema.name << std::endl;
+    LogUtils::info("Creating super table: " + config_.tdengine.database + "." + config_.schema.name);
 
     try {
         prepare_connector();
@@ -23,7 +24,7 @@ void CreateSuperTableAction::execute() {
         }
 
     } catch (const std::exception& e) {
-        std::cerr << "An error occurred: " << e.what() << std::endl;
+        LogUtils::error("An error occurred: " + std::string(e.what()));
         throw;
     }
 

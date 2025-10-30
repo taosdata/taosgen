@@ -1,26 +1,35 @@
-#include <iostream>
+#include "LogUtils.hpp"
 #include "ParameterContext.hpp"
 #include "JobScheduler.hpp"
+#include <iostream>
 #include <csignal>
 #include "actions/core/checkpoint/inc/CheckpointAction.hpp"
 
-
 void signal_handler(int signum) {
-    std::cout << "\nInterrupt signal (" << signum << ") received. Shutting down gracefully..." << std::endl;
+    LogUtils::info("Interrupt signal (" + std::to_string(signum) + ") received. Shutting down gracefully...");
     CheckpointAction::stop_all(true);
     exit(signum);
 }
 
 int main(int argc, char* argv[]) {
+    int result = 0;
+
+    LogUtils::init(LogUtils::Level::Info);
+
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
+
     try {
         // 1. Create parameter context and initialize
         ParameterContext context;
 
         // Initialize parameter context
         if (!context.init(argc, argv)) {
-            return 0;
+            goto end;
+        }
+
+        if (context.get_global_config().verbose) {
+            LogUtils::set_level(LogUtils::Level::Debug);
         }
 
         // 2. Get parsed configuration data
@@ -34,20 +43,27 @@ int main(int argc, char* argv[]) {
             // Run scheduler
             bool success = scheduler.run();
             if (!success) {
-                return 1;
+                result = 1;
+                goto end;
             }
 
-            std::cout << "All jobs completed successfully!" << std::endl;
-            return 0;
+            LogUtils::info("All jobs completed successfully!");
+            goto end;
 
         } catch (const std::exception& e) {
-            std::cerr << "Error during job execution: " << e.what() << std::endl;
-            return 1;
+            LogUtils::error("Error during job execution: " + std::string(e.what()));
+            result = 1;
+            goto end;
         }
 
     } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-        std::cerr << "Use --help or -? to show usage information." << std::endl;
-        return 1;
+        LogUtils::error("Error: " + std::string(e.what()));
+        LogUtils::error("Use --help or -? to show usage information");
+        result = 1;
+        goto end;
     }
+
+end:
+    LogUtils::shutdown();
+    return result;
 }

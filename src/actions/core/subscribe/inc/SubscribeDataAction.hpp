@@ -2,6 +2,7 @@
 #include "ActionBase.hpp"
 #include "ActionFactory.hpp"
 #include "SubscribeDataConfig.hpp"
+#include "LogUtils.hpp"
 #include <iostream>
 
 class SubscribeDataAction : public ActionBase {
@@ -9,11 +10,13 @@ public:
     explicit SubscribeDataAction(const GlobalConfig& global, const SubscribeDataConfig& config) : global_(global), config_(config) {}
 
     void execute() override {
-        std::cout << "Subscribing to data from topics: ";
+        std::ostringstream oss;
+        oss << "Subscribing to data from topics: ";
         for (const auto& topic : config_.control.subscribe_control.topics) {
-            std::cout << topic.name << " ";
+            oss << topic.name << " ";
         }
-        std::cout << std::endl;
+        LogUtils::info(oss.str());
+
         // Implement the specific data subscription logic here
     }
 

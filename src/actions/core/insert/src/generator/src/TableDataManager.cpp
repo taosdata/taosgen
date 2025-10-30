@@ -24,7 +24,7 @@ TableDataManager::TableDataManager(MemoryPool& pool, const InsertDataConfig& con
 
 bool TableDataManager::init(const std::vector<std::string>& table_names) {
     if (table_names.empty()) {
-        std::cerr << "TableDataManager initialized with empty table list" << std::endl;
+        LogUtils::error("TableDataManager initialized with empty table list");
         return false;
     }
 
@@ -62,7 +62,7 @@ bool TableDataManager::init(const std::vector<std::string>& table_names) {
         current_table_index_ = 0;
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "Failed to initialize TableDataManager: " << e.what() << std::endl;
+        LogUtils::error("Failed to initialize TableDataManager: " + std::string(e.what()));
         return false;
     }
 }

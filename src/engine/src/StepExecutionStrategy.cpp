@@ -6,6 +6,7 @@
 #include "InsertDataAction.hpp"
 #include "QueryDataAction.hpp"
 #include "SubscribeDataAction.hpp"
+#include "LogUtils.hpp"
 #include <iostream>
 #include <mutex>
 
@@ -13,17 +14,16 @@
 // Implementation of production environment strategy
 bool ProductionStepStrategy::execute(const Step& step) {
     try {
-        std::cout << "Executing step: " << step.name << " (" << step.uses << ")" << std::endl;
+        LogUtils::info("Executing step: " + step.name + " (" + step.uses + ")");
 
         auto action = ActionFactory::instance().create_action(global_, step.uses, step.action_config);
         action->execute();
 
-        std::cout << "Step completed: " << step.name << std::endl;
+        LogUtils::info("Step completed: " + step.name);
         return true;
 
     } catch (const std::exception& e) {
-        std::cerr << "Error executing step: " << step.name << ", "
-                  << "reason: \"Exception - " << e.what() << "\"" << std::endl;
+        LogUtils::error("Error executing step: " + step.name + ", reason: \"" + std::string(e.what()) + "\"");
         return false;
     }
 }
@@ -34,25 +34,25 @@ static std::mutex log_mutex;
 bool DebugStepStrategy::execute(const Step& step) {
     std::lock_guard<std::mutex> lock(log_mutex);
 
-    std::cout << "Executing step: " << step.name << " (" << step.uses << ")" << std::endl;
+    LogUtils::info("Executing step: " + step.name + " (" + step.uses + ")");
 
     if (step.uses == "tdengine/create-database") {
-        std::cout << "Action type: Create Database" << std::endl;
+        LogUtils::info("Action type: Create Database");
     } else if (step.uses == "tdengine/create-super-table") {
-        std::cout << "Action type: Create Super Table" << std::endl;
+        LogUtils::info("Action type: Create Super Table");
     } else if (step.uses == "tdengine/create-child-table") {
-        std::cout << "Action type: Create Child Table" << std::endl;
+        LogUtils::info("Action type: Create Child Table");
     } else if (step.uses == "tdengine/insert-data") {
-        std::cout << "Action type: Insert Data" << std::endl;
+        LogUtils::info("Action type: Insert Data");
     } else if (step.uses == "actions/query-data") {
-        std::cout << "Action type: Query Data" << std::endl;
+        LogUtils::info("Action type: Query Data");
     } else if (step.uses == "actions/subscribe-data") {
-        std::cout << "Action type: Subscribe Data" << std::endl;
+        LogUtils::info("Action type: Subscribe Data");
     } else {
-        std::cerr << "Unknown action type: " << step.uses << std::endl;
+        LogUtils::error("Unknown action type: " + step.uses);
         return false;
     }
 
-    std::cout << "Step completed: " << step.name << std::endl;
+    LogUtils::info("Step completed: " + step.name);
     return true;
 }

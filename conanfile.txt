@@ -9,6 +9,7 @@ zlib/1.2.13
 lz4/1.9.4
 zstd/1.5.5
 libiconv/1.17
+spdlog/1.16.0
 
 [generators]
 CMakeDeps

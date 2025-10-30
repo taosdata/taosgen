@@ -1,4 +1,5 @@
 #include "RestfulConnector.hpp"
+#include "LogUtils.hpp"
 #include <iostream>
 
 
@@ -47,11 +48,11 @@ bool RestfulConnector::execute(const StmtV2InsertData& data) {
 }
 
 void RestfulConnector::reset_state() noexcept {
-    std::cerr << "RestfulConnector::reset_state is not implemented." << std::endl;
+    LogUtils::error("RestfulConnector::reset_state is not implemented");
     std::abort();
 }
 
 void RestfulConnector::close() noexcept {
-    std::cerr << "RestfulConnector::close is not implemented." << std::endl;
+    LogUtils::error("RestfulConnector::close is not implemented");
     std::abort();
 }

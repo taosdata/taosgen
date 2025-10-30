@@ -1,4 +1,5 @@
 #include "CreateDatabaseAction.hpp"
+#include "LogUtils.hpp"
 #include "FormatterRegistrar.hpp"
 #include "ConnectorFactory.hpp"
 #include "CheckpointAction.hpp"
@@ -11,7 +12,7 @@ void CreateDatabaseAction::prepare_connector() {
 }
 
 void CreateDatabaseAction::execute() {
-    std::cout << "Creating database: " << config_.tdengine.database << std::endl;
+    LogUtils::info("Creating database: " + config_.tdengine.database);
 
     try {
         prepare_connector();
@@ -20,7 +21,7 @@ void CreateDatabaseAction::execute() {
 
         if (CheckpointAction::is_recover(global_, config_.checkpoint_info)) {
             config_.tdengine.drop_if_exists = false;
-            std::cout << "[Info] Checkpoint file exists. Skipping database drop." << std::endl;
+            LogUtils::info("Checkpoint file exists. Skipping database drop");
         }
 
         FormatResult result = formatter->format(config_);
@@ -32,7 +33,7 @@ void CreateDatabaseAction::execute() {
             }
         }
     } catch (const std::exception& e) {
-        std::cerr << "An error occurred: " << e.what() << std::endl;
+        LogUtils::error("An error occurred: " + std::string(e.what()));
         throw;
     }
 

@@ -1,4 +1,5 @@
 #include "MqttClient.hpp"
+#include "LogUtils.hpp"
 #include <sstream>
 #include <iomanip>
 
@@ -53,7 +54,7 @@ bool PahoMqttClient::connect(const std::string& user, const std::string& passwor
         client_->connect(conn_opts)->wait();
         return true;
     } catch (const mqtt::exception& e) {
-        std::cerr << "MQTT connection failed: " << e.what() << std::endl;
+        LogUtils::error(std::string("MQTT connection failed: ") + e.what());
         return false;
     }
 }
@@ -67,7 +68,7 @@ void PahoMqttClient::disconnect() {
         try {
             client_->disconnect()->wait();
         } catch (const mqtt::exception& e) {
-            std::cerr << "MQTT disconnect failed: " << e.what() << std::endl;
+            LogUtils::error(std::string("MQTT disconnect failed: ") + e.what());
         }
     }
 }
