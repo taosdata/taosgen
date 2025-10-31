@@ -33,7 +33,7 @@ public:
         if (lvl < sizeof(level_names) / sizeof(level_names[0])) {
             dest.append(level_names[lvl], level_names[lvl] + std::strlen(level_names[lvl]));
         } else {
-            dest.append("INFO", "INFO" + 4);
+            dest.append("INFO ", "INFO " + std::strlen("INFO "));
         }
     }
 
