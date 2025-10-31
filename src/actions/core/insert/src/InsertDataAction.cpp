@@ -78,9 +78,9 @@ void InsertDataAction::set_thread_affinity(size_t thread_id, bool reverse, const
 void InsertDataAction::execute() {
     std::string target_info;
     if (config_.target_type == "tdengine") {
-        target_info = " @ " + config_.tdengine.host + ":" + std::to_string(config_.tdengine.port);
+        target_info = "@" + config_.tdengine.host + ":" + std::to_string(config_.tdengine.port);
     } else if (config_.target_type == "mqtt") {
-        target_info = " @ " + config_.mqtt.uri;
+        target_info = "@" + config_.mqtt.uri;
     } else {
         throw std::invalid_argument("Unsupported target type: " + config_.target_type);
     }

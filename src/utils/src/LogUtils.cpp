@@ -27,7 +27,7 @@ class LevelFullNameFormatter : public spdlog::custom_flag_formatter {
 public:
     void format(const spdlog::details::log_msg& msg, const std::tm&, spdlog::memory_buf_t& dest) override {
         static const char* level_names[] = {
-            "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "CRITICAL", "OFF"
+            "TRACE", "DEBUG", "INFO ", "WARN ", "ERROR", "FATAL", "OFF"
         };
         auto lvl = static_cast<size_t>(msg.level);
         if (lvl < sizeof(level_names) / sizeof(level_names[0])) {
