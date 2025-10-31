@@ -1,6 +1,7 @@
 #include "LogUtils.hpp"
 #include <spdlog/spdlog.h>
 #include <spdlog/async.h>
+#include <spdlog/pattern_formatter.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <memory>
@@ -22,6 +23,25 @@ spdlog::level::level_enum to_spdlog_level(Level level) {
     }
 }
 
+class LevelFullNameFormatter : public spdlog::custom_flag_formatter {
+public:
+    void format(const spdlog::details::log_msg& msg, const std::tm&, spdlog::memory_buf_t& dest) override {
+        static const char* level_names[] = {
+            "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "CRITICAL", "OFF"
+        };
+        auto lvl = static_cast<size_t>(msg.level);
+        if (lvl < sizeof(level_names) / sizeof(level_names[0])) {
+            dest.append(level_names[lvl], level_names[lvl] + std::strlen(level_names[lvl]));
+        } else {
+            dest.append("INFO", "INFO" + 4);
+        }
+    }
+
+    std::unique_ptr<spdlog::custom_flag_formatter> clone() const override {
+        return std::make_unique<LevelFullNameFormatter>();
+    }
+};
+
 void init(Level level, const std::string& log_file, size_t max_file_size, size_t max_files) {
     std::filesystem::path log_path(log_file);
     std::filesystem::path parent_dir = log_path.parent_path();
@@ -40,7 +60,12 @@ void init(Level level, const std::string& log_file, size_t max_file_size, size_t
         "taosgen_logger", sinks.begin(), sinks.end(),
         spdlog::thread_pool(), spdlog::async_overflow_policy::block);
 
-    logger->set_pattern("[%Y-%m-%d %H:%M:%S.%f] [%l] [thread %t] %v");
+    auto formatter = std::make_unique<spdlog::pattern_formatter>(
+        "%Y-%m-%d %H:%M:%S.%f %t %X %v"
+    );
+    formatter->add_flag<LevelFullNameFormatter>('X');
+
+    logger->set_formatter(std::move(formatter));
     logger->set_level(to_spdlog_level(level));
     logger->flush_on(spdlog::level::info);
     spdlog::flush_every(std::chrono::seconds(1));

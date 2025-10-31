@@ -232,7 +232,7 @@ void InsertDataAction::execute() {
             size_t total_queued = pipeline.total_queued();
             double queue_ratio = std::min(static_cast<double>(total_queued) / num_blocks, 1.0);
 
-            LogUtils::info("[Warmup] Queue fill ratio: {:.2f}%, target: {:.2f}%", queue_ratio * 100, queue_warmup_ratio * 100);
+            LogUtils::info("Queue fill ratio: {:.2f}%, target: {:.2f}%", queue_ratio * 100, queue_warmup_ratio * 100);
 
             if (queue_ratio >= queue_warmup_ratio) break;
             std::this_thread::sleep_for(std::chrono::milliseconds(500));

@@ -55,8 +55,8 @@ int main(int argc, char* argv[]) {
         }
 
     } catch (const std::exception& e) {
-        LogUtils::error("Error: {}", e.what());
-        LogUtils::error("Use --help or -? to show usage information");
+        LogUtils::error(e.what());
+        LogUtils::info("Use --help or -? to show usage information");
         return 1;
     }
 }
