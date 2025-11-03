@@ -2,6 +2,7 @@
 #include "ActionBase.hpp"
 #include "ActionFactory.hpp"
 #include "QueryDataConfig.hpp"
+#include "LogUtils.hpp"
 #include <iostream>
 
 class QueryDataAction : public ActionBase {
@@ -9,7 +10,8 @@ public:
     explicit QueryDataAction(const GlobalConfig& global, const QueryDataConfig& config) : global_(global), config_(config) {}
 
     void execute() override {
-        std::cout << "Querying data from database: " << config_.source.connection_info.host << std::endl;
+        LogUtils::info("Querying data from database: {}", config_.source.connection_info.host);
+
         // Implement the specific data query logic here
     }
 

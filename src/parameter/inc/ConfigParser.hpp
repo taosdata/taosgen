@@ -337,7 +337,7 @@ namespace YAML {
             if (node["rows_per_table"]) {
                 rows_per_table = node["rows_per_table"].as<int64_t>();
             } else if (node["per_table_rows"]) {
-                std::cerr << "[Config Warning] 'per_table_rows' is deprecated and will be removed in future versions. Please use 'rows_per_table' instead." << std::endl;
+                LogUtils::warn("'per_table_rows' is deprecated and will be removed in future versions. Please use 'rows_per_table' instead.");
                 rows_per_table = node["per_table_rows"].as<int64_t>();
             }
             if (rows_per_table.has_value()) {
@@ -356,7 +356,7 @@ namespace YAML {
             if (node["rows_per_batch"]) {
                 rows_per_batch = node["rows_per_batch"].as<int64_t>();
             } else if (node["per_batch_rows"]) {
-                std::cerr << "[Config Warning] 'per_batch_rows' is deprecated and will be removed in future versions. Please use 'rows_per_batch' instead." << std::endl;
+                LogUtils::warn("'per_batch_rows' is deprecated and will be removed in future versions. Please use 'rows_per_batch' instead.");
                 rows_per_batch = node["per_batch_rows"].as<int64_t>();
             }
             if (rows_per_batch.has_value()) {

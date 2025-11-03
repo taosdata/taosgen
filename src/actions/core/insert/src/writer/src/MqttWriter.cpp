@@ -24,7 +24,7 @@ bool MqttWriter::connect(std::optional<ConnectorSource>& conn_source) {
     try {
         return client_->connect();
     } catch (const std::exception& e) {
-        std::cerr << "MqttWriter connection failed: " << e.what() << std::endl;
+        LogUtils::error("MqttWriter connection failed: {}", e.what());
         return false;
     }
 }

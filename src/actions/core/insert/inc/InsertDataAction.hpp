@@ -29,6 +29,7 @@ private:
     InsertDataConfig config_;
     ColumnConfigInstanceVector col_instances_;
     bool is_checkpoint_recover_ = false;
+    std::atomic<bool> stop_execution_{false};
 
     void set_realtime_priority();
     void set_thread_affinity(size_t thread_id, bool reverse = false, const std::string& purpose = "");

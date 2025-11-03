@@ -2,6 +2,7 @@
 #include "IWriter.hpp"
 #include "TimeIntervalStrategy.hpp"
 #include "TimeRecorder.hpp"
+#include "LogUtils.hpp"
 #include <functional>
 #include "CheckpointAction.hpp"
 #include "ActionRegisterInfo.hpp"
@@ -46,7 +47,7 @@ protected:
     void update_write_state(const BaseInsertData& data, bool success);
     void notify(const BaseInsertData& data, bool success);
     std::shared_ptr<ActionRegisterInfo> action_info_;
-    
+
     template<typename Func>
     bool execute_with_retry(Func&& operation, const std::string& error_context) {
         const size_t MAX_RETRIES = config_.failure_handling.max_retries;
@@ -57,7 +58,7 @@ protected:
                 bool success = operation();
                 if (success) return true;
             } catch (const std::exception& e) {
-                std::cerr << error_context << " failed reason: " << e.what() << std::endl;
+                LogUtils::error("{} failed reason: {}", error_context, e.what());
                 break;
             }
 
@@ -73,7 +74,7 @@ protected:
             throw std::runtime_error(error_context + " operation failed");
         }
 
-        std::cerr << error_context << " failed after " << MAX_RETRIES << " retries" << std::endl;
+        LogUtils::error("{} failed after {} retries", error_context, MAX_RETRIES);
         return false;
     }
 

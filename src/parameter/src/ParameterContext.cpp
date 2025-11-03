@@ -1,4 +1,5 @@
 #include "ParameterContext.hpp"
+#include "LogUtils.hpp"
 #include "version.hpp"
 #include <cstdlib>
 #include <iostream>
@@ -22,8 +23,9 @@ const std::vector<ParameterContext::CommandOption> ParameterContext::valid_optio
 };
 
 void ParameterContext::show_help() {
-    std::cout << "Usage: taosgen [OPTIONS]...\n\n"
-              << "Options:\n";
+    LogUtils::info("Usage: taosgen [OPTIONS]...");
+    LogUtils::info("");
+    LogUtils::info("Options:");
 
     // Calculate the longest option length for alignment
     size_t max_opt_len = 0;
@@ -38,36 +40,42 @@ void ParameterContext::show_help() {
 
     // Output help info for each option
     for (const auto& opt : valid_options) {
+        std::ostringstream oss;
+
         // Output short and long option
-        std::cout << "  -" << opt.short_opt << ", " << opt.long_opt;
+        oss << "  -" << opt.short_opt << ", " << opt.long_opt;
 
         // Calculate current output length
         size_t current_len = 4 + opt.long_opt.length();
 
         // Output VALUE (if needed) and spaces
         if (opt.requires_value) {
-            std::cout << "=VALUE";
+            oss << "=VALUE";
             current_len += 6;
         }
 
         // Calculate padding for alignment
         size_t padding = desc_offset - current_len;
-        std::cout << std::string(padding, ' ');
+        oss << std::string(padding, ' ');
 
         // Output description
-        std::cout << opt.description << "\n";
+        oss << opt.description;
+        LogUtils::info(oss.str());
     }
 
-    std::cout << "\nExamples:\n"
-              << "  taosgen --config-file=example.yaml\n"
-              << "  taosgen -h localhost -P 6041 -u root -p taosdata\n"
-              << "\nFor more information, visit: https://docs.taosdata.com/\n\n";
+    LogUtils::info("");
+    LogUtils::info("Examples:");
+    LogUtils::info("  taosgen --config-file=example.yaml");
+    LogUtils::info("  taosgen -h localhost -P 6041 -u root -p taosdata");
+    LogUtils::info("");
+    LogUtils::info("For more information, visit: https://docs.taosdata.com/");
+    LogUtils::info("");
 }
 
 void ParameterContext::show_version() {
-    std::cout << "taosgen version: " << TAOSGEN_VERSION << std::endl;
-    std::cout << "git: " << TSGEN_BUILD_GIT << std::endl;
-    std::cout << "build: " << TSGEN_BUILD_TARGET_OSTYPE << "-" << TSGEN_BUILD_TARGET_CPUTYPE << " " << TSGEN_BUILD_DATE << std::endl;
+    LogUtils::info("taosgen version: {}", TAOSGEN_VERSION);
+    LogUtils::info("git: {}", TSGEN_BUILD_GIT);
+    LogUtils::info("build: {}-{} {}", TSGEN_BUILD_TARGET_OSTYPE, TSGEN_BUILD_TARGET_CPUTYPE, TSGEN_BUILD_DATE);
 }
 
 void ParameterContext::parse_tdengine(const YAML::Node& td_yaml) {
@@ -264,7 +272,7 @@ void ParameterContext::parse_td_create_database_action(Job& job, Step& step) {
         create_db_config.checkpoint_info = step.with["checkpoint"].as<CheckpointInfo>();
     }
     // Print parse result
-    std::cout << "Parsed create-database action: " << create_db_config.tdengine.database << std::endl;
+    LogUtils::info("Parsed create-database action: {}", create_db_config.tdengine.database);
 
     // Save result to Step's action_config field
     step.action_config = std::move(create_db_config);
@@ -312,7 +320,7 @@ void ParameterContext::parse_td_create_super_table_action(Job& job, Step& step) 
     }
 
     // Print parse result
-    std::cout << "Parsed create-super-table action: " << create_stb_config.schema.name << std::endl;
+    LogUtils::info("Parsed create-super-table action: {}", create_stb_config.schema.name);
 
     // Save result to Step's action_config field
     job.schema = create_stb_config.schema;
@@ -361,7 +369,7 @@ void ParameterContext::parse_td_create_child_table_action(Job& job, Step& step) 
     }
 
     // Print parse result
-    std::cout << "Parsed create-child-table action for super table: " << create_ctb_config.schema.name << std::endl;
+    LogUtils::info("Parsed create-child-table action for super table: {}", create_ctb_config.schema.name);
 
     // Save result to Step's action_config field
     job.schema = create_ctb_config.schema;
@@ -428,8 +436,15 @@ void ParameterContext::parse_comm_insert_data_action(Job& job, Step& step, std::
         }
     }
 
+    if (insert_config.checkpoint_info.enabled) {
+        if (insert_config.schema.generation.data_cache.enabled) {
+            LogUtils::warn("data_cache.enabled is set to false because checkpoint is enabled");
+            insert_config.schema.generation.data_cache.enabled = false;
+        }
+    }
+
     // Print parse result
-    std::cout << "Parsed insert-data action." << std::endl;
+    LogUtils::info("Parsed insert-data action");
 
     // Save result to Step's action_config field
     job.tdengine = insert_config.tdengine;
@@ -456,7 +471,7 @@ void ParameterContext::parse_query_data_action(Job& /*job*/, Step& step) {
     }
 
     // Print parse result
-    std::cout << "Parsed query-data action." << std::endl;
+    LogUtils::info("Parsed query-data action");
 
     // Save result to Step's action_config field
     step.action_config = std::move(query_config);
@@ -480,7 +495,7 @@ void ParameterContext::parse_subscribe_data_action(Job& /*job*/, Step& step) {
     }
 
     // Print parse result
-    std::cout << "Parsed subscribe-data action." << std::endl;
+    LogUtils::info("Parsed subscribe-data action");
 
     // Save result to Step's action_config field
     step.action_config = std::move(subscribe_config);

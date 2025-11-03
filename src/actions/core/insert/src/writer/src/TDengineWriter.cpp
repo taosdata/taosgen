@@ -29,7 +29,7 @@ bool TDengineWriter::connect(std::optional<ConnectorSource>& conn_source) {
             return connector_->connect();
         }
     } catch (const std::exception& e) {
-        std::cerr << "TDengineWriter connection failed: " << e.what() << std::endl;
+        LogUtils::error("TDengineWriter connection failed: {}", e.what());
         connector_.reset();
         return false;
     }

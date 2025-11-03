@@ -15,10 +15,12 @@
 
 class CheckpointAction : public ActionBase {
 public:
+    static void register_signal_handlers();
+
     explicit CheckpointAction(const GlobalConfig& global, const CheckpointActionConfig& config) : global_(global), config_(config) {}
 
      ~CheckpointAction(); // Add destructor to manage thread lifecycle
-     
+
     void execute() override;
     void notify(const std::any& payload) override;
 
@@ -50,7 +52,7 @@ private:
     static std::mutex global_mutex_;
     static std::condition_variable global_cv_;
     static std::atomic<int> active_threads_count_;
-    
+
     // Register CheckpointAction to ActionFactory
     inline static bool registered_ = []() {
         ActionFactory::instance().register_action(

@@ -62,7 +62,7 @@ jobs:
 
       - uses: tdengine/insert-data
         with:
-          concurrency: 1
+          concurrency: 10
           time_interval:
             enabled: true
             interval_strategy: literal

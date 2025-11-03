@@ -1,9 +1,11 @@
 # Create library target
 add_library(utils STATIC
+  src/LogUtils.cpp
   src/StringUtils.cpp
   src/TimestampUtils.cpp
   src/ProcessUtils.cpp
   src/Barrier.cpp
+  src/SignalManager.cpp
 )
 
 # Set include directories
@@ -15,6 +17,7 @@ target_include_directories(utils
 # Link dependent libraries
 target_link_libraries(utils
   PUBLIC
+    spdlog::spdlog
     Threads::Threads
     Iconv::Iconv
 )

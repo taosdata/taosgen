@@ -1,4 +1,5 @@
 #include "InsertDataAction.hpp"
+#include "LogUtils.hpp"
 #include "FormatterRegistrar.hpp"
 #include "FormatterFactory.hpp"
 #include "TableNameManager.hpp"
@@ -24,8 +25,8 @@ void InsertDataAction::set_realtime_priority() {
     param.sched_priority = sched_get_priority_max(SCHED_FIFO);
 
     if (pthread_setschedparam(pthread_self(), SCHED_FIFO, &param) != 0) {
-        std::cerr << "Warning: Failed to set real-time priority. "
-                  << "Requires root privileges or CAP_SYS_NICE capability." << std::endl;
+        LogUtils::warn("Failed to set real-time priority. "
+            "Requires root privileges or CAP_SYS_NICE capability.");
     }
 #endif
 }
@@ -48,19 +49,24 @@ void InsertDataAction::set_thread_affinity(size_t thread_id, bool reverse, const
 
     int rc = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
     if (rc != 0) {
-        std::cerr << "Warning: Failed to set thread affinity for thread "
-                  << thread_id << " to core " << core_id
-                  << " (error code: " << rc << ", "
-                  << strerror(rc) << ")" << std::endl;
+        LogUtils::warn(
+            "Failed to set thread affinity for thread {} to core {} (error code: {}, {})",
+            thread_id,
+            core_id,
+            rc,
+            strerror(rc)
+        );
         return;
     }
 
     if (global_.verbose) {
         // Print binding info if verbose mode is enabled
-        std::cout << "[Debug] " << (purpose.empty() ? "" : (purpose + " "))
-                  << "Thread " << thread_id << " bound to core "
-                  << core_id << (reverse ? " (reverse binding)" : " (forward binding)")
-                  << std::endl;
+        LogUtils::debug("{}Thread {} bound to core {}{}",
+            (purpose.empty() ? "" : (purpose + " ")),
+            thread_id,
+            core_id,
+            reverse ? " (reverse binding)" : " (forward binding)"
+        );
     }
 #else
     (void)thread_id;
@@ -70,17 +76,17 @@ void InsertDataAction::set_thread_affinity(size_t thread_id, bool reverse, const
 }
 
 void InsertDataAction::execute() {
-    std::cout << "Inserting data into: " << config_.target_type;
+    std::string target_info;
     if (config_.target_type == "tdengine") {
-        std::cout << " @ "
-                  << config_.tdengine.host << ":"
-                  << config_.tdengine.port << std::endl;
+        target_info = "@" + config_.tdengine.host + ":" + std::to_string(config_.tdengine.port);
     } else if (config_.target_type == "mqtt") {
-        std::cout << " @ "
-                  << config_.mqtt.uri << std::endl;
+        target_info = "@" + config_.mqtt.uri;
     } else {
         throw std::invalid_argument("Unsupported target type: " + config_.target_type);
     }
+    LogUtils::info("Inserting data into: {}{}", config_.target_type, target_info);
+
+    std::optional<ConnectorSource> conn_source;
 
     try {
         // Generate all child table names and split by producer thread count
@@ -105,8 +111,7 @@ void InsertDataAction::execute() {
 
         // Print assignment info
         for (size_t i = 0; i < split_names.size(); i++) {
-            std::cout << "Producer thread " << i << " will handle "
-                     << split_names[i].size() << " tables" << std::endl;
+            LogUtils::info("Producer thread {} will handle {} tables", i, split_names[i].size());
         }
 
         // Initialize data pipeline
@@ -141,8 +146,7 @@ void InsertDataAction::execute() {
         );
 
         if (config_.schema.generation.data_cache.enabled) {
-            std::cout << "Generation data cache mode enabled with "
-                      << pool->get_cache_units_count() << " cache units." << std::endl;
+            LogUtils::info("Generation data cache mode enabled with {} cache units.", pool->get_cache_units_count());
 
             init_cache_units_data(*pool, num_cached_batches, max_tables_per_block, max_rows_per_table);
         }
@@ -164,18 +168,19 @@ void InsertDataAction::execute() {
         auto action_info = std::make_shared<ActionRegisterInfo>();
         if (config_.checkpoint_info.enabled && config_.data_format.format_type == "stmt"
             && config_.data_format.stmt_config.version == "v2") {
-            std::cout << "[Info] Starting checkpoint configuration construction..." << std::endl;
+            LogUtils::info("Starting checkpoint configuration construction...");
+            CheckpointAction::register_signal_handlers();
             CheckpointActionConfig checkpoint_config(this->config_);
             auto action = ActionFactory::instance().create_action(global_, "actions/checkpoint", checkpoint_config);
             action_info->action = std::move(action);
             (action_info->action.value())->execute();
             this->is_checkpoint_recover_ = true;
-            std::cout << "[Info] Checkpointing is enabled. CheckpointAction initialized." << std::endl;
+            LogUtils::info("Checkpointing is enabled. CheckpointAction initialized");
         }
 
         // Create all writer instances
         for (size_t i = 0; i < consumer_thread_count; i++) {
-            std::cout << "[Info] Creating writer instance for consumer thread " << i << std::endl;
+            LogUtils::debug("Creating writer instance for consumer thread {}", i);
             writers.push_back(WriterFactory::create(config_, col_instances_, i, action_info));
         }
 
@@ -227,15 +232,13 @@ void InsertDataAction::execute() {
             size_t total_queued = pipeline.total_queued();
             double queue_ratio = std::min(static_cast<double>(total_queued) / num_blocks, 1.0);
 
-            std::cout << "[Warmup] Queue fill ratio: " << std::fixed << std::setprecision(2)
-                      << (queue_ratio * 100) << "%, target: " << (queue_warmup_ratio * 100) << "%" << std::endl;
+            LogUtils::info("Queue fill ratio: {:.2f}%, target: {:.2f}%", queue_ratio * 100, queue_warmup_ratio * 100);
 
             if (queue_ratio >= queue_warmup_ratio) break;
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
 
         // Start consumer threads
-        std::optional<ConnectorSource> conn_source;
         if (config_.target_type == "tdengine") {
             conn_source.emplace(config_.tdengine);
         }
@@ -262,7 +265,7 @@ void InsertDataAction::execute() {
         size_t max_total_rows = all_names.size() * rows_per_table;
         int total_col_width = std::to_string(max_total_rows).length();
 
-        while (active_producers > 0) {
+        while (active_producers > 0 && !stop_execution_.load()) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
 
             // Calculate total rows generated by all producers
@@ -288,21 +291,26 @@ void InsertDataAction::execute() {
             // Calculate total runtime
             auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - start_time).count();
 
-            std::cout << "Runtime: " << std::setw(4) << std::setfill(' ') << duration << "s | "
-                    << "Rate: " << std::setw(8) << std::setfill(' ') << static_cast<long long>(rows_per_sec) << " rows/s | "
-                    << "Total: " << std::setw(total_col_width) << std::setfill(' ') << total_rows << " rows | "
-                    << "Queue: " << std::setw(3) << std::setfill(' ') << pipeline.total_queued() << " items | "
-                    << "CPU Usage: " << std::setw(7) << std::fixed << std::setprecision(2) << ProcessUtils::get_cpu_usage_percent() << "% | "
-                    << "Memory Usage: " << ProcessUtils::get_memory_usage_human_readable() << " | "
-                    << "Thread Count: " << std::setw(3) << std::setfill(' ') << ProcessUtils::get_thread_count() << std::endl;
+            LogUtils::info(
+                "Runtime: {:4}s | Rate: {:8} rows/s | Total: {:{}} rows | Queue: {:3} items | CPU Usage: {:7.2f}% | Memory Usage: {} | Thread Count: {:3}",
+                duration,
+                static_cast<long long>(rows_per_sec),
+                total_rows,
+                total_col_width,
+                pipeline.total_queued(),
+                ProcessUtils::get_cpu_usage_percent(),
+                ProcessUtils::get_memory_usage_human_readable(),
+                ProcessUtils::get_thread_count()
+            );
         }
 
-        std::cout << "All producer threads have finished." << std::endl;
+        LogUtils::info("All producer threads have finished");
+
         // Wait for all data to be sent
         size_t last_queue_size = pipeline.total_queued();
         auto last_check_time = std::chrono::steady_clock::now();
 
-        while (pipeline.total_queued() > 0) {
+        while (pipeline.total_queued() > 0 && !stop_execution_.load()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
             auto current_time = std::chrono::steady_clock::now();
@@ -313,12 +321,15 @@ void InsertDataAction::execute() {
                 size_t current_queue_size = pipeline.total_queued();
                 double process_rate = (last_queue_size - current_queue_size) / interval;
 
-                std::cout << "Runtime: " << std::setw(4) << std::setfill(' ') << duration << "s | "
-                          << "Remaining Queue: " << std::setw(3) << std::setfill(' ') << current_queue_size << " items | "
-                          << "Processing Rate: " << std::setw(6) << std::fixed << std::setprecision(2) << process_rate << " items/s | "
-                          << "CPU Usage: " << std::setw(7) << std::fixed << std::setprecision(2) << ProcessUtils::get_cpu_usage_percent() << "% | "
-                          << "Memory Usage: " << ProcessUtils::get_memory_usage_human_readable() << " | "
-                          << "Thread Count: " << std::setw(3) << std::setfill(' ') << ProcessUtils::get_thread_count() << std::endl;
+                LogUtils::info(
+                    "Runtime: {:4}s | Remaining Queue: {:3} items | Processing Rate: {:6.2f} items/s | CPU Usage: {:7.2f}% | Memory Usage: {} | Thread Count: {:3}",
+                    duration,
+                    current_queue_size,
+                    process_rate,
+                    ProcessUtils::get_cpu_usage_percent(),
+                    ProcessUtils::get_memory_usage_human_readable(),
+                    ProcessUtils::get_thread_count()
+                );
 
                 last_queue_size = current_queue_size;
                 last_check_time = current_time;
@@ -343,6 +354,10 @@ void InsertDataAction::execute() {
 
         for (auto& t : consumer_threads) {
             if (t.joinable()) t.join();
+        }
+
+        if (stop_execution_.load()) {
+            throw std::runtime_error("Exception detected during execution, aborting...");
         }
 
         // Calculate final total rows
@@ -391,14 +406,13 @@ void InsertDataAction::execute() {
             static_cast<double>(final_total_rows) / total_duration : 0.0;
 
         // Print performance statistics
-        std::cout << "\n=============================================== Insert Summary Statistics ====================================================\n"
-                  << "Insert Threads: " << consumer_thread_count << "\n"
-                  << "Total Rows: " << final_total_rows << "\n"
-                  << "Total Duration: " << std::fixed << std::setprecision(2)
-                  << total_duration << " seconds\n"
-                  << "Average Rate: " << std::fixed << std::setprecision(2)
-                  << avg_rows_per_sec << " rows/second\n"
-                  << "==============================================================================================================================\n";
+        LogUtils::info("");
+        LogUtils::info("=================================================== Insert Summary Statistics ========================================================");
+        LogUtils::info("Insert Threads: {}", consumer_thread_count);
+        LogUtils::info("Total Rows: {}", final_total_rows);
+        LogUtils::info("Total Duration: {:.2f} seconds", total_duration);
+        LogUtils::info("Average Rate: {:.2f} rows/second", avg_rows_per_sec);
+        LogUtils::info("=======================================================================================================================================");
 
         // Collect performance metrics
         ActionMetrics global_play_metrics;
@@ -417,22 +431,23 @@ void InsertDataAction::execute() {
         double effective_ratio = thread_latency / total_duration * 100.0;
         double framework_ratio = (1 - thread_latency / total_duration) * 100.0;
         TimeIntervalStrategy time_strategy(config_.time_interval, config_.timestamp_precision);
-        std::cout << "\n=============================================== Insert Latency & Efficiency Metrics ==========================================\n"
-                << "Total Operations: " << global_write_metrics.get_samples().size() << "\n"
-                << "Total Duration: " << std::fixed << std::setprecision(2) << total_duration << " seconds\n"
-                << "Pure Insert Latency: " << std::fixed << std::setprecision(2) << thread_latency << " seconds\n"
-                << "Effective Time Ratio: " << std::fixed << std::setprecision(2) << effective_ratio << "%\n"
-                << "Framework Overhead: " << std::fixed << std::setprecision(2) << framework_ratio << "%\n"
-                << "Idle Time After Finish: " << std::fixed << std::setprecision(2) << avg_wait_time << " seconds\n";
+
+        LogUtils::info("");
+        LogUtils::info("=================================================== Insert Latency & Efficiency Metrics ==============================================");
+        LogUtils::info("Total Operations: {}", global_write_metrics.get_samples().size());
+        LogUtils::info("Total Duration: {:.2f} seconds", total_duration);
+        LogUtils::info("Pure Insert Latency: {:.2f} seconds", thread_latency);
+        LogUtils::info("Effective Time Ratio: {:.2f}%", effective_ratio);
+        LogUtils::info("Framework Overhead: {:.2f}%", framework_ratio);
+        LogUtils::info("Idle Time After Finish: {:.2f} seconds", avg_wait_time);
 
         if (time_strategy.is_literal_strategy()) {
-            std::cout << "Play Latency Distribution: " << global_play_metrics.get_summary() << "\n";
+            LogUtils::info("Play Latency Distribution: {}", global_play_metrics.get_summary());
         }
 
-        std::cout << "Write Latency Distribution: " << global_write_metrics.get_summary() << "\n"
-                << "==============================================================================================================================\n";
-
-        std::cout << std::endl;
+        LogUtils::info("Write Latency Distribution: {}", global_write_metrics.get_summary());
+        LogUtils::info("======================================================================================================================================");
+        LogUtils::info("");
 
         // Clean up resources
         for (auto& writer : writers) {
@@ -442,10 +457,10 @@ void InsertDataAction::execute() {
         if (action_info && action_info->action) {
             CheckpointAction::stop_all();
         }
-        std::cout << "InsertDataAction completed successfully" << std::endl;
+        LogUtils::info("InsertDataAction completed successfully");
 
     } catch (const std::exception& e) {
-        std::cerr << "InsertDataAction failed: " << e.what() << std::endl;
+        // LogUtils::error("InsertDataAction failed: {}", e.what());
         throw;
     }
 }
@@ -483,9 +498,12 @@ void InsertDataAction::init_cache_units_data(
         }
 
         if (global_.verbose) {
-            std::cout << "[Debug] Initialized cache data for table: " << table_name
-                      << " with " << max_rows_per_table << " rows per batch, "
-                      << num_cached_batches << " cached batches." << std::endl;
+            LogUtils::debug(
+                "Initialized cache data for table: {} with {} rows per batch, {} cached batches",
+                table_name,
+                max_rows_per_table,
+                num_cached_batches
+            );
         }
 
         if (config_.schema.generation.tables_reuse_data) {
@@ -501,7 +519,7 @@ void InsertDataAction::producer_thread_function(
     std::shared_ptr<TableDataManager> data_manager)
 {
     if (assigned_tables.empty()) {
-        std::cout << "Producer thread " + std::to_string(producer_id) + " has no assigned tables" << std::endl;
+        LogUtils::info("Producer thread {} has no assigned tables", producer_id);
         return;
     }
 
@@ -514,7 +532,12 @@ void InsertDataAction::producer_thread_function(
     auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(config_.data_format);
 
     // Data generation loop
-    while (auto batch = data_manager->next_multi_batch()) {
+    while (!stop_execution_.load()) {
+        auto batch = data_manager->next_multi_batch();
+        if (!batch.has_value()) {
+            break;
+        }
+
         // size_t batch_size = batch->table_batches.size();
         // size_t total_rows = batch->total_rows;
 
@@ -598,7 +621,7 @@ void InsertDataAction::consumer_thread_function(
 
     // Data processing loop
     (void)running;
-    while (true) {
+    while (!stop_execution_.load()) {
         auto result = pipeline.fetch_data(consumer_id);
 
         switch (result.status) {
@@ -630,27 +653,22 @@ void InsertDataAction::consumer_thread_function(
                 gc.dispose(std::move(*result.data));
 
             } catch (const std::exception& e) {
-                std::cerr << "Consumer " << consumer_id << " write failed: " << e.what() << std::endl;
+                LogUtils::error("Consumer " + std::to_string(consumer_id) + " write failed: " + e.what());
 
                 // Handle failure
                 failed_count++;
                 if (failure_cfg.on_failure == "exit") {
-                    // std::cerr << "Consumer " << consumer_id << " exiting after "
-                    //           << retry_count << " retries" << std::endl;
-                    throw std::runtime_error(
-                        "Consumer " + std::to_string(consumer_id) +
-                        " failed. Last error: " + e.what()
-                    );
+                    stop_execution_.store(true);
+                    return;
                 }
             }
             break;
 
         case DataPipeline<FormatResult>::Status::Terminated:
             // Pipeline terminated, exit thread
-            std::cout << "Consumer " << consumer_id << " received termination signal" << std::endl;
+            LogUtils::debug("Consumer {} received termination signal", consumer_id);
             if (failed_count > 0) {
-                std::cout << "Consumer " << consumer_id << " had "
-                          << failed_count << " failed write attempts" << std::endl;
+                LogUtils::warn("Consumer {} had {} failed write attempts", consumer_id, failed_count);
             }
             return;
 
@@ -675,6 +693,21 @@ ColumnConfigInstanceVector InsertDataAction::create_column_instances() const {
 }
 
 void InsertDataAction::print_writer_times(const std::vector<std::unique_ptr<IWriter>>& writers) {
+    auto format_time = [](const std::chrono::system_clock::time_point& tp) -> std::string {
+        auto t = std::chrono::system_clock::to_time_t(tp);
+        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(tp.time_since_epoch()) % 1000;
+        std::tm tm;
+#if defined(_WIN32)
+        localtime_s(&tm, &t);
+#else
+        localtime_r(&t, &tm);
+#endif
+        std::ostringstream oss;
+        oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S")
+            << "." << std::setfill('0') << std::setw(3) << ms.count();
+        return oss.str();
+    };
+
     for (size_t i = 0; i < writers.size(); ++i) {
         auto start = writers[i]->start_write_time();
         auto end = writers[i]->end_write_time();
@@ -682,23 +715,11 @@ void InsertDataAction::print_writer_times(const std::vector<std::unique_ptr<IWri
         auto start_sys = std::chrono::system_clock::now() + std::chrono::duration_cast<std::chrono::system_clock::duration>(start - std::chrono::steady_clock::now());
         auto end_sys = std::chrono::system_clock::now() + std::chrono::duration_cast<std::chrono::system_clock::duration>(end - std::chrono::steady_clock::now());
 
-        auto print_time = [](const std::chrono::system_clock::time_point& tp) {
-            auto t = std::chrono::system_clock::to_time_t(tp);
-            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(tp.time_since_epoch()) % 1000;
-            std::tm tm;
-#if defined(_WIN32)
-            localtime_s(&tm, &t);
-#else
-            localtime_r(&t, &tm);
-#endif
-            std::cout << std::put_time(&tm, "%Y-%m-%d %H:%M:%S")
-                      << "." << std::setfill('0') << std::setw(3) << ms.count();
-        };
-
-        std::cout << "[Debug] Writer " << i << " start_write_time: ";
-        print_time(start_sys);
-        std::cout << ", end_write_time: ";
-        print_time(end_sys);
-        std::cout << std::endl;
+        LogUtils::debug(
+            "Writer {} start_write_time: {}, end_write_time: {}",
+            i,
+            format_time(start_sys),
+            format_time(end_sys)
+        );
     }
 }

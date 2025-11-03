@@ -60,8 +60,11 @@ void JobScheduler::worker_loop() {
             bool success = step_strategy_->execute(step);
             if (!success) {
                 stop_execution_.store(true);
-                std::string failure_message = "Job step execution failed, exiting (job: " + node->job.name + ", step: " + step.name + ")";
-                std::cerr << failure_message << std::endl;
+                LogUtils::error(
+                    "Job step execution failed, exiting (job: {}, step: {})",
+                    node->job.name,
+                    step.name
+                );
                 queue_->stop();
                 {
                     std::unique_lock<std::mutex> lock(done_mutex_);
