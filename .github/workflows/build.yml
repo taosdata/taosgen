@@ -132,7 +132,7 @@ jobs:
             ls -al
 
           elif [ "${{ runner.os }}" = "macOS" ]; then
-            version="3.3.8.1"
+            version="3.3.8.4"
             pkg="tdengine-tsdb-oss-${version}-macos-${arch}.pkg"
 
             # Clean up old packages
@@ -184,6 +184,7 @@ jobs:
             taos -V
 
           elif [ "${{ runner.os }}" = "macOS" ]; then
+            version="3.3.8.4"
             pkg="tdengine-tsdb-oss-${version}-macos-${arch}.pkg"
             pwd
             ls -al
