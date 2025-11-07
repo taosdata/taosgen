@@ -99,14 +99,13 @@ jobs:
 
       - name: Download TDengine
         if: steps.cache-tdengine.outputs.cache-hit != 'true'
-        env:
-          TDENGINE_SERVER_URL: ${{ secrets.TDENGINE_SERVER_URL }}
         run: |
           mkdir -p ~/.tdengine-cache
           cd ~/.tdengine-cache
           arch="${{ matrix.arch }}"
           version="${{ steps.get_td_version.outputs.version }}"
-          tdengine_server="$TDENGINE_SERVER_URL"
+          # tdengine_server="${{ secrets.TDENGINE_SERVER_URL }}"
+          tdengine_server="http://192.168.1.131/data/nas/TDengine"
 
           if [ "${{ runner.os }}" = "Linux" ]; then
             pkg="tdengine-tsdb-enterprise-${version}-linux-${arch}.tar.gz"
