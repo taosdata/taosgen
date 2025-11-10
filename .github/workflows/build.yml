@@ -104,7 +104,8 @@ jobs:
           cd ~/.tdengine-cache
           arch="${{ matrix.arch }}"
           version="${{ steps.get_td_version.outputs.version }}"
-          tdengine_server="${{ secrets.TDENGINE_SERVER_URL }}"
+          # tdengine_server="${{ secrets.TDENGINE_SERVER_URL }}"
+          tdengine_server="http://192.168.1.131/data/nas/TDengine"
 
           if [ "${{ runner.os }}" = "Linux" ]; then
             pkg="tdengine-tsdb-enterprise-${version}-linux-${arch}.tar.gz"
@@ -132,7 +133,7 @@ jobs:
             ls -al
 
           elif [ "${{ runner.os }}" = "macOS" ]; then
-            version="3.3.8.1"
+            version="3.3.8.4"
             pkg="tdengine-tsdb-oss-${version}-macos-${arch}.pkg"
 
             # Clean up old packages
@@ -184,6 +185,7 @@ jobs:
             taos -V
 
           elif [ "${{ runner.os }}" = "macOS" ]; then
+            version="3.3.8.4"
             pkg="tdengine-tsdb-oss-${version}-macos-${arch}.pkg"
             pwd
             ls -al
