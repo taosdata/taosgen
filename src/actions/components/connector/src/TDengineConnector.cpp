@@ -26,7 +26,30 @@ void TDengineConnector::init_driver() {
 #endif
 
     if (!taos_lib_handle_) {
-        throw std::runtime_error("Failed to load libtaos shared library");
+        std::string error_msg = "unknown error";
+#if defined(_WIN32)
+        DWORD err_code = GetLastError();
+        if (err_code != 0) {
+            LPVOID msg_buf = nullptr;
+            DWORD flags = FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS;
+            DWORD lang = MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT);
+            if (FormatMessageA(flags, nullptr, err_code, lang, (LPSTR)&msg_buf, 0, nullptr) && msg_buf) {
+                error_msg = static_cast<char*>(msg_buf);
+                LocalFree(msg_buf);
+                // Trim trailing whitespace (like \r\n) from the error message
+                auto endpos = error_msg.find_last_not_of(" \t\r\n");
+                if (std::string::npos != endpos) {
+                    error_msg.erase(endpos + 1);
+                }
+            }
+        }
+#else
+        const char* error = dlerror();
+        if (error) {
+            error_msg = error;
+        }
+#endif
+        throw std::runtime_error(std::string("Failed to load libtaos shared library: ") + error_msg);
     }
 
     // Load API
