@@ -121,7 +121,7 @@ jobs:
     needs: [create-second-child-table]
     steps:
       - name: Insert Second-Level Data
-        uses: tdengine/insert-data
+        uses: tdengine/insert
         with:
           target: tdengine
           format: sql
@@ -203,7 +203,7 @@ jobs:
     assert(data.jobs[3].needs[0] == "create-second-child-table");
     assert(data.jobs[3].steps.size() == 1);
     assert(data.jobs[3].steps[0].name == "Insert Second-Level Data");
-    assert(data.jobs[3].steps[0].uses == "tdengine/insert-data");
+    assert(data.jobs[3].steps[0].uses == "tdengine/insert");
     assert(std::holds_alternative<InsertDataConfig>(data.jobs[3].steps[0].action_config));
     const auto& insert_config = std::get<InsertDataConfig>(data.jobs[3].steps[0].action_config);
 

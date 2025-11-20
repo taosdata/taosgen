@@ -63,8 +63,8 @@ public:
                         MemoryPool::MemoryBlock* batch, bool is_checkpoint_recover = false) const override {
         (void)config;
 
-        if (format_.stmt_config.version != "v2") {
-            throw std::invalid_argument("Unsupported stmt version: " + format_.stmt_config.version);
+        if (format_.stmt.version != "v2") {
+            throw std::invalid_argument("Unsupported stmt version: " + format_.stmt.version);
         }
 
         return StmtV2InsertData(batch, col_instances, is_checkpoint_recover);

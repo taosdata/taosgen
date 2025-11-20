@@ -126,7 +126,7 @@ jobs:
             size: 1000
             concurrency: 10
 
-      - uses: tdengine/insert-data
+      - uses: tdengine/insert
         with:
           concurrency: 8
 
@@ -144,6 +144,6 @@ jobs:
             size: 1000
             concurrency: 10
 
-      - uses: tdengine/insert-data
+      - uses: tdengine/insert
         with:
           concurrency: 8

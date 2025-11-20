@@ -1,0 +1,138 @@
+#include "KafkaClient.hpp"
+#include "LogUtils.hpp"
+#include <librdkafka/rdkafkacpp.h>
+#include <stdexcept>
+#include <sstream>
+
+// --- RdKafkaClient Implementation ---
+RdKafkaClient::RdKafkaClient(const KafkaConfig& config, const DataFormat::KafkaConfig& format, size_t no)
+    : config_(config), format_(format), no_(no) {}
+
+RdKafkaClient::~RdKafkaClient() {
+    close();
+}
+
+bool RdKafkaClient::connect() {
+    if (is_connected_) {
+        return true;
+    }
+
+    std::unique_ptr<RdKafka::Conf> conf(RdKafka::Conf::create(RdKafka::Conf::CONF_GLOBAL));
+    std::string errstr;
+
+    // Set bootstrap.servers
+    if (conf->set("bootstrap.servers", config_.bootstrap_servers, errstr) != RdKafka::Conf::CONF_OK) {
+        LogUtils::error("Failed to set bootstrap.servers '{}': {}", config_.bootstrap_servers, errstr);
+        return false;
+    }
+
+    // Set client.id
+    std::string client_id = config_.generate_client_id(no_);
+    if (conf->set("client.id", client_id, errstr) != RdKafka::Conf::CONF_OK) {
+        LogUtils::error("Failed to set client.id '{}': {}", client_id, errstr);
+        return false;
+    }
+
+    // Iterate over and set all generic options from the map
+    for (const auto& [key, value] : config_.rdkafka_options) {
+        if (conf->set(key, value, errstr) != RdKafka::Conf::CONF_OK) {
+            LogUtils::error("Failed to set Kafka option '{}' to '{}': {}", key, value, errstr);
+            return false;
+        }
+    }
+
+    if (conf->set("acks", format_.acks, errstr) != RdKafka::Conf::CONF_OK) {
+        LogUtils::error("Failed to set acks {}: {}", format_.acks, errstr);
+        return false;
+    }
+
+    if (conf->set("compression.codec", format_.compression, errstr) != RdKafka::Conf::CONF_OK) {
+        LogUtils::error("Failed to set compression.codec '{}': {}", format_.compression, errstr);
+        return false;
+    }
+
+    // Create the producer
+    producer_.reset(RdKafka::Producer::create(conf.get(), errstr));
+    if (!producer_) {
+        LogUtils::error("Failed to create Kafka producer: {}", errstr);
+        return false;
+    }
+
+    is_connected_ = true;
+    return true;
+}
+
+bool RdKafkaClient::is_connected() const {
+    return is_connected_ && producer_;
+}
+
+void RdKafkaClient::close() {
+    if (producer_) {
+        producer_->flush(10000); // Wait 10s for outstanding messages
+        producer_.reset();
+    }
+    is_connected_ = false;
+}
+
+bool RdKafkaClient::produce(const KafkaInsertData& data) {
+    const KafkaMessageBatch& batch_msgs = data.data;
+
+    for (const auto& [key, payload] : batch_msgs) {
+        RdKafka::ErrorCode err = producer_->produce(
+            config_.topic,
+            RdKafka::Topic::PARTITION_UA, // Unassigned partition
+            RdKafka::Producer::RK_MSG_COPY,
+            const_cast<char*>(payload.c_str()), payload.size(),
+            const_cast<char*>(key.c_str()), key.size(),
+            0,
+            nullptr
+        );
+
+        if (err != RdKafka::ERR_NO_ERROR) {
+            throw std::runtime_error("Kafka produce failed: " + RdKafka::err2str(err));
+        }
+    }
+
+    producer_->poll(0);
+    return true;
+}
+
+// --- KafkaClient Implementation ---
+KafkaClient::KafkaClient(const KafkaConfig& config,
+                         const DataFormat::KafkaConfig& format,
+                         size_t no) {
+    client_ = std::make_unique<RdKafkaClient>(config, format, no);
+}
+
+KafkaClient::~KafkaClient() = default;
+
+bool KafkaClient::connect() {
+    return client_->connect();
+}
+
+bool KafkaClient::is_connected() const {
+    return client_ && client_->is_connected();
+}
+
+void KafkaClient::close() {
+    if (client_) {
+        client_->close();
+    }
+}
+
+bool KafkaClient::select_db(const std::string& db_name) {
+    (void)db_name;
+    return true;
+}
+
+bool KafkaClient::prepare(const std::string& sql) {
+    (void)sql;
+    return true;
+}
+
+bool KafkaClient::execute(const KafkaInsertData& data) {
+    if (!is_connected()) {
+        return false;
+    }
+    return client_->produce(data);
+}

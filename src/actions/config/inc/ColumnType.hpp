@@ -82,7 +82,7 @@ struct variant_index;
 template <typename T, typename... Types>
 struct variant_index<T, std::variant<Types...>> {
     static_assert(
-        (std::is_same_v<T, Types> || ...), 
+        (std::is_same_v<T, Types> || ...),
         "Type not found in variant"
     );
 
@@ -96,3 +96,52 @@ struct variant_index<T, std::variant<Types...>> {
 
     static constexpr std::size_t value = index();
 };
+
+namespace ColumnTypeTraits {
+    constexpr bool needs_quotes(ColumnTypeTag tag) noexcept {
+        switch (tag) {
+            case ColumnTypeTag::NCHAR:
+            case ColumnTypeTag::VARCHAR:
+            case ColumnTypeTag::BINARY:
+            case ColumnTypeTag::JSON:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    constexpr bool is_numeric(ColumnTypeTag tag) noexcept {
+        switch (tag) {
+            case ColumnTypeTag::TINYINT:
+            case ColumnTypeTag::TINYINT_UNSIGNED:
+            case ColumnTypeTag::SMALLINT:
+            case ColumnTypeTag::SMALLINT_UNSIGNED:
+            case ColumnTypeTag::INT:
+            case ColumnTypeTag::INT_UNSIGNED:
+            case ColumnTypeTag::BIGINT:
+            case ColumnTypeTag::BIGINT_UNSIGNED:
+            case ColumnTypeTag::FLOAT:
+            case ColumnTypeTag::DOUBLE:
+            case ColumnTypeTag::DECIMAL:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    constexpr bool is_integer(ColumnTypeTag tag) noexcept {
+        switch (tag) {
+            case ColumnTypeTag::TINYINT:
+            case ColumnTypeTag::TINYINT_UNSIGNED:
+            case ColumnTypeTag::SMALLINT:
+            case ColumnTypeTag::SMALLINT_UNSIGNED:
+            case ColumnTypeTag::INT:
+            case ColumnTypeTag::INT_UNSIGNED:
+            case ColumnTypeTag::BIGINT:
+            case ColumnTypeTag::BIGINT_UNSIGNED:
+                return true;
+            default:
+                return false;
+        }
+    }
+}

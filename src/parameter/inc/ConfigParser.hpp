@@ -82,11 +82,10 @@ namespace YAML {
         static bool decode(const Node& node, MqttConfig& rhs) {
             // Detect unknown configuration keys
             static const std::set<std::string> valid_keys = {
-                "uri", "user", "password", "client_id", "topic", "compression", "encoding",
-                "timestamp_precision", "qos", "keep_alive", "clean_session", "retain",
-                "max_buffered_messages", "batch_messages"
+                "uri", "user", "password", "client_id",
+                "keep_alive", "clean_session", "max_buffered_messages"
             };
-            check_unknown_keys(node, valid_keys, "mqtt_info");
+            check_unknown_keys(node, valid_keys, "mqtt config");
 
             if (node["uri"]) {
                 rhs.uri = node["uri"].as<std::string>();
@@ -97,61 +96,62 @@ namespace YAML {
             if (node["password"]) {
                 rhs.password = node["password"].as<std::string>();
             }
+
+            if (node["client_id"]) {
+                rhs.client_id = node["client_id"].as<std::string>();
+            }
+
+            if (node["keep_alive"]) {
+                rhs.keep_alive = node["keep_alive"].as<size_t>();
+            }
+
+            if (node["clean_session"]) {
+                rhs.clean_session = node["clean_session"].as<bool>();
+            }
+
+            if (node["max_buffered_messages"]) {
+                rhs.max_buffered_messages = node["max_buffered_messages"].as<size_t>();
+                if (rhs.max_buffered_messages == 0) {
+                    throw std::runtime_error("max_buffered_messages must be greater than 0 in mqtt config.");
+                }
+            }
+
+            // rhs.enabled = true;
+            return true;
+        }
+    };
+
+    template<>
+    struct convert<KafkaConfig> {
+        static bool decode(const Node& node, KafkaConfig& rhs) {
+            // Detect unknown configuration keys
+            static const std::set<std::string> valid_keys = {
+                "topic", "bootstrap_servers", "client_id", "rdkafka_options"
+            };
+            check_unknown_keys(node, valid_keys, "kafka config");
+
             if (node["topic"]) {
                 rhs.topic = node["topic"].as<std::string>();
-            } else {
-                throw std::runtime_error("Missing required field 'topic' in mqtt_info.");
+            }
+
+            if (node["bootstrap_servers"]) {
+                rhs.bootstrap_servers = node["bootstrap_servers"].as<std::string>();
             }
 
             if (node["client_id"]) {
                 rhs.client_id = node["client_id"].as<std::string>();
             }
-            if (node["compression"]) {
-                rhs.compression = node["compression"].as<std::string>();
-            }
-            if (node["encoding"]) {
-                rhs.encoding = node["encoding"].as<std::string>();
-            }
-            if (node["timestamp_precision"]) {
-                rhs.timestamp_precision = node["timestamp_precision"].as<std::string>();
-                // Validate time precision value
-                if (rhs.timestamp_precision != "ms" && rhs.timestamp_precision != "us" && rhs.timestamp_precision != "ns") {
-                    throw std::runtime_error("Invalid timestamp precision value: " + rhs.timestamp_precision + " in mqtt_info.");
-                }
-            }
-            if (node["qos"]) {
-                rhs.qos = node["qos"].as<size_t>();
-                if (rhs.qos > 2) {
-                    throw std::runtime_error("Invalid QoS value: " + std::to_string(rhs.qos));
-                }
-            }
-            if (node["keep_alive"]) {
-                rhs.keep_alive = node["keep_alive"].as<size_t>();
-            }
-            if (node["clean_session"]) {
-                rhs.clean_session = node["clean_session"].as<bool>();
-            }
-            if (node["retain"]) {
-                rhs.retain = node["retain"].as<bool>();
-            }
-            if (node["max_buffered_messages"]) {
-                rhs.max_buffered_messages = node["max_buffered_messages"].as<size_t>();
-                if (rhs.max_buffered_messages == 0) {
-                    throw std::runtime_error("max_buffered_messages must be greater than 0 in mqtt_info.");
-                }
-            }
-            if (node["batch_messages"]) {
-                rhs.batch_messages = node["batch_messages"].as<size_t>();
-                if (rhs.batch_messages == 0) {
-                    throw std::runtime_error("batch_messages must be greater than 0 in mqtt_info.");
+
+            if (node["rdkafka_options"]) {
+                if (node["rdkafka_options"].IsMap()) {
+                    for (const auto& it : node["rdkafka_options"]) {
+                        rhs.rdkafka_options[it.first.as<std::string>()] = it.second.as<std::string>();
+                    }
+                } else {
+                    throw std::runtime_error("rdkafka_options must be a map of string key-value pairs in kafka config.");
                 }
             }
 
-            if (rhs.batch_messages > rhs.max_buffered_messages) {
-                throw std::runtime_error("batch_messages cannot be greater than max_buffered_messages in mqtt_info.");
-            }
-
-            rhs.enabled = true;
             return true;
         }
     };
@@ -1123,7 +1123,7 @@ namespace YAML {
                     check_unknown_keys(stmt, stmt_keys, "data_format::stmt");
 
                     if (stmt["version"]) {
-                        rhs.stmt_config.version = stmt["version"].as<std::string>();
+                        rhs.stmt.version = stmt["version"].as<std::string>();
                     }
                 } else {
                     throw std::runtime_error("Missing required 'stmt' configuration for format_type 'stmt' in data_format.");
@@ -1138,7 +1138,7 @@ namespace YAML {
                     check_unknown_keys(sl, sl_keys, "data_format::schemaless");
 
                     if (sl["protocol"]) {
-                        rhs.schemaless_config.protocol = sl["protocol"].as<std::string>();
+                        rhs.schemaless.protocol = sl["protocol"].as<std::string>();
                     }
                 } else {
                     throw std::runtime_error("Missing required 'schemaless' configuration for format_type 'schemaless' in data_format.");
@@ -1153,15 +1153,15 @@ namespace YAML {
                     check_unknown_keys(csv, csv_keys, "data_format::csv");
 
                     if (csv["delimiter"]) {
-                        rhs.csv_config.delimiter = csv["delimiter"].as<std::string>();
+                        rhs.csv.delimiter = csv["delimiter"].as<std::string>();
                     }
 
                     if (csv["quote_character"]) {
-                        rhs.csv_config.quote_character = csv["quote_character"].as<std::string>();
+                        rhs.csv.quote_character = csv["quote_character"].as<std::string>();
                     }
 
                     if (csv["escape_character"]) {
-                        rhs.csv_config.escape_character = csv["escape_character"].as<std::string>();
+                        rhs.csv.escape_character = csv["escape_character"].as<std::string>();
                     }
                 } else {
                     throw std::runtime_error("Missing required 'csv' configuration for format_type 'csv' in data_format.");
@@ -1738,27 +1738,152 @@ namespace YAML {
 
     template<>
     struct convert<InsertDataConfig> {
+    private:
+        static void decode_tdengine_format_config(const Node& node, InsertDataConfig& config) {
+            if (node["format"]) {
+                config.data_format.format_type = node["format"].as<std::string>();
+                if (config.data_format.format_type != "sql" &&
+                    config.data_format.format_type != "stmt") {
+                    throw std::runtime_error("Invalid format type for tdengine target: " + config.data_format.format_type + ". It must be 'sql' or 'stmt'.");
+                }
+            } else {
+                config.data_format.format_type = "stmt";
+            }
+        }
+
+        static void decode_mqtt_format_config(const Node& node, InsertDataConfig& config) {
+            DataFormat::MqttConfig& rhs = config.data_format.mqtt;
+
+            if (node["format"]) {
+                rhs.content_type = node["format"].as<std::string>();
+                if (rhs.content_type != "json") {
+                    throw std::runtime_error("Invalid format type for mqtt target: " + rhs.content_type + ". It must be 'json'.");
+                }
+            } else {
+                rhs.content_type = "json";
+            }
+
+            if (node["topic"]) {
+                rhs.topic = node["topic"].as<std::string>();
+            }
+
+            if (node["compression"]) {
+                rhs.compression = node["compression"].as<std::string>();
+                const std::set<std::string> valid_compressions = {"none", "gzip", "lz4", "zstd"};
+                if (valid_compressions.find(rhs.compression) == valid_compressions.end()) {
+                    throw std::runtime_error("Invalid compression value: " + rhs.compression + " in mqtt config.");
+                }
+            }
+
+            if (node["encoding"]) {
+                rhs.encoding = node["encoding"].as<std::string>();
+                const std::set<std::string> valid_encodings = {"NONE", "GBK", "GB18030", "BIG5", "UTF-8"};
+                if (valid_encodings.find(rhs.encoding) == valid_encodings.end()) {
+                    throw std::runtime_error("Invalid encoding value: " + rhs.encoding + " in mqtt config.");
+                }
+            }
+
+            if (node["tbname_key"]) {
+                rhs.tbname_key = node["tbname_key"].as<std::string>();
+            }
+
+            if (node["qos"]) {
+                rhs.qos = node["qos"].as<size_t>();
+                if (rhs.qos > 2) {
+                    throw std::runtime_error("Invalid QoS value: " + std::to_string(rhs.qos));
+                }
+            }
+
+            if (node["retain"]) {
+                rhs.retain = node["retain"].as<bool>();
+            }
+
+            if (node["records_per_message"]) {
+                int64_t val = node["records_per_message"].as<int64_t>();
+                if (val <= 0) {
+                    throw std::runtime_error("records_per_message must be greater than 0 in mqtt config.");
+                }
+                rhs.records_per_message = static_cast<size_t>(val);
+            }
+
+            config.data_format.format_type = "mqtt";
+        }
+
+        static void decode_kafka_format_config(const Node& node, InsertDataConfig& config) {
+            DataFormat::KafkaConfig& rhs = config.data_format.kafka;
+
+            if (node["key_pattern"]) {
+                rhs.key_pattern = node["key_pattern"].as<std::string>();
+            }
+
+            if (node["key_serializer"]) {
+                rhs.key_serializer = node["key_serializer"].as<std::string>();
+                const std::set<std::string> valid_serializers = {
+                    "string_utf8", "int8", "uint8", "int16", "uint16",
+                    "int32", "uint32", "int64", "uint64"
+                };
+                if (valid_serializers.find(rhs.key_serializer) == valid_serializers.end()) {
+                    throw std::runtime_error("Unsupported key_serializer: " + rhs.key_serializer + ". Supported serializers are 'string_utf8', 'int8', 'uint8', 'int16', 'uint16', 'int32', 'uint32', 'int64', 'uint64'.");
+                }
+            }
+
+            if (node["value_serializer"]) {
+                rhs.value_serializer = node["value_serializer"].as<std::string>();
+                if (rhs.value_serializer != "influx" && rhs.value_serializer != "json") {
+                    throw std::runtime_error("Unsupported value_serializer: " + rhs.value_serializer + ". Supported serializers are 'json' and 'influx'.");
+                }
+            }
+
+            if (node["tbname_key"]) {
+                rhs.tbname_key = node["tbname_key"].as<std::string>();
+            }
+
+            if (node["acks"]) {
+                rhs.acks = node["acks"].as<std::string>();
+                if (rhs.acks != "all" && rhs.acks != "1" && rhs.acks != "0") {
+                    throw std::runtime_error("Invalid acks value: " + rhs.acks + " in kafka config.");
+                }
+            }
+
+            if (node["compression"]) {
+                rhs.compression = node["compression"].as<std::string>();
+                const std::set<std::string> valid_compressions = {"none", "gzip", "snappy", "lz4", "zstd"};
+                if (valid_compressions.find(rhs.compression) == valid_compressions.end()) {
+                    throw std::runtime_error("Invalid compression value: " + rhs.compression + " in kafka config.");
+                }
+            }
+
+            if (node["records_per_message"]) {
+                int64_t val = node["records_per_message"].as<int64_t>();
+                if (val <= 0) {
+                    throw std::runtime_error("records_per_message must be greater than 0 in kafka config.");
+                }
+                rhs.records_per_message = static_cast<size_t>(val);
+            }
+
+            config.data_format.format_type = "kafka";
+        }
+
+    public:
         static bool decode(const Node& node, InsertDataConfig& rhs) {
             // Detect unknown configuration keys
-            static const std::set<std::string> valid_keys = {
-                "tdengine", "mqtt", "schema", "target", "format",
+            static const std::set<std::string> common_keys = {
+                "schema", "target", "timestamp_precision", "format",
                 "concurrency", "queue_capacity", "queue_warmup_ratio", "shared_queue",
                 "thread_affinity", "thread_realtime",
                 "failure_handling", "time_interval", "checkpoint"
             };
-            check_unknown_keys(node, valid_keys, "tdengine/insert-data");
-
-            if (node["tdengine"]) {
-                rhs.tdengine = node["tdengine"].as<TDengineConfig>();
-            }
-
-            if (node["mqtt"]) {
-                rhs.mqtt = node["mqtt"].as<MqttConfig>();
-            }
-
-            if (node["schema"]) {
-                rhs.schema = node["schema"].as<SchemaConfig>();
-            }
+            static const std::set<std::string> target_tdengine = {
+                "tdengine", "format"
+            };
+            static const std::set<std::string> target_mqtt = {
+                "mqtt", "format", "topic", "compression", "encoding", "tbname_key",
+                "qos", "retain", "records_per_message"
+            };
+            static const std::set<std::string> target_kafka = {
+                "kafka", "key_pattern", "key_serializer", "value_serializer", "tbname_key",
+                "acks", "compression", "records_per_message"
+            };
 
             if (node["target"]) {
                 rhs.target_type = node["target"].as<std::string>();
@@ -1766,29 +1891,45 @@ namespace YAML {
                 rhs.target_type = "tdengine";
             }
 
-            if (node["timestamp_precision"]) {
-                rhs.timestamp_precision = node["timestamp_precision"].as<std::string>();
-            }
-
-            if (node["format"]) {
-                rhs.data_format.format_type = node["format"].as<std::string>();
-            } else {
-                if (rhs.target_type == "tdengine")
-                    rhs.data_format.format_type = "stmt";
-                else if (rhs.target_type == "mqtt")
-                    rhs.data_format.format_type = "json";
-            }
-
+            // Valid keys
+            std::set<std::string> valid_keys;
+            std::string target_info;
             if (rhs.target_type == "tdengine") {
-                if (rhs.data_format.format_type != "stmt" && rhs.data_format.format_type != "sql") {
-                    throw std::runtime_error("For tdengine target, format must be either 'stmt' or 'sql'.");
+                target_info = "tdengine/insert";
+                valid_keys = merge_keys<std::string>({common_keys, target_tdengine});
+                decode_tdengine_format_config(node, rhs);
+                if (node["tdengine"]) {
+                    rhs.tdengine = node["tdengine"].as<TDengineConfig>();
                 }
             } else if (rhs.target_type == "mqtt") {
-                if (rhs.data_format.format_type != "json") {
-                    throw std::runtime_error("For mqtt target, format must be 'json'.");
+                target_info = "mqtt/publish";
+                valid_keys = merge_keys<std::string>({common_keys, target_mqtt});
+                decode_mqtt_format_config(node, rhs);
+                if (node["mqtt"]) {
+                    rhs.mqtt = node["mqtt"].as<MqttConfig>();
+                }
+            } else if (rhs.target_type == "kafka") {
+                target_info = "kafka/produce";
+                valid_keys = merge_keys<std::string>({common_keys, target_kafka});
+                decode_kafka_format_config(node, rhs);
+                if (node["kafka"]) {
+                    rhs.kafka = node["kafka"].as<KafkaConfig>();
                 }
             } else {
-                throw std::runtime_error("Invalid target type in insert-data: " + rhs.target_type);
+                throw std::runtime_error("Invalid target type in " + rhs.target_type);
+            }
+            check_unknown_keys(node, valid_keys, target_info);
+
+            // Parse Common Configs
+            if (node["schema"]) {
+                rhs.schema = node["schema"].as<SchemaConfig>();
+            }
+
+            if (node["timestamp_precision"]) {
+                rhs.timestamp_precision = node["timestamp_precision"].as<std::string>();
+                if (rhs.timestamp_precision != "ms" && rhs.timestamp_precision != "us" && rhs.timestamp_precision != "ns") {
+                    throw std::runtime_error("Invalid timestamp_precision value: " + rhs.timestamp_precision);
+                }
             }
 
             if (node["concurrency"]) {

@@ -44,6 +44,7 @@ void test_format_create_database_with_properties() {
     format.format_type = "sql";
     CreateDatabaseConfig config;
     config.tdengine.database = "test_db";
+    config.tdengine.drop_if_exists = true;
     config.tdengine.properties = "KEEP 3650";
 
     auto formatter = FormatterFactory::instance().create_formatter<CreateDatabaseConfig>(format);

@@ -44,7 +44,7 @@ InsertDataConfig create_test_config() {
 
     // Data format settings
     config.data_format.format_type = "stmt";
-    config.data_format.stmt_config.version = "v2";
+    config.data_format.stmt.version = "v2";
 
     // Setup target
     config.timestamp_precision = "ms";

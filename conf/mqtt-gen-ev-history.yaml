@@ -82,6 +82,6 @@ jobs:
   # MQTT publish job
   publish-data:
     steps:
-      - uses: mqtt/publish-data
+      - uses: mqtt/publish
         with:
           concurrency: 28

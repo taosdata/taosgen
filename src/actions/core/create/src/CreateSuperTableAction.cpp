@@ -19,7 +19,7 @@ void CreateSuperTableAction::execute() {
         auto formatter = FormatterFactory::instance().create_formatter<CreateSuperTableConfig>(DataFormat());
         FormatResult formatted_result = formatter->format(config_);
         auto sql = std::get<std::string>(formatted_result);
-        if (!connector_->execute(sql) ) {
+        if (!connector_->execute(sql)) {
             throw std::runtime_error("Failed to execute SQL: " + sql);
         }
 

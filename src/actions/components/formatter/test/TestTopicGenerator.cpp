@@ -72,7 +72,7 @@ void test_col_not_found() {
     const auto& tb = block->tables[0];
 
     std::string topic = tg.generate(tb, 0);
-    assert(topic == "prefix/{COL_NOT_FOUND}/suffix");
+    assert(topic == "prefix/{COL_NOT_FOUND:b}/suffix");
     std::cout << "test_col_not_found passed." << std::endl;
 }
 

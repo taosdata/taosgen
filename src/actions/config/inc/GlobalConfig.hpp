@@ -3,6 +3,7 @@
 #include <string>
 #include "TDengineConfig.hpp"
 #include "MqttConfig.hpp"
+#include "KafkaConfig.hpp"
 #include "SchemaConfig.hpp"
 #include "DatabaseInfo.hpp"
 #include "SuperTableInfo.hpp"
@@ -23,5 +24,6 @@ struct GlobalConfig {
 
     TDengineConfig tdengine;
     MqttConfig mqtt;
+    KafkaConfig kafka;
     SchemaConfig schema;
 };

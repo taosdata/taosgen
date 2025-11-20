@@ -27,7 +27,7 @@ private:
     // Register SubscribeDataAction to ActionFactory
     inline static bool registered_ = []() {
         ActionFactory::instance().register_action(
-            "actions/subscribe-data",
+            "tdengine/subscribe",
             [](const GlobalConfig& global, const ActionConfigVariant& config) {
                 return std::make_unique<SubscribeDataAction>(global, std::get<SubscribeDataConfig>(config));
             });

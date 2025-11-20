@@ -20,6 +20,7 @@ target_link_libraries(utils
     spdlog::spdlog
     Threads::Threads
     Iconv::Iconv
+    fmt::fmt
 )
 
 # Enable tests

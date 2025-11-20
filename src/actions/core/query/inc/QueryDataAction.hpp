@@ -22,7 +22,7 @@ private:
     // Register QueryDataAction to ActionFactory
     inline static bool registered_ = []() {
         ActionFactory::instance().register_action(
-            "actions/query-data",
+            "tdengine/query",
             [](const GlobalConfig& global, const ActionConfigVariant& config) {
                 return std::make_unique<QueryDataAction>(global, std::get<QueryDataConfig>(config));
             });

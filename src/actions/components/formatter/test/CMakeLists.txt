@@ -68,12 +68,12 @@ target_link_libraries(TestTopicGenerator
 )
 add_test(NAME TestTopicGenerator COMMAND TestTopicGenerator)
 
-# Test MsgInsertDataFormatter
-add_executable(TestMsgInsertDataFormatter
-  TestMsgInsertDataFormatter.cpp
+# Test MqttInsertDataFormatter
+add_executable(TestMqttInsertDataFormatter
+  TestMqttInsertDataFormatter.cpp
 )
-target_link_libraries(TestMsgInsertDataFormatter
+target_link_libraries(TestMqttInsertDataFormatter
   PRIVATE
     insert_writer
 )
-add_test(NAME TestMsgInsertDataFormatter COMMAND TestMsgInsertDataFormatter)
+add_test(NAME TestMqttInsertDataFormatter COMMAND TestMqttInsertDataFormatter)

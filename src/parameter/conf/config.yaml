@@ -254,7 +254,7 @@ jobs:
       - create-minute-child-table
     steps:
       - name: query-super-table
-        uses: actions/query-data
+        uses: tdengine/query
         with:
           # source
           source:
@@ -291,7 +291,7 @@ jobs:
       - create-minute-child-table
     steps:
       - name: subscribe-data
-        uses: actions/subscribe-data
+        uses: tdengine/subscribe
         with:
           # source
           source:

@@ -31,15 +31,9 @@ void test_Mqtt() {
 uri: mqtt.example.com:1883
 user: testuser
 password: testpass
-topic: test/topic
 client_id: client-001
-compression: none
-encoding: utf8
-timestamp_precision: ms
-qos: 1
 keep_alive: 60
 clean_session: true
-retain: false
 )";
     YAML::Node node = YAML::Load(yaml);
     MqttConfig mqtt = node.as<MqttConfig>();
@@ -47,14 +41,8 @@ retain: false
     assert(mqtt.user == "testuser");
     assert(mqtt.password == "testpass");
     assert(mqtt.client_id == "client-001");
-    assert(mqtt.topic == "test/topic");
-    assert(mqtt.compression == "none");
-    assert(mqtt.encoding == "utf8");
-    assert(mqtt.timestamp_precision == "ms");
-    assert(mqtt.qos == 1);
     assert(mqtt.keep_alive == 60);
     assert(mqtt.clean_session == true);
-    assert(mqtt.retain == false);
 }
 
 void test_FromCSVConfig_tags_columns() {
@@ -645,9 +633,9 @@ csv:
     YAML::Node node = YAML::Load(yaml);
     DataFormat df = node.as<DataFormat>();
     assert(df.format_type == "csv");
-    assert(df.csv_config.delimiter == ";");
-    assert(df.csv_config.quote_character == "'");
-    assert(df.csv_config.escape_character == "\\");
+    assert(df.csv.delimiter == ";");
+    assert(df.csv.quote_character == "'");
+    assert(df.csv.escape_character == "\\");
 }
 
 void test_DataChannel() {

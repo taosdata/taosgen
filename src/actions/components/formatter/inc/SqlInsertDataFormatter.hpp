@@ -58,10 +58,7 @@ public:
                     }
 
                     // Check if quotes are needed
-                    bool needs_quotes = (tag == ColumnTypeTag::NCHAR ||
-                                        tag == ColumnTypeTag::VARCHAR ||
-                                        tag == ColumnTypeTag::BINARY ||
-                                        tag == ColumnTypeTag::JSON);
+                    bool needs_quotes = ColumnTypeTraits::needs_quotes(tag);
 
                     // Handle unsupported types
                     if (tag == ColumnTypeTag::VARBINARY ||

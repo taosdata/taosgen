@@ -167,7 +167,7 @@ void InsertDataAction::execute() {
 
         auto action_info = std::make_shared<ActionRegisterInfo>();
         if (config_.checkpoint_info.enabled && config_.data_format.format_type == "stmt"
-            && config_.data_format.stmt_config.version == "v2") {
+            && config_.data_format.stmt.version == "v2") {
             LogUtils::info("Starting checkpoint configuration construction...");
             CheckpointAction::register_signal_handlers();
             CheckpointActionConfig checkpoint_config(this->config_);
