@@ -1,25 +1,22 @@
 #include "MqttClient.hpp"
-#include "MsgInsertDataFormatter.hpp"
+#include "MqttInsertData.hpp"
+#include "MqttInsertDataFormatter.hpp"
+#include "MqttConfig.hpp"
 
 #include <vector>
 #include <string>
 #include <cassert>
 #include <iostream>
-#include <stdexcept>
-#include <functional>
 #include <memory>
 
+// Mock implementation of the IMqttClient interface for testing purposes.
 class MockMqttClient : public IMqttClient {
 public:
     bool connected = false;
     std::vector<std::string> published_topics;
     std::vector<std::string> published_payloads;
-    std::vector<int> published_qos;
-    std::vector<bool> published_retain;
 
-    bool connect(const std::string& user, const std::string& password,
-                int keep_alive, bool clean_session) override {
-        (void)user; (void)password; (void)keep_alive; (void)clean_session;
+    bool connect() override {
         connected = true;
         return true;
     }
@@ -32,45 +29,70 @@ public:
         connected = false;
     }
 
-    void publish(const std::string& topic, const std::string& payload,
-                int qos, bool retain) override {
-        published_topics.push_back(topic);
-        published_payloads.push_back(payload);
-        published_qos.push_back(qos);
-        published_retain.push_back(retain);
-    }
-
-    void publish_batch(const MessageBatch& batch_msgs, int qos, bool retain) override {
-        for (const auto& [topic, payload] : batch_msgs) {
-            publish(topic, payload, qos, retain);
+    bool publish(const MqttInsertData& data) override {
+        if (!connected) {
+            return false;
         }
+        for (const auto& [topic, payload] : data.data) {
+            published_topics.push_back(topic);
+            published_payloads.push_back(payload);
+        }
+        return true;
     }
 };
 
-MqttConfig create_test_mqtt_info() {
-    MqttConfig info;
-    info.uri = "localhost:1883";
-    info.user = "user";
-    info.password = "pass";
-    info.client_id = "test_client";
-    info.keep_alive = 60;
-    info.clean_session = true;
-    info.qos = 1;
-    info.retain = false;
-    info.compression = "none";
-    info.encoding = "utf8";
-    info.topic = "factory/{factory_id}/device-{device_id}/data";
-    return info;
+// Creates a test configuration for the MQTT connector.
+MqttConfig create_test_connector_config() {
+    MqttConfig config;
+    config.uri = "tcp://localhost:1883";
+    config.user = "user";
+    config.password = "pass";
+    config.client_id = "test_client";
+    config.keep_alive = 60;
+    config.clean_session = true;
+    config.max_buffered_messages = 1000;
+    return config;
+}
+
+// Creates a test configuration for the MQTT data format.
+DataFormat::MqttConfig create_test_format_config() {
+    DataFormat::MqttConfig format;
+    format.topic = "factory/{factory_id}/device-{device_id}/data";
+    format.qos = 1;
+    format.retain = false;
+    format.compression = "none";
+    format.encoding = "utf8";
+    format.content_type = "json";
+    return format;
+}
+
+InsertDataConfig create_test_insert_data_config() {
+    InsertDataConfig config;
+    config.mqtt = create_test_connector_config();
+    config.data_format.format_type = "mqtt";
+    config.data_format.mqtt = create_test_format_config();
+    return config;
+}
+
+MqttInsertData create_test_mqtt_data(MemoryPool& pool, const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances) {
+    MultiBatch batch;
+    std::vector<RowData> rows;
+    rows.push_back({1500000000000, {std::string("f01"), std::string("d01")}});
+    batch.table_batches.emplace_back("tb1", std::move(rows));
+    batch.update_metadata();
+
+    auto* block = pool.convert_to_memory_block(std::move(batch));
+
+    auto formatter = MqttInsertDataFormatter(config.data_format);
+    auto result = formatter.format(config, col_instances, block);
+    return std::move(std::get<MqttInsertData>(result));
 }
 
 void test_connect_and_close() {
-    auto info = create_test_mqtt_info();
-    ColumnConfigInstanceVector col_instances;
-    col_instances.emplace_back(ColumnConfig{"factory_id", "VARCHAR(16)"});
-    col_instances.emplace_back(ColumnConfig{"device_id", "VARCHAR(16)"});
+    auto connector_config = create_test_connector_config();
+    auto format_config = create_test_format_config();
 
-    // Patch: replace client_ with mock
-    MqttClient client(info, col_instances);
+    MqttClient client(connector_config, format_config);
     client.set_client(std::make_unique<MockMqttClient>());
 
     assert(client.connect());
@@ -82,12 +104,10 @@ void test_connect_and_close() {
 }
 
 void test_select_db_and_prepare() {
-    auto info = create_test_mqtt_info();
-    ColumnConfigInstanceVector col_instances;
-    col_instances.emplace_back(ColumnConfig{"factory_id", "VARCHAR(16)"});
-    col_instances.emplace_back(ColumnConfig{"device_id", "VARCHAR(16)"});
+    auto connector_config = create_test_connector_config();
+    auto format_config = create_test_format_config();
 
-    MqttClient client(info, col_instances);
+    MqttClient client(connector_config, format_config);
 
     assert(client.select_db("db1"));
     assert(client.prepare("sql"));
@@ -95,109 +115,64 @@ void test_select_db_and_prepare() {
 }
 
 void test_execute_and_publish() {
-    auto info = create_test_mqtt_info();
-    ColumnConfigInstanceVector col_instances;
-    col_instances.emplace_back(ColumnConfig{"factory_id", "VARCHAR(16)"});
-    col_instances.emplace_back(ColumnConfig{"device_id", "VARCHAR(16)"});
-
-    MqttClient client(info, col_instances);
+    InsertDataConfig config = create_test_insert_data_config();
+    MqttClient client(config.mqtt, config.data_format.mqtt);
     auto mock = std::make_unique<MockMqttClient>();
     auto* mock_ptr = mock.get();
     client.set_client(std::move(mock));
 
     // Prepare mock data
-    MultiBatch batch;
-    std::vector<RowData> rows;
-    rows.push_back({1500000000000, {std::string("f01"), std::string("d01")}});
-    batch.table_batches.emplace_back("tb1", std::move(rows));
-    batch.update_metadata();
+    ColumnConfigInstanceVector col_instances;
+    col_instances.emplace_back(ColumnConfig{"factory_id", "VARCHAR(16)"});
+    col_instances.emplace_back(ColumnConfig{"device_id", "VARCHAR(16)"});
 
     MemoryPool pool(1, 1, 1, col_instances);
-    auto* block = pool.convert_to_memory_block(std::move(batch));
-    MsgInsertData msg = MsgInsertDataFormatter::format_mqtt(info, col_instances, block);
+    MqttInsertData data = create_test_mqtt_data(pool, config, col_instances);
 
-    assert(client.connect());
-    bool ok = client.execute(msg);
-    (void)ok;
-    assert(ok);
+    auto connected = client.connect();
+    assert(connected);
+    auto success = client.execute(data);
+    assert(success);
 
     // Check published topic and payload
-    (void)mock_ptr;
     assert(mock_ptr->published_topics.size() == 1);
     assert(mock_ptr->published_topics[0] == "factory/f01/device-d01/data");
     assert(mock_ptr->published_payloads[0].find("\"factory_id\":\"f01\"") != std::string::npos);
     assert(mock_ptr->published_payloads[0].find("\"device_id\":\"d01\"") != std::string::npos);
 
+    (void)connected;
+    (void)success;
+    (void)mock_ptr;
+
     std::cout << "test_execute_and_publish passed." << std::endl;
 }
 
 void test_execute_not_connected() {
-    auto info = create_test_mqtt_info();
+    InsertDataConfig config = create_test_insert_data_config();
+    MqttClient client(config.mqtt, config.data_format.mqtt);
+    client.set_client(std::make_unique<MockMqttClient>());
+
+    // Prepare mock data
     ColumnConfigInstanceVector col_instances;
     col_instances.emplace_back(ColumnConfig{"factory_id", "VARCHAR(16)"});
     col_instances.emplace_back(ColumnConfig{"device_id", "VARCHAR(16)"});
 
-    MqttClient client(info, col_instances);
-    client.set_client(std::make_unique<MockMqttClient>());
-
-    // Prepare mock data
-    MultiBatch batch;
-    std::vector<RowData> rows;
-    rows.push_back({1500000000000, {std::string("f01"), std::string("d01")}});
-    batch.table_batches.emplace_back("tb1", std::move(rows));
-    batch.update_metadata();
-
     MemoryPool pool(1, 1, 1, col_instances);
-    auto* block = pool.convert_to_memory_block(std::move(batch));
-    MsgInsertData msg = MsgInsertDataFormatter::format_mqtt(info, col_instances, block);
+    MqttInsertData data = create_test_mqtt_data(pool, config, col_instances);
 
     // Not connected
-    auto connected = client.is_connected();
-    (void)connected;
-    assert(!connected);
-
-    auto execute_result = client.execute(msg);
-    (void)execute_result;
-    assert(!execute_result);
+    assert(!client.is_connected());
+    assert(!client.execute(data));
 
     std::cout << "test_execute_not_connected passed." << std::endl;
 }
-
-// void test_serialize_row_to_json() {
-//     auto info = create_test_mqtt_info();
-//     ColumnConfigInstanceVector col_instances;
-//     col_instances.emplace_back(ColumnConfig{"factory_id", "VARCHAR(16)"});
-//     col_instances.emplace_back(ColumnConfig{"device_id", "VARCHAR(16)"});
-
-//     MqttClient client(info, col_instances);
-//     client.set_client(std::make_unique<MockMqttClient>());
-
-//     // Prepare mock data
-//     MultiBatch batch;
-//     std::vector<RowData> rows;
-//     rows.push_back({1500000000000, {std::string("f01"), std::string("d01")}});
-//     batch.table_batches.emplace_back("tb1", std::move(rows));
-//     batch.update_metadata();
-
-//     MemoryPool pool(1, 1, 1, col_instances);
-//     auto* block = pool.convert_to_memory_block(std::move(batch));
-
-//     // Serialize to JSON
-//     auto json = client.serialize_row_to_json(block->tables[0], 0);
-//     assert(json["table"] == "tb1");
-//     assert(json["ts"] == 1500000000000);
-//     assert(json["factory_id"] == "f01");
-//     assert(json["device_id"] == "d01");
-
-//     std::cout << "test_serialize_row_to_json passed." << std::endl;
-// }
 
 int main() {
     test_connect_and_close();
     test_select_db_and_prepare();
     test_execute_and_publish();
     test_execute_not_connected();
-    // test_serialize_row_to_json();
+
     std::cout << "All MqttClient tests passed." << std::endl;
     return 0;
 }

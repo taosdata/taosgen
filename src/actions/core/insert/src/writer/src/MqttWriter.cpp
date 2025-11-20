@@ -7,7 +7,7 @@
 
 MqttWriter::MqttWriter(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances, size_t no)
     : BaseWriter(config, col_instances) {
-    client_ = std::make_unique<MqttClient>(config.mqtt, col_instances, no);
+    client_ = std::make_unique<MqttClient>(config.mqtt, config.data_format.mqtt, no);
 }
 
 MqttWriter::~MqttWriter() {
@@ -55,13 +55,13 @@ bool MqttWriter::write(const BaseInsertData& data) {
     bool success = false;
     try {
         switch(data.type) {
-            case BaseInsertData::DataType::MSG:
+            case BaseInsertData::DataType::MQTT:
                 success = execute_with_retry([&] {
-                    return handle_insert(static_cast<const MsgInsertData&>(data));
-                }, "message insert");
+                    return handle_insert(static_cast<const MqttInsertData&>(data));
+                }, "mqtt message insert");
                 break;
             default:
-                throw std::runtime_error("Unsupported data type: " + std::to_string(static_cast<int>(data.type)));
+                throw std::runtime_error("Unsupported data type for MqttWritter: " + std::to_string(static_cast<int>(data.type)));
         }
     } catch (const std::exception& e) {
         // Handling after retry failure
@@ -94,7 +94,7 @@ void MqttWriter::close() noexcept {
         try {
             client_->close();
         } catch (const std::exception& e) {
-            // Ignore exception on close
+            LogUtils::error("Exception during MqttWriter close: {}", e.what());
         }
         client_.reset();
     }
