@@ -24,9 +24,11 @@ public:
     void merge_commandline();
     void merge_commandline(int argc, char* argv[]);
     void merge_environment_vars();
-    void merge_yaml();
+    void merge_yaml_global(const YAML::Node& config);
+    void merge_yaml_jobs(const YAML::Node& config);
     void merge_yaml(const YAML::Node& config);
     void merge_yaml(const std::string& file_path);
+    void merge_all();
 
     // Get parameter
     // template <typename T>
@@ -49,8 +51,8 @@ private:
     std::unordered_map<std::string, std::string> env_params;
 
     // Helper methods
-    void load_default_schema();
-    void load_default_config();
+    YAML::Node load_default_config();
+    YAML::Node load_config(const std::string& file_path);
     void parse_tdengine(const YAML::Node& td_node);
     void parse_mqtt(const YAML::Node& mqtt_node);
     void parse_kafka(const YAML::Node& kafka_node);
@@ -62,12 +64,9 @@ private:
     void parse_td_create_database_action(Job& job, Step& step);
     void parse_td_create_super_table_action(Job& job, Step& step);
     void parse_td_create_child_table_action(Job& job, Step& step);
-    void parse_comm_insert_data_action(Job& job, Step& step, std::string target_type);
-    void parse_query_data_action(Job& job, Step& step);
-    void parse_subscribe_data_action(Job& job, Step& step);
-    // void parse_job(const YAML::Node& job_yaml, Job& job);
-    // void parse_step(const YAML::Node& step_yaml, Step& step);
-
+    void parse_insert_action(Job& job, Step& step, std::string target_type);
+    void parse_query_action(Job& job, Step& step);
+    void parse_subscribe_action(Job& job, Step& step);
 
     // void validate();
 

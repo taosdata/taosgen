@@ -4,6 +4,8 @@
 
 struct MqttConfig {
     std::string uri = "tcp://localhost:1883";
+    std::string host = "localhost";
+    int port = 1883;
     std::string user = "root";
     std::string password = "taosdata";
     std::string client_id = "taosgen";
@@ -11,6 +13,10 @@ struct MqttConfig {
     bool clean_session = true;
     size_t keep_alive = 5;
     size_t max_buffered_messages = 10000;
+
+    void update_uri_from_host_port() {
+        uri = "tcp://" + host + ":" + std::to_string(port);
+    }
 
     std::string generate_client_id(size_t no = 0) const {
         return client_id + "-" + std::to_string(no);

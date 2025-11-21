@@ -225,7 +225,7 @@ void ParameterContext::parse_steps(const YAML::Node& steps_node, Job& job) {
                 LogUtils::warn("Action 'tdengine/insert-data' is deprecated and will be removed in future versions. Please use 'tdengine/insert' instead.");
                 step.uses = "tdengine/insert";
             }
-            parse_comm_insert_data_action(job, step, "tdengine");
+            parse_insert_action(job, step, "tdengine");
             CheckpointAction::checkpoint_recover(config_data.global, std::get<InsertDataConfig>(step.action_config));
         }
         else if (step.uses == "mqtt/publish" || step.uses == "mqtt/publish-data") {
@@ -233,16 +233,16 @@ void ParameterContext::parse_steps(const YAML::Node& steps_node, Job& job) {
                 LogUtils::warn("Action 'mqtt/publish-data' is deprecated and will be removed in future versions. Please use 'mqtt/publish' instead.");
                 step.uses = "mqtt/publish";
             }
-            parse_comm_insert_data_action(job, step, "mqtt");
+            parse_insert_action(job, step, "mqtt");
         }
         else if (step.uses == "kafka/produce") {
-            parse_comm_insert_data_action(job, step, "kafka");
+            parse_insert_action(job, step, "kafka");
         }
         else if (step.uses == "tdengine/query") {
-            parse_query_data_action(job, step);
+            parse_query_action(job, step);
         }
         else if (step.uses == "tdengine/subscribe") {
-            parse_subscribe_data_action(job, step);
+            parse_subscribe_action(job, step);
         }
         else {
             throw std::runtime_error("Unknown action type: " + step.uses);
@@ -366,7 +366,7 @@ void ParameterContext::parse_td_create_child_table_action(Job& job, Step& step) 
     step.action_config = std::move(create_ctb_config);
 }
 
-void ParameterContext::parse_comm_insert_data_action(Job& job, Step& step, std::string target_type) {
+void ParameterContext::parse_insert_action(Job& job, Step& step, std::string target_type) {
     step.with["target"] = target_type;
     InsertDataConfig insert_config = step.with.as<InsertDataConfig>();
 
@@ -447,7 +447,7 @@ void ParameterContext::parse_comm_insert_data_action(Job& job, Step& step, std::
     step.action_config = std::move(insert_config);
 }
 
-void ParameterContext::parse_query_data_action(Job& /*job*/, Step& step) {
+void ParameterContext::parse_query_action(Job& /*job*/, Step& step) {
     QueryDataConfig query_config;
 
     // Parse source (required)
@@ -471,7 +471,7 @@ void ParameterContext::parse_query_data_action(Job& /*job*/, Step& step) {
     step.action_config = std::move(query_config);
 }
 
-void ParameterContext::parse_subscribe_data_action(Job& /*job*/, Step& step) {
+void ParameterContext::parse_subscribe_action(Job& /*job*/, Step& step) {
     SubscribeDataConfig subscribe_config;
 
     // Parse source (required)
@@ -495,8 +495,7 @@ void ParameterContext::parse_subscribe_data_action(Job& /*job*/, Step& step) {
     step.action_config = std::move(subscribe_config);
 }
 
-void ParameterContext::merge_yaml(const YAML::Node& config) {
-
+void ParameterContext::merge_yaml_global(const YAML::Node& config) {
     if (config["tdengine"]) {
         parse_tdengine(config["tdengine"]);
     }
@@ -512,98 +511,36 @@ void ParameterContext::merge_yaml(const YAML::Node& config) {
     if (config["schema"]) {
         parse_schema(config["schema"]);
     } else {
-        load_default_schema();
+        YAML::Node schema = load_default_config()["schema"];
+        parse_schema(schema);
     }
 
     // Parse job concurrency
     if (config["concurrency"]) {
         config_data.concurrency = config["concurrency"].as<int>();
     }
+}
 
-    merge_commandline();
-
+void ParameterContext::merge_yaml_jobs(const YAML::Node& config) {
     // Parse job list
     if (config["jobs"]) {
         parse_jobs(config["jobs"]);
     }
 }
 
+void ParameterContext::merge_yaml(const YAML::Node& config) {
+    merge_yaml_global(config);
+    merge_yaml_jobs(config);
+}
+
 void ParameterContext::merge_yaml(const std::string& file_path) {
-    try {
-        // Load and parse the YAML file
-        YAML::Node config = YAML::LoadFile(file_path);
-        // Call the existing merge_yaml function with the parsed YAML node
-        config_data.global.yaml_cfg_dir = file_path;
-        merge_yaml(config);
-    } catch (const YAML::Exception& e) {
-        throw std::runtime_error("Failed to parse YAML file '" + file_path + "': " + e.what());
-    } catch (const std::exception& e) {
-        throw std::runtime_error("Error processing YAML file '" + file_path + "': " + e.what());
-    }
+    YAML::Node config = load_config(file_path);
+    merge_yaml_global(config);
+    merge_yaml_jobs(config);
 }
 
-void ParameterContext::merge_yaml() {
-    if (cli_params.count("--config-file")) {
-        // throw std::runtime_error("Missing required parameter: --config-file or -c");
-        const std::string& config_file = cli_params["--config-file"];
-        merge_yaml(config_file);
-    } else {
-        load_default_config();
-    }
-}
-
-void ParameterContext::load_default_schema() {
-    YAML::Node schema = YAML::Load(R"(
-name: meters
-tbname:
-  prefix: d
-  count: 10000
-  from: 0
-columns:
-  - name: ts
-    type: timestamp
-    start: 1735660800000
-    precision : ms
-    step: 1
-  - name: current
-    type: float
-    min: 0
-    max: 100
-  - name: voltage
-    type: int
-    min: 200
-    max: 240
-  - name: phase
-    type: float
-    expr: _i * math.pi % 180
-tags:
-  - name: groupid
-    type: int
-    min: 1
-    max: 10
-  - name: location
-    type: binary(24)
-    values:
-      - New York
-      - Los Angeles
-      - Chicago
-      - Houston
-      - Phoenix
-      - Philadelphia
-      - San Antonio
-      - San Diego
-      - Dallas
-      - Austin
-generation:
-  rows_per_table: 10000
-  rows_per_batch: 10000
-)");
-
-    parse_schema(schema);
-}
-
-void ParameterContext::load_default_config() {
-    YAML::Node config = YAML::Load(R"(
+YAML::Node ParameterContext::load_default_config() {
+    return YAML::Load(R"(
 tdengine:
   dsn: taos+ws://root:taosdata@127.0.0.1:6041/tsbench
   drop_if_exists: false
@@ -670,8 +607,16 @@ jobs:
         with:
           concurrency: 8
 )");
+}
 
-    merge_yaml(config);
+YAML::Node ParameterContext::load_config(const std::string& file_path) {
+    try {
+        // Load YAML file
+        config_data.global.yaml_cfg_dir = file_path;
+        return YAML::LoadFile(file_path);
+    } catch (const std::exception& e) {
+        throw std::runtime_error("Failed to load yaml file '" + file_path + "': " + e.what());
+    }
 }
 
 void ParameterContext::parse_commandline(int argc, char* argv[]) {
@@ -757,17 +702,32 @@ void ParameterContext::merge_commandline() {
     auto& tdengine = config_data.global.tdengine;
     auto& mqtt = config_data.global.mqtt;
     auto& kafka = config_data.global.kafka;
+    bool update_host_port = false;
 
-    if (cli_params.count("--host"))
+    if (cli_params.count("--host")) {
         tdengine.host = cli_params["--host"];
+        mqtt.host = cli_params["--host"];
+        kafka.host = cli_params["--host"];
+        update_host_port = true;
+    }
 
     if (cli_params.count("--port")) {
         try {
-            tdengine.port = std::stoi(cli_params["--port"]);
+            int port = std::stoi(cli_params["--port"]);
+            tdengine.port = port;
+            mqtt.port = port;
+            kafka.port = port;
+            update_host_port = true;
         } catch (const std::exception& e) {
             throw std::runtime_error("Invalid port number: " + cli_params["--port"]);
         }
     }
+
+    if (update_host_port) {
+        mqtt.update_uri_from_host_port();
+        kafka.update_bootstrap_servers_from_host_port();
+    }
+
     if (cli_params.count("--user")) {
         tdengine.user = cli_params["--user"];
         mqtt.user = cli_params["--user"];
@@ -797,14 +757,27 @@ void ParameterContext::merge_environment_vars() {
     auto& tdengine = config_data.global.tdengine;
     auto& mqtt = config_data.global.mqtt;
     auto& kafka = config_data.global.kafka;
+    bool update_host_port = false;
+
     // Iterate environment variables and update connection info
     for (const auto& [env_var, key] : env_mappings) {
         const char* env_value = std::getenv(env_var.c_str());
         if (env_value) {
             if (key == "host") {
                 tdengine.host = env_value;
+                mqtt.host = env_value;
+                kafka.host = env_value;
+                update_host_port = true;
             } else if (key == "port") {
-                tdengine.port = std::stoi(env_value);
+                try {
+                    int port = std::stoi(env_value);
+                    tdengine.port = port;
+                    mqtt.port = port;
+                    kafka.port = port;
+                    update_host_port = true;
+                } catch (const std::exception& e) {
+                    throw std::runtime_error("Invalid port number in environment variable " + env_var + ": " + std::string(env_value));
+                }
             } else if (key == "user") {
                 tdengine.user = env_value;
                 mqtt.user = env_value;
@@ -816,6 +789,27 @@ void ParameterContext::merge_environment_vars() {
             }
         }
     }
+
+    if (update_host_port) {
+        mqtt.update_uri_from_host_port();
+        kafka.update_bootstrap_servers_from_host_port();
+    }
+}
+
+void ParameterContext::merge_all() {
+    YAML::Node config = YAML::Node(YAML::NodeType::Map);
+
+    if (cli_params.count("--config-file")) {
+        const std::string& config_file = cli_params["--config-file"];
+        config = load_config(config_file);
+    } else {
+        config = load_default_config();
+    }
+
+    merge_yaml_global(config);
+    merge_environment_vars();
+    merge_commandline();
+    merge_yaml_jobs(config);
 }
 
 bool ParameterContext::init(int argc, char* argv[]) {
@@ -830,9 +824,8 @@ bool ParameterContext::init(int argc, char* argv[]) {
     }
 
     // Merge by priority from low to high
-    merge_yaml();
-    merge_environment_vars();
-    // merge_commandline();
+    merge_all();
+
     return true;
 }
 
