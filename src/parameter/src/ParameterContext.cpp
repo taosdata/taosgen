@@ -106,38 +106,6 @@ void ParameterContext::parse_schema(const YAML::Node& schema_node) {
     }
 }
 
-// Parse global config
-void ParameterContext::parse_global(const YAML::Node& global_node) {
-    auto& global_config = config_data.global;
-    if (global_node["confirm_prompt"]) {
-        global_config.confirm_prompt = global_node["confirm_prompt"].as<bool>();
-    }
-    if (global_node["verbose"]) {
-        global_config.verbose = global_node["verbose"].as<bool>();
-    }
-    if (global_node["log_dir"]) {
-        global_config.log_dir = global_node["log_dir"].as<std::string>();
-    }
-    if (global_node["cfg_dir"]) {
-        global_config.cfg_dir = global_node["cfg_dir"].as<std::string>();
-    }
-    if (global_node["connection_info"]) {
-        global_config.connection_info = global_node["connection_info"].as<TDengineConfig>();
-    }
-    if (global_node["data_format"]) {
-        global_config.data_format = global_node["data_format"].as<DataFormat>();
-    }
-    if (global_node["data_channel"]) {
-        global_config.data_channel = global_node["data_channel"].as<DataChannel>();
-    }
-    if (global_node["database_info"]) {
-        global_config.database_info = global_node["database_info"].as<DatabaseInfo>();
-    }
-    if (global_node["super_table_info"]) {
-        global_config.super_table_info = global_node["super_table_info"].as<SuperTableInfo>();
-    }
-}
-
 void ParameterContext::parse_jobs(const YAML::Node& jobs_node) {
     for (const auto& job_node : jobs_node) {
         Job job;
@@ -546,11 +514,6 @@ void ParameterContext::merge_yaml(const YAML::Node& config) {
     } else {
         load_default_schema();
     }
-
-    // Parse global config
-    // if (config["global"]) {
-    //     parse_global(config["global"]);
-    // }
 
     // Parse job concurrency
     if (config["concurrency"]) {

@@ -55,7 +55,6 @@ private:
     void parse_mqtt(const YAML::Node& mqtt_node);
     void parse_kafka(const YAML::Node& kafka_node);
     void parse_schema(const YAML::Node& schema_node);
-    void parse_global(const YAML::Node& global_node);
     void parse_jobs(const YAML::Node& jobs_node);
     void parse_steps(const YAML::Node& steps_node, Job& job);
 

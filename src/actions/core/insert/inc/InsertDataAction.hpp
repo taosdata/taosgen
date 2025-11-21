@@ -66,5 +66,12 @@ private:
                 return std::make_unique<InsertDataAction>(global, std::get<InsertDataConfig>(config));
             });
         return true;
+
+        ActionFactory::instance().register_action(
+            "kafka/produce",
+            [](const GlobalConfig& global, const ActionConfigVariant& config) {
+                return std::make_unique<InsertDataAction>(global, std::get<InsertDataConfig>(config));
+            });
+        return true;
     }();
 };

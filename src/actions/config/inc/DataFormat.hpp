@@ -46,7 +46,7 @@ struct DataFormat {
 
     struct KafkaConfig {
         std::string key_pattern = "{table}";
-        std::string key_serializer = "string_utf8";
+        std::string key_serializer = "string-utf8";
         std::string value_serializer = "json";
         std::string tbname_key = "table";
         std::string acks = "0";

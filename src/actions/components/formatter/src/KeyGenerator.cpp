@@ -71,7 +71,7 @@ std::string KeyGenerator::serialize_to_big_endian(T value) const {
 }
 
 KeyGenerator::SerializerType KeyGenerator::string_to_serializer(const std::string& s) {
-    if (s == "string_utf8") return SerializerType::STRING_UTF8;
+    if (s == "string-utf8") return SerializerType::STRING_UTF8;
     if (s == "int8") return SerializerType::INT8;
     if (s == "uint8") return SerializerType::UINT8;
     if (s == "int16") return SerializerType::INT16;
