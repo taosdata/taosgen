@@ -1099,86 +1099,6 @@ namespace YAML {
     };
 
     template<>
-    struct convert<DataFormat> {
-        static bool decode(const Node& node, DataFormat& rhs) {
-            // Detect unknown configuration keys
-            static const std::set<std::string> valid_keys = {
-                "format_type", "stmt", "schemaless", "csv"
-            };
-            check_unknown_keys(node, valid_keys, "data_format");
-
-            if (node["format_type"]) {
-                rhs.format_type = node["format_type"].as<std::string>();
-            }
-
-            if (rhs.format_type == "sql") {
-
-            }
-            else if (rhs.format_type == "stmt") {
-                if (node["stmt"]) {
-                    const auto& stmt = node["stmt"];
-
-                    // Detect unknown keys in stmt
-                    static const std::set<std::string> stmt_keys = {"version"};
-                    check_unknown_keys(stmt, stmt_keys, "data_format::stmt");
-
-                    if (stmt["version"]) {
-                        rhs.stmt.version = stmt["version"].as<std::string>();
-                    }
-                } else {
-                    throw std::runtime_error("Missing required 'stmt' configuration for format_type 'stmt' in data_format.");
-                }
-            }
-            else if (rhs.format_type == "schemaless") {
-                if (node["schemaless"]) {
-                    const auto& sl = node["schemaless"];
-
-                    // Detect unknown keys in schemaless
-                    static const std::set<std::string> sl_keys = {"protocol"};
-                    check_unknown_keys(sl, sl_keys, "data_format::schemaless");
-
-                    if (sl["protocol"]) {
-                        rhs.schemaless.protocol = sl["protocol"].as<std::string>();
-                    }
-                } else {
-                    throw std::runtime_error("Missing required 'schemaless' configuration for format_type 'schemaless' in data_format.");
-                }
-            }
-            else if (rhs.format_type == "csv") {
-                if (node["csv"]) {
-                    const auto& csv = node["csv"];
-
-                    // Detect unknown keys in csv
-                    static const std::set<std::string> csv_keys = {"delimiter", "quote_character", "escape_character"};
-                    check_unknown_keys(csv, csv_keys, "data_format::csv");
-
-                    if (csv["delimiter"]) {
-                        rhs.csv.delimiter = csv["delimiter"].as<std::string>();
-                    }
-
-                    if (csv["quote_character"]) {
-                        rhs.csv.quote_character = csv["quote_character"].as<std::string>();
-                    }
-
-                    if (csv["escape_character"]) {
-                        rhs.csv.escape_character = csv["escape_character"].as<std::string>();
-                    }
-                } else {
-                    throw std::runtime_error("Missing required 'csv' configuration for format_type 'csv' in data_format.");
-                }
-            }
-            else if (rhs.format_type == "json") {
-
-            }
-            else {
-                throw std::runtime_error("Invalid format_type in data_format: " + rhs.format_type);
-            }
-            return true;
-        }
-    };
-
-
-    template<>
     struct convert<DataChannel> {
         static bool decode(const Node& node, DataChannel& rhs) {
             // Detect unknown configuration keys
@@ -1457,7 +1377,7 @@ namespace YAML {
             check_unknown_keys(node, valid_keys, "query-data::control");
 
             if (node["data_format"]) {
-                rhs.data_format = node["data_format"].as<DataFormat>();
+                // rhs.data_format = node["data_format"].as<DataFormat>();
             } else {
                 throw std::runtime_error("Missing required field 'data_format' in query-data::control.");
             }
@@ -1661,7 +1581,7 @@ namespace YAML {
             check_unknown_keys(node, valid_keys, "subscribe-data::control");
 
             if (node["data_format"]) {
-                rhs.data_format = node["data_format"].as<DataFormat>();
+                // rhs.data_format = node["data_format"].as<DataFormat>();
             } else {
                 throw std::runtime_error("Missing required field 'data_format' in subscribe-data::control.");
             }
@@ -1819,11 +1739,11 @@ namespace YAML {
             if (node["key_serializer"]) {
                 rhs.key_serializer = node["key_serializer"].as<std::string>();
                 const std::set<std::string> valid_serializers = {
-                    "string_utf8", "int8", "uint8", "int16", "uint16",
+                    "string-utf8", "int8", "uint8", "int16", "uint16",
                     "int32", "uint32", "int64", "uint64"
                 };
                 if (valid_serializers.find(rhs.key_serializer) == valid_serializers.end()) {
-                    throw std::runtime_error("Unsupported key_serializer: " + rhs.key_serializer + ". Supported serializers are 'string_utf8', 'int8', 'uint8', 'int16', 'uint16', 'int32', 'uint32', 'int64', 'uint64'.");
+                    throw std::runtime_error("Unsupported key_serializer: " + rhs.key_serializer + ". Supported serializers are 'string-utf8', 'int8', 'uint8', 'int16', 'uint16', 'int32', 'uint32', 'int64', 'uint64'.");
                 }
             }
 
