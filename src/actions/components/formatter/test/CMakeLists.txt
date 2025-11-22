@@ -58,6 +58,16 @@ target_link_libraries(TestFormatResult
 )
 add_test(NAME TestFormatResult COMMAND TestFormatResult)
 
+# Test PatternGenerator
+add_executable(TestPatternGenerator
+  TestPatternGenerator.cpp
+)
+target_link_libraries(TestPatternGenerator
+  PRIVATE
+    insert_writer
+)
+add_test(NAME TestPatternGenerator COMMAND TestPatternGenerator)
+
 # Test TopicGenerator
 add_executable(TestTopicGenerator
   TestTopicGenerator.cpp
@@ -68,6 +78,16 @@ target_link_libraries(TestTopicGenerator
 )
 add_test(NAME TestTopicGenerator COMMAND TestTopicGenerator)
 
+# Test KeyGenerator
+add_executable(TestKeyGenerator
+  TestKeyGenerator.cpp
+)
+target_link_libraries(TestKeyGenerator
+  PRIVATE
+    insert_writer
+)
+add_test(NAME TestKeyGenerator COMMAND TestKeyGenerator)
+
 # Test MqttInsertDataFormatter
 add_executable(TestMqttInsertDataFormatter
   TestMqttInsertDataFormatter.cpp
@@ -77,3 +97,13 @@ target_link_libraries(TestMqttInsertDataFormatter
     insert_writer
 )
 add_test(NAME TestMqttInsertDataFormatter COMMAND TestMqttInsertDataFormatter)
+
+# Test KafkaInsertDataFormatter
+add_executable(TestKafkaInsertDataFormatter
+  TestKafkaInsertDataFormatter.cpp
+)
+target_link_libraries(TestKafkaInsertDataFormatter
+  PRIVATE
+    insert_writer
+)
+add_test(NAME TestKafkaInsertDataFormatter COMMAND TestKafkaInsertDataFormatter)
