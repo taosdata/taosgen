@@ -1,7 +1,7 @@
-#include <iostream>
-#include <cassert>
 #include "FormatterRegistrar.hpp"
 #include "MqttInsertDataFormatter.hpp"
+#include <iostream>
+#include <cassert>
 
 // Helper to create a base config for tests
 InsertDataConfig create_base_config() {
