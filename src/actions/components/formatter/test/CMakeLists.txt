@@ -88,6 +88,16 @@ target_link_libraries(TestKeyGenerator
 )
 add_test(NAME TestKeyGenerator COMMAND TestKeyGenerator)
 
+# Test RowSerializer
+add_executable(TestRowSerializer
+  TestRowSerializer.cpp
+)
+target_link_libraries(TestRowSerializer
+  PRIVATE
+    insert_writer
+)
+add_test(NAME TestRowSerializer COMMAND TestRowSerializer)
+
 # Test MqttInsertDataFormatter
 add_executable(TestMqttInsertDataFormatter
   TestMqttInsertDataFormatter.cpp
