@@ -6,7 +6,7 @@ std::ostream& operator<<(std::ostream& os, const ColumnType& column) {
     std::visit([&os](auto&& value) {
         using T = std::decay_t<decltype(value)>;
         if constexpr (std::is_same_v<T, Timestamp>) {
-            os << "Timestamp(" << value << ")";
+            os << value;
         } else if constexpr (std::is_same_v<T, bool>) {
             os << (value ? "true" : "false");
         } else if constexpr (std::is_same_v<T, int8_t> || std::is_same_v<T, uint8_t> ||

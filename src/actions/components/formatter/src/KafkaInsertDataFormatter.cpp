@@ -94,11 +94,11 @@ KafkaInsertData KafkaInsertDataFormatter::format_influx(const DataFormat::KafkaC
         const char* fmt_str;
 
         if (ColumnTypeTraits::needs_quotes(col.type_tag())) {
-            fmt_str = "{} \"{}\"";  // name="value"
+            fmt_str = "{}=\"{}\"";  // name="value"
         } else if (ColumnTypeTraits::is_integer(col.type_tag())) {
-            fmt_str = "{} {}i";     // name=valuei
+            fmt_str = "{}={}i";     // name=valuei
         } else {
-            fmt_str = "{} {}";      // name=value
+            fmt_str = "{}={}";      // name=value
         }
         field_formats.emplace_back(i, fmt_str);
     }
