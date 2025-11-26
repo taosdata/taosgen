@@ -11,8 +11,13 @@ public:
     bool connected = false;
     size_t publish_count = 0;
     size_t total_rows_published = 0;
+    bool fail_connect = false;
+    int fail_publish_times = 0;
 
     bool connect() override {
+        if (fail_connect) {
+            return false;
+        }
         connected = true;
         return true;
     }
@@ -27,6 +32,12 @@ public:
 
     bool publish(const MqttInsertData& data) override {
         publish_count++;
+
+        if (fail_publish_times > 0) {
+            fail_publish_times--;
+            return false;
+        }
+
         total_rows_published += data.total_rows;
         return true;
     }
@@ -92,14 +103,38 @@ void test_connection() {
     assert(writer.connect(conn_src));
     assert(mock_ptr->is_connected());
     (void)mock_ptr;
+    (void)conn_src;
 
     // Connect again if already connected
     assert(writer.connect(conn_src));
+    assert(mock_ptr->is_connected());
 
     // Disconnect
     writer.close();
 
     std::cout << "test_connection passed." << std::endl;
+}
+
+void test_connection_failure() {
+    auto config = create_test_config();
+    auto col_instances = create_col_instances();
+    MqttWriter writer(config, col_instances);
+
+    // Replace with mock
+    auto mock = std::make_unique<MockMqttClient>();
+    mock->fail_connect = true;
+    auto* mock_ptr = mock.get();
+    auto mqtt_client = std::make_unique<MqttClient>(config.mqtt, config.data_format.mqtt);
+    mqtt_client->set_client(std::move(mock));
+    writer.set_client(std::move(mqtt_client));
+
+    std::optional<ConnectorSource> conn_src;
+    assert(!writer.connect(conn_src));
+    assert(!mock_ptr->is_connected());
+    (void)mock_ptr;
+    (void)conn_src;
+
+    std::cout << "test_connection_failure passed." << std::endl;
 }
 
 void test_select_db_and_prepare() {
@@ -171,6 +206,7 @@ void test_write_operations() {
         writer.write(msg);
         (void)mock_ptr;
         assert(mock_ptr->publish_count == 1);
+        assert(mock_ptr->total_rows_published == 1);
     }
 
     // Unsupported data type
@@ -194,6 +230,48 @@ void test_write_operations() {
     }
 
     std::cout << "test_write_operations passed." << std::endl;
+}
+
+void test_write_with_retry() {
+    auto config = create_test_config();
+    config.failure_handling.max_retries = 1;
+    auto col_instances = create_col_instances();
+    MqttWriter writer(config, col_instances);
+
+    // Replace with mock
+    auto mock = std::make_unique<MockMqttClient>();
+    mock->fail_publish_times = 1; // Fail once
+    auto* mock_ptr = mock.get();
+    auto mqtt_client = std::make_unique<MqttClient>(config.mqtt, config.data_format.mqtt);
+    mqtt_client->set_client(std::move(mock));
+    writer.set_client(std::move(mqtt_client));
+
+    std::optional<ConnectorSource> conn_src;
+    auto connected = writer.connect(conn_src);
+    (void)connected;
+    assert(connected);
+
+    MultiBatch batch;
+    std::vector<RowData> rows;
+    rows.push_back({1500000000000, {std::string("f01"), std::string("d01")}});
+    batch.table_batches.emplace_back("tb1", std::move(rows));
+    batch.update_metadata();
+
+    MemoryPool pool(1, 1, 1, col_instances);
+    auto* block = pool.convert_to_memory_block(std::move(batch));
+
+    MqttMessageBatch msg_batch;
+    msg_batch.emplace_back("test/topic", "{\"factory_id\":\"f01\", \"device_id\":\"d01\"}");
+    MqttInsertData msg(block, col_instances, std::move(msg_batch));
+
+    assert(writer.write(msg));
+    assert(mock_ptr->publish_count == 2);           // Called twice: 1 fail + 1 success
+    assert(mock_ptr->total_rows_published == 1);    // Only succeeded once
+
+    (void)mock_ptr;
+    (void)conn_src;
+
+    std::cout << "test_write_with_retry passed." << std::endl;
 }
 
 void test_write_without_connection() {
@@ -231,8 +309,10 @@ void test_write_without_connection() {
 int main() {
     test_constructor();
     test_connection();
+    test_connection_failure();
     test_select_db_and_prepare();
     test_write_operations();
+    test_write_with_retry();
     test_write_without_connection();
     std::cout << "All MqttWriter tests passed." << std::endl;
     return 0;
