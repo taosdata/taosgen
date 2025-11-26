@@ -437,7 +437,7 @@ void ParameterContext::parse_insert_action(Job& job, Step& step, std::string tar
     }
 
     // Print parse result
-    LogUtils::info("Parsed insert-data action");
+    LogUtils::info("Parsed {} action", step.uses);
 
     // Save result to Step's action_config field
     job.tdengine = insert_config.tdengine;

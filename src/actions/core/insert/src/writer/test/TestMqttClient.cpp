@@ -15,8 +15,13 @@ public:
     bool connected = false;
     std::vector<std::string> published_topics;
     std::vector<std::string> published_payloads;
+    bool fail_connect = false;
+    bool fail_publish = false;
 
     bool connect() override {
+        if (fail_connect) {
+            return false;
+        }
         connected = true;
         return true;
     }
@@ -30,7 +35,7 @@ public:
     }
 
     bool publish(const MqttInsertData& data) override {
-        if (!connected) {
+        if (fail_publish || !connected) {
             return false;
         }
         for (const auto& [topic, payload] : data.data) {
@@ -103,6 +108,21 @@ void test_connect_and_close() {
     std::cout << "test_connect_and_close passed." << std::endl;
 }
 
+void test_connect_failure() {
+    auto connector_config = create_test_connector_config();
+    auto format_config = create_test_format_config();
+
+    MqttClient client(connector_config, format_config);
+    auto mock = std::make_unique<MockMqttClient>();
+    mock->fail_connect = true;
+    client.set_client(std::move(mock));
+
+    assert(!client.connect());
+    assert(!client.is_connected());
+
+    std::cout << "test_connect_failure passed." << std::endl;
+}
+
 void test_select_db_and_prepare() {
     auto connector_config = create_test_connector_config();
     auto format_config = create_test_format_config();
@@ -167,11 +187,37 @@ void test_execute_not_connected() {
     std::cout << "test_execute_not_connected passed." << std::endl;
 }
 
+void test_publish_failure() {
+    InsertDataConfig config = create_test_insert_data_config();
+    MqttClient client(config.mqtt, config.data_format.mqtt);
+
+    auto mock = std::make_unique<MockMqttClient>();
+    mock->fail_publish = true;
+    client.set_client(std::move(mock));
+
+    // Prepare mock data
+    ColumnConfigInstanceVector col_instances;
+    col_instances.emplace_back(ColumnConfig{"factory_id", "VARCHAR(16)"});
+    col_instances.emplace_back(ColumnConfig{"device_id", "VARCHAR(16)"});
+
+    MemoryPool pool(1, 1, 1, col_instances);
+    MqttInsertData data = create_test_mqtt_data(pool, config, col_instances);
+
+    auto connected = client.connect();
+    assert(connected);
+    auto success = client.execute(data);
+    assert(!success);
+
+    std::cout << "test_publish_failure passed." << std::endl;
+}
+
 int main() {
     test_connect_and_close();
+    test_connect_failure();
     test_select_db_and_prepare();
     test_execute_and_publish();
     test_execute_not_connected();
+    test_publish_failure();
 
     std::cout << "All MqttClient tests passed." << std::endl;
     return 0;

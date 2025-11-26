@@ -141,7 +141,7 @@ jobs:
     needs: [create-second-child-table]
     steps:
       - name: Insert Second-Level Data
-        uses: actions/insert-data
+        uses: actions/insert
         with:
           # source
           source:
@@ -206,7 +206,7 @@ jobs:
     needs: [create-minute-child-table]
     steps:
       - name: Insert Minute-Level Data
-        uses: actions/insert-data
+        uses: actions/insert
         with:
           # source
           source:
