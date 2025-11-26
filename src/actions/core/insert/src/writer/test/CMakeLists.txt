@@ -37,3 +37,13 @@ target_link_libraries(TestMqttWriter
     insert_writer
 )
 add_test(NAME TestMqttWriter COMMAND TestMqttWriter)
+
+# Test KafkaClient
+add_executable(TestKafkaClient
+  TestKafkaClient.cpp
+)
+target_link_libraries(TestKafkaClient
+  PRIVATE
+    insert_writer
+)
+add_test(NAME TestKafkaClient COMMAND TestKafkaClient)
