@@ -47,3 +47,13 @@ target_link_libraries(TestKafkaClient
     insert_writer
 )
 add_test(NAME TestKafkaClient COMMAND TestKafkaClient)
+
+# Test KafkaWriter
+add_executable(TestKafkaWriter
+  TestKafkaWriter.cpp
+)
+target_link_libraries(TestKafkaWriter
+  PRIVATE
+    insert_writer
+)
+add_test(NAME TestKafkaWriter COMMAND TestKafkaWriter)
