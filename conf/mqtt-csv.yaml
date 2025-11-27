@@ -2,8 +2,6 @@ mqtt:
   uri: tcp://localhost:1883
   user: root
   password: taosdata
-  topic: tsbench/{table}
-  qos: 0
 
 schema:
   name: meters
@@ -46,3 +44,5 @@ jobs:
       - uses: mqtt/publish
         with:
           concurrency: 8
+          topic: tsbench/{table}
+          qos: 0

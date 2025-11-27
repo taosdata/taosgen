@@ -2,8 +2,6 @@ mqtt:
   uri: tcp://localhost:1883
   user: root
   password: taosdata
-  topic: ev/{table}
-  qos: 0
 
 schema:
   name: meters
@@ -85,3 +83,5 @@ jobs:
       - uses: mqtt/publish
         with:
           concurrency: 28
+          topic: ev/{table}
+          qos: 0

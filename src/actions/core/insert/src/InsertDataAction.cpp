@@ -81,6 +81,8 @@ void InsertDataAction::execute() {
         target_info = "@" + config_.tdengine.host + ":" + std::to_string(config_.tdengine.port);
     } else if (config_.target_type == "mqtt") {
         target_info = "@" + config_.mqtt.uri;
+    } else if (config_.target_type == "kafka") {
+        target_info = "@" + config_.kafka.bootstrap_servers;
     } else {
         throw std::invalid_argument("Unsupported target type: " + config_.target_type);
     }
@@ -499,8 +501,8 @@ void InsertDataAction::init_cache_units_data(
 
         if (global_.verbose) {
             LogUtils::debug(
-                "Initialized cache data for table: {} with {} rows per batch, {} cached batches",
-                table_name,
+                "Initialized cache data for table index: {} with {} rows per batch, {} cached batches",
+                table_idx,
                 max_rows_per_table,
                 num_cached_batches
             );

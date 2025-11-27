@@ -20,9 +20,9 @@ struct DataFormat {
     } schemaless;
 
     struct CSVConfig {
-        std::string delimiter = ",";          // Default delimiter is a comma
-        std::string quote_character = "\"";   // Default quote character
-        std::string escape_character = "\\"; // Default escape character
+        std::string delimiter = ",";            // Default delimiter is a comma
+        std::string quote_character = "\"";     // Default quote character
+        std::string escape_character = "\\";    // Default escape character
 
         CSVConfig() = default;
         CSVConfig(const std::string& d, const std::string& q, const std::string& e)

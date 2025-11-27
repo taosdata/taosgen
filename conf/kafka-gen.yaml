@@ -1,13 +1,12 @@
-mqtt:
-  uri: tcp://localhost:1883
-  user: root
-  password: taosdata
+kafka:
+  bootstrap_servers: localhost:9092
+  topic: tsbench-topic
 
 schema:
   name: meters
   tbname:
     prefix: d
-    count: 100000
+    count: 10000
     from: 0
   columns:
     - name: ts
@@ -48,13 +47,16 @@ schema:
     interlace: 1
     rows_per_table: 100
     rows_per_batch: 10000
+    tables_reuse_data: false
+    num_cached_batches: 0
 
 jobs:
-  # MQTT publish job
-  publish-data:
+  # Kafka produce job
+  produce-data:
     steps:
-      - uses: mqtt/publish
+      - uses: kafka/produce
         with:
-          concurrency: 8
-          topic: tsbench/{table}
-          qos: 0
+          concurrency: 10
+          acks: 1
+          records_per_message: 1
+          queue_capacity: 100
