@@ -58,6 +58,19 @@ bool RdKafkaClient::connect() {
         return false;
     }
 
+    // Actively verify the connection by fetching metadata.
+    // This forces the client to connect to a broker and authenticate.
+    RdKafka::Metadata* metadata_ptr = nullptr;
+    RdKafka::ErrorCode err = producer_->metadata(true, nullptr, &metadata_ptr, 5000);
+    if (err != RdKafka::ERR_NO_ERROR) {
+        LogUtils::error("Failed to connect to Kafka cluster and fetch metadata: {}", RdKafka::err2str(err));
+        producer_.reset();
+        return false;
+    }
+    if (metadata_ptr) {
+        delete metadata_ptr;
+    }
+
     is_connected_ = true;
     return true;
 }
