@@ -47,3 +47,13 @@ target_link_libraries(TestBarrier
     utils
 )
 add_test(NAME TestBarrier COMMAND TestBarrier)
+
+# Test Latch
+add_executable(TestLatch
+  TestLatch.cpp
+)
+target_link_libraries(TestLatch
+  PRIVATE
+    utils
+)
+add_test(NAME TestLatch COMMAND TestLatch)
