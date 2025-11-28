@@ -37,3 +37,13 @@ target_link_libraries(TestSignalManager
     utils
 )
 add_test(NAME TestSignalManager COMMAND TestSignalManager)
+
+# Test Barrier
+add_executable(TestBarrier
+  TestBarrier.cpp
+)
+target_link_libraries(TestBarrier
+  PRIVATE
+    utils
+)
+add_test(NAME TestBarrier COMMAND TestBarrier)
