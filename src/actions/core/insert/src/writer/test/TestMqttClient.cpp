@@ -208,6 +208,9 @@ void test_publish_failure() {
     auto success = client.execute(data);
     assert(!success);
 
+    (void)connected;
+    (void)success;
+
     std::cout << "test_publish_failure passed." << std::endl;
 }
 

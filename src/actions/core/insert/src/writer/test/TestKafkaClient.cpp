@@ -209,6 +209,9 @@ void test_produce_failure() {
     auto success = client.execute(data);
     assert(!success);
 
+    (void)connected;
+    (void)success;
+
     std::cout << "test_produce_failure passed." << std::endl;
 }
 

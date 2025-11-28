@@ -138,6 +138,7 @@ void test_kafka_format_influx_single_record() {
     const auto& kafka_data = std::get<KafkaInsertData>(result);
     const auto& messages = kafka_data.data;
 
+    (void)messages;
     assert(messages.size() == 2);
 
     // Message 1
@@ -182,6 +183,9 @@ void test_kafka_format_influx_multiple_records() {
     std::string expected_payload = "weather temp=25.5,device=\"dev1\" 1609459200000\n"
                                    "weather temp=26.1,device=\"dev2\" 1609459201000";
     assert(messages[0].second == expected_payload);
+
+    (void)messages;
+    (void)expected_payload;
 
     std::cout << "test_kafka_format_influx_multiple_records passed!" << std::endl;
 }
@@ -242,6 +246,7 @@ void test_kafka_format_factory_creation() {
 
     auto* kafka_formatter = dynamic_cast<KafkaInsertDataFormatter*>(formatter.get());
     assert(kafka_formatter != nullptr);
+    (void)kafka_formatter;
 
     std::cout << "test_kafka_format_factory_creation passed!" << std::endl;
 }

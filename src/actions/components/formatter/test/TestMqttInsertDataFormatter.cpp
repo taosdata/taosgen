@@ -239,6 +239,7 @@ void test_mqtt_format_factory_creation() {
 
     auto* mqtt_formatter = dynamic_cast<MqttInsertDataFormatter*>(formatter.get());
     assert(mqtt_formatter != nullptr);
+    (void)mqtt_formatter;
 
     std::cout << "test_mqtt_format_factory_creation passed!" << std::endl;
 }

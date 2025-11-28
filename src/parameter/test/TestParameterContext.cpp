@@ -76,6 +76,8 @@ void test_commandline_merge() {
     // Verify derived URI/bootstrap_servers are updated
     assert(global.mqtt.uri == "tcp://cli.host:1234");
     assert(global.kafka.bootstrap_servers == "cli.host:1234");
+
+    (void)global;
     std::cout << "Commandline merge test passed.\n";
 }
 
@@ -96,6 +98,8 @@ void test_environment_merge() {
     // Verify derived URI/bootstrap_servers are updated
     assert(global.mqtt.uri == "tcp://env.host:5678");
     assert(global.kafka.bootstrap_servers == "env.host:5678");
+
+    (void)global;
     std::cout << "Environment merge test passed.\n";
 }
 
@@ -336,6 +340,7 @@ void test_priority() {
     assert(tdengine.host == "cli.host");
     // Port should be from Environment (middle priority, as CLI did not set it)
     assert(tdengine.port == 6042);
+    (void)tdengine;
 
     // Clean up
     remove("priority_test.yaml");
@@ -444,6 +449,8 @@ kafka:
     const auto& global = ctx.get_global_config();
     assert(global.mqtt.uri == "tcp://mqtt.broker:1883");
     assert(global.kafka.bootstrap_servers == "kafka.broker:9092");
+
+    (void)global;
     std::cout << "MQTT/Kafka global config test passed.\n";
 }
 
@@ -480,6 +487,7 @@ jobs:
     assert(insert_config.schema.columns[0].name == "ts");
     assert(insert_config.schema.columns[1].name == "c1");
 
+    (void)insert_config;
     std::cout << "Insert action inheritance test passed.\n";
 }
 
@@ -516,6 +524,7 @@ jobs:
     assert(jobs[0].steps[0].uses == "tdengine/create-database");
     assert(jobs[0].steps[1].uses == "tdengine/create-super-table");
 
+    (void)jobs;
     std::cout << "Auto create database step test passed.\n";
 }
 
