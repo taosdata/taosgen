@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Barrier.hpp"
+#include "Latch.hpp"
 #include "ActionBase.hpp"
 #include "ActionFactory.hpp"
 #include "InsertDataConfig.hpp"
@@ -50,7 +50,7 @@ private:
         IWriter* writer,
         std::optional<ConnectorSource>& conn_source,
         GarbageCollector<FormatResult>& gc,
-        Barrier& sync_barrier);
+        Latch& startup_latch);
 
     // Register InsertDataAction to ActionFactory
     inline static bool registered_ = []() {

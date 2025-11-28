@@ -23,7 +23,7 @@ bool ProductionStepStrategy::execute(const Step& step) {
         return true;
 
     } catch (const std::exception& e) {
-        LogUtils::error("Error executing step: {}, reason: \"{}\"", step.name, e.what());
+        LogUtils::error("Failed to execute step: {}, reason: \"{}\"", step.name, e.what());
         return false;
     }
 }

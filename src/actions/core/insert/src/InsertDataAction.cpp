@@ -155,7 +155,7 @@ void InsertDataAction::execute() {
 
         // Create data pipeline
         DataPipeline<FormatResult> pipeline(shared_queue, producer_thread_count, consumer_thread_count, queue_capacity);
-        Barrier sync_barrier(consumer_thread_count + 1);
+        Latch startup_latch(consumer_thread_count);
 
         // Start consumer threads
         std::vector<std::thread> consumer_threads;
@@ -247,18 +247,19 @@ void InsertDataAction::execute() {
 
         for (size_t i = 0; i < consumer_thread_count; i++) {
 
-            consumer_threads.emplace_back([this, i, &pipeline, &consumer_running, &writers, &conn_source, &gc, &sync_barrier] {
+            consumer_threads.emplace_back([this, i, &pipeline, &consumer_running, &writers, &conn_source, &gc, &startup_latch] {
                 if (config_.thread_affinity) {
                     set_thread_affinity(i, true, "Consumer");
                 }
                 if (config_.thread_realtime) {
                     set_realtime_priority();
                 }
-                consumer_thread_function(i, pipeline, consumer_running[i], writers[i].get(), conn_source, gc, sync_barrier);
+                consumer_thread_function(i, pipeline, consumer_running[i], writers[i].get(), conn_source, gc, startup_latch);
             });
         }
 
-        sync_barrier.arrive_and_wait();
+        // Wait for consumers to be ready
+        startup_latch.wait([this] { return stop_execution_.load(); });
         const auto start_time = std::chrono::steady_clock::now();
 
         // Monitor
@@ -306,7 +307,9 @@ void InsertDataAction::execute() {
             );
         }
 
-        LogUtils::info("All producer threads have finished");
+        if (!stop_execution_.load()) {
+            LogUtils::info("All producer threads have finished");
+        }
 
         // Wait for all data to be sent
         size_t last_queue_size = pipeline.total_queued();
@@ -593,7 +596,7 @@ void InsertDataAction::consumer_thread_function(
     IWriter* writer,
     std::optional<ConnectorSource>& conn_source,
     GarbageCollector<FormatResult>& gc,
-    Barrier& sync_barrier)
+    Latch& startup_latch)
 {
     // Failure retry logic
     const auto& failure_cfg = config_.failure_handling;
@@ -601,25 +604,34 @@ void InsertDataAction::consumer_thread_function(
 
     // Connect to writer
     if (!writer->connect(conn_source)) {
-        throw std::runtime_error("Failed to connect writer for consumer " + std::to_string(consumer_id));
+        LogUtils::error("Failed to connect writer for consumer {}", consumer_id);
+        stop_execution_.store(true);
+        startup_latch.interrupt();
+        return;
     }
 
     if (config_.target_type == "tdengine") {
         if (!writer->select_db(config_.tdengine.database)) {
-            throw std::runtime_error("Failed to select database for writer thread " + std::to_string(consumer_id) + \
-                " with database name: " + config_.tdengine.database);
+            LogUtils::error("Failed to select database for writer thread {} with database name: {}",
+                consumer_id, config_.tdengine.database);
+            stop_execution_.store(true);
+            startup_latch.interrupt();
+            return;
         }
 
         auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(config_.data_format);
         auto sql = formatter->prepare(config_, col_instances_);
 
         if (!writer->prepare(sql)) {
-            throw std::runtime_error("Failed to prepare writer for thread " + std::to_string(consumer_id) + \
-                " with SQL: " + sql);
+            LogUtils::error("Failed to prepare writer for thread {} with SQL: {}",
+                consumer_id, sql);
+            stop_execution_.store(true);
+            startup_latch.interrupt();
+            return;
         }
     }
 
-    sync_barrier.arrive_and_wait();
+    startup_latch.count_down();
 
     // Data processing loop
     (void)running;
