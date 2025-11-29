@@ -344,13 +344,13 @@ void InsertDataAction::execute() {
         const auto end_time = std::chrono::steady_clock::now();
         (void)end_time;
 
+        // Terminate pipeline
+        pipeline.terminate();
+
         // Wait for producers to finish
         for (auto& t : producer_threads) {
             if (t.joinable()) t.join();
         }
-
-        // Terminate pipeline (notify consumers)
-        pipeline.terminate();
 
         // Wait for consumers to finish
         // for (size_t i = 0; i < consumer_thread_count; i++) {
@@ -549,39 +549,13 @@ void InsertDataAction::producer_thread_function(
         // Format data
         FormatResult formatted_result = formatter->format(config_, col_instances_, std::move(batch.value()), is_checkpoint_recover_);
 
-        // Debug: print formatted result info
-        // std::visit([producer_id](const auto& result) {
-        //     using T = std::decay_t<decltype(result)>;
-
-        //     if constexpr (std::is_same_v<T, SqlInsertData>) {
-        //         std::cout << "Producer " << producer_id
-        //                   << ": sql data, rows: " << result.total_rows
-        //                   << ", time range: [" << result.start_time
-        //                   << ", " << result.end_time << "]"
-        //                   << ", length: " << result.data.str().length()
-        //                   << " bytes" << std::endl;
-        //     } else if constexpr (std::is_same_v<T, StmtV2InsertData>) {
-        //         std::cout << "Producer " << producer_id
-        //                   << ": stmt v2 data, rows: " << result.total_rows
-        //                   << ", time range: [" << result.start_time
-        //                   << ", " << result.end_time << "]"
-        //                 //   << ", length: " << result.data.length()
-        //                   << " bytes" << std::endl;
-        //     } else if constexpr (std::is_same_v<T, std::string>) {
-        //         std::cout << "Producer " << producer_id
-        //                   << ": unknown format result type: "
-        //                   << typeid(result).name() << ", content: "
-        //                   << result.substr(0, 100)
-        //                   << (result.length() > 100 ? "..." : "")
-        //                   << ", length: " << result.length()
-        //                   << " bytes" << std::endl;
-
-        //         throw std::runtime_error("Unknown format result type: " + std::string(typeid(result).name()));
-        //     }
-        // }, formatted_result);
-
         // Push data to pipeline
-        pipeline.push_data(producer_id, std::move(formatted_result));
+        try {
+            pipeline.push_data(producer_id, std::move(formatted_result));
+        } catch (const std::exception& e) {
+            LogUtils::error("Producer {} could not push data, reason: {}", producer_id, e.what());
+            break;
+        }
 
         // std::cout << "Producer " << producer_id << ": Pushed batch for table(s): "
         //           << batch_size << ", total rows: " << total_rows
