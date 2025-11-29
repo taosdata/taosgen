@@ -89,19 +89,30 @@ void RdKafkaClient::close() {
 
 bool RdKafkaClient::produce(const KafkaInsertData& data) {
     const KafkaMessageBatch& batch_msgs = data.data;
+    auto it = batch_msgs.begin();
 
-    for (const auto& [key, payload] : batch_msgs) {
+    while (it != batch_msgs.end()) {
+        const auto& [key, payload] = *it;
+
         RdKafka::ErrorCode err = producer_->produce(
             config_.topic,
-            RdKafka::Topic::PARTITION_UA, // Unassigned partition
-            RdKafka::Producer::RK_MSG_COPY,
+            RdKafka::Topic::PARTITION_UA,
+            RdKafka::Producer::RK_MSG_COPY, // Using COPY is safe as payload's lifetime is limited to the loop.
             const_cast<char*>(payload.c_str()), payload.size(),
             const_cast<char*>(key.c_str()), key.size(),
             0,
             nullptr
         );
 
-        if (err != RdKafka::ERR_NO_ERROR) {
+        if (err == RdKafka::ERR_NO_ERROR) {
+            ++it;
+            continue;
+        }
+
+        if (err == RdKafka::ERR__QUEUE_FULL) {
+            producer_->poll(1);
+            continue;
+        } else {
             throw std::runtime_error("Kafka produce failed: " + RdKafka::err2str(err));
         }
     }

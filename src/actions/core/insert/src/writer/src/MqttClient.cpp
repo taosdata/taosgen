@@ -74,8 +74,11 @@ void PahoMqttClient::disconnect() {
 
 bool PahoMqttClient::publish(const MqttInsertData& data) {
     const MqttMessageBatch& batch_msgs = data.data;
+    auto it = batch_msgs.begin();
 
-    for (const auto& [topic, payload] : batch_msgs) {
+    while (it != batch_msgs.end()) {
+        const auto& [topic, payload] = *it;
+
         auto pubmsg = mqtt::make_message(
             topic,
             payload.data(),
@@ -85,20 +88,17 @@ bool PahoMqttClient::publish(const MqttInsertData& data) {
             default_props_
         );
 
-        while (true) {
-            try {
-                auto token = client_->publish(pubmsg);
-                token_queue_.put(std::move(token));
-                break;
-            } catch (const mqtt::exception& e) {
-                std::string msg = e.what();
-                if (msg.find("No more messages can be buffered") != std::string::npos ||
-                    msg.find("MQTT error [-12]") != std::string::npos) {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-                    continue;
-                } else {
-                    throw std::runtime_error(std::string("MQTT publish failed: ") + msg);
-                }
+        try {
+            auto token = client_->publish(pubmsg);
+            token_queue_.put(std::move(token));
+            ++it;
+        } catch (const mqtt::exception& e) {
+            std::string msg = e.what();
+            if (msg.find("No more messages can be buffered") != std::string::npos ||
+                msg.find("MQTT error [-12]") != std::string::npos) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            } else {
+                throw std::runtime_error(std::string("MQTT publish failed: ") + msg);
             }
         }
     }
