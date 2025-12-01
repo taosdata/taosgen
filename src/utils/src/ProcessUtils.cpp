@@ -184,4 +184,48 @@ double get_cpu_usage_percent() {
 #endif
 }
 
+double get_system_free_memory_gb() {
+#ifdef __linux__
+    std::ifstream meminfo("/proc/meminfo");
+    if (!meminfo) return -1.0;
+
+    std::string line;
+    long mem_available_kb = -1;
+    while (std::getline(meminfo, line)) {
+        if (line.rfind("MemAvailable:", 0) == 0) {
+            std::istringstream iss(line);
+            std::string key;
+            iss >> key >> mem_available_kb;
+            break;
+        }
+    }
+
+    if (mem_available_kb != -1) {
+        return static_cast<double>(mem_available_kb) / (1024.0 * 1024.0);
+    }
+    return -1.0;
+
+#elif defined(__APPLE__)
+    mach_port_t host_port = mach_host_self();
+    mach_msg_type_number_t host_size = sizeof(vm_statistics64_data_t) / sizeof(integer_t);
+    vm_size_t pagesize;
+    vm_statistics64_data_t vm_stat;
+
+    if (host_page_size(host_port, &pagesize) != KERN_SUCCESS) {
+        return -1.0;
+    }
+
+    if (host_statistics64(host_port, HOST_VM_INFO64, (host_info64_t)&vm_stat, &host_size) != KERN_SUCCESS) {
+        return -1.0;
+    }
+
+    // Available memory is generally considered free + inactive pages.
+    double available_bytes = static_cast<double>(vm_stat.free_count + vm_stat.inactive_count) * static_cast<double>(pagesize);
+    return available_bytes / (1024.0 * 1024.0 * 1024.0);
+
+#else
+    return -1.0; // Not implemented for this platform
+#endif
+}
+
 } // namespace ProcessUtils
