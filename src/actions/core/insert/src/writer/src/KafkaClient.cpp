@@ -81,7 +81,7 @@ bool RdKafkaClient::is_connected() const {
 
 void RdKafkaClient::close() {
     if (producer_) {
-        producer_->flush(10000); // Wait 10s for outstanding messages
+        producer_->flush(-1);
         producer_.reset();
     }
     is_connected_ = false;

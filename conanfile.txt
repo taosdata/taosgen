@@ -21,3 +21,10 @@ CMakeToolchain
 [options]
 *:shared=False
 mimalloc/*:override=True
+librdkafka/*:zstd=True
+librdkafka/*:zlib=True
+librdkafka/*:snappy=True
+librdkafka/*:lz4=True
+librdkafka/*:ssl=True
+librdkafka/*:sasl=True
+librdkafka/*:cpp=True
