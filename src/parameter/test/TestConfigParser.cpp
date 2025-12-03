@@ -55,15 +55,19 @@ client_id: kafka-client-001
 rdkafka_options:
   "security.protocol": "sasl_ssl"
   "sasl.mechanisms": "PLAIN"
+  "queue.buffering.max.messages": "500000"
+  "linger.ms": "100"
 )";
     YAML::Node node = YAML::Load(yaml);
     KafkaConfig kafka = node.as<KafkaConfig>();
     assert(kafka.topic == "my-kafka-topic");
     assert(kafka.bootstrap_servers == "kafka1:9092,kafka2:9092");
     assert(kafka.client_id == "kafka-client-001");
-    assert(kafka.rdkafka_options.size() == 2);
+    assert(kafka.rdkafka_options.size() == 4);
     assert(kafka.rdkafka_options["security.protocol"] == "sasl_ssl");
     assert(kafka.rdkafka_options["sasl.mechanisms"] == "PLAIN");
+    assert(kafka.rdkafka_options["queue.buffering.max.messages"] == "500000");
+    assert(kafka.rdkafka_options["linger.ms"] == "100");
 }
 
 void test_KafkaConfig_unknown_key() {

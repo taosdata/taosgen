@@ -110,7 +110,7 @@ bool RdKafkaClient::produce(const KafkaInsertData& data) {
         }
 
         if (err == RdKafka::ERR__QUEUE_FULL) {
-            producer_->poll(1);
+            producer_->poll(100);
             continue;
         } else {
             throw std::runtime_error("Kafka produce failed: " + RdKafka::err2str(err));
