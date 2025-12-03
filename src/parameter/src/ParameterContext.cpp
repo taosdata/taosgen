@@ -806,6 +806,12 @@ void ParameterContext::merge_all() {
         config = load_default_config();
     }
 
+    if (cli_params.count("--verbose")) {
+        YAML::Emitter emitter;
+        emitter << config;
+        LogUtils::info("Loaded YAML Config:\n{}", emitter.c_str());
+    }
+
     merge_yaml_global(config);
     merge_environment_vars();
     merge_commandline();

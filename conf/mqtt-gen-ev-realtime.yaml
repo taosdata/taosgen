@@ -75,6 +75,7 @@ schema:
     interlace: 1
     rows_per_table: -1
     rows_per_batch: 10000
+    num_cached_batches: 0
 
 jobs:
   # MQTT publish job
