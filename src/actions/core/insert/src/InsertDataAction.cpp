@@ -182,7 +182,7 @@ void InsertDataAction::execute() {
 
         // Create all writer instances
         for (size_t i = 0; i < consumer_thread_count; i++) {
-            LogUtils::debug("Creating writer instance for consumer thread {}", i);
+            LogUtils::debug("Creating writer instance for consumer thread #{}", i);
             writers.push_back(WriterFactory::create(config_, col_instances_, i, action_info));
         }
 

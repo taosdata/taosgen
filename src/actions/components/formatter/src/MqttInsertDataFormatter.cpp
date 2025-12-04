@@ -31,11 +31,13 @@ MqttInsertData MqttInsertDataFormatter::format_json(const DataFormat::MqttConfig
 
 
     if (format.records_per_message == 1) {
+        nlohmann::ordered_json json_data;
+
         for (size_t table_idx = 0; table_idx < batch->used_tables; ++table_idx) {
             auto& table_block = batch->tables[table_idx];
             for (size_t row_idx = 0; row_idx < table_block.used_rows; ++row_idx) {
                 std::string topic = topic_generator.generate(table_block, row_idx);
-                nlohmann::ordered_json json_data = RowSerializer::to_json(col_instances, table_block, row_idx, format.tbname_key);
+                RowSerializer::to_json_inplace(col_instances, table_block, row_idx, format.tbname_key, json_data);
                 std::string payload = json_data.dump();
 
                 // Encoding conversion
@@ -49,11 +51,13 @@ MqttInsertData MqttInsertDataFormatter::format_json(const DataFormat::MqttConfig
                 }
 
                 msg_batch.emplace_back(std::move(topic), std::move(payload));
+                json_data.clear();
             }
         }
     } else {
         nlohmann::ordered_json json_array = nlohmann::ordered_json::array();
         std::string first_record_topic;
+        nlohmann::ordered_json record_json;
 
         for (size_t table_idx = 0; table_idx < batch->used_tables; ++table_idx) {
             auto& table_block = batch->tables[table_idx];
@@ -64,7 +68,9 @@ MqttInsertData MqttInsertDataFormatter::format_json(const DataFormat::MqttConfig
                 }
 
                 // Add the current record's JSON to the array
-                json_array.push_back(RowSerializer::to_json(col_instances, table_block, row_idx, format.tbname_key));
+                RowSerializer::to_json_inplace(col_instances, table_block, row_idx, format.tbname_key, record_json);
+                json_array.emplace_back(std::move(record_json));
+                record_json.clear();
 
                 // If the batch is full, create the message and reset
                 if (json_array.size() >= format.records_per_message) {

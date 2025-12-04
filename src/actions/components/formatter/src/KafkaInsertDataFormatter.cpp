@@ -38,18 +38,21 @@ KafkaInsertData KafkaInsertDataFormatter::format_json(const DataFormat::KafkaCon
     KeyGenerator key_generator(format.key_pattern, format.key_serializer, col_instances);
 
     if (format.records_per_message == 1) {
+        nlohmann::ordered_json json_data;
+
         for (size_t table_idx = 0; table_idx < batch->used_tables; ++table_idx) {
             auto& table_block = batch->tables[table_idx];
             for (size_t row_idx = 0; row_idx < table_block.used_rows; ++row_idx) {
                 std::string key = key_generator.generate(table_block, row_idx);
-                nlohmann::ordered_json json_data = RowSerializer::to_json(col_instances, table_block, row_idx, format.tbname_key);
-                std::string value = json_data.dump();
-                msg_batch.emplace_back(std::move(key), std::move(value));
+                RowSerializer::to_json_inplace(col_instances, table_block, row_idx, format.tbname_key, json_data);
+                msg_batch.emplace_back(std::move(key), json_data.dump());
+                json_data.clear();
             }
         }
     } else {
         nlohmann::ordered_json json_array = nlohmann::ordered_json::array();
         std::string first_record_key;
+        nlohmann::ordered_json record_json;
 
         for (size_t table_idx = 0; table_idx < batch->used_tables; ++table_idx) {
             auto& table_block = batch->tables[table_idx];
@@ -60,7 +63,9 @@ KafkaInsertData KafkaInsertDataFormatter::format_json(const DataFormat::KafkaCon
                 }
 
                 // Add the current record's JSON to the array
-                json_array.push_back(RowSerializer::to_json(col_instances, table_block, row_idx, format.tbname_key));
+                RowSerializer::to_json_inplace(col_instances, table_block, row_idx, format.tbname_key, record_json);
+                json_array.emplace_back(std::move(record_json));
+                record_json.clear();
 
                 // If the batch is full, create the message and reset
                 if (json_array.size() >= format.records_per_message) {
