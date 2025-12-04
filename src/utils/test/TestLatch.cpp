@@ -29,6 +29,9 @@ void test_latch_basic_functionality() {
     auto wait_duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
     assert(wait_duration.count() >= 10);
     assert(counter == num_threads);
+    (void)wait_duration;
+    (void)counter;
+    (void)num_threads;
 
     for (auto& t : threads) {
         t.join();

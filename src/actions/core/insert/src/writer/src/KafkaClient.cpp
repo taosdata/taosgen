@@ -6,9 +6,13 @@
 
 // --- RdKafkaClient Implementation ---
 RdKafkaClient::RdKafkaClient(const KafkaConfig& config, const DataFormat::KafkaConfig& format, size_t no)
-    : config_(config), format_(format), no_(no) {}
+    : config_(config), format_(format), no_(no) {
+
+    LogUtils::debug("Creating Kafka client #{}", no_);
+}
 
 RdKafkaClient::~RdKafkaClient() {
+    LogUtils::debug("Destroying Kafka client #{}", no_);
     close();
 }
 

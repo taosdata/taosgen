@@ -11,6 +11,7 @@
 PahoMqttClient::PahoMqttClient(const MqttConfig& config, const DataFormat::MqttConfig& format, size_t no)
     : config_(config), format_(format), no_(no) {
 
+    LogUtils::debug("Creating MQTT client #{}", no_);
     std::string client_id = config.generate_client_id(no);
     mqtt::create_options create_opts;
     create_opts.set_server_uri(config.uri);
@@ -32,6 +33,7 @@ PahoMqttClient::PahoMqttClient(const MqttConfig& config, const DataFormat::MqttC
 }
 
 PahoMqttClient::~PahoMqttClient() {
+    LogUtils::debug("Destroying MQTT client #{}", no_);
     token_queue_.put(nullptr);
 
     if (token_wait_thread_.joinable()) {
