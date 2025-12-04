@@ -53,6 +53,7 @@ void test_latch_wait_with_stop_condition() {
         // This should unblock quickly after stop_flag is set.
         auto wait_duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
         assert(wait_duration.count() < 50);
+        (void)wait_duration;
     });
 
     // Wait a bit to ensure the waiter thread is actually waiting.

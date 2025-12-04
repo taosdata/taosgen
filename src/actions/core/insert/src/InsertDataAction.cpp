@@ -576,20 +576,22 @@ void InsertDataAction::consumer_thread_function(
     const auto& failure_cfg = config_.failure_handling;
     size_t failed_count = 0;
 
-    // Connect to writer
-    if (!writer->connect(conn_source)) {
-        LogUtils::error("Failed to connect writer for consumer {}", consumer_id);
+    auto handle_startup_error = [&](const auto&... args) {
+        LogUtils::error(args...);
         stop_execution_.store(true);
         startup_latch.interrupt();
+    };
+
+    // Connect to writer
+    if (!writer->connect(conn_source)) {
+        handle_startup_error("Failed to connect writer for consumer {}", consumer_id);
         return;
     }
 
     if (config_.target_type == "tdengine") {
         if (!writer->select_db(config_.tdengine.database)) {
-            LogUtils::error("Failed to select database for writer thread {} with database name: {}",
+            handle_startup_error("Failed to select database for writer thread {} with database name: {}",
                 consumer_id, config_.tdengine.database);
-            stop_execution_.store(true);
-            startup_latch.interrupt();
             return;
         }
 
@@ -597,11 +599,8 @@ void InsertDataAction::consumer_thread_function(
         auto sql = formatter->prepare(config_, col_instances_);
 
         if (!writer->prepare(sql)) {
-            LogUtils::error("Failed to prepare writer for thread {} with SQL: {}",
+            handle_startup_error("Failed to prepare writer for thread {} with SQL: {}",
                 consumer_id, sql);
-            stop_execution_.store(true);
-            startup_latch.interrupt();
-            return;
         }
     }
 
