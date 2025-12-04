@@ -1,5 +1,10 @@
 #pragma once
 
+#include "StringUtils.hpp"
+#include <fmt/core.h>
+#include <fmt/format.h>
+#include <fmt/ranges.h>
+#include <fmt/ostream.h>
 #include <iostream>
 #include <variant>
 #include <string>
@@ -72,9 +77,55 @@ using ColumnType = std::variant<
 using ColumnTypeVector = std::vector<ColumnType>;
 using RowType = ColumnTypeVector;
 
+template <>
+struct fmt::formatter<ColumnType> {
+    constexpr auto parse(fmt::format_parse_context& ctx) {
+        return ctx.begin();
+    }
 
-std::ostream& operator<<(std::ostream& os, const ColumnType& column);
-std::ostream& operator<<(std::ostream& os, const RowType& row);
+    template <typename FormatContext>
+    auto format(const ColumnType& column, FormatContext& ctx) const {
+        return std::visit(
+            [&](auto&& value) {
+                using T = std::decay_t<decltype(value)>;
+                auto out = ctx.out();
+                if constexpr (std::is_same_v<T, std::monostate>) {
+                    return fmt::format_to(out, "NULL");
+                } else if constexpr (std::is_same_v<T, bool>) {
+                    return fmt::format_to(out, "{}", value ? "true" : "false");
+                } else if constexpr (std::is_arithmetic_v<T>) {
+                    return fmt::format_to(out, "{}", value);
+                } else if constexpr (std::is_same_v<T, Decimal>) {
+                    return fmt::format_to(out, "Decimal({})", value.value);
+                } else if constexpr (std::is_same_v<T, std::string>) {
+                    return fmt::format_to(out, "{}", value);
+                } else if constexpr (std::is_same_v<T, std::u16string>) {
+                    return fmt::format_to(out, "{}", StringUtils::u16string_to_utf8(value));
+                } else if constexpr (std::is_same_v<T, JsonValue>) {
+                    return fmt::format_to(out, "{}", value.raw_json);
+                } else if constexpr (std::is_same_v<T, std::vector<uint8_t>>) {
+                    return fmt::format_to(out, "VarBinary({})", fmt::join(value, ","));
+                } else if constexpr (std::is_same_v<T, Geometry>) {
+                    return fmt::format_to(out, "Geometry({})", value.wkt);
+                } else {
+                    return fmt::format_to(out, "UnknownType");
+                }
+            },
+            column);
+    }
+};
+
+// Overload << operator for ColumnType
+inline std::ostream& operator<<(std::ostream& os, const ColumnType& column) {
+    fmt::print(os, "{}", column);
+    return os;
+}
+
+// Overload << operator for RowType
+inline std::ostream& operator<<(std::ostream& os, const RowType& row) {
+    fmt::print(os, "[{}]", fmt::join(row, ", "));
+    return os;
+}
 
 template <typename T, typename Variant>
 struct variant_index;

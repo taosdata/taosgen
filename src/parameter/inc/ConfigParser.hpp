@@ -1788,7 +1788,7 @@ namespace YAML {
         static bool decode(const Node& node, InsertDataConfig& rhs) {
             // Detect unknown configuration keys
             static const std::set<std::string> common_keys = {
-                "schema", "target", "timestamp_precision", "format",
+                "schema", "target", "timestamp_precision",
                 "concurrency", "queue_capacity", "queue_warmup_ratio", "shared_queue",
                 "thread_affinity", "thread_realtime",
                 "failure_handling", "time_interval", "checkpoint"

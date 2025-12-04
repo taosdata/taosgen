@@ -125,7 +125,7 @@ KafkaInsertData KafkaInsertDataFormatter::format_influx(const DataFormat::KafkaC
             for (size_t col_idx : tag_indices) {
                 fmt::format_to(std::back_inserter(line_buffer), ",{}={}",
                                col_instances[col_idx].name(),
-                               table_block.get_cell_as_string(row_idx, col_idx));
+                               table_block.get_cell(row_idx, col_idx));
             }
 
             // 3. Space separator
@@ -141,7 +141,7 @@ KafkaInsertData KafkaInsertDataFormatter::format_influx(const DataFormat::KafkaC
                 // The format string now correctly handles quotes and integer suffixes
                 fmt::format_to(std::back_inserter(line_buffer), fmt::runtime(fmt_str),
                                col_instances[col_idx].name(),
-                               table_block.get_cell_as_string(row_idx, col_idx));
+                               table_block.get_cell(row_idx, col_idx));
                 first_field = false;
             }
 
