@@ -7,6 +7,10 @@ on:
         required: false
         type: string
         default: Debug
+      package_release:
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   build:
@@ -314,7 +318,7 @@ jobs:
           ctest --output-on-failure --verbose
 
       - name: Prepare release artifact
-        if: ${{ inputs.build_type == 'Release' }}
+        if: ${{ inputs.build_type == 'Release' && inputs.package_release == true }}
         run: |
           OS_NAME=$(echo "${{ runner.os }}" | tr '[:upper:]' '[:lower:]')
           ARCH="${{ matrix.arch }}"
@@ -349,7 +353,7 @@ jobs:
         shell: bash
 
       - name: Upload release artifact
-        if: ${{ inputs.build_type == 'Release' }}
+        if: ${{ inputs.build_type == 'Release' && inputs.package_release == true }}
         uses: actions/upload-artifact@v4
         with:
           name: taosgen-${{ runner.os }}-${{ matrix.arch }}
