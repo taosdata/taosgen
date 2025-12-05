@@ -141,7 +141,7 @@ jobs:
     needs: [create-second-child-table]
     steps:
       - name: Insert Second-Level Data
-        uses: actions/insert-data
+        uses: actions/insert
         with:
           # source
           source:
@@ -206,7 +206,7 @@ jobs:
     needs: [create-minute-child-table]
     steps:
       - name: Insert Minute-Level Data
-        uses: actions/insert-data
+        uses: actions/insert
         with:
           # source
           source:
@@ -254,7 +254,7 @@ jobs:
       - create-minute-child-table
     steps:
       - name: query-super-table
-        uses: actions/query-data
+        uses: tdengine/query
         with:
           # source
           source:
@@ -291,7 +291,7 @@ jobs:
       - create-minute-child-table
     steps:
       - name: subscribe-data
-        uses: actions/subscribe-data
+        uses: tdengine/subscribe
         with:
           # source
           source:

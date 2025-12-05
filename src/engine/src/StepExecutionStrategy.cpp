@@ -23,7 +23,7 @@ bool ProductionStepStrategy::execute(const Step& step) {
         return true;
 
     } catch (const std::exception& e) {
-        LogUtils::error("Error executing step: {}, reason: \"{}\"", step.name, e.what());
+        LogUtils::error("Failed to execute step: {}, reason: \"{}\"", step.name, e.what());
         return false;
     }
 }
@@ -42,11 +42,11 @@ bool DebugStepStrategy::execute(const Step& step) {
         LogUtils::info("Action type: Create Super Table");
     } else if (step.uses == "tdengine/create-child-table") {
         LogUtils::info("Action type: Create Child Table");
-    } else if (step.uses == "tdengine/insert-data") {
+    } else if (step.uses == "tdengine/insert") {
         LogUtils::info("Action type: Insert Data");
-    } else if (step.uses == "actions/query-data") {
+    } else if (step.uses == "tdengine/query") {
         LogUtils::info("Action type: Query Data");
-    } else if (step.uses == "actions/subscribe-data") {
+    } else if (step.uses == "tdengine/subscribe") {
         LogUtils::info("Action type: Subscribe Data");
     } else {
         LogUtils::error("Unknown action type: {}", step.uses);

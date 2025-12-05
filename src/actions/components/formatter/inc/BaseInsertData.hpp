@@ -8,7 +8,8 @@ struct BaseInsertData {
         BASE,
         SQL,
         STMT,
-        MSG
+        MQTT,
+        KAFKA
     };
     DataType type;
 

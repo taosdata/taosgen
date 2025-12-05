@@ -6,7 +6,7 @@
 void test_stmt_format_insert_data_single_table() {
     DataFormat format;
     format.format_type = "stmt";
-    format.stmt_config.version = "v2";
+    format.stmt.version = "v2";
 
     InsertDataConfig config;
     config.tdengine.database = "test_db";
@@ -40,7 +40,7 @@ void test_stmt_format_insert_data_single_table() {
 void test_stmt_format_insert_data_multiple_tables() {
     DataFormat format;
     format.format_type = "stmt";
-    format.stmt_config.version = "v2";
+    format.stmt.version = "v2";
 
     InsertDataConfig config;
     config.tdengine.database = "test_db";
@@ -82,7 +82,7 @@ void test_stmt_format_insert_data_multiple_tables() {
 void test_stmt_format_insert_data_empty_batch() {
     DataFormat format;
     format.format_type = "stmt";
-    format.stmt_config.version = "v2";
+    format.stmt.version = "v2";
 
     InsertDataConfig config;
     config.tdengine.database = "test_db";
@@ -117,7 +117,7 @@ void test_stmt_format_insert_data_empty_batch() {
 void test_stmt_format_insert_data_invalid_version() {
     DataFormat format;
     format.format_type = "stmt";
-    format.stmt_config.version = "v1";  // Unsupported version
+    format.stmt.version = "v1";  // Unsupported version
 
     InsertDataConfig config;
     config.tdengine.database = "test_db";
@@ -150,7 +150,7 @@ void test_stmt_format_insert_data_invalid_version() {
 void test_stmt_format_insert_data_with_empty_rows() {
     DataFormat format;
     format.format_type = "stmt";
-    format.stmt_config.version = "v2";
+    format.stmt.version = "v2";
 
     InsertDataConfig config;
     config.tdengine.database = "test_db";

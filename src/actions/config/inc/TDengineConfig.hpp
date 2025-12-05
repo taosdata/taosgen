@@ -11,7 +11,7 @@ struct TDengineConfig {
     std::string user = "root";
     std::string password = "taosdata";
     std::string database = "tsbench";
-    bool drop_if_exists = true;
+    bool drop_if_exists = false;
     std::optional<std::string> properties;
 
     struct ConnectionPool {

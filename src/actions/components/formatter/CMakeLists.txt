@@ -2,7 +2,12 @@
 add_library(components_formatter STATIC
   src/FormatterFactory.cpp
   src/StmtV2Data.cpp
+  src/PatternGenerator.cpp
+  src/KeyGenerator.cpp
   src/TopicGenerator.cpp
+  src/RowSerializer.cpp
+  src/MqttInsertDataFormatter.cpp
+  src/KafkaInsertDataFormatter.cpp
 )
 
 # Set include directories

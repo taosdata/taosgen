@@ -5,6 +5,8 @@ add_library(insert_writer STATIC
   src/TDengineWriter.cpp
   src/MqttClient.cpp
   src/MqttWriter.cpp
+  src/KafkaClient.cpp
+  src/KafkaWriter.cpp
 )
 
 # Set include directories
@@ -31,6 +33,7 @@ target_link_libraries(insert_writer
     utils
     # TAOS::TAOS
     PahoMqttCpp::paho-mqttpp3-static
+    RdKafka::rdkafka++
 )
 
 # Enable tests

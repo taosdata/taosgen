@@ -1,42 +1,105 @@
 #include "ParameterContext.hpp"
+#include "LogUtils.hpp"
 #include <cassert>
 #include <cstdlib>
 #include <iostream>
 #include <vector>
+#include <stdexcept>
+#include <sstream>
+#include <stdlib.h>
 
+class ScopedEnvVar {
+private:
+    std::string name_;
+    std::string old_value_;
+    bool had_old_value_;
+
+public:
+    ScopedEnvVar(const std::string& name, const std::string& new_value)
+        : name_(name), had_old_value_(false) {
+
+        const char* old = getenv(name.c_str());
+        if (old) {
+            old_value_ = old;
+            had_old_value_ = true;
+        }
+
+#ifdef _WIN32
+        _putenv_s(name.c_str(), new_value.c_str());
+#else
+        setenv(name.c_str(), new_value.c_str(), 1);
+#endif
+    }
+
+    ~ScopedEnvVar() {
+        restore();
+    }
+
+    void restore() {
+#ifdef _WIN32
+        if (had_old_value_) {
+            _putenv_s(name_.c_str(), old_value_.c_str());
+        } else {
+            _putenv((name_ + "=").c_str());
+        }
+#else
+        if (had_old_value_) {
+            setenv(name_.c_str(), old_value_.c_str(), 1);
+        } else {
+            unsetenv(name_.c_str());
+        }
+#endif
+    }
+
+    ScopedEnvVar(const ScopedEnvVar&) = delete;
+    ScopedEnvVar& operator=(const ScopedEnvVar&) = delete;
+};
 
 // Test command line parameter parsing
 void test_commandline_merge() {
     ParameterContext ctx;
     const char* argv[] = {
         "dummy_program",
-        "--host=127.0.0.1",
-        "--port=6041",
-        "--user=admin",
-        "--password=taosdata"
+        "--host=cli.host",
+        "--port=1234",
+        "--user=cli_user",
+        "--password=cli_pass"
     };
-    ctx.merge_commandline(5, const_cast<char**>(argv));
+    ctx.init(5, const_cast<char**>(argv));
 
-    const auto& conn_info = ctx.get_tdengine();
-    (void)conn_info;
-    assert(conn_info.host == "127.0.0.1");
-    assert(conn_info.port == 6041);
-    assert(conn_info.user == "admin");
-    assert(conn_info.password == "taosdata");
+    const auto& global = ctx.get_global_config();
+    assert(global.tdengine.host == "cli.host");
+    assert(global.tdengine.port == 1234);
+    assert(global.tdengine.user == "cli_user");
+    assert(global.tdengine.password == "cli_pass");
+
+    // Verify derived URI/bootstrap_servers are updated
+    assert(global.mqtt.uri == "tcp://cli.host:1234");
+    assert(global.kafka.bootstrap_servers == "cli.host:1234");
+
+    (void)global;
     std::cout << "Commandline merge test passed.\n";
 }
 
 // Test environment variable merge
 void test_environment_merge() {
     ParameterContext ctx;
-    setenv("TAOS_HOST", "192.168.1.100", 1);
-    setenv("TAOS_PORT", "6042", 1);
-    ctx.merge_environment_vars();
 
-    const auto& conn_info = ctx.get_tdengine();
-    (void)conn_info;
-    assert(conn_info.host == "192.168.1.100");
-    assert(conn_info.port == 6042);
+    ScopedEnvVar host_guard("TAOS_HOST", "env.host");
+    ScopedEnvVar port_guard("TAOS_PORT", "5678");
+
+    const char* argv[] = {"dummy"};
+    ctx.init(1, const_cast<char**>(argv));
+
+    const auto& global = ctx.get_global_config();
+    assert(global.tdengine.host == "env.host");
+    assert(global.tdengine.port == 5678);
+
+    // Verify derived URI/bootstrap_servers are updated
+    assert(global.mqtt.uri == "tcp://env.host:5678");
+    assert(global.kafka.bootstrap_servers == "env.host:5678");
+
+    (void)global;
     std::cout << "Environment merge test passed.\n";
 }
 
@@ -65,7 +128,7 @@ schema:
     prefix: s
     count: 10000
     from: 200
-  columns: &columns_info
+  columns:
     - name: ts
       type: timestamp
     - name: latitude
@@ -74,7 +137,7 @@ schema:
       type: float
     - name: quality
       type: varchar(50)
-  tags: &tags_info
+  tags:
     - name: type
       type: varchar(7)
     - name: name
@@ -121,7 +184,7 @@ jobs:
     needs: [create-second-child-table]
     steps:
       - name: Insert Second-Level Data
-        uses: tdengine/insert-data
+        uses: tdengine/insert
         with:
           target: tdengine
           format: sql
@@ -203,7 +266,7 @@ jobs:
     assert(data.jobs[3].needs[0] == "create-second-child-table");
     assert(data.jobs[3].steps.size() == 1);
     assert(data.jobs[3].steps[0].name == "Insert Second-Level Data");
-    assert(data.jobs[3].steps[0].uses == "tdengine/insert-data");
+    assert(data.jobs[3].steps[0].uses == "tdengine/insert");
     assert(std::holds_alternative<InsertDataConfig>(data.jobs[3].steps[0].action_config));
     const auto& insert_config = std::get<InsertDataConfig>(data.jobs[3].steps[0].action_config);
 
@@ -251,25 +314,37 @@ jobs:
 
 // Test parameter priority (command line > environment variable > YAML)
 void test_priority() {
+    // 1. Set Environment Variable (middle priority)
+    ScopedEnvVar host_guard("TAOS_HOST", "env.host");
+    ScopedEnvVar port_guard("TAOS_PORT", "6042");
+
+    // 2. Prepare YAML file (lowest priority)
+    const char* config_content = "tdengine:\n  dsn: taos+ws://yaml.host:6041";
+    FILE* fp = fopen("priority_test.yaml", "w");
+    fputs(config_content, fp);
+    fclose(fp);
+
+    // 3. Prepare Command Line Arguments (highest priority)
+    const char* argv[] = {
+        "dummy",
+        "--config-file=priority_test.yaml",
+        "--host=cli.host" // Port is not set via CLI
+    };
+
     ParameterContext ctx;
+    ctx.init(3, const_cast<char**>(argv));
 
-    // Set environment variable
-    setenv("TAOS_HOST", "env.host", 1);
+    const auto& tdengine = ctx.get_tdengine();
 
-    // Merge YAML
-    YAML::Node config = YAML::Load(R"(
-global:
-  host: yaml.host
-)");
-    ctx.merge_yaml(config);
+    // Host should be from CLI (highest priority)
+    assert(tdengine.host == "cli.host");
+    // Port should be from Environment (middle priority, as CLI did not set it)
+    assert(tdengine.port == 6042);
+    (void)tdengine;
 
-    // Merge command line parameters
-    const char* argv[] = {"dummy", "--host=cli.host"};
-    ctx.merge_commandline(2, const_cast<char**>(argv));
-
-    // Validate priority
-    assert(ctx.get_tdengine().host == "cli.host");
-    std::cout << "Priority test passed.\n";
+    // Clean up
+    remove("priority_test.yaml");
+    std::cout << "Priority test (CLI > Env > YAML) passed.\n";
 }
 
 void test_unknown_key_detection() {
@@ -287,27 +362,6 @@ tdengine:
       std::cout << "Unknown key detection test passed.\n";
   }
 }
-
-// void test_missing_required_key_detection() {
-//   YAML::Node config = YAML::Load(R"(
-// schema:
-//   tbname:
-//     prefix: s
-//     count: 1000
-//     from: 200
-//   tags:
-//   columns:
-// )");
-//   ParameterContext ctx;
-//   try {
-//       ctx.merge_yaml(config);
-//       assert(false && "Should throw on missing required field 'name' in schema");
-//   } catch (const std::runtime_error& e) {
-//       std::string msg = e.what();
-//       assert(msg.find("Missing required field 'name' in schema") != std::string::npos);
-//       std::cout << "Missing required key detection test passed.\n";
-//   }
-// }
 
 void test_nested_unknown_key_detection() {
   YAML::Node config = YAML::Load(R"(
@@ -335,11 +389,9 @@ schema:
 }
 
 void test_load_default_schema() {
-  ParameterContext ctx;
-  YAML::Node config = YAML::Load(R"()");
-
-  ctx.merge_yaml(config);
-
+    const char* argv[] = {"dummy"};
+    ParameterContext ctx;
+    ctx.init(1, const_cast<char**>(argv));
 
     // tbname
     const auto& schema = ctx.get_global_config().schema;
@@ -385,6 +437,97 @@ void test_load_default_schema() {
     std::cout << "Default schema loaded test passed.\n";
 }
 
+void test_mqtt_kafka_global_config() {
+    ParameterContext ctx;
+    YAML::Node config = YAML::Load(R"(
+mqtt:
+  uri: "tcp://mqtt.broker:1883"
+kafka:
+  bootstrap_servers: "kafka.broker:9092"
+)");
+    ctx.merge_yaml(config);
+    const auto& global = ctx.get_global_config();
+    assert(global.mqtt.uri == "tcp://mqtt.broker:1883");
+    assert(global.kafka.bootstrap_servers == "kafka.broker:9092");
+
+    (void)global;
+    std::cout << "MQTT/Kafka global config test passed.\n";
+}
+
+void test_insert_action_inheritance() {
+    ParameterContext ctx;
+    YAML::Node config = YAML::Load(R"(
+tdengine:
+  dsn: taos://root:taosdata@global.host/global_db
+schema:
+  name: global_schema
+  columns:
+    - name: c1
+      type: int
+jobs:
+  insert-job:
+    steps:
+      - uses: tdengine/insert
+        with:
+          schema:
+            name: local_schema # Override schema name
+)");
+    ctx.merge_yaml(config);
+    const auto& data = ctx.get_config_data();
+    assert(data.jobs.size() == 1);
+    const auto& insert_config = std::get<InsertDataConfig>(data.jobs[0].steps[0].action_config);
+
+    // Inherits connection from global
+    assert(insert_config.tdengine.host == "global.host");
+    assert(insert_config.tdengine.database == "global_db");
+
+    // Inherits columns from global schema, but name is overridden locally
+    assert(insert_config.schema.name == "local_schema");
+    assert(insert_config.schema.columns.size() == 2);
+    assert(insert_config.schema.columns[0].name == "ts");
+    assert(insert_config.schema.columns[1].name == "c1");
+
+    (void)insert_config;
+    std::cout << "Insert action inheritance test passed.\n";
+}
+
+void test_init_with_config_file() {
+    const char* config_content = "tdengine:\n  dsn: taos+ws://file.host:6041";
+    FILE* fp = fopen("file_test.yaml", "w");
+    fputs(config_content, fp);
+    fclose(fp);
+
+    ParameterContext ctx;
+    const char* argv[] = {"dummy", "--config-file=file_test.yaml"};
+    ctx.init(2, const_cast<char**>(argv));
+
+    assert(ctx.get_tdengine().host == "file.host");
+
+    remove("file_test.yaml");
+    std::cout << "Init with config file test passed.\n";
+}
+
+void test_auto_create_database_step() {
+    ParameterContext ctx;
+    YAML::Node config = YAML::Load(R"(
+jobs:
+  create-stb:
+    steps:
+      - uses: tdengine/create-super-table
+)");
+    ctx.merge_yaml_global(config);
+    ctx.merge_yaml_jobs(config);
+
+    const auto& jobs = ctx.get_config_data().jobs;
+    assert(jobs.size() == 1);
+    assert(jobs[0].steps.size() == 2); // create-database was added
+    assert(jobs[0].steps[0].uses == "tdengine/create-database");
+    assert(jobs[0].steps[1].uses == "tdengine/create-super-table");
+
+    (void)jobs;
+    std::cout << "Auto create database step test passed.\n";
+}
+
 void test_show_version() {
   ParameterContext ctx;
 
@@ -411,9 +554,12 @@ int main() {
     test_yaml_merge();
     test_priority();
     test_unknown_key_detection();
-    // test_missing_required_key_detection();
     test_nested_unknown_key_detection();
     test_load_default_schema();
+    test_mqtt_kafka_global_config();
+    test_insert_action_inheritance();
+    test_init_with_config_file();
+    test_auto_create_database_step();
     test_show_version();
 
     std::cout << "All tests passed!\n";

@@ -5,6 +5,7 @@ add_library(utils STATIC
   src/TimestampUtils.cpp
   src/ProcessUtils.cpp
   src/Barrier.cpp
+  src/Latch.cpp
   src/SignalManager.cpp
 )
 
@@ -20,6 +21,7 @@ target_link_libraries(utils
     spdlog::spdlog
     Threads::Threads
     Iconv::Iconv
+    fmt::fmt
 )
 
 # Enable tests

@@ -1,5 +1,6 @@
 #include "ColumnConverter.hpp"
 #include <sstream>
+#include <fmt/format.h>
 
 namespace ColumnConverter {
 
@@ -51,9 +52,7 @@ namespace ColumnConverter {
     }
 
     std::string column_to_string(const ColumnType& value) {
-        std::ostringstream oss;
-        oss << value;
-        return oss.str();
+        return fmt::format("{}", value);
     }
 
     ColumnHandler create_handler_for_column(const ColumnConfigInstance& col_instance) {

@@ -17,3 +17,9 @@ jobs:
     uses: ./.github/workflows/build.yml
     with:
       build_type: Debug
+
+  release:
+    uses: ./.github/workflows/build.yml
+    with:
+      build_type: Release
+      package_release: false

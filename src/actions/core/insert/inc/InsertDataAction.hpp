@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Barrier.hpp"
+#include "Latch.hpp"
 #include "ActionBase.hpp"
 #include "ActionFactory.hpp"
 #include "InsertDataConfig.hpp"
@@ -50,18 +50,24 @@ private:
         IWriter* writer,
         std::optional<ConnectorSource>& conn_source,
         GarbageCollector<FormatResult>& gc,
-        Barrier& sync_barrier);
+        Latch& startup_latch);
 
     // Register InsertDataAction to ActionFactory
     inline static bool registered_ = []() {
         ActionFactory::instance().register_action(
-            "tdengine/insert-data",
+            "tdengine/insert",
             [](const GlobalConfig& global, const ActionConfigVariant& config) {
                 return std::make_unique<InsertDataAction>(global, std::get<InsertDataConfig>(config));
             });
 
         ActionFactory::instance().register_action(
-            "mqtt/publish-data",
+            "mqtt/publish",
+            [](const GlobalConfig& global, const ActionConfigVariant& config) {
+                return std::make_unique<InsertDataAction>(global, std::get<InsertDataConfig>(config));
+            });
+
+        ActionFactory::instance().register_action(
+            "kafka/produce",
             [](const GlobalConfig& global, const ActionConfigVariant& config) {
                 return std::make_unique<InsertDataAction>(global, std::get<InsertDataConfig>(config));
             });

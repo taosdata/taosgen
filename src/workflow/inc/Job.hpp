@@ -3,6 +3,7 @@
 #include "Step.hpp"
 #include "TDengineConfig.hpp"
 #include "MqttConfig.hpp"
+#include "KafkaConfig.hpp"
 #include "SchemaConfig.hpp"
 #include <string>
 #include <vector>
@@ -16,7 +17,8 @@ struct Job {
     bool need_create = false;
     bool find_create = false;
     TDengineConfig tdengine;
-    MqttConfig mqtt;;
+    MqttConfig mqtt;
+    KafkaConfig kafka;
     SchemaConfig schema;
 
     Job() = default;

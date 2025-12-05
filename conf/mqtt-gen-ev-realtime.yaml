@@ -2,8 +2,6 @@ mqtt:
   uri: tcp://localhost:1883
   user: root
   password: taosdata
-  topic: ev/{table}
-  qos: 0
 
 schema:
   name: meters
@@ -77,14 +75,17 @@ schema:
     interlace: 1
     rows_per_table: -1
     rows_per_batch: 10000
+    num_cached_batches: 0
 
 jobs:
   # MQTT publish job
   publish-data:
     steps:
-      - uses: mqtt/publish-data
+      - uses: mqtt/publish
         with:
           concurrency: 1
+          topic: ev/{table}
+          qos: 0
           time_interval:
             enabled: true
             interval_strategy: literal

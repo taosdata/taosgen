@@ -8,6 +8,16 @@ target_link_libraries(TestTimeIntervalStrategy
 )
 add_test(NAME TestTimeIntervalStrategy COMMAND TestTimeIntervalStrategy)
 
+# Test WriterFactory
+add_executable(TestWriterFactory
+  TestWriterFactory.cpp
+)
+target_link_libraries(TestWriterFactory
+  PRIVATE
+    insert_writer
+)
+add_test(NAME TestWriterFactory COMMAND TestWriterFactory)
+
 # Test TDengineWriter
 add_executable(TestTDengineWriter
   TestTDengineWriter.cpp
@@ -37,3 +47,23 @@ target_link_libraries(TestMqttWriter
     insert_writer
 )
 add_test(NAME TestMqttWriter COMMAND TestMqttWriter)
+
+# Test KafkaClient
+add_executable(TestKafkaClient
+  TestKafkaClient.cpp
+)
+target_link_libraries(TestKafkaClient
+  PRIVATE
+    insert_writer
+)
+add_test(NAME TestKafkaClient COMMAND TestKafkaClient)
+
+# Test KafkaWriter
+add_executable(TestKafkaWriter
+  TestKafkaWriter.cpp
+)
+target_link_libraries(TestKafkaWriter
+  PRIVATE
+    insert_writer
+)
+add_test(NAME TestKafkaWriter COMMAND TestKafkaWriter)

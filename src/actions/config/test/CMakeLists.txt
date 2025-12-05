@@ -18,6 +18,16 @@ target_link_libraries(TestColumnConfig
 )
 add_test(NAME TestColumnConfig COMMAND TestColumnConfig)
 
+# test ColumnType
+add_executable(TestColumnType
+  TestColumnType.cpp
+)
+target_link_libraries(TestColumnType
+  PRIVATE
+    actions_config
+)
+add_test(NAME TestColumnType COMMAND TestColumnType)
+
 # test ColumnConfigInstance
 add_executable(TestColumnConfigInstance
   TestColumnConfigInstance.cpp

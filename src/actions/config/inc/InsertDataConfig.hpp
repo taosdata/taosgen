@@ -5,6 +5,7 @@
 #include "ColumnsConfig.hpp"
 #include "TDengineConfig.hpp"
 #include "MqttConfig.hpp"
+#include "KafkaConfig.hpp"
 #include "CheckpointInfo.hpp"
 #include "DatabaseInfo.hpp"
 #include "SuperTableInfo.hpp"
@@ -18,6 +19,7 @@
 struct InsertDataConfig {
     TDengineConfig tdengine;
     MqttConfig mqtt;
+    KafkaConfig kafka;
     SchemaConfig schema;
 
     std::string target_type = "tdengine";

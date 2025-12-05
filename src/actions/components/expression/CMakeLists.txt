@@ -16,6 +16,7 @@ target_include_directories(components_expression
 # Link dependencies
 target_link_libraries(components_expression
   PUBLIC
+    actions_config
     luajit::luajit
     Threads::Threads
     m

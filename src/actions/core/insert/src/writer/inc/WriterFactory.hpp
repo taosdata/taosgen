@@ -3,6 +3,7 @@
 #include "TDengineWriter.hpp"
 // #include "CsvWriter.hpp"
 #include "MqttWriter.hpp"
+#include "KafkaWriter.hpp"
 #include <memory>
 #include <stdexcept>
 
@@ -16,6 +17,8 @@ public:
             throw std::invalid_argument("Unsupported target type: " + config.target_type);
         } else if (config.target_type == "mqtt") {
             return std::make_unique<MqttWriter>(config, col_instances, no);
+        } else if (config.target_type == "kafka") {
+            return std::make_unique<KafkaWriter>(config, col_instances, no);
         }
 
         throw std::invalid_argument("Unsupported target type: " + config.target_type);

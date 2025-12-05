@@ -42,3 +42,9 @@ endif()
 install(TARGETS taosgen
   RUNTIME DESTINATION bin
 )
+
+if(TSGEN_LINUX OR TSGEN_DARWIN)
+  set_target_properties(taosgen PROPERTIES
+    INSTALL_RPATH "/usr/local/lib"
+  )
+endif()

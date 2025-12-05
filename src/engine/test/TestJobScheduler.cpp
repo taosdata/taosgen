@@ -25,10 +25,10 @@ ConfigWithDependencies build_complex_config_with_dependencies() {
     Step create_super_table_step{"Create Super Table", "tdengine/create-super-table", YAML::Node(), {}};
     Step create_second_child_table_step{"Create Second Child Table", "tdengine/create-child-table", YAML::Node(), {}};
     Step create_minute_child_table_step{"Create Minute Child Table", "tdengine/create-child-table", YAML::Node(), {}};
-    Step insert_second_data_step{"Insert Second-Level Data", "tdengine/insert-data", YAML::Node(), {}};
-    Step insert_minute_data_step{"Insert Minute-Level Data", "tdengine/insert-data", YAML::Node(), {}};
-    Step query_super_table_step{"Query Super Table", "actions/query-data", YAML::Node(), {}};
-    Step subscribe_data_step{"Subscribe Data", "actions/subscribe-data", YAML::Node(), {}};
+    Step insert_second_data_step{"Insert Second-Level Data", "tdengine/insert", YAML::Node(), {}};
+    Step insert_minute_data_step{"Insert Minute-Level Data", "tdengine/insert", YAML::Node(), {}};
+    Step query_super_table_step{"Query Super Table", "tdengine/query", YAML::Node(), {}};
+    Step subscribe_data_step{"Subscribe Data", "tdengine/subscribe", YAML::Node(), {}};
 
     // Define jobs
     Job create_database_job{"create-database", "Create Database", {}, {create_database_step}};
@@ -200,7 +200,7 @@ void test_job_scheduler_with_delay() {
                     std::this_thread::sleep_for(std::chrono::seconds(4));
                 }
                 std::this_thread::sleep_for(std::chrono::seconds(3));
-            } else if (step.uses == "tdengine/insert-data") {
+            } else if (step.uses == "tdengine/insert") {
                 {
                     std::lock_guard<std::mutex> lock(log_mutex);
                     std::cout << "Action type: Insert Data" << std::endl;
@@ -211,12 +211,12 @@ void test_job_scheduler_with_delay() {
                     std::this_thread::sleep_for(std::chrono::seconds(3));
                 }
                 std::this_thread::sleep_for(std::chrono::seconds(3));
-            } else if (step.uses == "actions/query-data") {
+            } else if (step.uses == "tdengine/query") {
                 {
                     std::lock_guard<std::mutex> lock(log_mutex);
                     std::cout << "Action type: Query Data" << std::endl;
                 }
-            } else if (step.uses == "actions/subscribe-data") {
+            } else if (step.uses == "tdengine/subscribe") {
                 {
                     std::lock_guard<std::mutex> lock(log_mutex);
                     std::cout << "Action type: Subscribe Data" << std::endl;

@@ -146,7 +146,7 @@ void test_stmt_v2_insert_data() {
     std::cout << "test_stmt_v2_insert_data passed!" << std::endl;
 }
 
-void test_msg_insert_data_basic() {
+void test_mqtt_insert_data_basic() {
     ColumnConfigInstanceVector col_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
     col_instances.emplace_back(ColumnConfig{"i1", "INT"});
@@ -162,28 +162,25 @@ void test_msg_insert_data_basic() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     // Prepare message batches
-    MessageBatch msg_batch;
+    MqttMessageBatch msg_batch;
     msg_batch.emplace_back("topic1", "payload1");
     msg_batch.emplace_back("topic2", "payload2");
-    MessageBatches msg_batches;
-    msg_batches.emplace_back(std::move(msg_batch));
 
-    MsgInsertData msg_data(block, col_instances, std::move(msg_batches));
-    assert(msg_data.type == BaseInsertData::DataType::MSG);
+    MqttInsertData msg_data(block, col_instances, std::move(msg_batch));
+    assert(msg_data.type == BaseInsertData::DataType::MQTT);
     assert(msg_data.start_time == 1500000000000);
     assert(msg_data.end_time == 1500000000001);
     assert(msg_data.total_rows == 2);
-    assert(msg_data.data.size() == 1);
-    assert(msg_data.data[0].size() == 2);
-    assert(msg_data.data[0][0].first == "topic1");
-    assert(msg_data.data[0][0].second == "payload1");
-    assert(msg_data.data[0][1].first == "topic2");
-    assert(msg_data.data[0][1].second == "payload2");
+    assert(msg_data.data.size() == 2);
+    assert(msg_data.data[0].first == "topic1");
+    assert(msg_data.data[0].second == "payload1");
+    assert(msg_data.data[1].first == "topic2");
+    assert(msg_data.data[1].second == "payload2");
 
-    std::cout << "test_msg_insert_data_basic passed!" << std::endl;
+    std::cout << "test_mqtt_insert_data_basic passed!" << std::endl;
 }
 
-void test_msg_insert_data_move_ctor() {
+void test_mqtt_insert_data_move_ctor() {
     ColumnConfigInstanceVector col_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
 
@@ -196,25 +193,22 @@ void test_msg_insert_data_move_ctor() {
     MemoryPool pool(1, 1, 1, col_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
-    MessageBatch msg_batch;
+    MqttMessageBatch msg_batch;
     msg_batch.emplace_back("topic", "payload");
-    MessageBatches msg_batches;
-    msg_batches.emplace_back(std::move(msg_batch));
 
-    MsgInsertData original(block, col_instances, std::move(msg_batches));
-    assert(original.type == BaseInsertData::DataType::MSG);
+    MqttInsertData original(block, col_instances, std::move(msg_batch));
+    assert(original.type == BaseInsertData::DataType::MQTT);
 
-    MsgInsertData moved(std::move(original));
-    assert(moved.type == BaseInsertData::DataType::MSG);
+    MqttInsertData moved(std::move(original));
+    assert(moved.type == BaseInsertData::DataType::MQTT);
     assert(moved.data.size() == 1);
-    assert(moved.data[0].size() == 1);
-    assert(moved.data[0][0].first == "topic");
-    assert(moved.data[0][0].second == "payload");
+    assert(moved.data[0].first == "topic");
+    assert(moved.data[0].second == "payload");
 
-    std::cout << "test_msg_insert_data_move_ctor passed!" << std::endl;
+    std::cout << "test_mqtt_insert_data_move_ctor passed!" << std::endl;
 }
 
-void test_format_result_with_msg_insert_data() {
+void test_format_result_with_mqtt_insert_data() {
     ColumnConfigInstanceVector col_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
 
@@ -227,22 +221,109 @@ void test_format_result_with_msg_insert_data() {
     MemoryPool pool(1, 1, 1, col_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
-    MessageBatch msg_batch;
+    MqttMessageBatch msg_batch;
     msg_batch.emplace_back("topic", "payload");
-    MessageBatches msg_batches;
-    msg_batches.emplace_back(std::move(msg_batch));
 
-    MsgInsertData msg_data(block, col_instances, std::move(msg_batches));
+    MqttInsertData msg_data(block, col_instances, std::move(msg_batch));
     FormatResult result = std::move(msg_data);
 
-    assert(std::holds_alternative<MsgInsertData>(result));
-    const auto& ref = std::get<MsgInsertData>(result);
+    assert(std::holds_alternative<MqttInsertData>(result));
+    const auto& ref = std::get<MqttInsertData>(result);
     (void)ref;
     assert(ref.data.size() == 1);
-    assert(ref.data[0][0].first == "topic");
-    assert(ref.data[0][0].second == "payload");
+    assert(ref.data[0].first == "topic");
+    assert(ref.data[0].second == "payload");
 
-    std::cout << "test_format_result_with_msg_insert_data passed!" << std::endl;
+    std::cout << "test_format_result_with_mqtt_insert_data passed!" << std::endl;
+}
+
+void test_kafka_insert_data_basic() {
+    ColumnConfigInstanceVector col_instances;
+    col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
+
+    MultiBatch batch;
+    std::vector<RowData> rows;
+    rows.push_back({1500000000000, {3.14f}});
+    batch.table_batches.emplace_back("table1", std::move(rows));
+    batch.update_metadata();
+
+    MemoryPool pool(1, 1, 1, col_instances);
+    auto* block = pool.convert_to_memory_block(std::move(batch));
+
+    // Prepare message batches
+    KafkaMessageBatch msg_batch;
+    msg_batch.emplace_back("key1", "value1");
+    msg_batch.emplace_back("key2", "value2");
+
+    KafkaInsertData kafka_data(block, col_instances, std::move(msg_batch));
+    assert(kafka_data.type == BaseInsertData::DataType::KAFKA);
+    assert(kafka_data.start_time == 1500000000000);
+    assert(kafka_data.end_time == 1500000000000);
+    assert(kafka_data.total_rows == 1);
+    assert(kafka_data.data.size() == 2);
+    assert(kafka_data.data[0].first == "key1");
+    assert(kafka_data.data[0].second == "value1");
+    assert(kafka_data.data[1].first == "key2");
+    assert(kafka_data.data[1].second == "value2");
+
+    std::cout << "test_kafka_insert_data_basic passed!" << std::endl;
+}
+
+void test_kafka_insert_data_move_ctor() {
+    ColumnConfigInstanceVector col_instances;
+    col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
+
+    MultiBatch batch;
+    std::vector<RowData> rows;
+    rows.push_back({1500000000000, {3.14f}});
+    batch.table_batches.emplace_back("table1", std::move(rows));
+    batch.update_metadata();
+
+    MemoryPool pool(1, 1, 1, col_instances);
+    auto* block = pool.convert_to_memory_block(std::move(batch));
+
+    KafkaMessageBatch msg_batch;
+    msg_batch.emplace_back("key", "value");
+
+    KafkaInsertData original(block, col_instances, std::move(msg_batch));
+    assert(original.type == BaseInsertData::DataType::KAFKA);
+
+    KafkaInsertData moved(std::move(original));
+    assert(moved.type == BaseInsertData::DataType::KAFKA);
+    assert(moved.data.size() == 1);
+    assert(moved.data[0].first == "key");
+    assert(moved.data[0].second == "value");
+
+    std::cout << "test_kafka_insert_data_move_ctor passed!" << std::endl;
+}
+
+void test_format_result_with_kafka_insert_data() {
+    ColumnConfigInstanceVector col_instances;
+    col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
+
+    MultiBatch batch;
+    std::vector<RowData> rows;
+    rows.push_back({1500000000000, {3.14f}});
+    batch.table_batches.emplace_back("table1", std::move(rows));
+    batch.update_metadata();
+
+    MemoryPool pool(1, 1, 1, col_instances);
+    auto* block = pool.convert_to_memory_block(std::move(batch));
+
+    KafkaMessageBatch msg_batch;
+    msg_batch.emplace_back("key", "value");
+
+    KafkaInsertData kafka_data(block, col_instances, std::move(msg_batch));
+    FormatResult result = std::move(kafka_data);
+
+    assert(std::holds_alternative<KafkaInsertData>(result));
+    const auto& ref = std::get<KafkaInsertData>(result);
+    (void)ref;
+    assert(ref.data.size() == 1);
+    assert(ref.data[0].first == "key");
+    assert(ref.data[0].second == "value");
+
+    std::cout << "test_format_result_with_kafka_insert_data passed!" << std::endl;
 }
 
 int main() {
@@ -251,9 +332,12 @@ int main() {
     test_sql_insert_data();
     test_format_result_variant();
     test_stmt_v2_insert_data();
-    test_msg_insert_data_basic();
-    test_msg_insert_data_move_ctor();
-    test_format_result_with_msg_insert_data();
+    test_mqtt_insert_data_basic();
+    test_mqtt_insert_data_move_ctor();
+    test_format_result_with_mqtt_insert_data();
+    test_kafka_insert_data_basic();
+    test_kafka_insert_data_move_ctor();
+    test_format_result_with_kafka_insert_data();
 
     std::cout << "All tests passed!" << std::endl;
     return 0;

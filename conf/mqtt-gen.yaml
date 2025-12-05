@@ -2,14 +2,12 @@ mqtt:
   uri: tcp://localhost:1883
   user: root
   password: taosdata
-  topic: tsbench/{table}
-  qos: 0
 
 schema:
   name: meters
   tbname:
     prefix: d
-    count: 10000
+    count: 100000
     from: 0
   columns:
     - name: ts
@@ -55,6 +53,8 @@ jobs:
   # MQTT publish job
   publish-data:
     steps:
-      - uses: mqtt/publish-data
+      - uses: mqtt/publish
         with:
           concurrency: 8
+          topic: tsbench/{table}
+          qos: 0

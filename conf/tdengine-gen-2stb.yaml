@@ -116,7 +116,7 @@ jobs:
       - uses: tdengine/create-database
 
   # TDengine insert meters job
-  insert-data-meters:
+  insert-meters-data:
     needs: [create-db]
     steps:
       - uses: tdengine/create-super-table
@@ -126,12 +126,12 @@ jobs:
             size: 1000
             concurrency: 10
 
-      - uses: tdengine/insert-data
+      - uses: tdengine/insert
         with:
           concurrency: 8
 
   # TDengine insert ev job
-  insert-data-ev:
+  insert-ev-data:
     needs: [create-db]
     steps:
       - uses: tdengine/create-super-table
@@ -144,6 +144,6 @@ jobs:
             size: 1000
             concurrency: 10
 
-      - uses: tdengine/insert-data
+      - uses: tdengine/insert
         with:
           concurrency: 8

@@ -1,5 +1,10 @@
 #pragma once
 
+#include "StringUtils.hpp"
+#include <fmt/core.h>
+#include <fmt/format.h>
+#include <fmt/ranges.h>
+#include <fmt/ostream.h>
 #include <iostream>
 #include <variant>
 #include <string>
@@ -72,9 +77,55 @@ using ColumnType = std::variant<
 using ColumnTypeVector = std::vector<ColumnType>;
 using RowType = ColumnTypeVector;
 
+template <>
+struct fmt::formatter<ColumnType> {
+    constexpr auto parse(fmt::format_parse_context& ctx) {
+        return ctx.begin();
+    }
 
-std::ostream& operator<<(std::ostream& os, const ColumnType& column);
-std::ostream& operator<<(std::ostream& os, const RowType& row);
+    template <typename FormatContext>
+    auto format(const ColumnType& column, FormatContext& ctx) const {
+        return std::visit(
+            [&](auto&& value) {
+                using T = std::decay_t<decltype(value)>;
+                auto out = ctx.out();
+                if constexpr (std::is_same_v<T, std::monostate>) {
+                    return fmt::format_to(out, "NULL");
+                } else if constexpr (std::is_same_v<T, bool>) {
+                    return fmt::format_to(out, "{}", value ? "true" : "false");
+                } else if constexpr (std::is_arithmetic_v<T>) {
+                    return fmt::format_to(out, "{}", value);
+                } else if constexpr (std::is_same_v<T, Decimal>) {
+                    return fmt::format_to(out, "Decimal({})", value.value);
+                } else if constexpr (std::is_same_v<T, std::string>) {
+                    return fmt::format_to(out, "{}", value);
+                } else if constexpr (std::is_same_v<T, std::u16string>) {
+                    return fmt::format_to(out, "{}", StringUtils::u16string_to_utf8(value));
+                } else if constexpr (std::is_same_v<T, JsonValue>) {
+                    return fmt::format_to(out, "{}", value.raw_json);
+                } else if constexpr (std::is_same_v<T, std::vector<uint8_t>>) {
+                    return fmt::format_to(out, "VarBinary({})", fmt::join(value, ","));
+                } else if constexpr (std::is_same_v<T, Geometry>) {
+                    return fmt::format_to(out, "Geometry({})", value.wkt);
+                } else {
+                    return fmt::format_to(out, "UnknownType");
+                }
+            },
+            column);
+    }
+};
+
+// Overload << operator for ColumnType
+inline std::ostream& operator<<(std::ostream& os, const ColumnType& column) {
+    fmt::print(os, "{}", column);
+    return os;
+}
+
+// Overload << operator for RowType
+inline std::ostream& operator<<(std::ostream& os, const RowType& row) {
+    fmt::print(os, "[{}]", fmt::join(row, ", "));
+    return os;
+}
 
 template <typename T, typename Variant>
 struct variant_index;
@@ -82,7 +133,7 @@ struct variant_index;
 template <typename T, typename... Types>
 struct variant_index<T, std::variant<Types...>> {
     static_assert(
-        (std::is_same_v<T, Types> || ...), 
+        (std::is_same_v<T, Types> || ...),
         "Type not found in variant"
     );
 
@@ -96,3 +147,52 @@ struct variant_index<T, std::variant<Types...>> {
 
     static constexpr std::size_t value = index();
 };
+
+namespace ColumnTypeTraits {
+    constexpr bool needs_quotes(ColumnTypeTag tag) noexcept {
+        switch (tag) {
+            case ColumnTypeTag::NCHAR:
+            case ColumnTypeTag::VARCHAR:
+            case ColumnTypeTag::BINARY:
+            case ColumnTypeTag::JSON:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    constexpr bool is_numeric(ColumnTypeTag tag) noexcept {
+        switch (tag) {
+            case ColumnTypeTag::TINYINT:
+            case ColumnTypeTag::TINYINT_UNSIGNED:
+            case ColumnTypeTag::SMALLINT:
+            case ColumnTypeTag::SMALLINT_UNSIGNED:
+            case ColumnTypeTag::INT:
+            case ColumnTypeTag::INT_UNSIGNED:
+            case ColumnTypeTag::BIGINT:
+            case ColumnTypeTag::BIGINT_UNSIGNED:
+            case ColumnTypeTag::FLOAT:
+            case ColumnTypeTag::DOUBLE:
+            case ColumnTypeTag::DECIMAL:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    constexpr bool is_integer(ColumnTypeTag tag) noexcept {
+        switch (tag) {
+            case ColumnTypeTag::TINYINT:
+            case ColumnTypeTag::TINYINT_UNSIGNED:
+            case ColumnTypeTag::SMALLINT:
+            case ColumnTypeTag::SMALLINT_UNSIGNED:
+            case ColumnTypeTag::INT:
+            case ColumnTypeTag::INT_UNSIGNED:
+            case ColumnTypeTag::BIGINT:
+            case ColumnTypeTag::BIGINT_UNSIGNED:
+                return true;
+            default:
+                return false;
+        }
+    }
+}
