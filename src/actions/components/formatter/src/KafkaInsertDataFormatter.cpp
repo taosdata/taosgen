@@ -112,6 +112,7 @@ KafkaInsertData KafkaInsertDataFormatter::format_influx(const ColumnConfigInstan
     }
 
     fmt::memory_buffer line_buffer;
+    line_buffer.reserve(1048576);
     std::string first_record_key;
     size_t records_in_current_message = 0;
 
