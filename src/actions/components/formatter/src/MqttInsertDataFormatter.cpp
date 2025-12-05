@@ -10,17 +10,17 @@ std::string MqttInsertDataFormatter::prepare(const InsertDataConfig& config,
 FormatResult MqttInsertDataFormatter::format(const InsertDataConfig& config,
                                              const ColumnConfigInstanceVector& col_instances,
                                              MemoryPool::MemoryBlock* batch, bool is_checkpoint_recover) const {
+    (void)config;
     (void)is_checkpoint_recover;
     if (!batch || batch->total_rows == 0) {
         return FormatResult("");
     }
 
-    return format_json(config.data_format.mqtt, col_instances, batch);
+    return format_json(col_instances, batch);
 }
 
-MqttInsertData MqttInsertDataFormatter::format_json(const DataFormat::MqttConfig& format,
-                                                   const ColumnConfigInstanceVector& col_instances,
-                                                   MemoryPool::MemoryBlock* batch) {
+MqttInsertData MqttInsertDataFormatter::format_json(const ColumnConfigInstanceVector& col_instances, MemoryPool::MemoryBlock* batch) const {
+    const DataFormat::MqttConfig& format = format_.mqtt;
     CompressionType compression_type = string_to_compression(format.compression);
     EncodingType encoding_type = string_to_encoding(format.encoding);
 

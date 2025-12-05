@@ -21,13 +21,9 @@ public:
 private:
     const DataFormat& format_;
 
-    static KafkaInsertData format_json(const DataFormat::KafkaConfig& format,
-                                    const ColumnConfigInstanceVector& col_instances,
-                                    MemoryPool::MemoryBlock* batch);
+    KafkaInsertData format_json(const ColumnConfigInstanceVector& col_instances, MemoryPool::MemoryBlock* batch) const;
 
-    static KafkaInsertData format_influx(const DataFormat::KafkaConfig& format,
-                                    const ColumnConfigInstanceVector& col_instances,
-                                    MemoryPool::MemoryBlock* batch);
+    KafkaInsertData format_influx(const ColumnConfigInstanceVector& col_instances, MemoryPool::MemoryBlock* batch) const;
 
     inline static bool registered_ = []() {
         FormatterFactory::instance().register_formatter<InsertDataConfig>(

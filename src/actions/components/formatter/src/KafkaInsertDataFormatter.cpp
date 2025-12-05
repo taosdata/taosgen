@@ -14,24 +14,26 @@ std::string KafkaInsertDataFormatter::prepare(const InsertDataConfig& config,
 FormatResult KafkaInsertDataFormatter::format(const InsertDataConfig& config,
                                               const ColumnConfigInstanceVector& col_instances,
                                               MemoryPool::MemoryBlock* batch, bool is_checkpoint_recover) const {
+    (void)config;
     (void)is_checkpoint_recover;
     if (!batch || batch->total_rows == 0) {
         return FormatResult("");
     }
 
-    const auto& format = config.data_format.kafka;
+    const auto& format = format_.kafka;
 
     // Dispatch based on the value serializer type
     if (format.value_serializer == "json") {
-        return format_json(format, col_instances, batch);
+        return format_json(col_instances, batch);
     } else if (format.value_serializer == "influx") {
-        return format_influx(format, col_instances, batch);
+        return format_influx(col_instances, batch);
     } else {
         throw std::runtime_error("Unsupported Kafka value_serializer: " + format.value_serializer);
     }
 }
 
-KafkaInsertData KafkaInsertDataFormatter::format_json(const DataFormat::KafkaConfig& format, const ColumnConfigInstanceVector& col_instances, MemoryPool::MemoryBlock* batch) {
+KafkaInsertData KafkaInsertDataFormatter::format_json(const ColumnConfigInstanceVector& col_instances, MemoryPool::MemoryBlock* batch) const {
+    const auto& format = format_.kafka;
     KafkaMessageBatch msg_batch;
     msg_batch.reserve((batch->total_rows + format.records_per_message - 1) / format.records_per_message);
 
@@ -85,7 +87,8 @@ KafkaInsertData KafkaInsertDataFormatter::format_json(const DataFormat::KafkaCon
 }
 
 // Formats data into InfluxDB Line Protocol.
-KafkaInsertData KafkaInsertDataFormatter::format_influx(const DataFormat::KafkaConfig& format, const ColumnConfigInstanceVector& col_instances, MemoryPool::MemoryBlock* batch) {
+KafkaInsertData KafkaInsertDataFormatter::format_influx(const ColumnConfigInstanceVector& col_instances, MemoryPool::MemoryBlock* batch) const {
+    const auto& format = format_.kafka;
     KafkaMessageBatch msg_batch;
     msg_batch.reserve((batch->total_rows + format.records_per_message - 1) / format.records_per_message);
 

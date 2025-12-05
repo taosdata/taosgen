@@ -23,9 +23,7 @@ public:
 private:
     const DataFormat& format_;
 
-    static MqttInsertData format_json(const DataFormat::MqttConfig& format,
-                                      const ColumnConfigInstanceVector& col_instances,
-                                      MemoryPool::MemoryBlock* batch);
+    MqttInsertData format_json(const ColumnConfigInstanceVector& col_instances, MemoryPool::MemoryBlock* batch) const;
 
     inline static bool registered_ = []() {
         FormatterFactory::instance().register_formatter<InsertDataConfig>(
