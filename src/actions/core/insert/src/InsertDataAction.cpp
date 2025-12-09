@@ -530,7 +530,9 @@ void InsertDataAction::producer_thread_function(
 
     // Initialize data manager
     if (!data_manager->init(assigned_tables)) {
-        throw std::runtime_error("TableDataManager initialization failed for producer " + std::to_string(producer_id));
+        LogUtils::error("TableDataManager initialization failed for producer {}", producer_id);
+        stop_execution_.store(true);
+        return;
     }
 
     // Create formatter

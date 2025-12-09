@@ -238,6 +238,38 @@ void test_generate_table_data_default_column_types() {
 
 }
 
+void test_generate_with_invalid_data_format() {
+    ColumnsCSV config;
+    config.file_path = "invalid_format.csv";
+    config.has_header = true;
+    config.timestamp_strategy.generator = TimestampGeneratorConfig{};
+
+    std::ofstream test_file("invalid_format.csv");
+    test_file << "name,age,city\n";
+    test_file << "Alice,30,New York\n";
+    test_file << "Bob,,Los Angeles\n"; // Invalid empty value for age (INT)
+    test_file.close();
+
+    ColumnConfigVector col_configs = {
+        {"name", "varchar(20)"},
+        {"age", "int"},
+        {"city", "varchar(20)"}
+    };
+    auto instances = ColumnConfigInstanceFactory::create(col_configs);
+
+    ColumnsCSVReader columns_csv(config, instances);
+
+    try {
+        columns_csv.generate();
+        assert(false && "Expected an exception for invalid data format");
+    } catch (const std::exception& e) {
+        std::string error_message = e.what();
+        // Check if the error message contains the expected reason, like "stoll"
+        assert(error_message.find("stoll") != std::string::npos && "Error message should indicate a conversion failure");
+        std::cout << "test_generate_with_invalid_data_format passed\n";
+    }
+}
+
 int main() {
     test_validate_config_empty_file_path();
     test_validate_config_mismatched_column_types();
@@ -246,6 +278,7 @@ int main() {
     test_generate_table_data_with_generated_timestamp();
     test_generate_table_data_include_tbname();
     test_generate_table_data_default_column_types();
+    test_generate_with_invalid_data_format();
 
     std::cout << "All tests passed!\n";
     return 0;

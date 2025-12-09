@@ -37,3 +37,13 @@ target_link_libraries(TestColumnsCSVReader
     reader_csv
 )
 add_test(NAME TestColumnsCSVReader COMMAND TestColumnsCSVReader)
+
+# Test CSVDataManager
+add_executable(TestCSVDataManager
+  TestCSVDataManager.cpp
+)
+target_link_libraries(TestCSVDataManager
+  PRIVATE
+    reader_csv
+)
+add_test(NAME TestCSVDataManager COMMAND TestCSVDataManager)
