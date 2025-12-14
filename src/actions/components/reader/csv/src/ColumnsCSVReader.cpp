@@ -1,4 +1,8 @@
 #include "ColumnsCSVReader.hpp"
+#include "LogUtils.hpp"
+#include "StringUtils.hpp"
+#include "TypeConverter.hpp"
+#include "TimestampUtils.hpp"
 #include <stdexcept>
 #include <algorithm>
 #include <sstream>
@@ -12,9 +16,6 @@
 #include <iomanip>
 #include <ctime>
 #include <unordered_map>
-#include "StringUtils.hpp"
-#include "TypeConverter.hpp"
-#include "TimestampUtils.hpp"
 
 
 ColumnsCSVReader::ColumnsCSVReader(const ColumnsCSV& config, std::optional<ColumnConfigInstanceVector> instances)
@@ -125,126 +126,130 @@ std::unordered_map<std::string, TableData> ColumnsCSVReader::generate() const {
         for (size_t row_idx = 0; row_idx < rows.size(); ++row_idx) {
             const auto& row = rows[row_idx];
 
-            // Validate row has enough columns
-            if (row.size() < total_columns_) {
-                std::stringstream ss;
-                ss << "Row " << (row_idx + 1) << " has only " << row.size()
-                   << " columns, expected " << total_columns_
-                   << " in file: " << config_.file_path;
-                throw std::out_of_range(ss.str());
-            }
+            try {
+                // Validate row has enough columns
+                if (row.size() < total_columns_) {
+                    std::stringstream ss;
+                    ss << "Row " << (row_idx + 1) << " has only " << row.size()
+                    << " columns, expected " << total_columns_
+                    << " in file: " << config_.file_path;
+                    throw std::out_of_range(ss.str());
+                }
 
-            // Get table name
-            std::string table_name = "default_table";
-            if (tbname_index >= 0) {
-                table_name = row[static_cast<size_t>(tbname_index)];
-                StringUtils::trim(table_name);
-            }
+                // Get table name
+                std::string table_name = "default_table";
+                if (tbname_index >= 0) {
+                    table_name = row[static_cast<size_t>(tbname_index)];
+                    StringUtils::trim(table_name);
+                }
 
-            // Get or create TableData
-            auto& data = table_map[table_name];
-            if (data.table_name.empty()) {
-                data.table_name = table_name;
-            }
+                // Get or create TableData
+                auto& data = table_map[table_name];
+                if (data.table_name.empty()) {
+                    data.table_name = table_name;
+                }
 
-            // Handle timestamp
-            int64_t timestamp = 0;
+                // Handle timestamp
+                int64_t timestamp = 0;
 
-            if (timestamp_index) {
-                // original mode
-                const auto& raw_value = row[*timestamp_index];
-                int64_t raw_ts = TimestampUtils::parse_timestamp(raw_value, ts_config.timestamp_precision.value());
+                if (timestamp_index) {
+                    // original mode
+                    const auto& raw_value = row[*timestamp_index];
+                    int64_t raw_ts = TimestampUtils::parse_timestamp(raw_value, ts_config.timestamp_precision.value());
 
-                if (ts_config.offset_config) {
-                    const auto& offset = *ts_config.offset_config;
-                    if (offset.offset_type == "absolute") {
-                        // absolute mode
-                        int64_t& first_raw_ts = table_first_raw_ts[table_name];
-                        if (first_raw_ts == 0) {
-                            first_raw_ts = raw_ts;
+                    if (ts_config.offset_config) {
+                        const auto& offset = *ts_config.offset_config;
+                        if (offset.offset_type == "absolute") {
+                            // absolute mode
+                            int64_t& first_raw_ts = table_first_raw_ts[table_name];
+                            if (first_raw_ts == 0) {
+                                first_raw_ts = raw_ts;
+                            }
+                            timestamp = offset.absolute_value + (raw_ts - first_raw_ts);
+                        } else if (offset.offset_type == "relative") {
+                            // relative mode
+                            int64_t multiplier = TimestampUtils::get_precision_multiplier(ts_config.timestamp_precision.value());
+                            auto [years, months, days, hours, seconds] = offset.relative_offset;
+
+                            // Convert timestamp to seconds
+                            std::time_t raw_time = raw_ts / multiplier;
+                            int64_t fraction = raw_ts % multiplier;
+
+                            // Handle time offset
+                            std::tm* timeinfo = std::localtime(&raw_time);
+                            if (!timeinfo) {
+                                throw std::runtime_error("Failed to convert timestamp to local time, raw_ts: " + std::to_string(raw_ts));
+                            }
+
+                            // Apply year/month/day offset
+                            timeinfo->tm_year += years;
+                            timeinfo->tm_mon  += months;
+                            timeinfo->tm_mday += days;
+                            timeinfo->tm_hour += hours;
+                            timeinfo->tm_sec  += seconds;
+
+                            std::time_t new_time = std::mktime(timeinfo);
+                            if (new_time == -1) {
+                                throw std::runtime_error("Failed to apply time offset, raw_ts: " + std::to_string(raw_ts));
+                            }
+
+                            timestamp = new_time * multiplier + fraction;
+                        } else {
+                            throw std::runtime_error("Unsupported offset type: " + offset.offset_type);
                         }
-                        timestamp = offset.absolute_value + (raw_ts - first_raw_ts);
-                    } else if (offset.offset_type == "relative") {
-                        // relative mode
-                        int64_t multiplier = TimestampUtils::get_precision_multiplier(ts_config.timestamp_precision.value());
-                        auto [years, months, days, hours, seconds] = offset.relative_offset;
-
-                        // Convert timestamp to seconds
-                        std::time_t raw_time = raw_ts / multiplier;
-                        int64_t fraction = raw_ts % multiplier;
-
-                        // Handle time offset
-                        std::tm* timeinfo = std::localtime(&raw_time);
-                        if (!timeinfo) {
-                            throw std::runtime_error("Failed to convert timestamp to local time, raw_ts: " + std::to_string(raw_ts));
-                        }
-
-                        // Apply year/month/day offset
-                        timeinfo->tm_year += years;
-                        timeinfo->tm_mon  += months;
-                        timeinfo->tm_mday += days;
-                        timeinfo->tm_hour += hours;
-                        timeinfo->tm_sec  += seconds;
-
-                        std::time_t new_time = std::mktime(timeinfo);
-                        if (new_time == -1) {
-                            throw std::runtime_error("Failed to apply time offset, raw_ts: " + std::to_string(raw_ts));
-                        }
-
-                        timestamp = new_time * multiplier + fraction;
                     } else {
-                        throw std::runtime_error("Unsupported offset type: " + offset.offset_type);
+                        // No offset
+                        timestamp = raw_ts;
                     }
-                } else {
-                    // No offset
-                    timestamp = raw_ts;
+                } else if (is_generator_mode) {
+                    // generator mode
+                    auto& gen_ptr = table_ts_generators[table_name];
+                    if (!gen_ptr) {
+                        gen_ptr = TimestampGenerator::create(gen_config);
+                    }
+                    timestamp = gen_ptr->generate();
                 }
-            } else if (is_generator_mode) {
-                // generator mode
-                auto& gen_ptr = table_ts_generators[table_name];
-                if (!gen_ptr) {
-                    gen_ptr = TimestampGenerator::create(gen_config);
+
+                data.timestamps.push_back(timestamp);
+
+
+                // Handle normal columns
+                RowType data_row;
+                data_row.reserve(actual_columns_);
+
+                size_t index = 0;
+
+                for (size_t col_idx = 0; col_idx < total_columns_; ++col_idx) {
+                    // Skip table name and timestamp columns
+                    if (static_cast<int>(col_idx) == tbname_index) continue;
+                    if (timestamp_index && col_idx == *timestamp_index) continue;
+
+                    // Convert value type
+                    if (instances_) {
+                        // Use provided column types
+                        const ColumnConfigInstance& instance = (*instances_)[index];
+                        data_row.push_back(convert_to_type(row[col_idx], instance.config().type_tag));
+                        index++;
+                    } else {
+                        // Default as string
+                        std::string val = row[col_idx];
+                        StringUtils::trim(val);
+                        data_row.push_back(val);
+                    }
                 }
-                timestamp = gen_ptr->generate();
+
+                data.rows.push_back(std::move(data_row));
+            } catch (const std::exception& e) {
+                LogUtils::error("Failed to process row {} in file {}: Reason: {}. Row content: [{}]",
+                    row_idx + 1, config_.file_path, e.what(), fmt::join(row, ","));
+                throw;
             }
-
-            data.timestamps.push_back(timestamp);
-
-
-            // Handle normal columns
-            RowType data_row;
-            data_row.reserve(actual_columns_);
-
-            size_t index = 0;
-
-            for (size_t col_idx = 0; col_idx < total_columns_; ++col_idx) {
-                // Skip table name and timestamp columns
-                if (static_cast<int>(col_idx) == tbname_index) continue;
-                if (timestamp_index && col_idx == *timestamp_index) continue;
-
-                // Convert value type
-                if (instances_) {
-                    // Use provided column types
-                    const ColumnConfigInstance& instance = (*instances_)[index];
-                    data_row.push_back(convert_to_type(row[col_idx], instance.config().type_tag));
-                    index++;
-                } else {
-                    // Default as string
-                    std::string val = row[col_idx];
-                    StringUtils::trim(val);
-                    data_row.push_back(val);
-                }
-            }
-
-            data.rows.push_back(std::move(data_row));
         }
 
         return table_map;
 
     } catch (const std::exception& e) {
-        std::stringstream ss;
-        ss << "Failed to generate table data from CSV: " << config_.file_path
-           << " - " << e.what();
-        throw std::runtime_error(ss.str());
+        LogUtils::error("Failed to generate table data from CSV {}: {}", config_.file_path, e.what());
+        throw;
     }
 }

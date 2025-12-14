@@ -1,6 +1,7 @@
+#include "RowDataGenerator.hpp"
+#include "CSVDataManager.hpp"
 #include <cassert>
 #include <iostream>
-#include "RowDataGenerator.hpp"
 
 
 void test_generator_mode_basic() {
@@ -181,6 +182,7 @@ void test_generator_with_disorder() {
 }
 
 void setup_test_csv() {
+    CSVDataManager::instance().reset();
     std::ofstream test_file("test_data.csv");
     test_file << "table,timestamp,age,city\n";
     test_file << "table1,1622505600000,12,New York\n";
@@ -276,6 +278,51 @@ void test_csv_mode_basic() {
     std::cout << "test_csv_mode_basic passed.\n";
 }
 
+void test_csv_mode_with_invalid_data() {
+    // 1. Setup a CSV file with invalid data
+    CSVDataManager::instance().reset();
+    std::ofstream test_file("invalid_data.csv");
+    test_file << "table,timestamp,age,city\n";
+    test_file << "table1,1622505600000,,New York\n"; // 'age' is empty
+    test_file.close();
+
+    // 2. Configure to use the invalid CSV
+    ColumnsConfig columns_config;
+    columns_config.source_type = "csv";
+    columns_config.csv.file_path = "invalid_data.csv";
+    columns_config.csv.has_header = true;
+    columns_config.csv.tbname_index = 0;
+
+    TimestampCSVConfig ts_config;
+    ts_config.timestamp_index = 1;
+    ts_config.timestamp_precision = "ms";
+    columns_config.csv.timestamp_strategy.strategy_type = "csv";
+    columns_config.csv.timestamp_strategy.csv = ts_config;
+
+    InsertDataConfig config;
+    // Define schema where 'age' is an INT
+    config.schema.columns.emplace_back(ColumnConfig{"age", "INT"});
+    config.schema.columns.emplace_back(ColumnConfig{"city", "VARCHAR(20)"});
+    config.schema.columns_cfg = columns_config;
+    config.schema.columns_cfg.generator.schema = config.schema.columns;
+
+    auto instances = ColumnConfigInstanceFactory::create(config.schema.columns);
+
+    // 3. Verify that creating the generator throws an exception
+    try {
+        RowDataGenerator generator("table1", config, instances);
+        assert(false && "Expected an exception for invalid data in CSV");
+    } catch (const std::runtime_error& e) {
+        std::string error_message = e.what();
+        // Check for the error propagated from ColumnsCSVReader
+        assert(error_message.find("stoll") != std::string::npos || error_message.find("Failed to convert value") != std::string::npos);
+        std::cout << "test_csv_mode_with_invalid_data passed.\n";
+    }
+
+    // Cleanup
+    std::remove("invalid_data.csv");
+}
+
 void test_csv_precision_conversion() {
     setup_test_csv();
 
@@ -347,6 +394,7 @@ int main() {
     test_generator_with_cache();
     test_generator_with_disorder();
     test_csv_mode_basic();
+    test_csv_mode_with_invalid_data();
     test_csv_precision_conversion();
     test_invalid_source_type();
 

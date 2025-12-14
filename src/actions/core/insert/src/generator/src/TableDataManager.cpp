@@ -54,8 +54,8 @@ bool TableDataManager::init(const std::vector<std::string>& table_names) {
                 //          << " - " << e.what() << std::endl;
                 // return false;
                 // state.completed = true;
-
-                throw std::runtime_error(std::string("Failed to create RowDataGenerator for table: ") + table_name + " - " + e.what());
+                LogUtils::error("Failed to create RowDataGenerator for table {}: {}", table_name, e.what());
+                throw;
             }
         }
 

@@ -1,11 +1,10 @@
 #include "RowDataGenerator.hpp"
+#include "StringUtils.hpp"
+#include "CSVDataManager.hpp"
 #include <stdexcept>
 #include <cstdlib>
 #include <ctime>
 #include <cmath>
-#include "ColumnGeneratorFactory.hpp"
-#include "TimestampGenerator.hpp"
-#include "StringUtils.hpp"
 
 
 RowDataGenerator::RowDataGenerator(const std::string& table_name,
@@ -141,16 +140,14 @@ void RowDataGenerator::init_csv_reader() {
         return;
     }
 
-    csv_precision_ = columns_config_.csv.timestamp_strategy.get_precision();
+    const auto& csv_config = columns_config_.csv;
+    if (csv_config.file_path.empty()) {
+        throw std::invalid_argument("CSV file path is not specified.");
+    }
 
-    static std::once_flag csv_once_flag;
-    static std::unordered_map<std::string, TableData> all_tables;
-
-    std::call_once(csv_once_flag, [this]() {
-        // Create ColumnsCSV Reader
-        auto columns_csv = std::make_unique<ColumnsCSVReader>(columns_config_.csv, instances_);
-        all_tables = columns_csv->generate();
-    });
+    auto& manager = CSVDataManager::instance();
+    std::shared_ptr<CSVFileCache> file_cache = manager.get_cache_for_file(csv_config.file_path);
+    const auto& all_tables = file_cache->get_data(csv_config, instances_);
 
     // Find current table data
     auto it = all_tables.find(table_name_);
@@ -161,6 +158,7 @@ void RowDataGenerator::init_csv_reader() {
         throw std::runtime_error("Table '" + table_name_ + "' not found in CSV file");
     }
 
+    csv_precision_ = csv_config.timestamp_strategy.get_precision();
     const auto& table_data = it->second;
     for (size_t i = 0; i < table_data.rows.size(); i++) {
         RowData row;
