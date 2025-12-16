@@ -174,11 +174,119 @@ void test_format_insert_data_different_types() {
     std::cout << "test_format_insert_data_different_types passed!" << std::endl;
 }
 
+void test_format_insert_data_auto_create_table() {
+    DataFormat format;
+    format.format_type = "sql";
+    format.sql.auto_create_table = true;
+
+    InsertDataConfig config;
+    config.tdengine.database = "test_db";
+    config.schema.name = "meters";
+
+    ColumnConfigInstanceVector col_instances;
+    col_instances.emplace_back(ColumnConfig{"current", "FLOAT"});
+    col_instances.emplace_back(ColumnConfig{"voltage", "INT"});
+
+    ColumnConfigInstanceVector tag_instances;
+    tag_instances.emplace_back(ColumnConfig{"groupid", "INT"});
+    tag_instances.emplace_back(ColumnConfig{"location", "NCHAR(20)"});
+
+    MultiBatch batch;
+    std::vector<RowData> rows;
+    rows.push_back({1600000000000, {10.5f, 220}});
+    rows.push_back({1600000001000, {11.2f, 221}});
+    batch.table_batches.push_back({"d1001", rows});
+    batch.update_metadata();
+
+    MemoryPool pool(1, 1, 2, col_instances, tag_instances);
+    auto* block = pool.convert_to_memory_block(std::move(batch));
+    assert(block != nullptr);
+
+    std::vector<ColumnType> tag_values;
+    tag_values.emplace_back(1); // groupid
+    tag_values.emplace_back(std::u16string(u"北京")); // location
+    block->tables[0].tags_ptr = pool.register_table_tags("d1001", tag_values);
+
+    SqlInsertDataFormatter formatter(format);
+    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+
+    assert(std::holds_alternative<SqlInsertData>(result));
+    std::string sql = std::get<SqlInsertData>(result).data.str();
+
+    std::string expected_prefix = "INSERT INTO `test_db`.`d1001` USING `test_db`.`meters` TAGS (1,'北京') VALUES ";
+    std::string expected_values = "(1600000000000,10.5,220)(1600000001000,11.2,221);";
+
+    assert(sql.find(expected_prefix) != std::string::npos);
+    assert(sql.find(expected_values) != std::string::npos);
+
+    std::cout << "test_format_insert_data_auto_create_table passed!" << std::endl;
+}
+
+void test_format_insert_data_multiple_tables_with_tags() {
+    DataFormat format;
+    format.format_type = "sql";
+    format.sql.auto_create_table = true;
+
+    InsertDataConfig config;
+    config.tdengine.database = "test_db";
+    config.schema.name = "sensors";
+
+    ColumnConfigInstanceVector col_instances;
+    col_instances.emplace_back(ColumnConfig{"temp", "FLOAT"});
+
+    ColumnConfigInstanceVector tag_instances;
+    tag_instances.emplace_back(ColumnConfig{"id", "INT"});
+
+    MultiBatch batch;
+
+    // Table 1
+    std::vector<RowData> rows1;
+    rows1.push_back({1600000000000, {36.5f}});
+    batch.table_batches.push_back({"t1", rows1});
+
+    // Table 2
+    std::vector<RowData> rows2;
+    rows2.push_back({1600000000000, {37.2f}});
+    batch.table_batches.push_back({"t2", rows2});
+
+    batch.update_metadata();
+
+    MemoryPool pool(1, 2, 1, col_instances, tag_instances);
+    auto* block = pool.convert_to_memory_block(std::move(batch));
+    assert(block != nullptr);
+
+    std::vector<ColumnType> tags1;
+    tags1.emplace_back(101);
+    block->tables[0].tags_ptr = pool.register_table_tags("t1", tags1);
+
+    std::vector<ColumnType> tags2;
+    tags2.emplace_back(102);
+    block->tables[1].tags_ptr = pool.register_table_tags("t2", tags2);
+
+    SqlInsertDataFormatter formatter(format);
+    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+
+    assert(std::holds_alternative<SqlInsertData>(result));
+    std::string sql = std::get<SqlInsertData>(result).data.str();
+
+    std::string part1 = "`test_db`.`t1` USING `test_db`.`sensors` TAGS (101) VALUES (1600000000000,36.5)";
+    std::string part2 = "`test_db`.`t2` USING `test_db`.`sensors` TAGS (102) VALUES (1600000000000,37.2)";
+
+    assert(sql.find("INSERT INTO") == 0);
+    assert(sql.find(part1) != std::string::npos);
+    assert(sql.find(part2) != std::string::npos);
+    assert(sql.back() == ';');
+
+    std::cout << "test_format_insert_data_multiple_tables_with_tags passed!" << std::endl;
+}
+
 int main() {
     test_format_insert_data_single_table();
     test_format_insert_data_multiple_tables();
     test_format_insert_data_empty_rows();
     test_format_insert_data_different_types();
+    test_format_insert_data_auto_create_table();
+    test_format_insert_data_multiple_tables_with_tags();
     std::cout << "All tests passed!" << std::endl;
     return 0;
 }
