@@ -3,6 +3,80 @@
 #include "FormatterRegistrar.hpp"
 #include "StmtInsertDataFormatter.hpp"
 
+void test_stmt_prepare_subtable() {
+    DataFormat format;
+    format.format_type = "stmt";
+    format.stmt.version = "v2";
+    format.stmt.auto_create_table = false;
+
+    InsertDataConfig config;
+    config.tdengine.database = "test_db";
+    config.tdengine.protocol_type = TDengineConfig::ProtocolType::Native;
+
+    ColumnConfigInstanceVector col_instances;
+    col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
+    col_instances.emplace_back(ColumnConfig{"i1", "INT"});
+
+    ColumnConfigInstanceVector tag_instances;
+
+    StmtInsertDataFormatter formatter(format);
+    std::string sql = formatter.prepare(config, col_instances, tag_instances);
+
+    std::string expected = "INSERT INTO ? VALUES(?,?,?)";
+    assert(sql == expected);
+    std::cout << "test_stmt_prepare_subtable passed!" << std::endl;
+}
+
+void test_stmt_prepare_supertable_websocket() {
+    DataFormat format;
+    format.format_type = "stmt";
+    format.stmt.version = "v2";
+    format.stmt.auto_create_table = false;
+
+    InsertDataConfig config;
+    config.tdengine.database = "test_db";
+    config.schema.name = "test_stb";
+    config.tdengine.protocol_type = TDengineConfig::ProtocolType::WebSocket;
+
+    ColumnConfigInstanceVector col_instances;
+    col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
+    col_instances.emplace_back(ColumnConfig{"i1", "INT"});
+
+    ColumnConfigInstanceVector tag_instances;
+
+    StmtInsertDataFormatter formatter(format);
+    std::string sql = formatter.prepare(config, col_instances, tag_instances);
+
+    std::string expected = "INSERT INTO `test_db`.`test_stb`(tbname,ts,f1,i1) VALUES(?,?,?,?)";
+    assert(sql == expected);
+    std::cout << "test_stmt_prepare_supertable_websocket passed!" << std::endl;
+}
+
+void test_stmt_prepare_auto_create_table() {
+    DataFormat format;
+    format.format_type = "stmt";
+    format.stmt.version = "v2";
+    format.stmt.auto_create_table = true;
+
+    InsertDataConfig config;
+    config.tdengine.database = "test_db";
+    config.schema.name = "test_stb";
+
+    ColumnConfigInstanceVector col_instances;
+    col_instances.emplace_back(ColumnConfig{"c1", "INT"});
+
+    ColumnConfigInstanceVector tag_instances;
+    tag_instances.emplace_back(ColumnConfig{"t1", "INT"});
+    tag_instances.emplace_back(ColumnConfig{"t2", "VARCHAR(10)"});
+
+    StmtInsertDataFormatter formatter(format);
+    std::string sql = formatter.prepare(config, col_instances, tag_instances);
+
+    std::string expected = "INSERT INTO ? USING `test_db`.`test_stb` TAGS (?,?) VALUES(?,?)";
+    assert(sql == expected);
+    std::cout << "test_stmt_prepare_auto_create_table passed!" << std::endl;
+}
+
 void test_stmt_format_insert_data_single_table() {
     DataFormat format;
     format.format_type = "stmt";
@@ -203,6 +277,10 @@ void test_stmt_format_insert_data_with_empty_rows() {
 }
 
 int main() {
+    test_stmt_prepare_subtable();
+    test_stmt_prepare_supertable_websocket();
+    test_stmt_prepare_auto_create_table();
+
     test_stmt_format_insert_data_single_table();
     test_stmt_format_insert_data_multiple_tables();
     test_stmt_format_insert_data_empty_batch();

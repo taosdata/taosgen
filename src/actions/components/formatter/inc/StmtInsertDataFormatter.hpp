@@ -19,7 +19,9 @@ public:
         //               -ntb   : INSERT INTO `db_name`.`stb_name`(ts,cols-name) VALUES(?,cols-qmark)
         // 3. auto create table : INSERT INTO ? USING `db_name`.`stb_name` TAGS (tags-qmark) VALUES(?,cols-qmark)
 
-        if (config.tdengine.protocol_type == TDengineConfig::ProtocolType::WebSocket) {
+        if (format_.stmt.auto_create_table) {
+            mode_ = InsertMode::AutoCreateTable;
+        } else if (config.tdengine.protocol_type == TDengineConfig::ProtocolType::WebSocket) {
             mode_ = InsertMode::SuperTable;
         } else {
             mode_ = InsertMode::SubTable;
