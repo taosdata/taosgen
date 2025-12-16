@@ -564,12 +564,13 @@ MemoryPool::TableBlock::Tags* MemoryPool::TagsManager::register_tags(const std::
     }
 
     auto tags = std::make_unique<TableBlock::Tags>();
+    auto ptr = tags.get();
     tags->table_name = table_name;
 
     init_table_tags(*tags, tag_values);
     tags_map_[table_name] = std::move(tags);
 
-    return tags.get();
+    return ptr;
 }
 
 const MemoryPool::TableBlock::Tags* MemoryPool::TagsManager::get_tags(const std::string& table_name) const {

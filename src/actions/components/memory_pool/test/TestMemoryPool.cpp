@@ -50,13 +50,27 @@ void test_memory_pool_basic() {
     std::cout << "test_memory_pool_basic passed." << std::endl;
 }
 
+
 void test_memory_pool_multi_batch() {
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
+
+    // Define Data Columns
     col_instances.emplace_back(ColumnConfig{"col1", "INT"});
     col_instances.emplace_back(ColumnConfig{"col2", "VARCHAR(8)"});
 
+    // Define Tag Columns
+    tag_instances.emplace_back(ColumnConfig{"tag1", "INT"});
+    tag_instances.emplace_back(ColumnConfig{"tag2", "VARCHAR(16)"});
+
     MemoryPool pool(1, 2, 2, col_instances, tag_instances);
+
+    // Register tags for tables t1 and t2
+    std::vector<ColumnType> t1_tags = {int32_t(100), std::string("tag_value_1")};
+    std::vector<ColumnType> t2_tags = {int32_t(200), std::string("tag_value_2")};
+
+    pool.register_table_tags("t1", t1_tags);
+    pool.register_table_tags("t2", t2_tags);
 
     MultiBatch batch;
     batch.table_batches.push_back({"t1", { {1000, {1, std::string("a")}}, {1010, {2, std::string("b")}} }});
@@ -66,6 +80,9 @@ void test_memory_pool_multi_batch() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
     assert(block != nullptr);
     assert(block->used_tables == 2);
+
+    if (block->used_tables >= 1) block->tables[0].tags_ptr = pool.get_table_tags("t1");
+    if (block->used_tables >= 2) block->tables[1].tags_ptr = pool.get_table_tags("t2");
 
     // Validate table 1
     const auto& t1 = block->tables[0];
@@ -88,6 +105,13 @@ void test_memory_pool_multi_batch() {
     assert(t1.get_column_cell_as_string(0, 1) == "a");
     assert(t1.get_column_cell_as_string(1, 1) == "b");
 
+    // Validate Tags for t1
+    assert(t1.tags_ptr != nullptr);
+    assert(std::get<int32_t>(t1.get_tag_cell(0, 0)) == 100);
+    assert(std::get<std::string>(t1.get_tag_cell(0, 1)) == "tag_value_1");
+    assert(t1.get_tag_cell_as_string(0, 0) == "100");
+    assert(t1.get_tag_cell_as_string(0, 1) == "tag_value_1");
+
     // Validate table 2
     const auto& t2 = block->tables[1];
     assert(std::string(t2.table_name) == "t2");
@@ -108,6 +132,13 @@ void test_memory_pool_multi_batch() {
     assert(t2.get_column_cell_as_string(1, 0) == "4");
     assert(t2.get_column_cell_as_string(0, 1) == "c");
     assert(t2.get_column_cell_as_string(1, 1) == "d");
+
+    // Validate Tags for t2
+    assert(t2.tags_ptr != nullptr);
+    assert(std::get<int32_t>(t2.get_tag_cell(0, 0)) == 200);
+    assert(std::get<std::string>(t2.get_tag_cell(0, 1)) == "tag_value_2");
+    assert(t2.get_tag_cell_as_string(0, 0) == "200");
+    assert(t2.get_tag_cell_as_string(0, 1) == "tag_value_2");
 
     pool.release_block(block);
 
@@ -511,6 +542,129 @@ void test_memory_pool_cache_mode_with_reuse() {
     std::cout << "test_memory_pool_cache_mode_with_reuse passed." << std::endl;
 }
 
+void test_memory_pool_tags_management() {
+    ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
+    col_instances.emplace_back(ColumnConfig{"col1", "INT"});
+    tag_instances.emplace_back(ColumnConfig{"tag1", "INT"});
+
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
+
+    // Test has_table_tags for non-existent table
+    assert(!pool.has_table_tags("t1"));
+    assert(pool.get_table_tags("t1") == nullptr);
+
+    // Register tags
+    std::vector<ColumnType> t1_tags = {int32_t(100)};
+    auto* tags = pool.register_table_tags("t1", t1_tags);
+    assert(tags != nullptr);
+    assert(std::string(tags->table_name) == "t1");
+    assert(pool.has_table_tags("t1"));
+    assert(pool.get_table_tags("t1") == tags);
+
+    // Test duplicate registration
+    auto* tags_dup = pool.register_table_tags("t1", t1_tags);
+    assert(tags_dup == nullptr); // Should fail
+
+    // Test invalid tag count
+    std::vector<ColumnType> invalid_tags = {};
+    auto* tags_invalid = pool.register_table_tags("t2", invalid_tags);
+    assert(tags_invalid == nullptr);
+    assert(!pool.has_table_tags("t2"));
+
+    std::cout << "test_memory_pool_tags_management passed." << std::endl;
+}
+
+void test_memory_pool_tags_edge_cases() {
+    ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
+    col_instances.emplace_back(ColumnConfig{"col1", "INT"});
+    tag_instances.emplace_back(ColumnConfig{"tag1", "INT"});
+
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
+    auto* block = pool.acquire_block();
+
+    // Case 1: Access tags when none assigned to the table
+    bool caught = false;
+    try {
+        block->tables[0].get_tag_cell(0, 0);
+    } catch (const std::runtime_error& e) {
+        caught = true;
+        // Verify error message contains expected text
+        assert(std::string(e.what()).find("No tags available") != std::string::npos);
+    }
+    assert(caught);
+
+    // Case 2: Assign tags, then access out of range
+    std::vector<ColumnType> t1_tags = {int32_t(100)};
+    pool.register_table_tags("t1", t1_tags);
+    block->tables[0].tags_ptr = pool.get_table_tags("t1");
+
+    caught = false;
+    try {
+        block->tables[0].get_tag_cell(0, 1);
+    } catch (const std::out_of_range&) {
+        caught = true;
+    }
+    assert(caught);
+
+    pool.release_block(block);
+    std::cout << "test_memory_pool_tags_edge_cases passed." << std::endl;
+}
+
+void test_memory_pool_bind_verification() {
+    ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
+    col_instances.emplace_back(ColumnConfig{"col1", "INT"});
+    tag_instances.emplace_back(ColumnConfig{"tag1", "INT"});
+
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
+
+    // Register tags
+    std::vector<ColumnType> t1_tags = {int32_t(100)};
+    pool.register_table_tags("t1", t1_tags);
+
+    auto* block = pool.acquire_block();
+
+    // Simulate data usage
+    RowData row;
+    row.timestamp = 12345;
+    row.columns = {int32_t(1)};
+    block->tables[0].table_name = "t1";
+    block->tables[0].tags_ptr = pool.get_table_tags("t1");
+    block->tables[0].add_row(row);
+    block->used_tables = 1;
+
+    // Trigger bind construction
+    block->build_bindv();
+
+    // Verify Bind Structure
+    assert(block->bindv_.tags != nullptr);
+
+    // Verify the first table's tag bind pointer
+    TAOS_STMT2_BIND* t1_tag_binds = block->bindv_.tags[0];
+    assert(t1_tag_binds != nullptr);
+
+    // Verify the tag value inside the bind structure
+    // tag1 is INT (fixed length), so buffer points to int32_t
+    int32_t* tag_val_ptr = static_cast<int32_t*>(const_cast<void*>(t1_tag_binds[0].buffer));
+    assert(tag_val_ptr != nullptr);
+    assert(*tag_val_ptr == 100);
+
+    // Verify column bind structure
+    assert(block->bindv_.bind_cols != nullptr);
+    TAOS_STMT2_BIND* t1_col_binds = block->bindv_.bind_cols[0];
+
+    // Index 0 is timestamp, Index 1 is col1
+    assert(t1_col_binds[1].buffer_type == TSDB_DATA_TYPE_INT);
+    int32_t* col_val_ptr = static_cast<int32_t*>(const_cast<void*>(t1_col_binds[1].buffer));
+    assert(col_val_ptr != nullptr);
+    assert(col_val_ptr[0] == 1);
+
+    pool.release_block(block);
+    std::cout << "test_memory_pool_bind_verification passed." << std::endl;
+}
+
 int main() {
     test_memory_pool_basic();
     test_memory_pool_multi_batch();
@@ -524,6 +678,10 @@ int main() {
     test_memory_pool_cache_mode_edge_cases();
     test_memory_pool_cache_mode_performance();
     test_memory_pool_cache_mode_with_reuse();
+
+    test_memory_pool_tags_management();
+    test_memory_pool_tags_edge_cases();
+    test_memory_pool_bind_verification();
 
     std::cout << "All MemoryPool tests passed." << std::endl;
     return 0;
