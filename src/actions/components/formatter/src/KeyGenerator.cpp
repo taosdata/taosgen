@@ -8,13 +8,11 @@ const bool KeyGenerator::is_little_endian_ = [] {
     return *(reinterpret_cast<uint8_t*>(&num)) == 0x01;
 }();
 
-KeyGenerator::KeyGenerator(const std::string& pattern, const std::string& serializer, const ColumnConfigInstanceVector& col_instances) {
+KeyGenerator::KeyGenerator(const std::string& pattern,
+                           const std::string& serializer,
+                           const ColumnConfigInstanceVector& col_instances,
+                           const ColumnConfigInstanceVector& tag_instances) {
     serializer_type_ = string_to_serializer(serializer);
-
-    // Build the column index map (from base class)
-    for (size_t i = 0; i < col_instances.size(); i++) {
-        col_index_map_[col_instances[i].name()] = i;
-    }
 
     // Parse the pattern
     tokens_ = parse_pattern(pattern);
@@ -25,6 +23,9 @@ KeyGenerator::KeyGenerator(const std::string& pattern, const std::string& serial
         }
         single_placeholder_key_ = tokens_[0].value;
     }
+
+    // Build mapping
+    build_mapping(col_instances, tag_instances);
 }
 
 std::string KeyGenerator::generate(const MemoryPool::TableBlock& data, size_t row_index) const {

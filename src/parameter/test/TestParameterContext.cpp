@@ -188,6 +188,7 @@ jobs:
         with:
           target: tdengine
           format: sql
+          auto_create_table: true
           concurrency: 8
           time_interval:
             enabled: true

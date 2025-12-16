@@ -11,6 +11,7 @@ void test_format_insert_data_single_table() {
     config.tdengine.database = "test_db";
 
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
     col_instances.emplace_back(ColumnConfig{"i1", "INT"});
     col_instances.emplace_back(ColumnConfig{"s1", "VARCHAR(20)"});
@@ -22,7 +23,7 @@ void test_format_insert_data_single_table() {
     batch.table_batches.push_back({"table1", rows});
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 2, col_instances);
+    MemoryPool pool(1, 1, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
     if (block) {
         assert(block->used_tables == 1);
@@ -59,7 +60,7 @@ void test_format_insert_data_single_table() {
     }
 
     SqlInsertDataFormatter formatter(format);
-    FormatResult result = formatter.format(config, col_instances, block);
+    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
 
     assert(std::holds_alternative<SqlInsertData>(result));
     assert(std::get<SqlInsertData>(result).data.str() ==
@@ -77,6 +78,7 @@ void test_format_insert_data_multiple_tables() {
     config.tdengine.database = "test_db";
 
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
     col_instances.emplace_back(ColumnConfig{"i1", "INT"});
 
@@ -95,12 +97,12 @@ void test_format_insert_data_multiple_tables() {
 
     batch.update_metadata();
 
-    MemoryPool pool(1, 2, 2, col_instances);
+    MemoryPool pool(1, 2, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
     (void)block;
 
     auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(format);
-    FormatResult result = formatter->format(config, col_instances, block);
+    FormatResult result = formatter->format(config, col_instances, tag_instances, block);
 
     assert(std::holds_alternative<SqlInsertData>(result));
     assert(std::get<SqlInsertData>(result).data.str() ==
@@ -121,17 +123,18 @@ void test_format_insert_data_empty_rows() {
     config.tdengine.database = "test_db";
 
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
 
     MultiBatch batch;
     batch.table_batches.push_back({"table1", {}});
     batch.total_rows = 0;
 
-    MemoryPool pool(1, 1, 1, col_instances);
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     SqlInsertDataFormatter formatter(format);
-    FormatResult result = formatter.format(config, col_instances, block);
+    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
 
     assert(std::holds_alternative<std::string>(result));
     assert(std::get<std::string>(result) == "");
@@ -146,6 +149,7 @@ void test_format_insert_data_different_types() {
     config.tdengine.database = "test_db";
 
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
     col_instances.emplace_back(ColumnConfig{"b1", "BOOL"});
     col_instances.emplace_back(ColumnConfig{"s1", "NCHAR(20)"});
@@ -157,11 +161,11 @@ void test_format_insert_data_different_types() {
     batch.table_batches.push_back({"table1", rows});
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 1, col_instances);
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     SqlInsertDataFormatter formatter(format);
-    FormatResult result = formatter.format(config, col_instances, block);
+    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
 
     assert(std::holds_alternative<SqlInsertData>(result));
     assert(std::get<SqlInsertData>(result).data.str() ==

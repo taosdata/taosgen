@@ -21,6 +21,7 @@ void test_kafka_format_json_single_record() {
     auto config = create_base_kafka_config();
 
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
     col_instances.emplace_back(ColumnConfig{"i1", "INT"});
 
@@ -31,11 +32,11 @@ void test_kafka_format_json_single_record() {
     batch.table_batches.emplace_back("table1", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 2, col_instances);
+    MemoryPool pool(1, 1, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     KafkaInsertDataFormatter formatter(config.data_format);
-    FormatResult result = formatter.format(config, col_instances, block);
+    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
 
     assert(std::holds_alternative<KafkaInsertData>(result));
     const auto& kafka_data = std::get<KafkaInsertData>(result);
@@ -70,6 +71,7 @@ void test_kafka_format_json_multiple_records() {
     config.data_format.kafka.records_per_message = 3;
 
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
 
     MultiBatch batch;
@@ -81,11 +83,11 @@ void test_kafka_format_json_multiple_records() {
     batch.table_batches.emplace_back("table1", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 4, col_instances);
+    MemoryPool pool(1, 1, 4, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     KafkaInsertDataFormatter formatter(config.data_format);
-    FormatResult result = formatter.format(config, col_instances, block);
+    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
 
     assert(std::holds_alternative<KafkaInsertData>(result));
     const auto& kafka_data = std::get<KafkaInsertData>(result);
@@ -117,6 +119,7 @@ void test_kafka_format_influx_single_record() {
     config.data_format.kafka.records_per_message = 1;
 
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"temp", "FLOAT"});
     col_instances.emplace_back(ColumnConfig{"device", "BINARY(10)"});
     col_instances.emplace_back(ColumnConfig{"status", "INT"});
@@ -128,11 +131,11 @@ void test_kafka_format_influx_single_record() {
     batch.table_batches.emplace_back("weather", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 2, col_instances);
+    MemoryPool pool(1, 1, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     KafkaInsertDataFormatter formatter(config.data_format);
-    FormatResult result = formatter.format(config, col_instances, block);
+    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
 
     assert(std::holds_alternative<KafkaInsertData>(result));
     const auto& kafka_data = std::get<KafkaInsertData>(result);
@@ -158,6 +161,7 @@ void test_kafka_format_influx_multiple_records() {
     config.data_format.kafka.records_per_message = 2;
 
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"temp", "FLOAT"});
     col_instances.emplace_back(ColumnConfig{"device", "BINARY(10)"});
 
@@ -168,11 +172,11 @@ void test_kafka_format_influx_multiple_records() {
     batch.table_batches.emplace_back("weather", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 2, col_instances);
+    MemoryPool pool(1, 1, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     KafkaInsertDataFormatter formatter(config.data_format);
-    FormatResult result = formatter.format(config, col_instances, block);
+    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
 
     assert(std::holds_alternative<KafkaInsertData>(result));
     const auto& kafka_data = std::get<KafkaInsertData>(result);
@@ -193,16 +197,17 @@ void test_kafka_format_influx_multiple_records() {
 void test_kafka_format_empty_batch() {
     auto config = create_base_kafka_config();
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
 
     MultiBatch batch;
-    MemoryPool pool(1, 1, 1, col_instances);
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
     (void)block;
     assert(block == nullptr);
 
     KafkaInsertDataFormatter formatter(config.data_format);
-    FormatResult result = formatter.format(config, col_instances, block);
+    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
 
     assert(std::holds_alternative<std::string>(result));
     assert(std::get<std::string>(result).empty());
@@ -215,6 +220,7 @@ void test_kafka_format_invalid_serializer() {
     config.data_format.kafka.value_serializer = "unsupported_format";
 
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
 
     MultiBatch batch;
@@ -223,13 +229,13 @@ void test_kafka_format_invalid_serializer() {
     batch.table_batches.emplace_back("table1", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 1, col_instances);
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     KafkaInsertDataFormatter formatter(config.data_format);
 
     try {
-        formatter.format(config, col_instances, block);
+        formatter.format(config, col_instances, tag_instances, block);
         assert(false && "Should have thrown an exception");
     } catch (const std::runtime_error& e) {
         assert(std::string(e.what()) == "Unsupported Kafka value_serializer: unsupported_format");

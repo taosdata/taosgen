@@ -79,7 +79,10 @@ InsertDataConfig create_test_insert_data_config() {
 }
 
 // Creates KafkaInsertData using the formatter, similar to the MQTT tests.
-KafkaInsertData create_test_kafka_data(MemoryPool& pool, const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances) {
+KafkaInsertData create_test_kafka_data(MemoryPool& pool,
+                                       const InsertDataConfig& config,
+                                       const ColumnConfigInstanceVector& col_instances,
+                                       const ColumnConfigInstanceVector& tag_instances) {
     MultiBatch batch;
     std::vector<RowData> rows;
     rows.push_back({1500000000000, {std::string("f01"), std::string("d01")}});
@@ -89,7 +92,7 @@ KafkaInsertData create_test_kafka_data(MemoryPool& pool, const InsertDataConfig&
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     auto formatter = KafkaInsertDataFormatter(config.data_format);
-    auto result = formatter.format(config, col_instances, block);
+    auto result = formatter.format(config, col_instances, tag_instances, block);
     return std::move(std::get<KafkaInsertData>(result));
 }
 
@@ -143,11 +146,12 @@ void test_execute_and_produce() {
 
     // Prepare mock data
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"factory_id", "VARCHAR(16)"});
     col_instances.emplace_back(ColumnConfig{"device_id", "VARCHAR(16)"});
 
-    MemoryPool pool(1, 1, 1, col_instances);
-    KafkaInsertData data = create_test_kafka_data(pool, config, col_instances);
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
+    KafkaInsertData data = create_test_kafka_data(pool, config, col_instances, tag_instances);
 
     auto connected = client.connect();
     assert(connected);
@@ -175,11 +179,12 @@ void test_execute_not_connected() {
 
     // Prepare mock data
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"factory_id", "VARCHAR(16)"});
     col_instances.emplace_back(ColumnConfig{"device_id", "VARCHAR(16)"});
 
-    MemoryPool pool(1, 1, 1, col_instances);
-    KafkaInsertData data = create_test_kafka_data(pool, config, col_instances);
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
+    KafkaInsertData data = create_test_kafka_data(pool, config, col_instances, tag_instances);
 
     // Not connected
     assert(!client.is_connected());
@@ -198,11 +203,12 @@ void test_produce_failure() {
 
     // Prepare mock data
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"factory_id", "VARCHAR(16)"});
     col_instances.emplace_back(ColumnConfig{"device_id", "VARCHAR(16)"});
 
-    MemoryPool pool(1, 1, 1, col_instances);
-    KafkaInsertData data = create_test_kafka_data(pool, config, col_instances);
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
+    KafkaInsertData data = create_test_kafka_data(pool, config, col_instances, tag_instances);
 
     auto connected = client.connect();
     assert(connected);

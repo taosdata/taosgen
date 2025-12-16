@@ -11,15 +11,19 @@ public:
     explicit SqlInsertDataFormatter(const DataFormat& format) : format_(format) {}
 
     std::string prepare(const InsertDataConfig& config,
-                        const ColumnConfigInstanceVector& col_instances) override {
+                        const ColumnConfigInstanceVector& col_instances,
+                        const ColumnConfigInstanceVector& tag_instances) override {
         (void)config;
         (void)col_instances;
+        (void)tag_instances;
         return "";
     }
 
     FormatResult format(const InsertDataConfig& config,
                         const ColumnConfigInstanceVector& col_instances,
-                        MemoryPool::MemoryBlock* batch, bool is_checkpoint_recover = false) const override{
+                        const ColumnConfigInstanceVector& tag_instances,
+                        MemoryPool::MemoryBlock* batch,
+                        bool is_checkpoint_recover = false) const override {
 
         (void)is_checkpoint_recover;
         if (!batch || batch->total_rows == 0) {
@@ -153,7 +157,7 @@ public:
 
         result << ";";
 
-        return SqlInsertData(batch, col_instances, result.str());
+        return SqlInsertData(batch, col_instances, tag_instances, result.str());
     }
 
 private:

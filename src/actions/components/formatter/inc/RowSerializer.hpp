@@ -8,6 +8,7 @@ class RowSerializer {
 public:
     static nlohmann::ordered_json to_json(
         const ColumnConfigInstanceVector& col_instances,
+        const ColumnConfigInstanceVector& tag_instances,
         const MemoryPool::TableBlock& table,
         size_t row_index,
         const std::string& tbname_key
@@ -15,6 +16,7 @@ public:
 
     static void to_json_inplace(
         const ColumnConfigInstanceVector& col_instances,
+        const ColumnConfigInstanceVector& tag_instances,
         const MemoryPool::TableBlock& table,
         size_t row_index,
         const std::string& tbname_key,

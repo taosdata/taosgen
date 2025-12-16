@@ -12,18 +12,25 @@ public:
     explicit KafkaInsertDataFormatter(const DataFormat& format) : format_(format) {}
 
     std::string prepare(const InsertDataConfig& config,
-                        const ColumnConfigInstanceVector& col_instances) override;
+                        const ColumnConfigInstanceVector& col_instances,
+                        const ColumnConfigInstanceVector& tag_instances) override;
 
     FormatResult format(const InsertDataConfig& config,
                         const ColumnConfigInstanceVector& col_instances,
-                        MemoryPool::MemoryBlock* batch, bool is_checkpoint_recover = false) const override;
+                        const ColumnConfigInstanceVector& tag_instances,
+                        MemoryPool::MemoryBlock* batch,
+                        bool is_checkpoint_recover = false) const override;
 
 private:
     const DataFormat& format_;
 
-    KafkaInsertData format_json(const ColumnConfigInstanceVector& col_instances, MemoryPool::MemoryBlock* batch) const;
+    KafkaInsertData format_json(const ColumnConfigInstanceVector& col_instances,
+                                const ColumnConfigInstanceVector& tag_instances,
+                                MemoryPool::MemoryBlock* batch) const;
 
-    KafkaInsertData format_influx(const ColumnConfigInstanceVector& col_instances, MemoryPool::MemoryBlock* batch) const;
+    KafkaInsertData format_influx(const ColumnConfigInstanceVector& col_instances,
+                                  const ColumnConfigInstanceVector& tag_instances,
+                                  MemoryPool::MemoryBlock* batch) const;
 
     inline static bool registered_ = []() {
         FormatterFactory::instance().register_formatter<InsertDataConfig>(

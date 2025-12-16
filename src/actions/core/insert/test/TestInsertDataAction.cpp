@@ -95,9 +95,10 @@ void test_data_pipeline() {
     std::atomic<size_t> rows_consumed{0};
 
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
     col_instances.emplace_back(ColumnConfig{"i1", "INT"});
-    MemoryPool pool(1, 5, 2, col_instances);
+    MemoryPool pool(1, 5, 2, col_instances, tag_instances);
 
     // Start producer thread
     std::thread producer([&]() {
@@ -112,7 +113,7 @@ void test_data_pipeline() {
             auto* block = pool.convert_to_memory_block(std::move(batch));
 
             pipeline.push_data(0, FormatResult{
-                SqlInsertData(block, col_instances, "INSERT INTO test_table VALUES (...)")
+                SqlInsertData(block, col_instances, tag_instances, "INSERT INTO test_table VALUES (...)")
             });
             rows_generated++;
         }
@@ -152,8 +153,9 @@ void test_data_generation() {
     config.schema.generation.interlace_mode.enabled = false;
 
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
-    MemoryPool pool(1, 1, 5, col_instances);
-    TableDataManager manager(pool, config, col_instances);
+    auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.generator.schema);
+    MemoryPool pool(1, 1, 5, col_instances, tag_instances);
+    TableDataManager manager(pool, config, col_instances, tag_instances);
 
     std::vector<std::string> table_names = {"d0"};
     assert(manager.init(table_names));
@@ -316,12 +318,14 @@ void test_cache_units_data_initialization() {
     config.schema.tbname.generator.count = 2;
 
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
+    auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.generator.schema);
 
     MemoryPool pool(
         config.queue_capacity * config.insert_threads,
         config.schema.tbname.generator.count,
         config.schema.generation.rows_per_batch,
         col_instances,
+        tag_instances,
         config.schema.generation.tables_reuse_data,
         config.schema.generation.data_cache.num_cached_batches
     );
@@ -367,12 +371,14 @@ void test_cache_units_data_with_reuse() {
     config.schema.tbname.generator.count = 2;
 
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
+    auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.generator.schema);
 
     MemoryPool pool(
         config.queue_capacity * config.insert_threads,
         config.schema.tbname.generator.count,
         config.schema.generation.rows_per_batch,
         col_instances,
+        tag_instances,
         config.schema.generation.tables_reuse_data,
         config.schema.generation.data_cache.num_cached_batches
     );
@@ -409,12 +415,14 @@ void test_cache_units_data_generator_failure() {
     config.schema.generation.rows_per_batch = 10;
 
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
+    auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.generator.schema);
 
     MemoryPool pool(
         1,
         config.schema.tbname.generator.count,
         config.schema.generation.rows_per_batch,
         col_instances,
+        tag_instances,
         false,
         config.schema.generation.data_cache.num_cached_batches
     );

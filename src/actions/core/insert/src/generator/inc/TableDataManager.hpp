@@ -19,6 +19,7 @@ public:
         int64_t rows_generated = 0;         // Total rows generated for this table
         int64_t interlace_counter = 0;      // Current row count in interlace mode
         bool completed = false;             // Whether this table is completed
+        const MemoryPool::TableBlock::Tags* tags_ptr = nullptr;
 
         TableState(const TableState&) = delete;
         TableState& operator=(const TableState&) = delete;
@@ -29,7 +30,10 @@ public:
         TableState() = default;
     };
 
-    explicit TableDataManager(MemoryPool& pool, const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances);
+    explicit TableDataManager(MemoryPool& pool,
+                              const InsertDataConfig& config,
+                              const ColumnConfigInstanceVector& col_instances,
+                              const ColumnConfigInstanceVector& tag_instances);
 
     // Initialize the table data manager
     bool init(const std::vector<std::string>& table_names);
@@ -57,12 +61,16 @@ private:
     MemoryPool& pool_;
     const InsertDataConfig& config_;
     const ColumnConfigInstanceVector& col_instances_;
+    const ColumnConfigInstanceVector& tag_instances_;
     std::vector<TableState> table_states_;
     size_t prev_table_index_ = 0;
     size_t current_table_index_ = 0;            // Current table index
     size_t active_table_count_ = 0;             // Count of active tables with data available
     int64_t interlace_rows_ = 1;                // Number of rows to generate per table in interlace mode
     size_t sequence_num_ = 0;
+
+    // Generate tag values for a given table
+    std::vector<ColumnType> generate_tags_for_table(const std::string& table_name);
 
     // Get the next table with available data
     TableState* get_next_active_table();

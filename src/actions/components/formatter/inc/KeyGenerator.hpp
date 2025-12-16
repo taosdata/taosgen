@@ -3,7 +3,10 @@
 
 class KeyGenerator final : public PatternGenerator {
 public:
-    KeyGenerator(const std::string& pattern, const std::string& serializer, const ColumnConfigInstanceVector& col_instances);
+    KeyGenerator(const std::string& pattern,
+                 const std::string& serializer,
+                 const ColumnConfigInstanceVector& col_instances,
+                 const ColumnConfigInstanceVector& tag_instances);
 
     std::string generate(const MemoryPool::TableBlock& data, size_t row_index) const override;
 

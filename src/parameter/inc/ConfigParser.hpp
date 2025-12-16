@@ -1660,6 +1660,8 @@ namespace YAML {
     struct convert<InsertDataConfig> {
     private:
         static void decode_tdengine_format_config(const Node& node, InsertDataConfig& config) {
+            DataFormat::StmtConfig& rhs = config.data_format.stmt;
+
             if (node["format"]) {
                 config.data_format.format_type = node["format"].as<std::string>();
                 if (config.data_format.format_type != "sql" &&
@@ -1669,6 +1671,13 @@ namespace YAML {
             } else {
                 config.data_format.format_type = "stmt";
             }
+
+            if (node["auto_create_table"]) {
+                rhs.auto_create_table = node["auto_create_table"].as<bool>();
+                config.data_format.sql.auto_create_table = rhs.auto_create_table;
+            }
+
+            config.data_format.support_tags = rhs.auto_create_table;
         }
 
         static void decode_mqtt_format_config(const Node& node, InsertDataConfig& config) {
@@ -1727,6 +1736,7 @@ namespace YAML {
             }
 
             config.data_format.format_type = "mqtt";
+            config.data_format.support_tags = true;
         }
 
         static void decode_kafka_format_config(const Node& node, InsertDataConfig& config) {
@@ -1782,6 +1792,7 @@ namespace YAML {
             }
 
             config.data_format.format_type = "kafka";
+            config.data_format.support_tags = true;
         }
 
     public:
@@ -1794,7 +1805,7 @@ namespace YAML {
                 "failure_handling", "time_interval", "checkpoint"
             };
             static const std::set<std::string> target_tdengine = {
-                "tdengine", "format"
+                "tdengine", "format", "auto_create_table"
             };
             static const std::set<std::string> target_mqtt = {
                 "mqtt", "format", "topic", "compression", "encoding", "tbname_key",

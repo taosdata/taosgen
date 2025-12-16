@@ -436,6 +436,11 @@ void ParameterContext::parse_insert_action(Job& job, Step& step, std::string tar
         }
     }
 
+    if (!insert_config.data_format.support_tags) {
+        insert_config.schema.tags.clear();
+        insert_config.schema.tags_cfg.clear_schema();
+    }
+
     // Print parse result
     LogUtils::info("Parsed {} action", step.uses);
 

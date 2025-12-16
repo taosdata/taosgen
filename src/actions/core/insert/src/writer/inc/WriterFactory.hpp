@@ -9,16 +9,21 @@
 
 class WriterFactory {
 public:
-    static std::unique_ptr<IWriter> create(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances, size_t no = 0, std::shared_ptr<ActionRegisterInfo> action_info = nullptr) {
+    static std::unique_ptr<IWriter> create(const InsertDataConfig& config,
+                                           const ColumnConfigInstanceVector& col_instances,
+                                           const ColumnConfigInstanceVector& tag_instances,
+                                           size_t no = 0,
+                                           std::shared_ptr<ActionRegisterInfo> action_info = nullptr) {
+
         if (config.target_type == "tdengine") {
-            return std::make_unique<TDengineWriter>(config, col_instances, no, action_info);
+            return std::make_unique<TDengineWriter>(config, col_instances, tag_instances, no, action_info);
         } else if (config.target_type == "csv") {
             // return std::make_unique<CsvWriter>(config);
             throw std::invalid_argument("Unsupported target type: " + config.target_type);
         } else if (config.target_type == "mqtt") {
-            return std::make_unique<MqttWriter>(config, col_instances, no);
+            return std::make_unique<MqttWriter>(config, col_instances, tag_instances, no);
         } else if (config.target_type == "kafka") {
-            return std::make_unique<KafkaWriter>(config, col_instances, no);
+            return std::make_unique<KafkaWriter>(config, col_instances, tag_instances, no);
         }
 
         throw std::invalid_argument("Unsupported target type: " + config.target_type);

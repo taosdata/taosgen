@@ -6,10 +6,11 @@
 
 void test_memory_pool_basic() {
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"col1", "INT"});
     col_instances.emplace_back(ColumnConfig{"col2", "VARCHAR(16)"});
 
-    MemoryPool pool(1, 1, 4, col_instances);
+    MemoryPool pool(1, 1, 4, col_instances, tag_instances);
 
     auto* block = pool.acquire_block();
     assert(block != nullptr);
@@ -32,15 +33,15 @@ void test_memory_pool_basic() {
     std::string str(col2.var_data, col2.lengths[0]);
     assert(str == "hello");
 
-    // Test get_cell
-    ColumnType cell0 = block->tables[0].get_cell(0, 0);
+    // Test get_column_cell
+    ColumnType cell0 = block->tables[0].get_column_cell(0, 0);
     assert(std::get<int32_t>(cell0) == 42);
-    ColumnType cell1 = block->tables[0].get_cell(0, 1);
+    ColumnType cell1 = block->tables[0].get_column_cell(0, 1);
     assert(std::get<std::string>(cell1) == "hello");
 
-    // Test get_cell_as_string
-    std::string cell0_str = block->tables[0].get_cell_as_string(0, 0);
-    std::string cell1_str = block->tables[0].get_cell_as_string(0, 1);
+    // Test get_column_cell_as_string
+    std::string cell0_str = block->tables[0].get_column_cell_as_string(0, 0);
+    std::string cell1_str = block->tables[0].get_column_cell_as_string(0, 1);
     assert(cell0_str.find("42") != std::string::npos);
     assert(cell1_str == "hello");
 
@@ -51,10 +52,11 @@ void test_memory_pool_basic() {
 
 void test_memory_pool_multi_batch() {
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"col1", "INT"});
     col_instances.emplace_back(ColumnConfig{"col2", "VARCHAR(8)"});
 
-    MemoryPool pool(1, 2, 2, col_instances);
+    MemoryPool pool(1, 2, 2, col_instances, tag_instances);
 
     MultiBatch batch;
     batch.table_batches.push_back({"t1", { {1000, {1, std::string("a")}}, {1010, {2, std::string("b")}} }});
@@ -76,15 +78,15 @@ void test_memory_pool_multi_batch() {
     std::string t1_col2_1(t1.columns[1].var_data + t1.columns[1].var_offsets[1], t1.columns[1].lengths[1]);
     assert(t1_col2_0 == "a" && t1_col2_1 == "b");
 
-    // Validate get_cell and get_cell_as_string
-    assert(std::get<int32_t>(t1.get_cell(0, 0)) == 1);
-    assert(std::get<int32_t>(t1.get_cell(1, 0)) == 2);
-    assert(std::get<std::string>(t1.get_cell(0, 1)) == "a");
-    assert(std::get<std::string>(t1.get_cell(1, 1)) == "b");
-    assert(t1.get_cell_as_string(0, 0) == "1");
-    assert(t1.get_cell_as_string(1, 0) == "2");
-    assert(t1.get_cell_as_string(0, 1) == "a");
-    assert(t1.get_cell_as_string(1, 1) == "b");
+    // Validate get_column_cell and get_column_cell_as_string
+    assert(std::get<int32_t>(t1.get_column_cell(0, 0)) == 1);
+    assert(std::get<int32_t>(t1.get_column_cell(1, 0)) == 2);
+    assert(std::get<std::string>(t1.get_column_cell(0, 1)) == "a");
+    assert(std::get<std::string>(t1.get_column_cell(1, 1)) == "b");
+    assert(t1.get_column_cell_as_string(0, 0) == "1");
+    assert(t1.get_column_cell_as_string(1, 0) == "2");
+    assert(t1.get_column_cell_as_string(0, 1) == "a");
+    assert(t1.get_column_cell_as_string(1, 1) == "b");
 
     // Validate table 2
     const auto& t2 = block->tables[1];
@@ -97,15 +99,15 @@ void test_memory_pool_multi_batch() {
     std::string t2_col2_1(t2.columns[1].var_data + t2.columns[1].var_offsets[1], t2.columns[1].lengths[1]);
     assert(t2_col2_0 == "c" && t2_col2_1 == "d");
 
-    // Validate get_cell and get_cell_as_string
-    assert(std::get<int32_t>(t2.get_cell(0, 0)) == 3);
-    assert(std::get<int32_t>(t2.get_cell(1, 0)) == 4);
-    assert(std::get<std::string>(t2.get_cell(0, 1)) == "c");
-    assert(std::get<std::string>(t2.get_cell(1, 1)) == "d");
-    assert(t2.get_cell_as_string(0, 0) == "3");
-    assert(t2.get_cell_as_string(1, 0) == "4");
-    assert(t2.get_cell_as_string(0, 1) == "c");
-    assert(t2.get_cell_as_string(1, 1) == "d");
+    // Validate get_column_cell and get_column_cell_as_string
+    assert(std::get<int32_t>(t2.get_column_cell(0, 0)) == 3);
+    assert(std::get<int32_t>(t2.get_column_cell(1, 0)) == 4);
+    assert(std::get<std::string>(t2.get_column_cell(0, 1)) == "c");
+    assert(std::get<std::string>(t2.get_column_cell(1, 1)) == "d");
+    assert(t2.get_column_cell_as_string(0, 0) == "3");
+    assert(t2.get_column_cell_as_string(1, 0) == "4");
+    assert(t2.get_column_cell_as_string(0, 1) == "c");
+    assert(t2.get_column_cell_as_string(1, 1) == "d");
 
     pool.release_block(block);
 
@@ -114,8 +116,9 @@ void test_memory_pool_multi_batch() {
 
 void test_memory_pool_acquire_release() {
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"col1", "INT"});
-    MemoryPool pool(1, 1, 1, col_instances);
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
 
     auto* block1 = pool.acquire_block();
     assert(block1 != nullptr);
@@ -130,8 +133,9 @@ void test_memory_pool_acquire_release() {
 
 void test_memory_pool_get_cell_out_of_range() {
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"col1", "INT"});
-    MemoryPool pool(1, 1, 1, col_instances);
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
 
     auto* block = pool.acquire_block();
     RowData row;
@@ -141,7 +145,7 @@ void test_memory_pool_get_cell_out_of_range() {
 
     bool caught = false;
     try {
-        block->tables[0].get_cell(1, 0); // row_index out of range
+        block->tables[0].get_column_cell(1, 0); // row_index out of range
     } catch (const std::out_of_range&) {
         caught = true;
     }
@@ -150,7 +154,7 @@ void test_memory_pool_get_cell_out_of_range() {
 
     caught = false;
     try {
-        block->tables[0].get_cell(0, 1); // col_index out of range
+        block->tables[0].get_column_cell(0, 1); // col_index out of range
     } catch (const std::out_of_range&) {
         caught = true;
     }
@@ -166,11 +170,12 @@ void test_memory_pool_get_cell_null() {
 
 void test_memory_pool_tables_reuse_data() {
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"col1", "INT"});
     col_instances.emplace_back(ColumnConfig{"col2", "VARCHAR(8)"});
 
     // tables_reuse_data = true
-    MemoryPool pool(1, 2, 2, col_instances, true);
+    MemoryPool pool(1, 2, 2, col_instances, tag_instances, true);
 
     auto* block = pool.acquire_block();
     assert(block != nullptr);
@@ -194,12 +199,12 @@ void test_memory_pool_tables_reuse_data() {
 
     // Check that data is overwritten due to shared memory
     // Table 1 row 0
-    assert(std::get<int32_t>(block->tables[0].get_cell(0, 0)) == 22);
-    assert(std::get<std::string>(block->tables[0].get_cell(0, 1)) == "bar");
+    assert(std::get<int32_t>(block->tables[0].get_column_cell(0, 0)) == 22);
+    assert(std::get<std::string>(block->tables[0].get_column_cell(0, 1)) == "bar");
 
     // Table 2 row 0
-    assert(std::get<int32_t>(block->tables[1].get_cell(0, 0)) == 22);
-    assert(std::get<std::string>(block->tables[1].get_cell(0, 1)) == "bar");
+    assert(std::get<int32_t>(block->tables[1].get_column_cell(0, 0)) == 22);
+    assert(std::get<std::string>(block->tables[1].get_column_cell(0, 1)) == "bar");
 
     // Write another row to table 1
     RowData row3;
@@ -217,6 +222,7 @@ void test_memory_pool_tables_reuse_data() {
 
 void test_memory_pool_cache_mode_basic() {
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"col1", "INT"});
     col_instances.emplace_back(ColumnConfig{"col2", "VARCHAR(16)"});
 
@@ -224,7 +230,7 @@ void test_memory_pool_cache_mode_basic() {
     const size_t num_cache_units = 2;
     const size_t num_tables = 2;
     const size_t num_rows = 4;
-    MemoryPool pool(num_blocks, num_tables, num_rows, col_instances, false, num_cache_units);
+    MemoryPool pool(num_blocks, num_tables, num_rows, col_instances, tag_instances, false, num_cache_units);
 
     assert(pool.is_cache_mode());
     assert(pool.get_cache_units_count() == 2);
@@ -272,11 +278,11 @@ void test_memory_pool_cache_mode_basic() {
         assert(block->tables[0].timestamps[i] == static_cast<int64_t>((i + 1) * 1000));
         assert(block->tables[1].timestamps[i] == static_cast<int64_t>((i + 1) * 1000));
 
-        assert(std::get<int32_t>(block->tables[0].get_cell(i, 0)) == int32_t(i * 10));
-        assert(std::get<std::string>(block->tables[0].get_cell(i, 1)) == std::string("cache0_t0_" + std::to_string(i)));
+        assert(std::get<int32_t>(block->tables[0].get_column_cell(i, 0)) == int32_t(i * 10));
+        assert(std::get<std::string>(block->tables[0].get_column_cell(i, 1)) == std::string("cache0_t0_" + std::to_string(i)));
 
-        assert(std::get<int32_t>(block->tables[1].get_cell(i, 0)) == int32_t(i * 100));
-        assert(std::get<std::string>(block->tables[1].get_cell(i, 1)) == std::string("cache0_t1_" + std::to_string(i)));
+        assert(std::get<int32_t>(block->tables[1].get_column_cell(i, 0)) == int32_t(i * 100));
+        assert(std::get<std::string>(block->tables[1].get_column_cell(i, 1)) == std::string("cache0_t1_" + std::to_string(i)));
     }
 
     pool.release_block(block);
@@ -285,6 +291,7 @@ void test_memory_pool_cache_mode_basic() {
 
 void test_memory_pool_cache_mode_shared() {
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"col1", "INT"});
     col_instances.emplace_back(ColumnConfig{"col2", "VARCHAR(16)"});
 
@@ -292,7 +299,7 @@ void test_memory_pool_cache_mode_shared() {
     const size_t num_cache_units = 2;
     const size_t num_tables = 2;
     const size_t num_rows = 4;
-    MemoryPool pool(num_blocks, num_tables, num_rows, col_instances, false, num_cache_units);
+    MemoryPool pool(num_blocks, num_tables, num_rows, col_instances, tag_instances, false, num_cache_units);
 
     // Pre-fill cache data
     for (size_t c = 0; c < num_cache_units; ++c) {
@@ -333,13 +340,13 @@ void test_memory_pool_cache_mode_shared() {
         assert(block1->tables[0].timestamps[i] == static_cast<int64_t>(2000 + i));
         assert(block2->tables[0].timestamps[i] == static_cast<int64_t>(3000 + i));
 
-        assert(std::get<int32_t>(block0->tables[0].get_cell(i, 0)) == int32_t(i * 10));
-        assert(std::get<int32_t>(block1->tables[0].get_cell(i, 0)) == int32_t(i * 10 + 100));
-        assert(std::get<int32_t>(block2->tables[0].get_cell(i, 0)) == int32_t(i * 10));
+        assert(std::get<int32_t>(block0->tables[0].get_column_cell(i, 0)) == int32_t(i * 10));
+        assert(std::get<int32_t>(block1->tables[0].get_column_cell(i, 0)) == int32_t(i * 10 + 100));
+        assert(std::get<int32_t>(block2->tables[0].get_column_cell(i, 0)) == int32_t(i * 10));
 
-        assert(std::get<std::string>(block0->tables[0].get_cell(i, 1)) == "cache0_t0_" + std::to_string(i));
-        assert(std::get<std::string>(block1->tables[0].get_cell(i, 1)) == "cache1_t0_" + std::to_string(i));
-        assert(std::get<std::string>(block2->tables[0].get_cell(i, 1)) == "cache0_t0_" + std::to_string(i));
+        assert(std::get<std::string>(block0->tables[0].get_column_cell(i, 1)) == "cache0_t0_" + std::to_string(i));
+        assert(std::get<std::string>(block1->tables[0].get_column_cell(i, 1)) == "cache1_t0_" + std::to_string(i));
+        assert(std::get<std::string>(block2->tables[0].get_column_cell(i, 1)) == "cache0_t0_" + std::to_string(i));
     }
 
     pool.release_block(block0);
@@ -351,15 +358,16 @@ void test_memory_pool_cache_mode_shared() {
 
 void test_memory_pool_cache_mode_edge_cases() {
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"col1", "INT"});
 
     // Test 1: cache unit count is 0
-    MemoryPool pool_no_cache(2, 1, 4, col_instances, false, 0);
+    MemoryPool pool_no_cache(2, 1, 4, col_instances, tag_instances, false, 0);
     assert(!pool_no_cache.is_cache_mode());
     assert(pool_no_cache.get_cache_units_count() == 0);
 
     // Test 2: invalid cache index
-    MemoryPool pool(2, 1, 4, col_instances, false, 1);
+    MemoryPool pool(2, 1, 4, col_instances, tag_instances, false, 1);
     bool result = pool.fill_cache_unit_data(999, 0, {});
     (void)result;
     assert(!result);
@@ -376,6 +384,7 @@ void test_memory_pool_cache_mode_edge_cases() {
 
 void test_memory_pool_cache_mode_performance() {
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"col1", "INT"});
     col_instances.emplace_back(ColumnConfig{"col2", "VARCHAR(32)"});
 
@@ -383,7 +392,7 @@ void test_memory_pool_cache_mode_performance() {
     const size_t num_cache_units = 3;
     const size_t num_tables = 2;
     const size_t num_rows = 1000;
-    MemoryPool pool(num_blocks, num_tables, num_rows, col_instances, false, num_cache_units);
+    MemoryPool pool(num_blocks, num_tables, num_rows, col_instances, tag_instances, false, num_cache_units);
 
     // Pre-fill cache data
     std::vector<RowData> cache_data;
@@ -425,8 +434,8 @@ void test_memory_pool_cache_mode_performance() {
                     assert(block->tables[t].used_rows == num_rows);
                     for (size_t j = 0; j < num_rows; ++j) {
                         assert(block->tables[t].timestamps[j] == static_cast<int64_t >(sequence_num * 100 + j));
-                        assert(std::get<int32_t>(block->tables[t].get_cell(j, 0)) == static_cast<int32_t>(j));
-                        assert(std::get<std::string>(block->tables[t].get_cell(j, 1)) == "data_" + std::to_string(j));
+                        assert(std::get<int32_t>(block->tables[t].get_column_cell(j, 0)) == static_cast<int32_t>(j));
+                        assert(std::get<std::string>(block->tables[t].get_column_cell(j, 1)) == "data_" + std::to_string(j));
                     }
                 }
                 pool.release_block(block);
@@ -450,6 +459,7 @@ void test_memory_pool_cache_mode_performance() {
 
 void test_memory_pool_cache_mode_with_reuse() {
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"col1", "INT"});
     col_instances.emplace_back(ColumnConfig{"col2", "VARCHAR(16)"});
 
@@ -457,7 +467,7 @@ void test_memory_pool_cache_mode_with_reuse() {
     const size_t num_cache_units = 1;
     const size_t num_tables = 2;
     const size_t num_rows = 4;
-    MemoryPool pool(num_blocks, num_tables, num_rows, col_instances, true, num_cache_units);
+    MemoryPool pool(num_blocks, num_tables, num_rows, col_instances, tag_instances, true, num_cache_units);
 
     assert(pool.is_cache_mode());
 
@@ -485,15 +495,15 @@ void test_memory_pool_cache_mode_with_reuse() {
     }
 
     assert(block->tables[0].columns[0].fixed_data == block->tables[1].columns[0].fixed_data);
-    assert(std::get<int32_t>(block->tables[0].get_cell(0, 0)) == 0);
-    assert(std::get<int32_t>(block->tables[1].get_cell(0, 0)) == 0);
+    assert(std::get<int32_t>(block->tables[0].get_column_cell(0, 0)) == 0);
+    assert(std::get<int32_t>(block->tables[1].get_column_cell(0, 0)) == 0);
 
     for (size_t t = 0; t < num_tables; ++t) {
         assert(block->tables[t].used_rows == num_rows);
         for (size_t i = 0; i < num_rows; ++i) {
             assert(block->tables[t].timestamps[i] == static_cast<int64_t >((t + 1) * 1000 + i));
-            assert(std::get<int32_t>(block->tables[t].get_cell(i, 0)) == int32_t(i * 5));
-            assert(std::get<std::string>(block->tables[t].get_cell(i, 1)) == std::string("cache_" + std::to_string(i)));
+            assert(std::get<int32_t>(block->tables[t].get_column_cell(i, 0)) == int32_t(i * 5));
+            assert(std::get<std::string>(block->tables[t].get_column_cell(i, 1)) == std::string("cache_" + std::to_string(i)));
         }
     }
 

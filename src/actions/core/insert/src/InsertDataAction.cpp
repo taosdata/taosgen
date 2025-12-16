@@ -144,7 +144,7 @@ void InsertDataAction::execute() {
 
         auto pool = std::make_unique<MemoryPool>(
             num_blocks, max_tables_per_block, max_rows_per_table,
-            col_instances_, tables_reuse_data, num_cached_batches
+            col_instances_, tag_instances_, tables_reuse_data, num_cached_batches
         );
 
         if (config_.schema.generation.data_cache.enabled) {
@@ -183,7 +183,7 @@ void InsertDataAction::execute() {
         // Create all writer instances
         for (size_t i = 0; i < consumer_thread_count; i++) {
             LogUtils::debug("Creating writer instance for consumer thread #{}", i);
-            writers.push_back(WriterFactory::create(config_, col_instances_, i, action_info));
+            writers.push_back(WriterFactory::create(config_, col_instances_, tag_instances_, i, action_info));
         }
 
         auto consumer_running = std::make_unique<std::atomic<bool>[]>(consumer_thread_count);
@@ -206,7 +206,7 @@ void InsertDataAction::execute() {
         std::atomic<size_t> active_producers(producer_thread_count);
 
         for (size_t i = 0; i < producer_thread_count; i++) {
-            auto data_manager = std::make_shared<TableDataManager>(*pool, config_, col_instances_);
+            auto data_manager = std::make_shared<TableDataManager>(*pool, config_, col_instances_, tag_instances_);
             data_managers.push_back(data_manager);
 
             producer_threads.emplace_back([this, i, &split_names, &pipeline, data_manager, &active_producers, &producer_finished] {
@@ -549,7 +549,7 @@ void InsertDataAction::producer_thread_function(
         // size_t total_rows = batch->total_rows;
 
         // Format data
-        FormatResult formatted_result = formatter->format(config_, col_instances_, std::move(batch.value()), is_checkpoint_recover_);
+        FormatResult formatted_result = formatter->format(config_, col_instances_, tag_instances_, std::move(batch.value()), is_checkpoint_recover_);
 
         // Push data to pipeline
         try {
@@ -598,7 +598,7 @@ void InsertDataAction::consumer_thread_function(
         }
 
         auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(config_.data_format);
-        auto sql = formatter->prepare(config_, col_instances_);
+        auto sql = formatter->prepare(config_, col_instances_, tag_instances_);
 
         if (!writer->prepare(sql)) {
             handle_startup_error("Failed to prepare writer for thread {} with SQL: {}",
@@ -678,6 +678,15 @@ ColumnConfigInstanceVector InsertDataAction::create_column_instances() const {
         return ColumnConfigInstanceFactory::create(schema);
     } catch (const std::exception& e) {
         throw std::runtime_error(std::string("Failed to create column instances: ") + e.what());
+    }
+}
+
+ColumnConfigInstanceVector InsertDataAction::create_tag_instances() const {
+    try {
+        const auto& schema = config_.schema.tags_cfg.get_schema();
+        return ColumnConfigInstanceFactory::create(schema);
+    } catch (const std::exception& e) {
+        throw std::runtime_error(std::string("Failed to create tag instances: ") + e.what());
     }
 }
 

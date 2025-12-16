@@ -4,9 +4,17 @@
 
 struct DataFormat {
     std::string format_type = "sql";
+    bool support_tags = false;
+
+    struct SqlConfig {
+        bool auto_create_table = false;
+
+        SqlConfig() = default;
+    } sql;
 
     struct StmtConfig {
         std::string version = "v2"; // "v1" or "v2"
+        bool auto_create_table = false;
 
         StmtConfig() = default;
         StmtConfig(const std::string& v) : version(v) {}

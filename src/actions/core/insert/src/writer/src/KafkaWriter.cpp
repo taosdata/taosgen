@@ -3,8 +3,11 @@
 #include "LogUtils.hpp"
 #include <stdexcept>
 
-KafkaWriter::KafkaWriter(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances, size_t no)
-    : BaseWriter(config, col_instances) {
+KafkaWriter::KafkaWriter(const InsertDataConfig& config,
+                         const ColumnConfigInstanceVector& col_instances,
+                         const ColumnConfigInstanceVector& tag_instances,
+                         size_t no)
+    : BaseWriter(config, col_instances, tag_instances) {
     client_ = std::make_unique<KafkaClient>(config.kafka, config.data_format.kafka, no);
 }
 

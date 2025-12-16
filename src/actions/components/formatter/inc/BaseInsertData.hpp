@@ -17,16 +17,22 @@ struct BaseInsertData {
     int64_t end_time;
     size_t total_rows;
 
-    BaseInsertData(MemoryPool::MemoryBlock* block, const ColumnConfigInstanceVector& col_instances)
-        : BaseInsertData(DataType::BASE, block, col_instances) {}
+    BaseInsertData(MemoryPool::MemoryBlock* block,
+                   const ColumnConfigInstanceVector& col_instances,
+                   const ColumnConfigInstanceVector& tag_instances)
+        : BaseInsertData(DataType::BASE, block, col_instances, tag_instances) {}
 
-    BaseInsertData(DataType t, MemoryPool::MemoryBlock* block, const ColumnConfigInstanceVector& col_instances)
+    BaseInsertData(DataType t,
+                   MemoryPool::MemoryBlock* block,
+                   const ColumnConfigInstanceVector& col_instances,
+                   const ColumnConfigInstanceVector& tag_instances)
         : type(t),
           start_time(block->start_time),
           end_time(block->end_time),
           total_rows(block->total_rows),
           block_(block),
-          col_instances_(col_instances) {}
+          col_instances_(col_instances),
+          tag_instances_(tag_instances) {}
 
     // Move constructor
     BaseInsertData(BaseInsertData&& other) noexcept
@@ -35,7 +41,8 @@ struct BaseInsertData {
           end_time(other.end_time),
           total_rows(other.total_rows),
           block_(other.block_),
-          col_instances_(other.col_instances_) {
+          col_instances_(other.col_instances_),
+          tag_instances_(other.tag_instances_) {
         other.block_ = nullptr;
         other.type = DataType::BASE;
     }
@@ -60,6 +67,10 @@ struct BaseInsertData {
         return col_instances_.size();
     }
 
+    size_t tag_count() const noexcept {
+        return tag_instances_.size();
+    }
+
     const TAOS_STMT2_BINDV* bindv_ptr() const noexcept {
         return block_ ? &block_->bindv_ : nullptr;
     }
@@ -75,4 +86,5 @@ struct BaseInsertData {
 private:
     MemoryPool::MemoryBlock* block_;
     const ColumnConfigInstanceVector& col_instances_;
+    const ColumnConfigInstanceVector& tag_instances_;
 };

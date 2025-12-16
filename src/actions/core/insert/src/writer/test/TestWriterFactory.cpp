@@ -29,8 +29,9 @@ ColumnConfigInstanceVector create_col_instances() {
 void test_create_tdengine_writer() {
     auto config = create_test_config("tdengine");
     auto col_instances = create_col_instances();
+    auto tag_instances = ColumnConfigInstanceVector{};
 
-    auto writer = WriterFactory::create(config, col_instances);
+    auto writer = WriterFactory::create(config, col_instances, tag_instances);
     assert(writer != nullptr);
 
     // Verify the created type
@@ -44,8 +45,9 @@ void test_create_tdengine_writer() {
 void test_create_mqtt_writer() {
     auto config = create_test_config("mqtt");
     auto col_instances = create_col_instances();
+    auto tag_instances = ColumnConfigInstanceVector{};
 
-    auto writer = WriterFactory::create(config, col_instances);
+    auto writer = WriterFactory::create(config, col_instances, tag_instances);
     assert(writer != nullptr);
 
     // Verify the created type
@@ -59,8 +61,9 @@ void test_create_mqtt_writer() {
 void test_create_kafka_writer() {
     auto config = create_test_config("kafka");
     auto col_instances = create_col_instances();
+    auto tag_instances = ColumnConfigInstanceVector{};
 
-    auto writer = WriterFactory::create(config, col_instances);
+    auto writer = WriterFactory::create(config, col_instances, tag_instances);
     assert(writer != nullptr);
 
     // Verify the created type
@@ -75,9 +78,10 @@ void test_create_unsupported_writer() {
     std::string unsupported_type = "non_existent_db";
     auto config = create_test_config(unsupported_type);
     auto col_instances = create_col_instances();
+    auto tag_instances = ColumnConfigInstanceVector{};
 
     try {
-        auto writer = WriterFactory::create(config, col_instances);
+        auto writer = WriterFactory::create(config, col_instances, tag_instances);
         assert(false); // Should not reach here
     } catch (const std::invalid_argument& e) {
         std::string expected_msg = "Unsupported target type: " + unsupported_type;
@@ -90,9 +94,10 @@ void test_create_unsupported_writer() {
 void test_create_csv_writer_throws() {
     auto config = create_test_config("csv");
     auto col_instances = create_col_instances();
+    auto tag_instances = ColumnConfigInstanceVector{};
 
     try {
-        auto writer = WriterFactory::create(config, col_instances);
+        auto writer = WriterFactory::create(config, col_instances, tag_instances);
         assert(false); // Should not reach here
     } catch (const std::invalid_argument& e) {
         assert(std::string(e.what()) == "Unsupported target type: csv");

@@ -13,11 +13,11 @@ public:
         return PatternGenerator::parse_pattern(pattern);
     }
 
-    TestablePatternGenerator(const std::string& pattern, const ColumnConfigInstanceVector& col_instances) {
+    TestablePatternGenerator(const std::string& pattern,
+                             const ColumnConfigInstanceVector& col_instances,
+                             const ColumnConfigInstanceVector& tag_instances) {
         tokens_ = parse_pattern(pattern);
-        for (size_t i = 0; i < col_instances.size(); ++i) {
-            col_index_map_[col_instances[i].name()] = i;
-        }
+        build_mapping(col_instances, tag_instances);
     }
 
     std::string generate(const MemoryPool::TableBlock& data, size_t row_index) const override {
@@ -58,9 +58,10 @@ void test_parse_pattern() {
 
 void test_generate_with_columns() {
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"factory", "VARCHAR(10)"});
     col_instances.emplace_back(ColumnConfig{"device", "INT"});
-    TestablePatternGenerator pg("data/{factory}/dev-{device}", col_instances);
+    TestablePatternGenerator pg("data/{factory}/dev-{device}", col_instances, tag_instances);
 
     MultiBatch batch;
     std::vector<RowData> rows;
@@ -68,7 +69,7 @@ void test_generate_with_columns() {
     batch.table_batches.emplace_back("t1", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 2, col_instances);
+    MemoryPool pool(1, 1, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
     const auto& tb = block->tables[0];
 
@@ -79,7 +80,8 @@ void test_generate_with_columns() {
 
 void test_generate_special_placeholders() {
     ColumnConfigInstanceVector col_instances;
-    TestablePatternGenerator pg("prefix/{table}/ts/{ts}", col_instances);
+    ColumnConfigInstanceVector tag_instances;
+    TestablePatternGenerator pg("prefix/{table}/ts/{ts}", col_instances, tag_instances);
 
     MultiBatch batch;
     std::vector<RowData> rows;
@@ -87,7 +89,7 @@ void test_generate_special_placeholders() {
     batch.table_batches.emplace_back("my_super_table", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 1, col_instances);
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
     auto& tb = block->tables[0];
 
@@ -105,8 +107,9 @@ void test_generate_special_placeholders() {
 
 void test_generate_col_not_found() {
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"a", "INT"});
-    TestablePatternGenerator pg("key/{b}", col_instances);
+    TestablePatternGenerator pg("key/{b}", col_instances, tag_instances);
 
     MultiBatch batch;
     std::vector<RowData> rows;
@@ -114,7 +117,7 @@ void test_generate_col_not_found() {
     batch.table_batches.emplace_back("t1", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 1, col_instances);
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
     const auto& tb = block->tables[0];
 

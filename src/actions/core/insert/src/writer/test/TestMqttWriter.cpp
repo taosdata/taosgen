@@ -85,14 +85,16 @@ ColumnConfigInstanceVector create_col_instances() {
 void test_constructor() {
     auto config = create_test_config();
     auto col_instances = create_col_instances();
-    MqttWriter writer(config, col_instances);
+    auto tag_instances = ColumnConfigInstanceVector{};
+    MqttWriter writer(config, col_instances, tag_instances);
     std::cout << "test_constructor passed." << std::endl;
 }
 
 void test_connection() {
     auto config = create_test_config();
     auto col_instances = create_col_instances();
-    MqttWriter writer(config, col_instances);
+    auto tag_instances = ColumnConfigInstanceVector{};
+    MqttWriter writer(config, col_instances, tag_instances);
 
     // Replace with mock
     auto mock = std::make_unique<MockMqttClient>();
@@ -120,7 +122,8 @@ void test_connection() {
 void test_connection_failure() {
     auto config = create_test_config();
     auto col_instances = create_col_instances();
-    MqttWriter writer(config, col_instances);
+    auto tag_instances = ColumnConfigInstanceVector{};
+    MqttWriter writer(config, col_instances, tag_instances);
 
     // Replace with mock
     auto mock = std::make_unique<MockMqttClient>();
@@ -142,7 +145,8 @@ void test_connection_failure() {
 void test_select_db_and_prepare() {
     auto config = create_test_config();
     auto col_instances = create_col_instances();
-    MqttWriter writer(config, col_instances);
+    auto tag_instances = ColumnConfigInstanceVector{};
+    MqttWriter writer(config, col_instances, tag_instances);
 
     // Replace with mock
     auto mqtt_client = std::make_unique<MqttClient>(config.mqtt, config.data_format.mqtt);
@@ -175,7 +179,8 @@ void test_select_db_and_prepare() {
 void test_write_operations() {
     auto config = create_test_config();
     auto col_instances = create_col_instances();
-    MqttWriter writer(config, col_instances);
+    auto tag_instances = ColumnConfigInstanceVector{};
+    MqttWriter writer(config, col_instances, tag_instances);
 
     // Replace with mock
     auto mock = std::make_unique<MockMqttClient>();
@@ -197,13 +202,13 @@ void test_write_operations() {
         batch.table_batches.emplace_back("tb1", std::move(rows));
         batch.update_metadata();
 
-        MemoryPool pool(1, 1, 1, col_instances);
+        MemoryPool pool(1, 1, 1, col_instances, tag_instances);
         auto* block = pool.convert_to_memory_block(std::move(batch));
 
         // Create a simple message batch for the test
         MqttMessageBatch msg_batch;
         msg_batch.emplace_back("test/topic", "{\"factory_id\":\"f01\", \"device_id\":\"d01\"}");
-        MqttInsertData msg(block, col_instances, std::move(msg_batch));
+        MqttInsertData msg(block, col_instances, tag_instances, std::move(msg_batch));
 
         writer.write(msg);
         (void)mock_ptr;
@@ -219,9 +224,9 @@ void test_write_operations() {
         batch.table_batches.emplace_back("tb2", std::move(rows));
         batch.update_metadata();
 
-        MemoryPool pool(1, 1, 1, col_instances);
+        MemoryPool pool(1, 1, 1, col_instances, tag_instances);
         auto* block = pool.convert_to_memory_block(std::move(batch));
-        BaseInsertData invalid_data(static_cast<BaseInsertData::DataType>(999), block, col_instances);
+        BaseInsertData invalid_data(static_cast<BaseInsertData::DataType>(999), block, col_instances, tag_instances);
 
         try {
             writer.write(invalid_data);
@@ -238,7 +243,8 @@ void test_write_with_retry() {
     auto config = create_test_config();
     config.failure_handling.max_retries = 1;
     auto col_instances = create_col_instances();
-    MqttWriter writer(config, col_instances);
+    auto tag_instances = ColumnConfigInstanceVector{};
+    MqttWriter writer(config, col_instances, tag_instances);
 
     // Replace with mock
     auto mock = std::make_unique<MockMqttClient>();
@@ -259,12 +265,12 @@ void test_write_with_retry() {
     batch.table_batches.emplace_back("tb1", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 1, col_instances);
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     MqttMessageBatch msg_batch;
     msg_batch.emplace_back("test/topic", "{\"factory_id\":\"f01\", \"device_id\":\"d01\"}");
-    MqttInsertData msg(block, col_instances, std::move(msg_batch));
+    MqttInsertData msg(block, col_instances, tag_instances, std::move(msg_batch));
 
     assert(writer.write(msg));
     assert(mock_ptr->publish_count == 2);           // Called twice: 1 fail + 1 success
@@ -279,7 +285,8 @@ void test_write_with_retry() {
 void test_write_without_connection() {
     auto config = create_test_config();
     auto col_instances = create_col_instances();
-    MqttWriter writer(config, col_instances);
+    auto tag_instances = ColumnConfigInstanceVector{};
+    MqttWriter writer(config, col_instances, tag_instances);
 
     // Replace with mock
     auto mqtt_client = std::make_unique<MqttClient>(config.mqtt, config.data_format.mqtt);
@@ -293,9 +300,9 @@ void test_write_without_connection() {
     batch.table_batches.emplace_back("d2", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 2, col_instances);
+    MemoryPool pool(1, 1, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
-    MqttInsertData data(block, col_instances, {});
+    MqttInsertData data(block, col_instances, tag_instances, {});
 
     try {
         writer.write(data);

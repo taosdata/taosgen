@@ -22,8 +22,9 @@ std::string to_big_endian(T value) {
 
 void test_string_serializer() {
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"device_id", "INT"});
-    KeyGenerator kg("prefix/{table}/dev-{device_id}/ts/{ts}", "string-utf8", col_instances);
+    KeyGenerator kg("prefix/{table}/dev-{device_id}/ts/{ts}", "string-utf8", col_instances, tag_instances);
 
     MultiBatch batch;
     std::vector<RowData> rows;
@@ -31,7 +32,7 @@ void test_string_serializer() {
     batch.table_batches.emplace_back("metrics", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 1, col_instances);
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
     const auto& tb = block->tables[0];
 
@@ -42,8 +43,9 @@ void test_string_serializer() {
 
 void test_integer_serializer() {
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"id", "BIGINT"});
-    KeyGenerator kg("{id}", "int64", col_instances);
+    KeyGenerator kg("{id}", "int64", col_instances, tag_instances);
 
     MultiBatch batch;
     std::vector<RowData> rows;
@@ -51,7 +53,7 @@ void test_integer_serializer() {
     batch.table_batches.emplace_back("t1", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 1, col_instances);
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
     const auto& tb = block->tables[0];
 
@@ -63,9 +65,10 @@ void test_integer_serializer() {
 
 void test_invalid_pattern_for_integer_serializer() {
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"id", "INT"});
     try {
-        KeyGenerator kg("prefix-{id}", "int32", col_instances);
+        KeyGenerator kg("prefix-{id}", "int32", col_instances, tag_instances);
         assert(false && "Should have thrown an exception");
     } catch (const std::invalid_argument& e) {
         std::string msg = e.what();
@@ -76,8 +79,9 @@ void test_invalid_pattern_for_integer_serializer() {
 
 void test_unsupported_serializer() {
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     try {
-        KeyGenerator kg("{id}", "float32", col_instances);
+        KeyGenerator kg("{id}", "float32", col_instances, tag_instances);
         assert(false && "Should have thrown an exception");
     } catch (const std::invalid_argument& e) {
         assert(std::string(e.what()) == "Unsupported key_serializer: float32");
@@ -87,8 +91,9 @@ void test_unsupported_serializer() {
 
 void test_integer_parse_error() {
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"id", "VARCHAR(10)"});
-    KeyGenerator kg("{id}", "int32", col_instances);
+    KeyGenerator kg("{id}", "int32", col_instances, tag_instances);
 
     MultiBatch batch;
     std::vector<RowData> rows;
@@ -96,7 +101,7 @@ void test_integer_parse_error() {
     batch.table_batches.emplace_back("t1", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 1, col_instances);
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
     const auto& tb = block->tables[0];
 

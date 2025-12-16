@@ -6,9 +6,10 @@
 
 void test_basic_pattern() {
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"factory_id", "VARCHAR(16)"});
     col_instances.emplace_back(ColumnConfig{"device_id", "INT"});
-    TopicGenerator tg("factory/{factory_id}/device-{device_id}/data", col_instances);
+    TopicGenerator tg("factory/{factory_id}/device-{device_id}/data", col_instances, tag_instances);
 
     MultiBatch batch;
     std::vector<RowData> rows;
@@ -17,7 +18,7 @@ void test_basic_pattern() {
     batch.table_batches.emplace_back("t1", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 2, col_instances);
+    MemoryPool pool(1, 1, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
     const auto& tb = block->tables[0];
 
@@ -30,7 +31,8 @@ void test_basic_pattern() {
 
 void test_special_placeholders() {
     ColumnConfigInstanceVector col_instances;
-    TopicGenerator tg("table/{table}/ts/{ts}", col_instances);
+    ColumnConfigInstanceVector tag_instances;
+    TopicGenerator tg("table/{table}/ts/{ts}", col_instances, tag_instances);
 
     MultiBatch batch;
     std::vector<RowData> rows;
@@ -38,7 +40,7 @@ void test_special_placeholders() {
     batch.table_batches.emplace_back("my_table", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 1, col_instances);
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
     auto& tb = block->tables[0];
 
@@ -58,8 +60,9 @@ void test_special_placeholders() {
 
 void test_col_not_found() {
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"a", "VARCHAR(16)"});
-    TopicGenerator tg("prefix/{b}/suffix", col_instances);
+    TopicGenerator tg("prefix/{b}/suffix", col_instances, tag_instances);
 
     MultiBatch batch;
     std::vector<RowData> rows;
@@ -67,7 +70,7 @@ void test_col_not_found() {
     batch.table_batches.emplace_back("my_table", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 1, col_instances);
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
     const auto& tb = block->tables[0];
 
@@ -78,11 +81,12 @@ void test_col_not_found() {
 
 void test_pattern_edge_cases() {
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"x", "VARCHAR(16)"});
 
-    TopicGenerator tg1("{x}{x}", col_instances);
-    TopicGenerator tg2("plain/text", col_instances);
-    TopicGenerator tg3("{x}tail", col_instances);
+    TopicGenerator tg1("{x}{x}", col_instances, tag_instances);
+    TopicGenerator tg2("plain/text", col_instances, tag_instances);
+    TopicGenerator tg3("{x}tail", col_instances, tag_instances);
 
     MultiBatch batch;
     std::vector<RowData> rows;
@@ -90,7 +94,7 @@ void test_pattern_edge_cases() {
     batch.table_batches.emplace_back("my_table", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 1, col_instances);
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
     const auto& tb = block->tables[0];
 

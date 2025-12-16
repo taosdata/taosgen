@@ -1,14 +1,13 @@
 #include "TopicGenerator.hpp"
 
 TopicGenerator::TopicGenerator(const std::string& pattern,
-                               const ColumnConfigInstanceVector& col_instances) {
-    // 1. Parse the template
+                               const ColumnConfigInstanceVector& col_instances,
+                               const ColumnConfigInstanceVector& tag_instances) {
+    // Parse the pattern
     tokens_ = parse_pattern(pattern);
 
-    // 2. Build a mapping from column name to index
-    for (size_t i = 0; i < col_instances.size(); i++) {
-        col_index_map_[col_instances[i].name()] = i;
-    }
+    // Build mapping
+    build_mapping(col_instances, tag_instances);
 }
 
 std::string TopicGenerator::generate(const MemoryPool::TableBlock& data,

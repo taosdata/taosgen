@@ -3,15 +3,16 @@
 
 nlohmann::ordered_json RowSerializer::to_json(
     const ColumnConfigInstanceVector& col_instances,
+    const ColumnConfigInstanceVector& tag_instances,
     const MemoryPool::TableBlock& table,
     size_t row_index,
-    const std::string& tbname_key
-) {
-    nlohmann::ordered_json json_data;
+    const std::string& tbname_key) {
 
     if (row_index >= table.used_rows) {
         throw std::out_of_range("Row index " + std::to_string(row_index) + " is out of range for table with " + std::to_string(table.used_rows) + " used rows");
     }
+
+    nlohmann::ordered_json json_data;
 
     // Add table name
     if (!tbname_key.empty() && table.table_name) {
@@ -23,42 +24,60 @@ nlohmann::ordered_json RowSerializer::to_json(
         json_data["ts"] = table.timestamps[row_index];
     }
 
-    // Add data columns
-    for (size_t col_idx = 0; col_idx < col_instances.size(); col_idx++) {
-        const auto& col_inst = col_instances[col_idx];
+    auto serialize_cell = [&](const auto& instances, size_t idx,
+                              const char* context,
+                              auto get_cell_fn) -> void {
+        const auto& inst = instances[idx];
         try {
-            const auto& cell = table.get_cell(row_index, col_idx);
+            const auto cell = get_cell_fn(row_index, idx);
 
             std::visit([&](const auto& value) {
                 using T = std::decay_t<decltype(value)>;
                 if constexpr (std::is_same_v<T, Decimal>) {
-                    json_data[col_inst.name()] = value.value;
+                    json_data[inst.name()] = value.value;
                 } else if constexpr (std::is_same_v<T, JsonValue>) {
-                    json_data[col_inst.name()] = value.raw_json;
+                    json_data[inst.name()] = value.raw_json;
                 } else if constexpr (std::is_same_v<T, Geometry>) {
-                    json_data[col_inst.name()] = value.wkt;
+                    json_data[inst.name()] = value.wkt;
                 } else if constexpr (std::is_same_v<T, std::u16string>) {
-                    // Convert to utf8 string
-                    json_data[col_inst.name()] = StringUtils::u16string_to_utf8(value);
+                    json_data[inst.name()] = StringUtils::u16string_to_utf8(value);
                 } else if constexpr (std::is_same_v<T, std::vector<uint8_t>>) {
-                    // Can be base64 or hex encoded, here simply convert to string
-                    json_data[col_inst.name()] = std::string(value.begin(), value.end());
+                    json_data[inst.name()] = std::string(value.begin(), value.end());
                 } else {
-                    json_data[col_inst.name()] = value;
+                    json_data[inst.name()] = value;
                 }
             }, cell);
 
         } catch (const std::exception& e) {
-            throw std::runtime_error("RowSerializer::to_json failed for column '" + col_inst.name() + "': " + e.what());
+            throw std::runtime_error(
+                std::string("RowSerializer::to_json failed for ") + context +
+                    " '" + std::string(inst.name()) + "': " + e.what()
+            );
         }
+    };
+
+    // Add data columns
+    for (size_t i = 0; i < col_instances.size(); ++i) {
+        serialize_cell(col_instances, i, "column",
+                       [&](size_t r, size_t c) -> ColumnType {
+                           return table.get_column_cell(r, c);
+                       });
+    }
+
+    // Add tag columns
+    for (size_t i = 0; i < tag_instances.size(); ++i) {
+        serialize_cell(tag_instances, i, "tag",
+                       [&](size_t r, size_t c) -> ColumnType {
+                           return table.get_tag_cell(r, c);
+                       });
     }
 
     return json_data;
 }
 
-
 void RowSerializer::to_json_inplace(
     const ColumnConfigInstanceVector& col_instances,
+    const ColumnConfigInstanceVector& tag_instances,
     const MemoryPool::TableBlock& table,
     size_t row_index,
     const std::string& tbname_key,
@@ -78,33 +97,50 @@ void RowSerializer::to_json_inplace(
         out["ts"] = table.timestamps[row_index];
     }
 
-    // Add data columns
-    for (size_t col_idx = 0; col_idx < col_instances.size(); col_idx++) {
-        const auto& col_inst = col_instances[col_idx];
+    auto serialize_cell = [&](const auto& instances, size_t idx,
+                              const char* context,
+                              auto get_cell_fn) -> void {
+        const auto& inst = instances[idx];
         try {
-            const auto& cell = table.get_cell(row_index, col_idx);
+            const auto cell = get_cell_fn(row_index, idx);
 
             std::visit([&](const auto& value) {
                 using T = std::decay_t<decltype(value)>;
                 if constexpr (std::is_same_v<T, Decimal>) {
-                    out[col_inst.name()] = value.value;
+                    out[inst.name()] = value.value;
                 } else if constexpr (std::is_same_v<T, JsonValue>) {
-                    out[col_inst.name()] = value.raw_json;
+                    out[inst.name()] = value.raw_json;
                 } else if constexpr (std::is_same_v<T, Geometry>) {
-                    out[col_inst.name()] = value.wkt;
+                    out[inst.name()] = value.wkt;
                 } else if constexpr (std::is_same_v<T, std::u16string>) {
-                    // Convert to utf8 string
-                    out[col_inst.name()] = StringUtils::u16string_to_utf8(value);
+                    out[inst.name()] = StringUtils::u16string_to_utf8(value);
                 } else if constexpr (std::is_same_v<T, std::vector<uint8_t>>) {
-                    // Can be base64 or hex encoded, here simply convert to string
-                    out[col_inst.name()] = std::string(value.begin(), value.end());
+                    out[inst.name()] = std::string(value.begin(), value.end());
                 } else {
-                    out[col_inst.name()] = value;
+                    out[inst.name()] = value;
                 }
             }, cell);
 
         } catch (const std::exception& e) {
-            throw std::runtime_error("RowSerializer::to_json_inplace failed for column '" + col_inst.name() + "': " + e.what());
+            throw std::runtime_error(
+                std::string("RowSerializer::to_json_inplace failed for ")
+                    + context + " '" + std::string(inst.name()) + "': " + e.what());
         }
+    };
+
+    // Add data columns
+    for (size_t i = 0; i < col_instances.size(); ++i) {
+        serialize_cell(col_instances, i, "column",
+                    [&](size_t r, size_t c) -> ColumnType {
+                        return table.get_column_cell(r, c);
+                    });
+    }
+
+    // Add tag columns
+    for (size_t i = 0; i < tag_instances.size(); ++i) {
+        serialize_cell(tag_instances, i, "tag",
+                    [&](size_t r, size_t c) -> ColumnType {
+                        return table.get_tag_cell(r, c);
+                    });
     }
 }

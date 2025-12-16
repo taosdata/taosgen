@@ -22,6 +22,7 @@ void test_mqtt_format_single_record_per_message() {
     config.data_format.mqtt.records_per_message = 1;
 
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
     col_instances.emplace_back(ColumnConfig{"i1", "INT"});
 
@@ -32,11 +33,11 @@ void test_mqtt_format_single_record_per_message() {
     batch.table_batches.emplace_back("table1", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 2, col_instances);
+    MemoryPool pool(1, 1, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     MqttInsertDataFormatter formatter(config.data_format);
-    FormatResult result = formatter.format(config, col_instances, block);
+    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
 
     assert(std::holds_alternative<MqttInsertData>(result));
     const auto& mqtt_data = std::get<MqttInsertData>(result);
@@ -72,6 +73,7 @@ void test_mqtt_format_multiple_records_per_message() {
     config.data_format.mqtt.records_per_message = 2;
 
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
 
     MultiBatch batch;
@@ -86,11 +88,11 @@ void test_mqtt_format_multiple_records_per_message() {
     batch.table_batches.emplace_back("table2", std::move(rows2));
     batch.update_metadata();
 
-    MemoryPool pool(1, 2, 2, col_instances);
+    MemoryPool pool(1, 2, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     MqttInsertDataFormatter formatter(config.data_format);
-    FormatResult result = formatter.format(config, col_instances, block);
+    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
 
     assert(std::holds_alternative<MqttInsertData>(result));
     const auto& mqtt_data = std::get<MqttInsertData>(result);
@@ -130,16 +132,17 @@ void test_mqtt_format_empty_batch() {
     auto config = create_base_config();
 
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
 
     MultiBatch batch;
-    MemoryPool pool(1, 1, 1, col_instances);
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
     (void)block;
     assert(block == nullptr);
 
     MqttInsertDataFormatter formatter(config.data_format);
-    FormatResult result = formatter.format(config, col_instances, block);
+    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
     (void)result;
     assert(std::holds_alternative<std::string>(result));
     assert(std::get<std::string>(result).empty());
@@ -151,6 +154,7 @@ void test_mqtt_format_insert_data_with_empty_rows() {
     auto config = create_base_config();
 
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
     col_instances.emplace_back(ColumnConfig{"i1", "INT"});
 
@@ -172,12 +176,12 @@ void test_mqtt_format_insert_data_with_empty_rows() {
 
     batch.update_metadata();
 
-    MemoryPool pool(1, 3, 2, col_instances);
+    MemoryPool pool(1, 3, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
 
     auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(config.data_format);
-    FormatResult result = formatter->format(config, col_instances, block);
+    FormatResult result = formatter->format(config, col_instances, tag_instances, block);
 
     assert(std::holds_alternative<MqttInsertData>(result));
     const auto& msg_data = std::get<MqttInsertData>(result);
@@ -201,6 +205,7 @@ void test_mqtt_format_with_compression() {
     config.data_format.mqtt.tbname_key = "";
 
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
 
     MultiBatch batch;
@@ -209,11 +214,11 @@ void test_mqtt_format_with_compression() {
     batch.table_batches.emplace_back("table1", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 1, col_instances);
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     MqttInsertDataFormatter formatter(config.data_format);
-    FormatResult result = formatter.format(config, col_instances, block);
+    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
 
     assert(std::holds_alternative<MqttInsertData>(result));
     const auto& mqtt_data = std::get<MqttInsertData>(result);

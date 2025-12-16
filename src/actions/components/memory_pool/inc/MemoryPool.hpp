@@ -40,6 +40,7 @@ public:
         size_t used_rows = 0;
         std::vector<Column> columns;
         const std::vector<ColumnConverter::ColumnHandler>* col_handlers_ptr = nullptr;
+        const std::vector<ColumnConverter::ColumnHandler>* tag_handlers_ptr = nullptr;
 
         void fill_row(size_t row_index, const RowData& row);
     };
@@ -52,17 +53,43 @@ public:
     };
 
     struct TableBlock : public TableBase {
+        struct Tags {
+            std::string table_name;
+            std::vector<TableBase::Column> columns;
+            void* data_chunk = nullptr;
+            size_t data_chunk_size = 0;
+            std::vector<TAOS_STMT2_BIND> bind_tags;
+
+            Tags() = default;
+            ~Tags();
+
+            Tags(const Tags&) = delete;
+            Tags& operator=(const Tags&) = delete;
+
+            Tags(Tags&& other) noexcept;
+            Tags& operator=(Tags&& other) noexcept;
+        };
+
         const char* table_name;
         int64_t* timestamps = nullptr;
         const CachedTableBlock* cached_table_block = nullptr;
+        const Tags* tags_ptr = nullptr;
 
         void init_from_cache(const CachedTableBlock& cached_block);
         void add_row_cached(const RowData& row);
         void add_rows_cached(const std::vector<RowData>& rows);
         void add_row(const RowData& row);
         void add_rows(const std::vector<RowData>& rows);
-        ColumnType get_cell(size_t row_index, size_t col_index) const;
-        std::string get_cell_as_string(size_t row_index, size_t col_index) const;
+
+        template <typename Cols, typename Handlers>
+        ColumnType get_cell_impl(size_t row_index, size_t col_index,
+                                 const char* context,
+                                 const Cols& cols,
+                                 const Handlers& handlers) const;
+        ColumnType get_column_cell(size_t row_index, size_t col_index) const;
+        ColumnType get_tag_cell(size_t row_index, size_t col_index) const;
+        std::string get_column_cell_as_string(size_t row_index, size_t col_index) const;
+        std::string get_tag_cell_as_string(size_t row_index, size_t col_index) const;
     };
 
     struct MemoryBlock {
@@ -71,6 +98,7 @@ public:
         int64_t end_time = std::numeric_limits<int64_t>::min();
         size_t total_rows = 0;
         size_t used_tables = 0;                                 // Actual used table count
+        size_t tag_count = 0;
         size_t col_count = 0;
         size_t cache_index = 0;
         bool in_use = false;
@@ -81,7 +109,8 @@ public:
 
         TAOS_STMT2_BINDV bindv_{};
         std::vector<const char*> tbnames_;                      // Table name pointer array
-        std::vector<TAOS_STMT2_BIND*> bind_ptrs_;               // Bind pointer array
+        std::vector<TAOS_STMT2_BIND*> bind_tags_ptrs_;          // Bind tags pointer array
+        std::vector<TAOS_STMT2_BIND*> bind_cols_ptrs_;          // Bind cols pointer array
         std::vector<std::vector<TAOS_STMT2_BIND>> bind_lists_;  // Bind data storage
         std::vector<CheckpointData> checkpoint_data_list_;      // Checkpoint info for each table
 
@@ -113,6 +142,7 @@ public:
                size_t max_tables_per_block,
                size_t max_rows_per_table,
                const ColumnConfigInstanceVector& col_instances,
+               const ColumnConfigInstanceVector& tag_instances,
                bool tables_reuse_data = false,
                size_t num_cached_blocks = 0
             );
@@ -130,6 +160,7 @@ public:
     MemoryBlock* convert_to_memory_block(MultiBatch&& batch);
 
     const std::vector<ColumnConverter::ColumnHandler>& col_handlers() const;
+    const std::vector<ColumnConverter::ColumnHandler>& tag_handlers() const;
 
     bool is_cache_mode() const;
     CacheUnit* get_cache_unit(size_t index);
@@ -137,11 +168,38 @@ public:
     bool fill_cache_unit_data(size_t cache_index, size_t table_index, const std::vector<RowData>& data_rows);
     bool is_cache_unit_prefilled(size_t cache_index) const;
 
+    MemoryPool::TableBlock::Tags* register_table_tags(const std::string& table_name, const std::vector<ColumnType>& tag_values);
+    const TableBlock::Tags* get_table_tags(const std::string& table_name) const;
+    bool has_table_tags(const std::string& table_name) const;
+
 private:
+    struct TagsManager {
+        const ColumnConfigInstanceVector& tag_instances_;
+        std::vector<ColumnConverter::ColumnHandler> tag_handlers_;
+        std::unordered_map<std::string, std::unique_ptr<TableBlock::Tags>> tags_map_;
+        mutable std::mutex tags_map_mutex_;
+
+        size_t fixed_data_size_ = 0;
+        size_t var_meta_size_ = 0;
+        size_t var_data_size_ = 0;
+        size_t common_meta_size_ = 0;
+        size_t total_size_ = 0;
+
+        TagsManager(const ColumnConfigInstanceVector& tag_instances);
+
+        void calculate_memory_size();
+        void init_table_tags(TableBlock::Tags& tags, const std::vector<ColumnType>& tag_values);
+        MemoryPool::TableBlock::Tags* register_tags(const std::string& table_name, const std::vector<ColumnType>& tag_values);
+        const TableBlock::Tags* get_tags(const std::string& table_name) const;
+        bool has_tags(const std::string& table_name) const;
+    };
+
     size_t max_tables_per_block_;
     size_t max_rows_per_table_;
     const ColumnConfigInstanceVector& col_instances_;
+    const ColumnConfigInstanceVector& tag_instances_;
     std::vector<ColumnConverter::ColumnHandler> col_handlers_;
+    std::vector<ColumnConverter::ColumnHandler> tag_handlers_;
     std::vector<MemoryBlock> blocks_;
     moodycamel::BlockingConcurrentQueue<MemoryBlock*> free_queue_;
 
@@ -157,6 +215,8 @@ private:
     size_t var_meta_size_ = 0;
     size_t var_data_size_ = 0;
     size_t total_cache_size_ = 0;
+
+    std::unique_ptr<TagsManager> tags_manager_;
 
     void init_cache_units();
     void init_normal_blocks();
