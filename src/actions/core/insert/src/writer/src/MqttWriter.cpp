@@ -5,11 +5,8 @@
 #include <thread>
 #include <iostream>
 
-MqttWriter::MqttWriter(const InsertDataConfig& config,
-                       const ColumnConfigInstanceVector& col_instances,
-                       const ColumnConfigInstanceVector& tag_instances,
-                       size_t no)
-    : BaseWriter(config, col_instances, tag_instances) {
+MqttWriter::MqttWriter(const InsertDataConfig& config, size_t no)
+    : BaseWriter(config) {
     client_ = std::make_unique<MqttClient>(config.mqtt, config.data_format.mqtt, no);
 }
 

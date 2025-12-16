@@ -83,17 +83,13 @@ ColumnConfigInstanceVector create_col_instances() {
 
 void test_constructor() {
     auto config = create_test_config();
-    auto col_instances = create_col_instances();
-    auto tag_instances = ColumnConfigInstanceVector{};
-    KafkaWriter writer(config, col_instances, tag_instances);
+    KafkaWriter writer(config);
     std::cout << "test_constructor passed." << std::endl;
 }
 
 void test_connection() {
     auto config = create_test_config();
-    auto col_instances = create_col_instances();
-    auto tag_instances = ColumnConfigInstanceVector{};
-    KafkaWriter writer(config, col_instances, tag_instances);
+    KafkaWriter writer(config);
 
     // Replace with mock
     auto mock = std::make_unique<MockKafkaClient>();
@@ -120,9 +116,7 @@ void test_connection() {
 
 void test_connection_failure() {
     auto config = create_test_config();
-    auto col_instances = create_col_instances();
-    auto tag_instances = ColumnConfigInstanceVector{};
-    KafkaWriter writer(config, col_instances, tag_instances);
+    KafkaWriter writer(config);
 
     // Replace with mock
     auto mock = std::make_unique<MockKafkaClient>();
@@ -143,9 +137,7 @@ void test_connection_failure() {
 
 void test_select_db_and_prepare() {
     auto config = create_test_config();
-    auto col_instances = create_col_instances();
-    auto tag_instances = ColumnConfigInstanceVector{};
-    KafkaWriter writer(config, col_instances, tag_instances);
+    KafkaWriter writer(config);
 
     // Replace with mock
     auto kafka_client = std::make_unique<KafkaClient>(config.kafka, config.data_format.kafka);
@@ -179,7 +171,7 @@ void test_write_operations() {
     auto config = create_test_config();
     auto col_instances = create_col_instances();
     auto tag_instances = ColumnConfigInstanceVector{};
-    KafkaWriter writer(config, col_instances, tag_instances);
+    KafkaWriter writer(config);
 
     // Replace with mock
     auto mock = std::make_unique<MockKafkaClient>();
@@ -242,7 +234,7 @@ void test_write_with_retry() {
     config.failure_handling.max_retries = 1;
     auto col_instances = create_col_instances();
     auto tag_instances = ColumnConfigInstanceVector{};
-    KafkaWriter writer(config, col_instances, tag_instances);
+    KafkaWriter writer(config);
 
     // Replace with mock
     auto mock = std::make_unique<MockKafkaClient>();
@@ -284,7 +276,7 @@ void test_write_without_connection() {
     auto config = create_test_config();
     auto col_instances = create_col_instances();
     auto tag_instances = ColumnConfigInstanceVector{};
-    KafkaWriter writer(config, col_instances, tag_instances);
+    KafkaWriter writer(config);
 
     // Replace with mock
     auto kafka_client = std::make_unique<KafkaClient>(config.kafka, config.data_format.kafka);

@@ -4,10 +4,7 @@
 
 class MqttWriter : public BaseWriter {
 public:
-    explicit MqttWriter(const InsertDataConfig& config,
-                        const ColumnConfigInstanceVector& col_instances,
-                        const ColumnConfigInstanceVector& tag_instances,
-                        size_t no = 0);
+    explicit MqttWriter(const InsertDataConfig& config, size_t no = 0);
     ~MqttWriter() override;
 
     bool connect(std::optional<ConnectorSource>& conn_source) override;

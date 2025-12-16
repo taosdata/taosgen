@@ -36,18 +36,16 @@ InsertDataConfig create_test_config() {
 void test_constructor() {
     // Test valid timestamp precision
     auto config = create_test_config();
-    auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.get_schema());
-    auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.get_schema());
-    TDengineWriter writer(config, col_instances, tag_instances);
+    TDengineWriter writer(config);
 
     // Test empty timestamp precision (should default to "ms")
     config.timestamp_precision = "";
-    TDengineWriter writer_empty_ts(config, col_instances, tag_instances);
+    TDengineWriter writer_empty_ts(config);
 
     // Test invalid timestamp precision
     config.timestamp_precision = "invalid";
     try {
-        TDengineWriter writer_invalid(config, col_instances, tag_instances);
+        TDengineWriter writer_invalid(config);
         assert(false); // Should not reach here
     } catch (const std::invalid_argument& e) {
         assert(std::string(e.what()) == "Invalid timestamp precision: invalid");
@@ -58,11 +56,9 @@ void test_constructor() {
 
 void test_connection() {
     auto config = create_test_config();
-    auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.get_schema());
-    auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.get_schema());
 
     std::optional<ConnectorSource> conn_src;
-    TDengineWriter writer(config, col_instances, tag_instances);
+    TDengineWriter writer(config);
 
     // Test successful connection
     bool connected = writer.connect(conn_src);
@@ -75,7 +71,7 @@ void test_connection() {
 
     // Test connection with invalid config
     config.tdengine.host = "invalid_host";
-    TDengineWriter invalid_writer(config, col_instances, tag_instances);
+    TDengineWriter invalid_writer(config);
     connected = invalid_writer.connect(conn_src);
     assert(!connected);
 
@@ -84,9 +80,7 @@ void test_connection() {
 
 void test_select_db_and_prepare() {
     auto config = create_test_config();
-    auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.get_schema());
-    auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.get_schema());
-    TDengineWriter writer(config, col_instances, tag_instances);
+    TDengineWriter writer(config);
 
     // Not connected, should throw
     try {
@@ -127,7 +121,7 @@ void test_write_operations() {
     auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.get_schema());
 
     std::optional<ConnectorSource> conn_src;
-    TDengineWriter writer(config, col_instances, tag_instances);
+    TDengineWriter writer(config);
     auto connected = writer.connect(conn_src);
     (void)connected;
     assert(connected);
@@ -201,7 +195,7 @@ void test_write_without_connection() {
     auto config = create_test_config();
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.get_schema());
     auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.get_schema());
-    TDengineWriter writer(config, col_instances, tag_instances);
+    TDengineWriter writer(config);
 
     MultiBatch batch;
     std::vector<RowData> rows;
@@ -231,7 +225,7 @@ void test_retry_mechanism() {
     config.failure_handling.on_failure = "exit";
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.get_schema());
     auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.get_schema());
-    TDengineWriter writer(config, col_instances, tag_instances);
+    TDengineWriter writer(config);
 
     std::optional<ConnectorSource> conn_src;
     auto connected = writer.connect(conn_src);
@@ -256,9 +250,7 @@ void test_retry_mechanism() {
 
 void test_metrics_and_time() {
     auto config = create_test_config();
-    auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.get_schema());
-    auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.get_schema());
-    TDengineWriter writer(config, col_instances, tag_instances);
+    TDengineWriter writer(config);
 
     assert(writer.get_timestamp_precision() == "ms");
     const ActionMetrics& play = writer.get_play_metrics();
