@@ -249,6 +249,54 @@ void test_mqtt_format_factory_creation() {
     std::cout << "test_mqtt_format_factory_creation passed!" << std::endl;
 }
 
+void test_mqtt_format_with_tags() {
+    InsertDataConfig config = create_base_config();
+    config.data_format.mqtt.records_per_message = 1;
+    config.data_format.mqtt.topic = "telemetry/{region}/{table}";
+
+    ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
+    col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
+
+    tag_instances.emplace_back(ColumnConfig{"region", "VARCHAR(10)"});
+    tag_instances.emplace_back(ColumnConfig{"sensor_id", "INT"});
+
+    MultiBatch batch;
+    std::vector<RowData> rows;
+    rows.push_back({1500000000000, {3.14f}});
+    batch.table_batches.emplace_back("table1", std::move(rows));
+    batch.update_metadata();
+
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
+    auto* block = pool.convert_to_memory_block(std::move(batch));
+
+    // Manually register tags
+    std::vector<ColumnType> tag_values = {std::string("us-west"), int32_t(1001)};
+    block->tables[0].tags_ptr = pool.register_table_tags("table1", tag_values);
+
+    MqttInsertDataFormatter formatter(config.data_format);
+    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+
+    assert(std::holds_alternative<MqttInsertData>(result));
+    const auto& mqtt_data = std::get<MqttInsertData>(result);
+    const auto& messages = mqtt_data.data;
+
+    assert(messages.size() == 1);
+
+    // Verify Topic
+    assert(messages[0].first == "telemetry/us-west/table1");
+
+    // Verify Payload
+    nlohmann::json payload = nlohmann::json::parse(messages[0].second);
+    assert(payload["ts"] == 1500000000000);
+    assert(payload["f1"] == 3.14f);
+    assert(payload["region"] == "us-west");
+    assert(payload["sensor_id"] == 1001);
+    assert(payload["table_name"] == "table1");
+
+    std::cout << "test_mqtt_format_with_tags passed!" << std::endl;
+}
+
 int main() {
     test_mqtt_format_single_record_per_message();
     test_mqtt_format_multiple_records_per_message();
@@ -256,6 +304,7 @@ int main() {
     test_mqtt_format_insert_data_with_empty_rows();
     test_mqtt_format_with_compression();
     test_mqtt_format_factory_creation();
+    test_mqtt_format_with_tags();
     std::cout << "All tests passed!" << std::endl;
     return 0;
 }
