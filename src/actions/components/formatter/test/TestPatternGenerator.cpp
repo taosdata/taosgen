@@ -78,6 +78,42 @@ void test_generate_with_columns() {
     std::cout << "test_generate_with_columns passed." << std::endl;
 }
 
+void test_generate_with_tags() {
+    ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
+
+    // Define columns
+    col_instances.emplace_back(ColumnConfig{"temp", "FLOAT"});
+
+    // Define tags
+    tag_instances.emplace_back(ColumnConfig{"region", "VARCHAR(10)"});
+    tag_instances.emplace_back(ColumnConfig{"sensor_id", "INT"});
+
+    TestablePatternGenerator pg("region/{region}/sensor/{sensor_id}/val/{temp}", col_instances, tag_instances);
+
+    MultiBatch batch;
+    std::vector<RowData> rows;
+    rows.push_back({1500000000000, {25.5f}});
+    batch.table_batches.emplace_back("t1", std::move(rows));
+    batch.update_metadata();
+
+    MemoryPool pool(1, 1, 2, col_instances, tag_instances);
+    auto* block = pool.convert_to_memory_block(std::move(batch));
+
+    // Register and assign tags to the table block
+    std::vector<ColumnType> tag_values = {std::string("us-west"), int32_t(1001)};
+    block->tables[0].tags_ptr = pool.register_table_tags("t1", tag_values);
+
+    const auto& tb = block->tables[0];
+
+    std::string result = pg.generate(tb, 0);
+    assert(result.find("region/us-west/sensor/1001/val/") != std::string::npos);
+    assert(result.find("25.5") != std::string::npos);
+    (void)result;
+
+    std::cout << "test_generate_with_tags passed." << std::endl;
+}
+
 void test_generate_special_placeholders() {
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -129,6 +165,7 @@ void test_generate_col_not_found() {
 int main() {
     test_parse_pattern();
     test_generate_with_columns();
+    test_generate_with_tags();
     test_generate_special_placeholders();
     test_generate_col_not_found();
     std::cout << "All PatternGenerator tests passed." << std::endl;
