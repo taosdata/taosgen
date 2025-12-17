@@ -158,11 +158,60 @@ void test_out_of_range_exception() {
     std::cout << "test_out_of_range_exception passed." << std::endl;
 }
 
+void test_serialization_with_tags() {
+    ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
+
+    // Define columns
+    col_instances.emplace_back(ColumnConfig{"temp", "FLOAT"});
+
+    // Define tags
+    tag_instances.emplace_back(ColumnConfig{"region", "VARCHAR(10)"});
+    tag_instances.emplace_back(ColumnConfig{"sensor_id", "INT"});
+
+    MultiBatch batch;
+    std::vector<RowData> rows;
+    rows.push_back({1609459200000, {25.5f}});
+    batch.table_batches.emplace_back("weather_sensor", std::move(rows));
+    batch.update_metadata();
+
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
+    auto* block = pool.convert_to_memory_block(std::move(batch));
+
+    // Register and assign tags to the table block
+    std::vector<ColumnType> tag_values = {std::string("us-west"), int32_t(1001)};
+    block->tables[0].tags_ptr = pool.register_table_tags("weather_sensor", tag_values);
+
+    const auto& tb = block->tables[0];
+
+    // Test to_json
+    nlohmann::ordered_json result = RowSerializer::to_json(col_instances, tag_instances, tb, 0, "tbname");
+
+    assert(result["tbname"] == "weather_sensor");
+    assert(result["ts"] == 1609459200000);
+    assert(result["temp"] == 25.5f);
+    assert(result["region"] == "us-west");
+    assert(result["sensor_id"] == 1001);
+
+    // Test to_json_inplace
+    nlohmann::ordered_json result_inplace;
+    RowSerializer::to_json_inplace(col_instances, tag_instances, tb, 0, "tbname", result_inplace);
+
+    assert(result_inplace["tbname"] == "weather_sensor");
+    assert(result_inplace["ts"] == 1609459200000);
+    assert(result_inplace["temp"] == 25.5f);
+    assert(result_inplace["region"] == "us-west");
+    assert(result_inplace["sensor_id"] == 1001);
+
+    std::cout << "test_serialization_with_tags passed." << std::endl;
+}
+
 int main() {
     test_basic_serialization();
     test_without_tbname_key();
     test_boolean_type();
     test_out_of_range_exception();
+    test_serialization_with_tags();
     std::cout << "All RowSerializer tests passed." << std::endl;
     return 0;
 }
