@@ -436,7 +436,13 @@ void ParameterContext::parse_insert_action(Job& job, Step& step, std::string tar
         }
     }
 
-    if (!insert_config.data_format.support_tags) {
+    if (insert_config.data_format.support_tags) {
+        if (insert_config.schema.tags_cfg.source_type != "generator") {
+            throw std::runtime_error("Data format '" + insert_config.data_format.format_type +
+                                     "' does not support tags from source type '" +
+                                     insert_config.schema.tags_cfg.source_type + "'.");
+        }
+    } else {
         insert_config.schema.tags.clear();
         insert_config.schema.tags_cfg.clear_schema();
     }
