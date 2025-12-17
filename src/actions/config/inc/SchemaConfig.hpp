@@ -67,12 +67,12 @@ struct SchemaConfig {
         if (generation.data_cache.enabled) {
             if (from_csv.columns.enabled) {
                 if (from_csv.columns.tbname_index >= 0) {
-                    LogUtils::warn("data_cache.enabled is set to false because from_csv.columns.tbname_index in effect");
+                    LogUtils::warn("Configuration 'data_cache.enabled' is set to 'false' because 'from_csv.columns.tbname_index' in effect");
                     generation.data_cache.enabled = false;
                 }
 
                 if (generation.data_cache.enabled && !generation.tables_reuse_data) {
-                    LogUtils::warn("data_cache.enabled is set to false because tables_reuse_data is false");
+                    LogUtils::warn("Configuration 'data_cache.enabled' is set to 'false' because 'tables_reuse_data' is false");
                     generation.data_cache.enabled = false;
                 }
             }
@@ -81,7 +81,7 @@ struct SchemaConfig {
         if (generation.tables_reuse_data) {
             if (from_csv.columns.enabled) {
                 if (from_csv.columns.tbname_index >= 0) {
-                    LogUtils::warn("tables_reuse_data is set to false because from_csv.columns.tbname_index in effect");
+                    LogUtils::warn("Configuration 'tables_reuse_data' is set to 'false' because 'from_csv.columns.tbname_index' in effect");
                     generation.tables_reuse_data = false;
                 }
             }

@@ -129,17 +129,16 @@ void InsertDataAction::execute() {
         const size_t num_cached_batches = config_.schema.generation.data_cache.enabled ?
             config_.schema.generation.data_cache.num_cached_batches : 0;
 
-
         size_t num_blocks = queue_capacity * consumer_thread_count;
         size_t max_tables_per_block = std::min(name_manager.chunk_size(), rows_per_request);
         size_t max_rows_per_table = std::min(static_cast<size_t>(rows_per_table), rows_per_request);
 
         if (config_.schema.generation.interlace_mode.enabled) {
-            max_tables_per_block = (rows_per_request + interlace_rows - 1) / interlace_rows;
+            max_tables_per_block = std::min(max_tables_per_block, (rows_per_request + interlace_rows - 1) / interlace_rows);
             max_rows_per_table = std::min(max_rows_per_table, interlace_rows);
 
         } else {
-            max_tables_per_block = (rows_per_request + rows_per_table - 1) / rows_per_table;
+            max_tables_per_block = std::min(max_tables_per_block, (rows_per_request + rows_per_table - 1) / rows_per_table);
         }
 
         auto pool = std::make_unique<MemoryPool>(
