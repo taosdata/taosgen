@@ -269,8 +269,8 @@ void test_format_insert_data_multiple_tables_with_tags() {
     assert(std::holds_alternative<SqlInsertData>(result));
     std::string sql = std::get<SqlInsertData>(result).data.str();
 
-    std::string part1 = "`test_db`.`t1` USING `test_db`.`sensors` TAGS (101) VALUES (1600000000000,36.5)";
-    std::string part2 = "`test_db`.`t2` USING `test_db`.`sensors` TAGS (102) VALUES (1600000000000,37.2)";
+    std::string part1 = "`t1` USING `sensors` TAGS (101) VALUES (1600000000000,36.5)";
+    std::string part2 = "`t2` USING `sensors` TAGS (102) VALUES (1600000000000,37.2)";
 
     assert(sql.find("INSERT INTO") == 0);
     assert(sql.find(part1) != std::string::npos);
