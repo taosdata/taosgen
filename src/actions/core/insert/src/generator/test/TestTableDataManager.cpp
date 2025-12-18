@@ -336,6 +336,9 @@ void test_data_generation_with_tags() {
     std::string tag2_val = std::get<std::string>(tag2_cell);
     assert(tag2_val.length() > 0);
 
+    (void)tag1_val;
+    (void)tag2_val;
+
     block->release();
     std::cout << "test_data_generation_with_tags passed.\n";
 }
@@ -367,6 +370,7 @@ void test_tags_disabled_by_config() {
 
     const auto& table = block->tables[0];
     assert(table.tags_ptr == nullptr);
+    (void)table;
 
     block->release();
     std::cout << "test_tags_disabled_by_config passed.\n";

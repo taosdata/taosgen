@@ -188,7 +188,6 @@ jobs:
         with:
           target: tdengine
           format: sql
-          auto_create_table: true
           concurrency: 8
           time_interval:
             enabled: true
@@ -295,7 +294,7 @@ jobs:
     assert(insert_config.tdengine.database == "testdb");
     assert(insert_config.schema.name == "points");
     assert(insert_config.schema.columns_cfg.get_schema().size() > 0);
-    assert(insert_config.schema.tags_cfg.get_schema().size() > 0);
+    assert(insert_config.schema.tags_cfg.get_schema().size() == 0);
     assert(insert_config.data_format.format_type == "sql");
 
     assert(insert_config.schema.generation.interlace_mode.enabled == true);

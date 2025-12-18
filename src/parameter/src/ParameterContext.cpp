@@ -449,7 +449,7 @@ void ParameterContext::parse_insert_action(Job& job, Step& step, std::string tar
             } else {
                 throw std::runtime_error("Configuration 'data_format." + insert_config.data_format.format_type +
                                          "' does not support tags from source type '" +
-                                         insert_config.schema.tags_cfg.source_type + "'.");
+                                         insert_config.schema.tags_cfg.source_type + "'");
             }
         }
     } else {

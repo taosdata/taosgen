@@ -572,6 +572,10 @@ void test_memory_pool_tags_management() {
     assert(tags_invalid == nullptr);
     assert(!pool.has_table_tags("t2"));
 
+    (void)tags;
+    (void)tags_dup;
+    (void)tags_invalid;
+
     std::cout << "test_memory_pool_tags_management passed." << std::endl;
 }
 
@@ -594,6 +598,7 @@ void test_memory_pool_tags_edge_cases() {
         assert(std::string(e.what()).find("No tags available") != std::string::npos);
     }
     assert(caught);
+    (void)caught;
 
     // Case 2: Assign tags, then access out of range
     std::vector<ColumnType> t1_tags = {int32_t(100)};
@@ -660,6 +665,9 @@ void test_memory_pool_bind_verification() {
     int32_t* col_val_ptr = static_cast<int32_t*>(const_cast<void*>(t1_col_binds[1].buffer));
     assert(col_val_ptr != nullptr);
     assert(col_val_ptr[0] == 1);
+
+    (void)tag_val_ptr;
+    (void)col_val_ptr;
 
     pool.release_block(block);
     std::cout << "test_memory_pool_bind_verification passed." << std::endl;

@@ -314,6 +314,8 @@ void test_kafka_format_with_tags() {
 
         std::string expected_payload = "table1,region=\"us-west\",sensor_id=\"1001\" f1=3.14 1500000000000";
         assert(messages[0].second == expected_payload);
+        (void)messages;
+        (void)expected_payload;
     }
 
     std::cout << "test_kafka_format_with_tags passed!" << std::endl;
