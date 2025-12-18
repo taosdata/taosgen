@@ -64,7 +64,7 @@ void test_format_insert_data_single_table() {
 
     assert(std::holds_alternative<SqlInsertData>(result));
     assert(std::get<SqlInsertData>(result).data.str() ==
-           "INSERT INTO `test_db`.`table1` VALUES "
+           "INSERT INTO `table1` VALUES "
            "(1500000000000,3.14,42,'value1')"
            "(1500000000001,2.71,43,'value2');");
     std::cout << "test_format_insert_data_single_table passed!" << std::endl;
@@ -106,10 +106,10 @@ void test_format_insert_data_multiple_tables() {
 
     assert(std::holds_alternative<SqlInsertData>(result));
     assert(std::get<SqlInsertData>(result).data.str() ==
-           "INSERT INTO `test_db`.`table1` VALUES "
+           "INSERT INTO `table1` VALUES "
            "(1500000000000,3.14,42)"
            "(1500000000001,2.71,43) "
-           "`test_db`.`table2` VALUES "
+           "`table2` VALUES "
            "(1500000000002,1.23,44)"
            "(1500000000003,4.56,45);");
     std::cout << "test_format_insert_data_multiple_tables passed!" << std::endl;
@@ -169,7 +169,7 @@ void test_format_insert_data_different_types() {
 
     assert(std::holds_alternative<SqlInsertData>(result));
     assert(std::get<SqlInsertData>(result).data.str() ==
-           "INSERT INTO `test_db`.`table1` VALUES "
+           "INSERT INTO `table1` VALUES "
            "(1500000000000,3.14,true,'测试','{\"key\":\"value\"}');");
     std::cout << "test_format_insert_data_different_types passed!" << std::endl;
 }
@@ -213,7 +213,7 @@ void test_format_insert_data_auto_create_table() {
     assert(std::holds_alternative<SqlInsertData>(result));
     std::string sql = std::get<SqlInsertData>(result).data.str();
 
-    std::string expected_prefix = "INSERT INTO `test_db`.`d1001` USING `test_db`.`meters` TAGS (1,'北京') VALUES ";
+    std::string expected_prefix = "INSERT INTO `d1001` USING `meters` TAGS (1,'北京') VALUES ";
     std::string expected_values = "(1600000000000,10.5,220)(1600000001000,11.2,221);";
 
     assert(sql.find(expected_prefix) != std::string::npos);

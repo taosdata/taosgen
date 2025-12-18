@@ -47,7 +47,7 @@ void test_stmt_prepare_supertable_websocket() {
     StmtInsertDataFormatter formatter(format);
     std::string sql = formatter.prepare(config, col_instances, tag_instances);
 
-    std::string expected = "INSERT INTO `test_db`.`test_stb`(tbname,ts,f1,i1) VALUES(?,?,?,?)";
+    std::string expected = "INSERT INTO `test_stb`(tbname,ts,f1,i1) VALUES(?,?,?,?)";
     assert(sql == expected);
     std::cout << "test_stmt_prepare_supertable_websocket passed!" << std::endl;
 }
@@ -72,7 +72,7 @@ void test_stmt_prepare_auto_create_table() {
     StmtInsertDataFormatter formatter(format);
     std::string sql = formatter.prepare(config, col_instances, tag_instances);
 
-    std::string expected = "INSERT INTO ? USING `test_db`.`test_stb` TAGS (?,?) VALUES(?,?)";
+    std::string expected = "INSERT INTO ? USING `test_stb` TAGS (?,?) VALUES(?,?)";
     assert(sql == expected);
     std::cout << "test_stmt_prepare_auto_create_table passed!" << std::endl;
 }
