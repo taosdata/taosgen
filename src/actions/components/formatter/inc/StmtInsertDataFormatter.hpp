@@ -40,7 +40,6 @@ public:
         }
         else if (mode_ == InsertMode::SuperTable) {
             result << "INSERT INTO `"
-                << config.tdengine.database << "`.`"
                 << config.schema.name << "`(tbname,ts";
 
             // Add column names
@@ -58,7 +57,6 @@ public:
         }
         else if (mode_ == InsertMode::AutoCreateTable) {
             result << "INSERT INTO ? USING `"
-                << config.tdengine.database << "`.`"
                 << config.schema.name << "` TAGS (";
 
             // Add question marks for each tag column

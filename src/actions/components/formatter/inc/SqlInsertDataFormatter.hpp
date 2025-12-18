@@ -137,14 +137,10 @@ public:
             if (table_block.used_rows == 0) continue;
 
             // Table name
-            fmt::format_to(out, " `{}`.`{}`",
-                           config.tdengine.database,
-                           table_block.table_name);
+            fmt::format_to(out, " `{}`", table_block.table_name);
 
             if (format_.sql.auto_create_table && table_block.tags_ptr) {
-                fmt::format_to(out, " USING `{}`.`{}` TAGS (",
-                               config.tdengine.database,
-                               config.schema.name);
+                fmt::format_to(out, " USING `{}` TAGS (", config.schema.name);
 
                 for (size_t tag_idx = 0; tag_idx < tag_instances.size(); ++tag_idx) {
                     if (tag_idx > 0) fmt::format_to(out, ",");
