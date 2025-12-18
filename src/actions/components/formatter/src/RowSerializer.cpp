@@ -67,8 +67,8 @@ nlohmann::ordered_json RowSerializer::to_json(
     // Add tag columns
     for (size_t i = 0; i < tag_instances.size(); ++i) {
         serialize_cell(tag_instances, i, "tag",
-                       [&](size_t r, size_t c) -> ColumnType {
-                           return table.get_tag_cell(r, c);
+                       [&](size_t, size_t c) -> ColumnType {
+                           return table.get_tag_cell(0, c);
                        });
     }
 
@@ -139,8 +139,8 @@ void RowSerializer::to_json_inplace(
     // Add tag columns
     for (size_t i = 0; i < tag_instances.size(); ++i) {
         serialize_cell(tag_instances, i, "tag",
-                    [&](size_t r, size_t c) -> ColumnType {
-                        return table.get_tag_cell(r, c);
+                    [&](size_t, size_t c) -> ColumnType {
+                        return table.get_tag_cell(0, c);
                     });
     }
 }

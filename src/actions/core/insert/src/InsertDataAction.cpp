@@ -124,14 +124,14 @@ void InsertDataAction::execute() {
         const bool shared_queue = config_.shared_queue;
         const size_t rows_per_request = config_.schema.generation.rows_per_batch;
         const size_t interlace_rows = config_.schema.generation.interlace_mode.rows;
-        const int64_t rows_per_table = config_.schema.generation.rows_per_table;
+        const size_t rows_per_table = static_cast<size_t>(config_.schema.generation.rows_per_table);
         const bool tables_reuse_data = config_.schema.generation.tables_reuse_data;
         const size_t num_cached_batches = config_.schema.generation.data_cache.enabled ?
             config_.schema.generation.data_cache.num_cached_batches : 0;
 
         size_t num_blocks = queue_capacity * consumer_thread_count;
         size_t max_tables_per_block = std::min(name_manager.chunk_size(), rows_per_request);
-        size_t max_rows_per_table = std::min(static_cast<size_t>(rows_per_table), rows_per_request);
+        size_t max_rows_per_table = std::min(rows_per_table, rows_per_request);
 
         if (config_.schema.generation.interlace_mode.enabled) {
             max_tables_per_block = std::min(max_tables_per_block, (rows_per_request + interlace_rows - 1) / interlace_rows);

@@ -140,7 +140,7 @@ KafkaInsertData KafkaInsertDataFormatter::format_influx(const ColumnConfigInstan
             for (size_t tag_idx = 0; tag_idx < tag_instances.size(); ++tag_idx) {
                 fmt::format_to(std::back_inserter(line_buffer), ",{}=\"{}\"",
                                tag_instances[tag_idx].name(),
-                               table_block.get_tag_cell(row_idx, tag_idx));
+                               table_block.get_tag_cell(0, tag_idx));
             }
 
             // 3. Space separator
