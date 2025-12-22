@@ -83,15 +83,13 @@ ColumnConfigInstanceVector create_col_instances() {
 
 void test_constructor() {
     auto config = create_test_config();
-    auto col_instances = create_col_instances();
-    KafkaWriter writer(config, col_instances);
+    KafkaWriter writer(config);
     std::cout << "test_constructor passed." << std::endl;
 }
 
 void test_connection() {
     auto config = create_test_config();
-    auto col_instances = create_col_instances();
-    KafkaWriter writer(config, col_instances);
+    KafkaWriter writer(config);
 
     // Replace with mock
     auto mock = std::make_unique<MockKafkaClient>();
@@ -118,8 +116,7 @@ void test_connection() {
 
 void test_connection_failure() {
     auto config = create_test_config();
-    auto col_instances = create_col_instances();
-    KafkaWriter writer(config, col_instances);
+    KafkaWriter writer(config);
 
     // Replace with mock
     auto mock = std::make_unique<MockKafkaClient>();
@@ -140,8 +137,7 @@ void test_connection_failure() {
 
 void test_select_db_and_prepare() {
     auto config = create_test_config();
-    auto col_instances = create_col_instances();
-    KafkaWriter writer(config, col_instances);
+    KafkaWriter writer(config);
 
     // Replace with mock
     auto kafka_client = std::make_unique<KafkaClient>(config.kafka, config.data_format.kafka);
@@ -174,7 +170,8 @@ void test_select_db_and_prepare() {
 void test_write_operations() {
     auto config = create_test_config();
     auto col_instances = create_col_instances();
-    KafkaWriter writer(config, col_instances);
+    auto tag_instances = ColumnConfigInstanceVector{};
+    KafkaWriter writer(config);
 
     // Replace with mock
     auto mock = std::make_unique<MockKafkaClient>();
@@ -196,12 +193,12 @@ void test_write_operations() {
         batch.table_batches.emplace_back("tb1", std::move(rows));
         batch.update_metadata();
 
-        MemoryPool pool(1, 1, 1, col_instances);
+        MemoryPool pool(1, 1, 1, col_instances, tag_instances);
         auto* block = pool.convert_to_memory_block(std::move(batch));
 
         KafkaMessageBatch msg_batch;
         msg_batch.emplace_back("d01", R"({"device_id":"d01","factory_id":"f01"})");
-        KafkaInsertData msg(block, col_instances, std::move(msg_batch));
+        KafkaInsertData msg(block, col_instances, tag_instances, std::move(msg_batch));
 
         writer.write(msg);
         (void)mock_ptr;
@@ -217,9 +214,9 @@ void test_write_operations() {
         batch.table_batches.emplace_back("tb2", std::move(rows));
         batch.update_metadata();
 
-        MemoryPool pool(1, 1, 1, col_instances);
+        MemoryPool pool(1, 1, 1, col_instances, tag_instances);
         auto* block = pool.convert_to_memory_block(std::move(batch));
-        BaseInsertData invalid_data(static_cast<BaseInsertData::DataType>(999), block, col_instances);
+        BaseInsertData invalid_data(static_cast<BaseInsertData::DataType>(999), block, col_instances, tag_instances);
 
         try {
             writer.write(invalid_data);
@@ -236,7 +233,8 @@ void test_write_with_retry() {
     auto config = create_test_config();
     config.failure_handling.max_retries = 1;
     auto col_instances = create_col_instances();
-    KafkaWriter writer(config, col_instances);
+    auto tag_instances = ColumnConfigInstanceVector{};
+    KafkaWriter writer(config);
 
     // Replace with mock
     auto mock = std::make_unique<MockKafkaClient>();
@@ -257,12 +255,12 @@ void test_write_with_retry() {
     batch.table_batches.emplace_back("tb1", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 1, col_instances);
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     KafkaMessageBatch msg_batch;
     msg_batch.emplace_back("d01", R"({"device_id":"d01","factory_id":"f01"})");
-    KafkaInsertData msg(block, col_instances, std::move(msg_batch));
+    KafkaInsertData msg(block, col_instances, tag_instances, std::move(msg_batch));
 
     assert(writer.write(msg));
     assert(mock_ptr->produce_count == 2);           // Called twice: 1 fail + 1 success
@@ -277,7 +275,8 @@ void test_write_with_retry() {
 void test_write_without_connection() {
     auto config = create_test_config();
     auto col_instances = create_col_instances();
-    KafkaWriter writer(config, col_instances);
+    auto tag_instances = ColumnConfigInstanceVector{};
+    KafkaWriter writer(config);
 
     // Replace with mock
     auto kafka_client = std::make_unique<KafkaClient>(config.kafka, config.data_format.kafka);
@@ -291,9 +290,9 @@ void test_write_without_connection() {
     batch.table_batches.emplace_back("d2", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 2, col_instances);
+    MemoryPool pool(1, 1, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
-    KafkaInsertData data(block, col_instances, {});
+    KafkaInsertData data(block, col_instances, tag_instances, {});
 
     try {
         writer.write(data);

@@ -25,7 +25,9 @@ protected:
 
     static std::vector<Token> parse_pattern(const std::string& pattern);
     std::string get_value_as_string(const std::string& key, const MemoryPool::TableBlock& data, size_t row_index) const;
+    void build_mapping(const ColumnConfigInstanceVector& col_instances, const ColumnConfigInstanceVector& tag_instances);
 
     std::vector<Token> tokens_;
     std::unordered_map<std::string, size_t> col_index_map_;
+    std::unordered_map<std::string, size_t> tag_index_map_;
 };

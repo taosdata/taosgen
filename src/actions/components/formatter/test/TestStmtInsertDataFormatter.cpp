@@ -3,6 +3,80 @@
 #include "FormatterRegistrar.hpp"
 #include "StmtInsertDataFormatter.hpp"
 
+void test_stmt_prepare_subtable() {
+    DataFormat format;
+    format.format_type = "stmt";
+    format.stmt.version = "v2";
+    format.stmt.auto_create_table = false;
+
+    InsertDataConfig config;
+    config.tdengine.database = "test_db";
+    config.tdengine.protocol_type = TDengineConfig::ProtocolType::Native;
+
+    ColumnConfigInstanceVector col_instances;
+    col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
+    col_instances.emplace_back(ColumnConfig{"i1", "INT"});
+
+    ColumnConfigInstanceVector tag_instances;
+
+    StmtInsertDataFormatter formatter(format);
+    std::string sql = formatter.prepare(config, col_instances, tag_instances);
+
+    std::string expected = "INSERT INTO ? VALUES(?,?,?)";
+    assert(sql == expected);
+    std::cout << "test_stmt_prepare_subtable passed!" << std::endl;
+}
+
+void test_stmt_prepare_supertable_websocket() {
+    DataFormat format;
+    format.format_type = "stmt";
+    format.stmt.version = "v2";
+    format.stmt.auto_create_table = false;
+
+    InsertDataConfig config;
+    config.tdengine.database = "test_db";
+    config.schema.name = "test_stb";
+    config.tdengine.protocol_type = TDengineConfig::ProtocolType::WebSocket;
+
+    ColumnConfigInstanceVector col_instances;
+    col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
+    col_instances.emplace_back(ColumnConfig{"i1", "INT"});
+
+    ColumnConfigInstanceVector tag_instances;
+
+    StmtInsertDataFormatter formatter(format);
+    std::string sql = formatter.prepare(config, col_instances, tag_instances);
+
+    std::string expected = "INSERT INTO `test_stb`(tbname,ts,f1,i1) VALUES(?,?,?,?)";
+    assert(sql == expected);
+    std::cout << "test_stmt_prepare_supertable_websocket passed!" << std::endl;
+}
+
+void test_stmt_prepare_auto_create_table() {
+    DataFormat format;
+    format.format_type = "stmt";
+    format.stmt.version = "v2";
+    format.stmt.auto_create_table = true;
+
+    InsertDataConfig config;
+    config.tdengine.database = "test_db";
+    config.schema.name = "test_stb";
+
+    ColumnConfigInstanceVector col_instances;
+    col_instances.emplace_back(ColumnConfig{"c1", "INT"});
+
+    ColumnConfigInstanceVector tag_instances;
+    tag_instances.emplace_back(ColumnConfig{"t1", "INT"});
+    tag_instances.emplace_back(ColumnConfig{"t2", "VARCHAR(10)"});
+
+    StmtInsertDataFormatter formatter(format);
+    std::string sql = formatter.prepare(config, col_instances, tag_instances);
+
+    std::string expected = "INSERT INTO ? USING `test_stb` TAGS (?,?) VALUES(?,?)";
+    assert(sql == expected);
+    std::cout << "test_stmt_prepare_auto_create_table passed!" << std::endl;
+}
+
 void test_stmt_format_insert_data_single_table() {
     DataFormat format;
     format.format_type = "stmt";
@@ -12,6 +86,7 @@ void test_stmt_format_insert_data_single_table() {
     config.tdengine.database = "test_db";
 
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
     col_instances.emplace_back(ColumnConfig{"i1", "INT"});
 
@@ -22,11 +97,11 @@ void test_stmt_format_insert_data_single_table() {
     batch.table_batches.emplace_back("table1", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 2, col_instances);
+    MemoryPool pool(1, 1, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     StmtInsertDataFormatter formatter(format);
-    FormatResult result = formatter.format(config, col_instances, block);
+    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
 
     assert(std::holds_alternative<StmtV2InsertData>(result));
     const auto& stmt_data = std::get<StmtV2InsertData>(result);
@@ -46,6 +121,7 @@ void test_stmt_format_insert_data_multiple_tables() {
     config.tdengine.database = "test_db";
 
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
     col_instances.emplace_back(ColumnConfig{"i1", "INT"});
 
@@ -64,11 +140,11 @@ void test_stmt_format_insert_data_multiple_tables() {
 
     batch.update_metadata();
 
-    MemoryPool pool(1, 2, 2, col_instances);
+    MemoryPool pool(1, 2, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(format);
-    FormatResult result = formatter->format(config, col_instances, block);
+    FormatResult result = formatter->format(config, col_instances, tag_instances, block);
 
     assert(std::holds_alternative<StmtV2InsertData>(result));
     const auto& stmt_data = std::get<StmtV2InsertData>(result);
@@ -88,11 +164,12 @@ void test_stmt_format_insert_data_empty_batch() {
     config.tdengine.database = "test_db";
 
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
 
     MultiBatch batch;
 
-    MemoryPool pool(1, 1, 1, col_instances);
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
     (void)block;
     assert(block == nullptr);
@@ -107,7 +184,7 @@ void test_stmt_format_insert_data_empty_batch() {
 
     // block->tables.clear();
     // StmtInsertDataFormatter formatter(format);
-    // FormatResult result = formatter.format(config, col_instances, block);
+    // FormatResult result = formatter.format(config, col_instances, tag_instances, block);
 
     // assert(std::holds_alternative<std::string>(result));
     // assert(std::get<std::string>(result).empty());
@@ -123,6 +200,7 @@ void test_stmt_format_insert_data_invalid_version() {
     config.tdengine.database = "test_db";
 
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
     col_instances.emplace_back(ColumnConfig{"i1", "INT"});
 
@@ -133,13 +211,13 @@ void test_stmt_format_insert_data_invalid_version() {
     batch.table_batches.emplace_back("table1", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 2, col_instances);
+    MemoryPool pool(1, 1, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     StmtInsertDataFormatter formatter(format);
 
     try {
-        formatter.format(config, col_instances, block);
+        formatter.format(config, col_instances, tag_instances, block);
         assert(false && "Should throw exception for invalid version");
     } catch (const std::invalid_argument& e) {
         assert(std::string(e.what()) == "Unsupported stmt version: v1");
@@ -156,6 +234,7 @@ void test_stmt_format_insert_data_with_empty_rows() {
     config.tdengine.database = "test_db";
 
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
     col_instances.emplace_back(ColumnConfig{"i1", "INT"});
 
@@ -177,11 +256,11 @@ void test_stmt_format_insert_data_with_empty_rows() {
 
     batch.update_metadata();
 
-    MemoryPool pool(1, 3, 2, col_instances);
+    MemoryPool pool(1, 3, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(format);
-    FormatResult result = formatter->format(config, col_instances, block);
+    FormatResult result = formatter->format(config, col_instances, tag_instances, block);
 
     assert(std::holds_alternative<StmtV2InsertData>(result));
     const auto& stmt_data = std::get<StmtV2InsertData>(result);
@@ -198,6 +277,10 @@ void test_stmt_format_insert_data_with_empty_rows() {
 }
 
 int main() {
+    test_stmt_prepare_subtable();
+    test_stmt_prepare_supertable_websocket();
+    test_stmt_prepare_auto_create_table();
+
     test_stmt_format_insert_data_single_table();
     test_stmt_format_insert_data_multiple_tables();
     test_stmt_format_insert_data_empty_batch();

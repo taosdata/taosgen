@@ -7,8 +7,11 @@
 struct SqlInsertData : public BaseInsertData {
     SqlData data;
 
-    SqlInsertData(MemoryPool::MemoryBlock* block, const ColumnConfigInstanceVector& col_instances, std::string&& sql)
-        : BaseInsertData(DataType::SQL, block, col_instances), data(std::move(sql)) {}
+    SqlInsertData(MemoryPool::MemoryBlock* block,
+                  const ColumnConfigInstanceVector& col_instances,
+                  const ColumnConfigInstanceVector& tag_instances,
+                  std::string&& sql)
+        : BaseInsertData(DataType::SQL, block, col_instances, tag_instances), data(std::move(sql)) {}
 
     SqlInsertData(SqlInsertData&& other) noexcept
         : BaseInsertData(std::move(other))

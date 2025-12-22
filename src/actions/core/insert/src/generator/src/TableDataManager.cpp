@@ -4,8 +4,11 @@
 #include <iostream>
 
 
-TableDataManager::TableDataManager(MemoryPool& pool, const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances)
-    : pool_(pool), config_(config), col_instances_(col_instances) {
+TableDataManager::TableDataManager(MemoryPool& pool,
+                                   const InsertDataConfig& config,
+                                   const ColumnConfigInstanceVector& col_instances,
+                                   const ColumnConfigInstanceVector& tag_instances)
+    : pool_(pool), config_(config), col_instances_(col_instances), tag_instances_(tag_instances) {
 
     // Set interlace rows
     if (config_.schema.generation.interlace_mode.enabled) {
@@ -48,6 +51,14 @@ bool TableDataManager::init(const std::vector<std::string>& table_names) {
                 state.interlace_counter = 0;
                 state.completed = false;
 
+                if (tag_instances_.size() > 0
+                    && config_.data_format.support_tags
+                    && config_.schema.tags_cfg.source_type == "generator"
+                ) {
+                    std::vector<ColumnType> tag_values = generate_tags_for_table(table_name);
+                    state.tags_ptr = pool_.register_table_tags(table_name, tag_values);
+                }
+
                 table_states_.push_back(std::move(state));
             } catch (const std::exception& e) {
                 // std::cerr << "Failed to create RowDataGenerator for table: " << table_name
@@ -65,6 +76,16 @@ bool TableDataManager::init(const std::vector<std::string>& table_names) {
         LogUtils::error("Failed to initialize TableDataManager: {}", e.what());
         return false;
     }
+}
+
+std::vector<ColumnType> TableDataManager::generate_tags_for_table(const std::string& table_name) {
+    if (tag_instances_.empty()) {
+        return {};
+    }
+
+    RowGenerator tag_generator(table_name, tag_instances_);
+    std::vector<ColumnType> tag_values = tag_generator.generate();
+    return tag_values;
 }
 
 void TableDataManager::acquire_tokens(int64_t tokens) {
@@ -127,6 +148,7 @@ MemoryPool::MemoryBlock* TableDataManager::collect_batch_data(size_t max_rows) {
         // Get current table slot
         auto& table_block = block->tables[block->used_tables];
         table_block.table_name = table_state->table_name.c_str();
+        table_block.tags_ptr = table_state->tags_ptr;
 
         // Calculate number of rows that can be generated
         size_t remaining = max_rows - total_rows;

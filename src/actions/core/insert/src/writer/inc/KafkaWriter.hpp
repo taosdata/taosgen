@@ -4,7 +4,7 @@
 
 class KafkaWriter : public BaseWriter {
 public:
-    explicit KafkaWriter(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances, size_t no = 0);
+    explicit KafkaWriter(const InsertDataConfig& config, size_t no = 0);
     ~KafkaWriter() override;
 
     bool connect(std::optional<ConnectorSource>& conn_source) override;

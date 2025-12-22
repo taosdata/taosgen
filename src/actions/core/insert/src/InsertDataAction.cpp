@@ -124,27 +124,26 @@ void InsertDataAction::execute() {
         const bool shared_queue = config_.shared_queue;
         const size_t rows_per_request = config_.schema.generation.rows_per_batch;
         const size_t interlace_rows = config_.schema.generation.interlace_mode.rows;
-        const int64_t rows_per_table = config_.schema.generation.rows_per_table;
+        const size_t rows_per_table = static_cast<size_t>(config_.schema.generation.rows_per_table);
         const bool tables_reuse_data = config_.schema.generation.tables_reuse_data;
         const size_t num_cached_batches = config_.schema.generation.data_cache.enabled ?
             config_.schema.generation.data_cache.num_cached_batches : 0;
 
-
         size_t num_blocks = queue_capacity * consumer_thread_count;
         size_t max_tables_per_block = std::min(name_manager.chunk_size(), rows_per_request);
-        size_t max_rows_per_table = std::min(static_cast<size_t>(rows_per_table), rows_per_request);
+        size_t max_rows_per_table = std::min(rows_per_table, rows_per_request);
 
         if (config_.schema.generation.interlace_mode.enabled) {
-            max_tables_per_block = (rows_per_request + interlace_rows - 1) / interlace_rows;
+            max_tables_per_block = std::min(max_tables_per_block, (rows_per_request + interlace_rows - 1) / interlace_rows);
             max_rows_per_table = std::min(max_rows_per_table, interlace_rows);
 
         } else {
-            max_tables_per_block = (rows_per_request + rows_per_table - 1) / rows_per_table;
+            max_tables_per_block = std::min(max_tables_per_block, (rows_per_request + rows_per_table - 1) / rows_per_table);
         }
 
         auto pool = std::make_unique<MemoryPool>(
             num_blocks, max_tables_per_block, max_rows_per_table,
-            col_instances_, tables_reuse_data, num_cached_batches
+            col_instances_, tag_instances_, tables_reuse_data, num_cached_batches
         );
 
         if (config_.schema.generation.data_cache.enabled) {
@@ -183,7 +182,7 @@ void InsertDataAction::execute() {
         // Create all writer instances
         for (size_t i = 0; i < consumer_thread_count; i++) {
             LogUtils::debug("Creating writer instance for consumer thread #{}", i);
-            writers.push_back(WriterFactory::create(config_, col_instances_, i, action_info));
+            writers.push_back(WriterFactory::create(config_, i, action_info));
         }
 
         auto consumer_running = std::make_unique<std::atomic<bool>[]>(consumer_thread_count);
@@ -206,7 +205,7 @@ void InsertDataAction::execute() {
         std::atomic<size_t> active_producers(producer_thread_count);
 
         for (size_t i = 0; i < producer_thread_count; i++) {
-            auto data_manager = std::make_shared<TableDataManager>(*pool, config_, col_instances_);
+            auto data_manager = std::make_shared<TableDataManager>(*pool, config_, col_instances_, tag_instances_);
             data_managers.push_back(data_manager);
 
             producer_threads.emplace_back([this, i, &split_names, &pipeline, data_manager, &active_producers, &producer_finished] {
@@ -549,7 +548,7 @@ void InsertDataAction::producer_thread_function(
         // size_t total_rows = batch->total_rows;
 
         // Format data
-        FormatResult formatted_result = formatter->format(config_, col_instances_, std::move(batch.value()), is_checkpoint_recover_);
+        FormatResult formatted_result = formatter->format(config_, col_instances_, tag_instances_, std::move(batch.value()), is_checkpoint_recover_);
 
         // Push data to pipeline
         try {
@@ -598,7 +597,7 @@ void InsertDataAction::consumer_thread_function(
         }
 
         auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(config_.data_format);
-        auto sql = formatter->prepare(config_, col_instances_);
+        auto sql = formatter->prepare(config_, col_instances_, tag_instances_);
 
         if (!writer->prepare(sql)) {
             handle_startup_error("Failed to prepare writer for thread {} with SQL: {}",
@@ -678,6 +677,15 @@ ColumnConfigInstanceVector InsertDataAction::create_column_instances() const {
         return ColumnConfigInstanceFactory::create(schema);
     } catch (const std::exception& e) {
         throw std::runtime_error(std::string("Failed to create column instances: ") + e.what());
+    }
+}
+
+ColumnConfigInstanceVector InsertDataAction::create_tag_instances() const {
+    try {
+        const auto& schema = config_.schema.tags_cfg.get_schema();
+        return ColumnConfigInstanceFactory::create(schema);
+    } catch (const std::exception& e) {
+        throw std::runtime_error(std::string("Failed to create tag instances: ") + e.what());
     }
 }
 

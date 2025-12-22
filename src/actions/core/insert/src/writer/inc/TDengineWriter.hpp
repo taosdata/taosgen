@@ -6,7 +6,9 @@
 
 class TDengineWriter : public BaseWriter {
 public:
-    explicit TDengineWriter(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances, size_t no = 0, std::shared_ptr<ActionRegisterInfo> action_info = nullptr);
+    explicit TDengineWriter(const InsertDataConfig& config,
+                            size_t no = 0,
+                            std::shared_ptr<ActionRegisterInfo> action_info = nullptr);
     ~TDengineWriter() override;
 
     bool connect(std::optional<ConnectorSource>& conn_source) override;

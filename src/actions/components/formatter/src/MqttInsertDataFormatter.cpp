@@ -1,14 +1,17 @@
 #include "MqttInsertDataFormatter.hpp"
 
 std::string MqttInsertDataFormatter::prepare(const InsertDataConfig& config,
-                                             const ColumnConfigInstanceVector& col_instances) {
+                                             const ColumnConfigInstanceVector& col_instances,
+                                             const ColumnConfigInstanceVector& tag_instances) {
     (void)config;
     (void)col_instances;
+    (void)tag_instances;
     return "";
 }
 
 FormatResult MqttInsertDataFormatter::format(const InsertDataConfig& config,
                                              const ColumnConfigInstanceVector& col_instances,
+                                                const ColumnConfigInstanceVector& tag_instances,
                                              MemoryPool::MemoryBlock* batch, bool is_checkpoint_recover) const {
     (void)config;
     (void)is_checkpoint_recover;
@@ -16,10 +19,12 @@ FormatResult MqttInsertDataFormatter::format(const InsertDataConfig& config,
         return FormatResult("");
     }
 
-    return format_json(col_instances, batch);
+    return format_json(col_instances, tag_instances, batch);
 }
 
-MqttInsertData MqttInsertDataFormatter::format_json(const ColumnConfigInstanceVector& col_instances, MemoryPool::MemoryBlock* batch) const {
+MqttInsertData MqttInsertDataFormatter::format_json(const ColumnConfigInstanceVector& col_instances,
+                                                    const ColumnConfigInstanceVector& tag_instances,
+                                                    MemoryPool::MemoryBlock* batch) const {
     const DataFormat::MqttConfig& format = format_.mqtt;
     CompressionType compression_type = string_to_compression(format.compression);
     EncodingType encoding_type = string_to_encoding(format.encoding);
@@ -27,7 +32,7 @@ MqttInsertData MqttInsertDataFormatter::format_json(const ColumnConfigInstanceVe
     MqttMessageBatch msg_batch;
     msg_batch.reserve((batch->total_rows + format.records_per_message - 1) / format.records_per_message);
 
-    TopicGenerator topic_generator(format.topic, col_instances);
+    TopicGenerator topic_generator(format.topic, col_instances, tag_instances);
 
 
     if (format.records_per_message == 1) {
@@ -37,7 +42,7 @@ MqttInsertData MqttInsertDataFormatter::format_json(const ColumnConfigInstanceVe
             auto& table_block = batch->tables[table_idx];
             for (size_t row_idx = 0; row_idx < table_block.used_rows; ++row_idx) {
                 std::string topic = topic_generator.generate(table_block, row_idx);
-                RowSerializer::to_json_inplace(col_instances, table_block, row_idx, format.tbname_key, json_data);
+                RowSerializer::to_json_inplace(col_instances, tag_instances, table_block, row_idx, format.tbname_key, json_data);
                 std::string payload = json_data.dump();
 
                 // Encoding conversion
@@ -68,7 +73,7 @@ MqttInsertData MqttInsertDataFormatter::format_json(const ColumnConfigInstanceVe
                 }
 
                 // Add the current record's JSON to the array
-                RowSerializer::to_json_inplace(col_instances, table_block, row_idx, format.tbname_key, record_json);
+                RowSerializer::to_json_inplace(col_instances, tag_instances, table_block, row_idx, format.tbname_key, record_json);
                 json_array.emplace_back(std::move(record_json));
                 record_json.clear();
 
@@ -105,5 +110,5 @@ MqttInsertData MqttInsertDataFormatter::format_json(const ColumnConfigInstanceVe
         }
     }
 
-    return MqttInsertData(batch, col_instances, std::move(msg_batch));
+    return MqttInsertData(batch, col_instances, tag_instances, std::move(msg_batch));
 }

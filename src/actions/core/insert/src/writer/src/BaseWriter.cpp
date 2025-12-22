@@ -3,8 +3,8 @@
 #include <chrono>
 #include <iostream>
 
-BaseWriter::BaseWriter(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances, std::shared_ptr<ActionRegisterInfo> action_info)
-    : config_(config), col_instances_(col_instances),
+BaseWriter::BaseWriter(const InsertDataConfig& config, std::shared_ptr<ActionRegisterInfo> action_info)
+    : config_(config),
       timestamp_precision_(config.timestamp_precision),
       time_strategy_(config.time_interval, config.timestamp_precision),
       start_write_time_(std::chrono::steady_clock::now()),

@@ -95,9 +95,10 @@ void test_data_pipeline() {
     std::atomic<size_t> rows_consumed{0};
 
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
     col_instances.emplace_back(ColumnConfig{"i1", "INT"});
-    MemoryPool pool(1, 5, 2, col_instances);
+    MemoryPool pool(1, 5, 2, col_instances, tag_instances);
 
     // Start producer thread
     std::thread producer([&]() {
@@ -106,13 +107,13 @@ void test_data_pipeline() {
             std::vector<RowData> rows;
             rows.push_back({1500000000000, {3.14f, 42}});
             rows.push_back({1500000000001, {2.71f, 43}});
-            batch.table_batches.emplace_back("table1", std::move(rows));
+            batch.table_batches.emplace_back("table" + std::to_string(i), std::move(rows));
             batch.update_metadata();
 
             auto* block = pool.convert_to_memory_block(std::move(batch));
 
             pipeline.push_data(0, FormatResult{
-                SqlInsertData(block, col_instances, "INSERT INTO test_table VALUES (...)")
+                SqlInsertData(block, col_instances, tag_instances, "INSERT INTO test_table VALUES (...)")
             });
             rows_generated++;
         }
@@ -146,14 +147,94 @@ void test_data_pipeline() {
     std::cout << "test_data_pipeline passed\n";
 }
 
+void test_data_pipeline_with_tags() {
+    auto config = create_test_config();
+    DataPipeline<FormatResult> pipeline(false, 2, 2, 1000);
+
+    std::atomic<bool> producer_done{false};
+    std::atomic<size_t> rows_generated{0};
+    std::atomic<size_t> rows_consumed{0};
+
+    ColumnConfigInstanceVector col_instances;
+    col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
+
+    ColumnConfigInstanceVector tag_instances;
+    tag_instances.emplace_back(ColumnConfig{"t1", "INT"});
+
+    MemoryPool pool(1, 5, 2, col_instances, tag_instances);
+
+    // Start producer thread
+    std::thread producer([&]() {
+        for(int i = 0; i < 5; i++) {
+            MultiBatch batch;
+            std::vector<RowData> rows;
+            rows.push_back({1500000000000, {3.14f}});
+            batch.table_batches.emplace_back("table" + std::to_string(i), std::move(rows));
+            batch.update_metadata();
+
+            auto* block = pool.convert_to_memory_block(std::move(batch));
+
+            // Set tags for the block
+            std::vector<ColumnType> tag_values = {int32_t(100)};
+            block->tables[0].tags_ptr = pool.register_table_tags("table" + std::to_string(i), tag_values);
+
+            pipeline.push_data(0, FormatResult{
+                SqlInsertData(block, col_instances, tag_instances, "INSERT INTO ...")
+            });
+            rows_generated++;
+        }
+        producer_done = true;
+    });
+
+    // Start consumer thread
+    std::thread consumer([&]() {
+        while (!producer_done || pipeline.total_queued() > 0) {
+            auto result = pipeline.fetch_data(0);
+            if (result.status == DataPipeline<FormatResult>::Status::Success) {
+                std::visit([&](const auto& data) {
+                    using T = std::decay_t<decltype(data)>;
+                    if constexpr (std::is_same_v<T, SqlInsertData>) {
+                        assert(data.total_rows == 1);
+                        assert(data.column_count() == 1);
+                        assert(data.tag_count() == 1);
+
+                        auto col_val = data.get_block()->tables[0].get_column_cell(0, 0);
+                        assert(std::holds_alternative<float>(col_val));
+                        assert(std::get<float>(col_val) == 3.14f);
+
+                        auto tag_val = data.get_block()->tables[0].get_tag_cell(0, 0);
+                        assert(std::holds_alternative<int32_t>(tag_val));
+                        assert(std::get<int32_t>(tag_val) == 100);
+
+                        (void)col_val;
+                        (void)tag_val;
+
+                        rows_consumed++;
+                    }
+                }, *result.data);
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+    });
+
+    producer.join();
+    consumer.join();
+
+    assert(rows_generated == 5);
+    assert(rows_consumed == 5);
+
+    std::cout << "test_data_pipeline_with_tags passed\n";
+}
+
 void test_data_generation() {
     auto config = create_test_config();
     config.schema.generation.rows_per_table = 5;
     config.schema.generation.interlace_mode.enabled = false;
 
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
-    MemoryPool pool(1, 1, 5, col_instances);
-    TableDataManager manager(pool, config, col_instances);
+    auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.generator.schema);
+    MemoryPool pool(1, 1, 5, col_instances, tag_instances);
+    TableDataManager manager(pool, config, col_instances, tag_instances);
 
     std::vector<std::string> table_names = {"d0"};
     assert(manager.init(table_names));
@@ -176,6 +257,55 @@ void test_data_generation() {
     (void)row_count;
     assert(row_count == 5);
     std::cout << "test_data_generation passed\n";
+}
+
+void test_data_generation_with_tags() {
+    auto config = create_test_config();
+    config.schema.generation.rows_per_table = 5;
+    config.schema.generation.interlace_mode.enabled = false;
+
+    // Enable tags
+    config.data_format.support_tags = true;
+    config.schema.tags_cfg.source_type = "generator";
+    config.schema.tags_cfg.generator.schema = {
+        {"tag1", "INT", "random", 100, 101}
+    };
+
+    auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
+    auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.generator.schema);
+    MemoryPool pool(1, 1, 5, col_instances, tag_instances);
+    TableDataManager manager(pool, config, col_instances, tag_instances);
+
+    std::vector<std::string> table_names = {"d0"};
+    assert(manager.init(table_names));
+
+    int row_count = 0;
+    while (auto block = manager.next_multi_batch()) {
+        const auto* batch = block.value();
+        assert(batch->used_tables == 1);
+        row_count += batch->total_rows;
+
+        // Verify timestamp progression and tags
+        for (const auto& table : batch->tables) {
+            // Verify tags exist
+            assert(table.tags_ptr != nullptr);
+
+            // Verify tag value
+            auto tag_val = table.get_tag_cell(0, 0);
+            assert(std::holds_alternative<int32_t>(tag_val));
+            assert(std::get<int32_t>(tag_val) == 100);
+            (void)tag_val;
+
+            for (size_t i = 0; i < table.used_rows; i++) {
+                assert(table.timestamps[i] == 1700000000000 + static_cast<int64_t>(row_count - table.used_rows + i) * 10);
+            }
+        }
+        block.value()->release();
+    }
+
+    (void)row_count;
+    assert(row_count == 5);
+    std::cout << "test_data_generation_with_tags passed\n";
 }
 
 void test_end_to_end_data_generation() {
@@ -221,6 +351,55 @@ void test_end_to_end_data_generation() {
     }
 
     std::cout << "test_end_to_end_data_generation passed\n";
+}
+
+void test_end_to_end_data_generation_with_tags() {
+    GlobalConfig global;
+
+    std::vector<DataChannel> channel_types = {
+        // DataChannel{"native"},
+        DataChannel{"websocket"}
+    };
+
+    std::vector<DataFormat> format_types = {
+        DataFormat{"sql"},
+        DataFormat{"stmt", DataFormat::StmtConfig{"v2"}}
+    };
+
+    for (const auto& channel : channel_types) {
+        for (const auto& format : format_types) {
+            std::cout << "[DEBUG] Executing test for channel_type=" << channel.channel_type
+                      << ", format_type=" << format.format_type << " with tags" << std::endl;
+
+            auto config = create_test_config();
+
+            config.data_format = format;
+
+            // Enable tags
+            config.data_format.support_tags = true;
+            config.schema.tags_cfg.source_type = "generator";
+            config.schema.tags_cfg.generator.schema = {
+                {"tag1", "INT", "random", 1, 100},
+                {"tag2", "VARCHAR(8)", "random"}
+            };
+
+            config.schema.generation.rows_per_table = 10;
+            config.schema.generation.generate_threads = 1;
+            config.schema.generation.data_cache.enabled = false;
+            config.queue_capacity = 2;
+            config.insert_threads = 1;
+            config.schema.tbname.generator.count = 4;           // 4 tables total
+            config.target_type = "tdengine";
+            config.tdengine.database = "test_action";
+            config.schema.name = "test_super_table";
+
+            InsertDataAction action(global, config);
+
+            action.execute();
+        }
+    }
+
+    std::cout << "test_end_to_end_data_generation_with_tags passed\n";
 }
 
 void test_concurrent_data_generation() {
@@ -316,12 +495,14 @@ void test_cache_units_data_initialization() {
     config.schema.tbname.generator.count = 2;
 
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
+    auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.generator.schema);
 
     MemoryPool pool(
         config.queue_capacity * config.insert_threads,
         config.schema.tbname.generator.count,
         config.schema.generation.rows_per_batch,
         col_instances,
+        tag_instances,
         config.schema.generation.tables_reuse_data,
         config.schema.generation.data_cache.num_cached_batches
     );
@@ -367,12 +548,14 @@ void test_cache_units_data_with_reuse() {
     config.schema.tbname.generator.count = 2;
 
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
+    auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.generator.schema);
 
     MemoryPool pool(
         config.queue_capacity * config.insert_threads,
         config.schema.tbname.generator.count,
         config.schema.generation.rows_per_batch,
         col_instances,
+        tag_instances,
         config.schema.generation.tables_reuse_data,
         config.schema.generation.data_cache.num_cached_batches
     );
@@ -409,12 +592,14 @@ void test_cache_units_data_generator_failure() {
     config.schema.generation.rows_per_batch = 10;
 
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
+    auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.generator.schema);
 
     MemoryPool pool(
         1,
         config.schema.tbname.generator.count,
         config.schema.generation.rows_per_batch,
         col_instances,
+        tag_instances,
         false,
         config.schema.generation.data_cache.num_cached_batches
     );
@@ -441,8 +626,11 @@ int main() {
     test_basic_initialization();
     test_table_name_generation();
     test_data_pipeline();
+    test_data_pipeline_with_tags();
     test_data_generation();
+    test_data_generation_with_tags();
     test_end_to_end_data_generation();
+    test_end_to_end_data_generation_with_tags();
     test_concurrent_data_generation();
     test_error_handling();
 

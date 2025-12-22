@@ -64,10 +64,49 @@ void MemoryPool::CachedTableBlock::fill_cached_data_batch(const std::vector<RowD
     data_prefilled = true;
 }
 
+// TableBlock::Tags
+MemoryPool::TableBlock::Tags::~Tags() {
+    if (data_chunk) {
+        std::free(data_chunk);
+        data_chunk = nullptr;
+        data_chunk_size = 0;
+    }
+}
+
+MemoryPool::TableBlock::Tags::Tags(Tags&& other) noexcept
+    : table_name(std::move(other.table_name)),
+      columns(std::move(other.columns)),
+      data_chunk(other.data_chunk),
+      data_chunk_size(other.data_chunk_size),
+      bind_tags(std::move(other.bind_tags))
+{
+    other.data_chunk = nullptr;
+    other.data_chunk_size = 0;
+}
+
+MemoryPool::TableBlock::Tags& MemoryPool::TableBlock::Tags::operator=(Tags&& other) noexcept {
+    if (this != &other) {
+        if (data_chunk) {
+            std::free(data_chunk);
+        }
+
+        table_name = std::move(other.table_name);
+        columns = std::move(other.columns);
+        data_chunk = other.data_chunk;
+        data_chunk_size = other.data_chunk_size;
+        bind_tags = std::move(other.bind_tags);
+
+        other.data_chunk = nullptr;
+        other.data_chunk_size = 0;
+    }
+    return *this;
+}
+
 // TableBlock
 void MemoryPool::TableBlock::init_from_cache(const CachedTableBlock& cached_block) {
     max_rows = cached_block.max_rows;
     col_handlers_ptr = cached_block.col_handlers_ptr;
+    tag_handlers_ptr = cached_block.tag_handlers_ptr;
     cached_table_block = &cached_block;
 
     columns.resize(cached_block.columns.size());
@@ -175,17 +214,25 @@ void MemoryPool::TableBlock::add_rows(const std::vector<RowData>& rows) {
     used_rows += rows.size();
 }
 
-ColumnType MemoryPool::TableBlock::get_cell(size_t row_index, size_t col_index) const {
-    if (row_index >= used_rows)
-        throw std::out_of_range("row_index out of range");
-    if (col_index >= columns.size())
-        throw std::out_of_range("col_index out of range");
+template <typename Cols, typename Handlers>
+ColumnType MemoryPool::TableBlock::get_cell_impl(size_t row_index, size_t col_index,
+                                                 const char* context,
+                                                 const Cols& cols,
+                                                 const Handlers& handlers) const {
+    if (row_index >= used_rows) {
+        throw std::out_of_range(std::string(context) + ": row_index out of range");
+    }
 
-    const auto& col = columns[col_index];
-    const auto& handler = (*col_handlers_ptr)[col_index];
+    if (col_index >= cols.size()) {
+        throw std::out_of_range(std::string(context) + ": col_index out of range");
+    }
 
-    if (col.is_nulls[row_index])
+    const auto& col = cols[col_index];
+    const auto& handler = handlers[col_index];
+
+    if (col.is_nulls[row_index]) {
         throw std::runtime_error("NULL value not supported");
+    }
 
     if (col.is_fixed) {
         // Fixed-length column handling
@@ -198,9 +245,28 @@ ColumnType MemoryPool::TableBlock::get_cell(size_t row_index, size_t col_index) 
     }
 }
 
-std::string MemoryPool::TableBlock::get_cell_as_string(size_t row_index, size_t col_index) const {
-    ColumnType cell = get_cell(row_index, col_index);
+ColumnType MemoryPool::TableBlock::get_column_cell(size_t row_index, size_t col_index) const {
+    return get_cell_impl(row_index, col_index, "get_column_cell", columns, *col_handlers_ptr);
+}
+
+ColumnType MemoryPool::TableBlock::get_tag_cell(size_t row_index, size_t col_index) const {
+    if (!tags_ptr) {
+        throw std::runtime_error(
+            std::string("No tags available in table block: ") + (table_name ? table_name : "(null)")
+        );
+    }
+    return get_cell_impl(row_index, col_index, "get_tag_cell", tags_ptr->columns, *tag_handlers_ptr);
+}
+
+std::string MemoryPool::TableBlock::get_column_cell_as_string(size_t row_index, size_t col_index) const {
+    ColumnType cell = get_column_cell(row_index, col_index);
     const auto& handler = (*col_handlers_ptr)[col_index];
+    return handler.to_string(cell);
+}
+
+std::string MemoryPool::TableBlock::get_tag_cell_as_string(size_t row_index, size_t col_index) const {
+    ColumnType cell = get_tag_cell(row_index, col_index);
+    const auto& handler = (*tag_handlers_ptr)[col_index];
     return handler.to_string(cell);
 }
 
@@ -222,17 +288,21 @@ void MemoryPool::MemoryBlock::free_data_chunk() {
 void MemoryPool::MemoryBlock::init_bindv() {
     size_t max_tables = tables.size();
     const ColumnConfigInstanceVector& col_instances = owning_pool->col_instances_;
+    const ColumnConfigInstanceVector& tag_instances = owning_pool->tag_instances_;
     col_count = col_instances.size();
+    tag_count = tag_instances.size();
 
     // Pre-allocate data structures
     tbnames_.resize(max_tables, nullptr);
-    bind_ptrs_.resize(max_tables, nullptr);
+    bind_cols_ptrs_.resize(max_tables, nullptr);
+    bind_tags_ptrs_.resize(max_tables, nullptr);
     bind_lists_.resize(max_tables);
 
     // Pre-allocate bind list for each table
     for (size_t i = 0; i < max_tables; ++i) {
         bind_lists_[i].resize(1 + col_count);
-        bind_ptrs_[i] = bind_lists_[i].data();
+        bind_cols_ptrs_[i] = bind_lists_[i].data();
+        bind_tags_ptrs_[i] = nullptr;
         auto& table = tables[i];
 
         // Initialize timestamp column binding
@@ -266,8 +336,10 @@ void MemoryPool::MemoryBlock::init_bindv() {
     }
 
     // Set pointers
+    bindv_.count = 0;
     bindv_.tbnames = const_cast<char**>(tbnames_.data());
-    bindv_.bind_cols = bind_ptrs_.data();
+    bindv_.bind_cols = bind_cols_ptrs_.data();
+    bindv_.tags = tag_count ? bind_tags_ptrs_.data() : nullptr;
 }
 
 void MemoryPool::MemoryBlock::build_bindv(bool is_checkpoint_recover) {
@@ -288,6 +360,15 @@ void MemoryPool::MemoryBlock::build_bindv(bool is_checkpoint_recover) {
         // Update data column row count
         for (size_t col_idx = 0; col_idx < col_count; ++col_idx) {
             bind_lists_[i][1 + col_idx].num = table.used_rows;
+        }
+
+        // Update tag column pointers
+        if (table.tags_ptr && tag_count > 0) {
+            bind_tags_ptrs_[i] = const_cast<TAOS_STMT2_BIND*>(
+                table.tags_ptr->bind_tags.data()
+            );
+        } else {
+            bind_tags_ptrs_[i] = nullptr;
         }
     }
 }
@@ -345,23 +426,188 @@ MemoryPool::CacheUnit& MemoryPool::CacheUnit::operator=(CacheUnit&& other) noexc
     return *this;
 }
 
+// TagsManager
+MemoryPool::TagsManager::TagsManager(const ColumnConfigInstanceVector& tag_instances)
+    : tag_instances_(tag_instances),
+      tag_handlers_(ColumnConverter::create_handlers_for_columns(tag_instances))
+{
+    calculate_memory_size();
+}
+
+void MemoryPool::TagsManager::calculate_memory_size() {
+    common_meta_size_ = 0;
+    fixed_data_size_ = 0;
+    var_meta_size_ = 0;
+    var_data_size_ = 0;
+
+    for (const auto& tag_instance : tag_instances_) {
+        // is_nulls
+        common_meta_size_ += sizeof(char);
+
+        if (tag_instance.config().is_var_length()) {
+            // lengths + offsets
+            var_meta_size_ += sizeof(int32_t) + sizeof(size_t);
+            var_data_size_ += tag_instance.config().cap.value();
+        } else {
+            fixed_data_size_ += tag_instance.config().get_fixed_type_size();
+        }
+    }
+
+    total_size_ = common_meta_size_ + fixed_data_size_ + var_meta_size_ + var_data_size_;
+    total_size_ = align_up(total_size_, MEMORY_POOL_ALIGNMENT);
+}
+
+void MemoryPool::TagsManager::init_table_tags(TableBlock::Tags& tags,
+                                               const std::vector<ColumnType>& tag_values) {
+    // 分配内存块
+    tags.data_chunk = std::aligned_alloc(MEMORY_POOL_ALIGNMENT, total_size_);
+    tags.data_chunk_size = total_size_;
+
+    if (!tags.data_chunk) {
+        throw std::bad_alloc();
+    }
+
+    std::memset(tags.data_chunk, 0, tags.data_chunk_size);
+    char* current_ptr = static_cast<char*>(tags.data_chunk);
+
+    // 分配各区域内存
+    void* fixed_data_base = current_ptr;
+    current_ptr += fixed_data_size_;
+
+    void* var_meta_base = current_ptr;
+    current_ptr += var_meta_size_;
+
+    char* var_data_base = current_ptr;
+    current_ptr += var_data_size_;
+
+    char* common_meta_base = current_ptr;
+    current_ptr += common_meta_size_;
+
+    // 初始化 tags 列
+    tags.columns.resize(tag_instances_.size());
+    tags.bind_tags.resize(tag_instances_.size());
+
+    char* fixed_ptr = static_cast<char*>(fixed_data_base);
+    char* var_meta_ptr = static_cast<char*>(var_meta_base);
+    char* var_data_ptr = var_data_base;
+    char* common_meta_ptr = common_meta_base;
+
+    for (size_t tag_idx = 0; tag_idx < tag_instances_.size(); ++tag_idx) {
+        auto& tag = tags.columns[tag_idx];
+        auto& bind = tags.bind_tags[tag_idx];
+        const auto& config = tag_instances_[tag_idx].config();
+        const auto& handler = tag_handlers_[tag_idx];
+        const auto& tag_value = tag_values[tag_idx];
+
+        // 设置 is_nulls
+        tag.is_nulls = common_meta_ptr;
+        common_meta_ptr += sizeof(char);
+        tag.is_nulls[0] = 0;
+
+        // 初始化 binding
+        bind.buffer_type = config.get_taos_type();
+        bind.num = 1;
+        bind.is_null = tag.is_nulls;
+
+        if (config.is_var_length()) {
+            // 变长列
+            tag.is_fixed = false;
+            tag.max_length = config.cap.value();
+
+            tag.lengths = reinterpret_cast<int32_t*>(var_meta_ptr);
+            var_meta_ptr += sizeof(int32_t);
+
+            tag.var_offsets = reinterpret_cast<size_t*>(var_meta_ptr);
+            var_meta_ptr += sizeof(size_t);
+
+            tag.var_data = var_data_ptr;
+            var_data_ptr += config.cap.value();
+
+            // 写入数据
+            size_t data_len = handler.to_var(tag_value, tag.var_data, tag.max_length);
+            tag.lengths[0] = static_cast<int32_t>(data_len);
+            tag.var_offsets[0] = 0;
+
+            // 设置 binding
+            bind.buffer = tag.var_data;
+            bind.length = tag.lengths;
+        } else {
+            // 定长列
+            tag.is_fixed = true;
+            tag.element_size = config.get_fixed_type_size();
+            tag.max_length = tag.element_size;
+
+            tag.fixed_data = fixed_ptr;
+
+            // 写入数据
+            handler.to_fixed(tag_value, tag.fixed_data, tag.element_size);
+
+            // 设置 binding
+            bind.buffer = tag.fixed_data;
+            bind.length = nullptr;
+
+            fixed_ptr += tag.element_size;
+        }
+    }
+}
+
+MemoryPool::TableBlock::Tags* MemoryPool::TagsManager::register_tags(const std::string& table_name,
+                                             const std::vector<ColumnType>& tag_values) {
+    if (tag_values.size() != tag_instances_.size()) {
+        return nullptr;
+    }
+
+    std::lock_guard<std::mutex> lock(tags_map_mutex_);
+
+    if (tags_map_.find(table_name) != tags_map_.end()) {
+        return nullptr;
+    }
+
+    auto tags = std::make_unique<TableBlock::Tags>();
+    auto ptr = tags.get();
+    tags->table_name = table_name;
+
+    init_table_tags(*tags, tag_values);
+    tags_map_[table_name] = std::move(tags);
+
+    return ptr;
+}
+
+const MemoryPool::TableBlock::Tags* MemoryPool::TagsManager::get_tags(const std::string& table_name) const {
+    std::lock_guard<std::mutex> lock(tags_map_mutex_);
+    auto it = tags_map_.find(table_name);
+    return (it != tags_map_.end()) ? it->second.get() : nullptr;
+}
+
+bool MemoryPool::TagsManager::has_tags(const std::string& table_name) const {
+    std::lock_guard<std::mutex> lock(tags_map_mutex_);
+    return tags_map_.find(table_name) != tags_map_.end();
+}
+
 // MemoryPool
 MemoryPool::MemoryPool(size_t num_blocks,
                        size_t max_tables_per_block,
                        size_t max_rows_per_table,
                        const ColumnConfigInstanceVector& col_instances,
+                       const ColumnConfigInstanceVector& tag_instances,
                        bool tables_reuse_data,
                        size_t num_cached_blocks
                     )
     : max_tables_per_block_(max_tables_per_block),
       max_rows_per_table_(max_rows_per_table),
       col_instances_(col_instances),
+      tag_instances_(tag_instances),
       col_handlers_(ColumnConverter::create_handlers_for_columns(col_instances)),
+      tag_handlers_(ColumnConverter::create_handlers_for_columns(tag_instances)),
       blocks_(num_blocks),
       free_queue_(num_blocks),
       tables_reuse_data_(tables_reuse_data),
       num_cached_blocks_(num_cached_blocks)
 {
+    if (!tag_instances_.empty()) {
+        tags_manager_ = std::make_unique<TagsManager>(tag_instances_);
+    }
+
     size_t max_rows_per_block = max_tables_per_block * max_rows_per_table;
     if (tables_reuse_data) {
         max_rows_per_block = max_rows_per_table;
@@ -464,6 +710,7 @@ void MemoryPool::init_cache_units() {
             auto& cached_table = cache_unit.tables[table_idx];
             cached_table.max_rows = max_rows_per_table_;
             cached_table.col_handlers_ptr = &col_handlers_;
+            cached_table.tag_handlers_ptr = &tag_handlers_;
             cached_table.columns.resize(col_instances_.size());
 
             for (size_t col_idx = 0; col_idx < col_instances_.size(); ++col_idx) {
@@ -559,6 +806,7 @@ void MemoryPool::init_normal_blocks() {
             auto& table = block.tables[i];
             table.max_rows = max_rows_per_table_;
             table.col_handlers_ptr = &col_handlers_;
+            table.tag_handlers_ptr = &tag_handlers_;
             table.columns.resize(col_instances_.size());
 
             // Set timestamp pointer
@@ -654,6 +902,7 @@ void MemoryPool::init_cached_blocks() {
             auto& table = block.tables[i];
             table.max_rows = max_rows_per_table_;
             table.col_handlers_ptr = &col_handlers_;
+            table.tag_handlers_ptr = &tag_handlers_;
 
             // Set timestamp pointer
             table.timestamps = timestamps_base + i * max_rows_per_table_;
@@ -747,6 +996,10 @@ const std::vector<ColumnConverter::ColumnHandler>& MemoryPool::col_handlers() co
     return col_handlers_;
 }
 
+const std::vector<ColumnConverter::ColumnHandler>& MemoryPool::tag_handlers() const {
+    return tag_handlers_;
+}
+
 bool MemoryPool::is_cache_mode() const {
     return num_cached_blocks_ > 0;
 }
@@ -785,4 +1038,26 @@ bool MemoryPool::is_cache_unit_prefilled(size_t cache_index) const {
         return cache_unit.prefilled_count.load() >= cache_unit.tables.size();
     }
     return false;
+}
+
+MemoryPool::TableBlock::Tags* MemoryPool::register_table_tags(const std::string& table_name,
+                                                              const std::vector<ColumnType>& tag_values) {
+    if (!tags_manager_) {
+        return nullptr;
+    }
+    return tags_manager_->register_tags(table_name, tag_values);
+}
+
+const MemoryPool::TableBlock::Tags* MemoryPool::get_table_tags(const std::string& table_name) const {
+    if (!tags_manager_) {
+        return nullptr;
+    }
+    return tags_manager_->get_tags(table_name);
+}
+
+bool MemoryPool::has_table_tags(const std::string& table_name) const {
+    if (!tags_manager_) {
+        return false;
+    }
+    return tags_manager_->has_tags(table_name);
 }

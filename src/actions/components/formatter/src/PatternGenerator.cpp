@@ -47,13 +47,40 @@ std::string PatternGenerator::get_value_as_string(const std::string& key, const 
 
     // Data column handling
     auto it = col_index_map_.find(key);
-    if (it == col_index_map_.end()) {
-        return "{COL_NOT_FOUND:" + key + "}";
+    if (it != col_index_map_.end()) {
+        try {
+            return data.get_column_cell_as_string(row_index, it->second);
+        } catch (const std::exception& e) {
+            return "{ERROR:" + std::string(e.what()) + "}";
+        }
     }
 
-    try {
-        return data.get_cell_as_string(row_index, it->second);
-    } catch (const std::exception& e) {
-        return "{ERROR:" + std::string(e.what()) + "}";
+    // Tag column handling
+    it = tag_index_map_.find(key);
+    if (it != tag_index_map_.end()) {
+        try {
+            return data.get_tag_cell_as_string(row_index, it->second);
+        } catch (const std::exception& e) {
+            return "{ERROR:" + std::string(e.what()) + "}";
+        }
+    }
+
+    // Not found
+    return "{COL_NOT_FOUND:" + key + "}";
+}
+
+void PatternGenerator::build_mapping(const ColumnConfigInstanceVector& col_instances, const ColumnConfigInstanceVector& tag_instances) {
+    // Build a mapping from column name to index
+    col_index_map_.clear();
+    col_index_map_.reserve(col_instances.size());
+    for (size_t i = 0; i < col_instances.size(); i++) {
+        col_index_map_[col_instances[i].name()] = i;
+    }
+
+    // Build a mapping from tag name to index
+    tag_index_map_.clear();
+    tag_index_map_.reserve(tag_instances.size());
+    for (size_t i = 0; i < tag_instances.size(); i++) {
+        tag_index_map_[tag_instances[i].name()] = i;
     }
 }

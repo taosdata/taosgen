@@ -25,6 +25,7 @@ InsertDataConfig create_test_config() {
     config.schema.generation.rows_per_table = 100;
     config.schema.generation.rows_per_batch = 10;
     config.timestamp_precision = "ms";
+    config.data_format.support_tags = false;
 
     return config;
 }
@@ -32,8 +33,9 @@ InsertDataConfig create_test_config() {
 void test_init_with_empty_tables() {
     auto config = create_test_config();
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
-    MemoryPool pool(1, 1, 1, col_instances);
-    TableDataManager manager(pool, config, col_instances);
+    auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.generator.schema);
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
+    TableDataManager manager(pool, config, col_instances, tag_instances);
 
     assert(!manager.init({}));
     std::cout << "test_init_with_empty_tables passed.\n";
@@ -42,8 +44,9 @@ void test_init_with_empty_tables() {
 void test_init_with_valid_tables() {
     auto config = create_test_config();
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
-    MemoryPool pool(1, 2, 1, col_instances);
-    TableDataManager manager(pool, config, col_instances);
+    auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.generator.schema);
+    MemoryPool pool(1, 2, 1, col_instances, tag_instances);
+    TableDataManager manager(pool, config, col_instances, tag_instances);
 
     std::vector<std::string> table_names = {"test_table_1", "test_table_2"};
     assert(manager.init(table_names));
@@ -63,8 +66,9 @@ void test_has_more() {
     auto config = create_test_config();
     config.schema.generation.rows_per_table = 5;
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
-    MemoryPool pool(1, 1, 5, col_instances);
-    TableDataManager manager(pool, config, col_instances);
+    auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.generator.schema);
+    MemoryPool pool(1, 1, 5, col_instances, tag_instances);
+    TableDataManager manager(pool, config, col_instances, tag_instances);
 
     std::vector<std::string> table_names = {"test_table"};
     assert(manager.init(table_names));
@@ -91,8 +95,9 @@ void test_table_completion() {
     auto config = create_test_config();
     config.schema.generation.rows_per_table = 2;
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
-    MemoryPool pool(1, 2, 2, col_instances);
-    TableDataManager manager(pool, config, col_instances);
+    auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.generator.schema);
+    MemoryPool pool(1, 2, 2, col_instances, tag_instances);
+    TableDataManager manager(pool, config, col_instances, tag_instances);
 
     std::vector<std::string> table_names = {"test_table_1", "test_table_2"};
     assert(manager.init(table_names));
@@ -118,8 +123,9 @@ void test_data_generation_basic() {
     config.schema.generation.rows_per_table = 5;
     config.schema.generation.interlace_mode.enabled = false;
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
-    MemoryPool pool(1, 1, 5, col_instances);
-    TableDataManager manager(pool, config, col_instances);
+    auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.generator.schema);
+    MemoryPool pool(1, 1, 5, col_instances, tag_instances);
+    TableDataManager manager(pool, config, col_instances, tag_instances);
 
     std::vector<std::string> table_names = {"test_table_1"};
     assert(manager.init(table_names));
@@ -160,8 +166,9 @@ void test_data_generation_with_interlace() {
     config.schema.generation.interlace_mode.rows = 2;
     config.schema.generation.rows_per_table = 4;
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
-    MemoryPool pool(1, 2, 4, col_instances);
-    TableDataManager manager(pool, config, col_instances);
+    auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.generator.schema);
+    MemoryPool pool(1, 2, 4, col_instances, tag_instances);
+    TableDataManager manager(pool, config, col_instances, tag_instances);
 
     std::vector<std::string> table_names = {"test_table_1", "test_table_2"};
     bool inited = manager.init(table_names);
@@ -221,8 +228,9 @@ void test_per_request_rows_limit() {
     config.schema.generation.rows_per_table = 10;
     config.schema.generation.interlace_mode.enabled = false;
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
-    MemoryPool pool(1, 2, 10, col_instances);
-    TableDataManager manager(pool, config, col_instances);
+    auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.generator.schema);
+    MemoryPool pool(1, 2, 10, col_instances, tag_instances);
+    TableDataManager manager(pool, config, col_instances, tag_instances);
 
     std::vector<std::string> table_names = {"test_table_1", "test_table_2"};
     assert(manager.init(table_names));
@@ -252,8 +260,9 @@ void test_data_generation_with_flow_control() {
     config.schema.generation.flow_control.rate_limit = 100;  // 100 rows per second
     config.schema.generation.rows_per_table = 5;
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
-    MemoryPool pool(1, 1, 5, col_instances);
-    TableDataManager manager(pool, config, col_instances);
+    auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.generator.schema);
+    MemoryPool pool(1, 1, 5, col_instances, tag_instances);
+    TableDataManager manager(pool, config, col_instances, tag_instances);
 
     std::vector<std::string> table_names = {"test_table_1"};
     assert(manager.init(table_names));
@@ -282,6 +291,91 @@ void test_data_generation_with_flow_control() {
     std::cout << "test_data_generation_with_flow_control passed.\n";
 }
 
+void test_data_generation_with_tags() {
+    auto config = create_test_config();
+
+    config.data_format.support_tags = true;
+    config.schema.tags_cfg.source_type = "generator";
+    config.schema.tags_cfg.generator.schema = {
+        {"tag1", "INT", "random", 100, 200},
+        {"tag2", "VARCHAR(8)", "random"}
+    };
+
+    auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
+    auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.generator.schema);
+
+    MemoryPool pool(1, 1, 5, col_instances, tag_instances);
+    TableDataManager manager(pool, config, col_instances, tag_instances);
+
+    std::vector<std::string> table_names = {"test_table_tags"};
+    auto init_result = manager.init(table_names);
+    assert(init_result);
+    (void)init_result;
+
+    auto block_opt = manager.next_multi_batch();
+    assert(block_opt.has_value());
+    auto* block = block_opt.value();
+
+    assert(block->used_tables == 1);
+    const auto& table = block->tables[0];
+
+    // Verify tags pointer is set
+    assert(table.tags_ptr != nullptr);
+    assert(std::string(table.tags_ptr->table_name) == "test_table_tags");
+
+    // Verify tag values
+    // tag1 is INT
+    auto tag1_cell = table.get_tag_cell(0, 0);
+    assert(std::holds_alternative<int32_t>(tag1_cell));
+    int32_t tag1_val = std::get<int32_t>(tag1_cell);
+    assert(tag1_val >= 100 && tag1_val <= 200);
+
+    // tag2 is VARCHAR
+    auto tag2_cell = table.get_tag_cell(0, 1);
+    assert(std::holds_alternative<std::string>(tag2_cell));
+    std::string tag2_val = std::get<std::string>(tag2_cell);
+    assert(tag2_val.length() > 0);
+
+    (void)tag1_val;
+    (void)tag2_val;
+
+    block->release();
+    std::cout << "test_data_generation_with_tags passed.\n";
+}
+
+void test_tags_disabled_by_config() {
+    auto config = create_test_config();
+
+    // Disable tags explicitly
+    config.data_format.support_tags = false;
+    config.schema.tags_cfg.source_type = "generator";
+    config.schema.tags_cfg.generator.schema = {
+        {"tag1", "INT", "random", 100, 200}
+    };
+
+    auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
+    auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.generator.schema);
+
+    MemoryPool pool(1, 1, 5, col_instances, tag_instances);
+    TableDataManager manager(pool, config, col_instances, tag_instances);
+
+    std::vector<std::string> table_names = {"test_table_no_tags"};
+    auto init_result = manager.init(table_names);
+    assert(init_result);
+    (void)init_result;
+
+    auto block_opt = manager.next_multi_batch();
+    assert(block_opt.has_value());
+    auto* block = block_opt.value();
+
+    const auto& table = block->tables[0];
+    assert(table.tags_ptr == nullptr);
+    (void)table;
+
+    block->release();
+    std::cout << "test_tags_disabled_by_config passed.\n";
+}
+
 int main() {
     test_init_with_empty_tables();
     test_init_with_valid_tables();
@@ -292,6 +386,8 @@ int main() {
     test_data_generation_with_interlace();
     test_per_request_rows_limit();
     test_data_generation_with_flow_control();
+    test_data_generation_with_tags();
+    test_tags_disabled_by_config();
 
     std::cout << "All tests passed.\n";
     return 0;

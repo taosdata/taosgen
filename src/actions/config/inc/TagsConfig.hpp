@@ -25,4 +25,14 @@ struct TagsConfig {
             throw std::runtime_error("Unknown source_type: " + source_type);
         }
     }
+
+    void clear_schema() {
+        if (source_type == "generator") {
+            generator.schema.clear();
+        } else if (source_type == "csv") {
+            csv.schema.clear();
+        } else {
+            throw std::runtime_error("Unknown source_type: " + source_type);
+        }
+    }
 };

@@ -9,7 +9,8 @@
 
 class BaseWriter : public IWriter {
 public:
-    explicit BaseWriter(const InsertDataConfig& config, const ColumnConfigInstanceVector& col_instances, std::shared_ptr<ActionRegisterInfo> action_info = nullptr);
+    explicit BaseWriter(const InsertDataConfig& config,
+                        std::shared_ptr<ActionRegisterInfo> action_info = nullptr);
     virtual ~BaseWriter() = default;
 
     // Public method implementations
@@ -26,7 +27,6 @@ public:
 protected:
     // Public member variables
     const InsertDataConfig& config_;
-    ColumnConfigInstanceVector col_instances_;
     std::string timestamp_precision_;
     TimeIntervalStrategy time_strategy_;
     std::chrono::steady_clock::time_point start_write_time_;

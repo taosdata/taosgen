@@ -36,17 +36,16 @@ InsertDataConfig create_test_config() {
 void test_constructor() {
     // Test valid timestamp precision
     auto config = create_test_config();
-    auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.get_schema());
-    TDengineWriter writer(config, col_instances);
+    TDengineWriter writer(config);
 
     // Test empty timestamp precision (should default to "ms")
     config.timestamp_precision = "";
-    TDengineWriter writer_empty_ts(config, col_instances);
+    TDengineWriter writer_empty_ts(config);
 
     // Test invalid timestamp precision
     config.timestamp_precision = "invalid";
     try {
-        TDengineWriter writer_invalid(config, col_instances);
+        TDengineWriter writer_invalid(config);
         assert(false); // Should not reach here
     } catch (const std::invalid_argument& e) {
         assert(std::string(e.what()) == "Invalid timestamp precision: invalid");
@@ -57,10 +56,9 @@ void test_constructor() {
 
 void test_connection() {
     auto config = create_test_config();
-    auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.get_schema());
 
     std::optional<ConnectorSource> conn_src;
-    TDengineWriter writer(config, col_instances);
+    TDengineWriter writer(config);
 
     // Test successful connection
     bool connected = writer.connect(conn_src);
@@ -73,7 +71,7 @@ void test_connection() {
 
     // Test connection with invalid config
     config.tdengine.host = "invalid_host";
-    TDengineWriter invalid_writer(config, col_instances);
+    TDengineWriter invalid_writer(config);
     connected = invalid_writer.connect(conn_src);
     assert(!connected);
 
@@ -82,8 +80,7 @@ void test_connection() {
 
 void test_select_db_and_prepare() {
     auto config = create_test_config();
-    auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.get_schema());
-    TDengineWriter writer(config, col_instances);
+    TDengineWriter writer(config);
 
     // Not connected, should throw
     try {
@@ -121,9 +118,10 @@ void test_select_db_and_prepare() {
 void test_write_operations() {
     auto config = create_test_config();
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.get_schema());
+    auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.get_schema());
 
     std::optional<ConnectorSource> conn_src;
-    TDengineWriter writer(config, col_instances);
+    TDengineWriter writer(config);
     auto connected = writer.connect(conn_src);
     (void)connected;
     assert(connected);
@@ -137,10 +135,10 @@ void test_write_operations() {
         batch.table_batches.emplace_back("d0", std::move(rows));
         batch.update_metadata();
 
-        MemoryPool pool(1, 1, 2, col_instances);
+        MemoryPool pool(1, 1, 2, col_instances, tag_instances);
         auto* block = pool.convert_to_memory_block(std::move(batch));
 
-        SqlInsertData sql_data(block, col_instances, "INSERT INTO `test_action`.`d0` VALUES (1700000000000, 105, 3.1415926)");
+        SqlInsertData sql_data(block, col_instances, tag_instances, "INSERT INTO `test_action`.`d0` VALUES (1700000000000, 105, 3.1415926)");
         writer.write(sql_data);
     }
 
@@ -161,10 +159,10 @@ void test_write_operations() {
         batch.table_batches.emplace_back("d1", std::move(rows));
         batch.update_metadata();
 
-        MemoryPool pool(1, 1, 2, col_instances);
+        MemoryPool pool(1, 1, 2, col_instances, tag_instances);
         auto* block = pool.convert_to_memory_block(std::move(batch));
 
-        StmtV2InsertData stmt_data(block, col_instances);
+        StmtV2InsertData stmt_data(block, col_instances, tag_instances);
         writer.write(stmt_data);
     }
 
@@ -177,10 +175,10 @@ void test_write_operations() {
         batch.table_batches.emplace_back("d2", std::move(rows));
         batch.update_metadata();
 
-        MemoryPool pool(1, 1, 2, col_instances);
+        MemoryPool pool(1, 1, 2, col_instances, tag_instances);
         auto* block = pool.convert_to_memory_block(std::move(batch));
 
-        BaseInsertData invalid_data(static_cast<BaseInsertData::DataType>(999), block, col_instances);
+        BaseInsertData invalid_data(static_cast<BaseInsertData::DataType>(999), block, col_instances, tag_instances);
 
         try {
             writer.write(invalid_data);
@@ -196,7 +194,8 @@ void test_write_operations() {
 void test_write_without_connection() {
     auto config = create_test_config();
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.get_schema());
-    TDengineWriter writer(config, col_instances);
+    auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.get_schema());
+    TDengineWriter writer(config);
 
     MultiBatch batch;
     std::vector<RowData> rows;
@@ -205,10 +204,10 @@ void test_write_without_connection() {
     batch.table_batches.emplace_back("table1", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 2, col_instances);
+    MemoryPool pool(1, 1, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
-    SqlInsertData sql_data(block, col_instances, "test");
+    SqlInsertData sql_data(block, col_instances, tag_instances, "test");
     try {
         writer.write(sql_data);
         assert(false);
@@ -225,7 +224,8 @@ void test_retry_mechanism() {
     config.failure_handling.retry_interval_ms = 1;
     config.failure_handling.on_failure = "exit";
     auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.get_schema());
-    TDengineWriter writer(config, col_instances);
+    auto tag_instances = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.get_schema());
+    TDengineWriter writer(config);
 
     std::optional<ConnectorSource> conn_src;
     auto connected = writer.connect(conn_src);
@@ -239,10 +239,10 @@ void test_retry_mechanism() {
     batch.table_batches.emplace_back("table1", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 2, col_instances);
+    MemoryPool pool(1, 1, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
-    SqlInsertData sql_data(block, col_instances, "show databases");
+    SqlInsertData sql_data(block, col_instances, tag_instances, "show databases");
     writer.write(sql_data);
 
     std::cout << "test_retry_mechanism skipped (not implemented)." << std::endl;
@@ -250,8 +250,7 @@ void test_retry_mechanism() {
 
 void test_metrics_and_time() {
     auto config = create_test_config();
-    auto col_instances = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.get_schema());
-    TDengineWriter writer(config, col_instances);
+    TDengineWriter writer(config);
 
     assert(writer.get_timestamp_precision() == "ms");
     const ActionMetrics& play = writer.get_play_metrics();

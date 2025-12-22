@@ -8,6 +8,7 @@
 
 void test_basic_serialization() {
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"temp", "FLOAT"});
     col_instances.emplace_back(ColumnConfig{"humidity", "INT"});
     col_instances.emplace_back(ColumnConfig{"location", "VARCHAR(20)"});
@@ -18,12 +19,12 @@ void test_basic_serialization() {
     batch.table_batches.emplace_back("weather", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 1, col_instances);
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
     const auto& tb = block->tables[0];
 
     // --- Test original to_json ---
-    nlohmann::ordered_json result = RowSerializer::to_json(col_instances, tb, 0, "tb_name");
+    nlohmann::ordered_json result = RowSerializer::to_json(col_instances, tag_instances, tb, 0, "tb_name");
     assert(result["tb_name"] == "weather");
     assert(result["ts"] == 1609459200000);
     assert(result["temp"] == 25.5f);
@@ -33,7 +34,7 @@ void test_basic_serialization() {
 
     // --- Test inplace version ---
     nlohmann::ordered_json result_inplace;
-    RowSerializer::to_json_inplace(col_instances, tb, 0, "tb_name", result_inplace);
+    RowSerializer::to_json_inplace(col_instances, tag_instances, tb, 0, "tb_name", result_inplace);
     assert(result_inplace["tb_name"] == "weather");
     assert(result_inplace["ts"] == 1609459200000);
     assert(result_inplace["temp"] == 25.5f);
@@ -46,6 +47,7 @@ void test_basic_serialization() {
 
 void test_without_tbname_key() {
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"value", "DOUBLE"});
 
     MultiBatch batch;
@@ -54,12 +56,12 @@ void test_without_tbname_key() {
     batch.table_batches.emplace_back("t1", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 1, col_instances);
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
     const auto& tb = block->tables[0];
 
     // --- Test original to_json ---
-    nlohmann::ordered_json result = RowSerializer::to_json(col_instances, tb, 0, "");
+    nlohmann::ordered_json result = RowSerializer::to_json(col_instances, tag_instances, tb, 0, "");
     assert(result.find("tb_name") == result.end());
     assert(result["ts"] == 1609459201000);
     assert(result["value"] == 123.456);
@@ -67,7 +69,7 @@ void test_without_tbname_key() {
 
     // --- Test inplace version ---
     nlohmann::ordered_json result_inplace;
-    RowSerializer::to_json_inplace(col_instances, tb, 0, "", result_inplace);
+    RowSerializer::to_json_inplace(col_instances, tag_instances, tb, 0, "", result_inplace);
     assert(result_inplace.find("tb_name") == result_inplace.end());
     assert(result_inplace["ts"] == 1609459201000);
     assert(result_inplace["value"] == 123.456);
@@ -78,6 +80,7 @@ void test_without_tbname_key() {
 
 void test_boolean_type() {
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"status", "BOOL"});
 
     MultiBatch batch;
@@ -87,13 +90,13 @@ void test_boolean_type() {
     batch.table_batches.emplace_back("t1", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 2, col_instances);
+    MemoryPool pool(1, 1, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
     const auto& tb = block->tables[0];
 
     // --- Test original to_json ---
-    nlohmann::ordered_json result1 = RowSerializer::to_json(col_instances, tb, 0, "");
-    nlohmann::ordered_json result2 = RowSerializer::to_json(col_instances, tb, 1, "");
+    nlohmann::ordered_json result1 = RowSerializer::to_json(col_instances, tag_instances, tb, 0, "");
+    nlohmann::ordered_json result2 = RowSerializer::to_json(col_instances, tag_instances, tb, 1, "");
     assert(result1["status"] == true);
     assert(result2["status"] == false);
     (void)result1;
@@ -101,10 +104,10 @@ void test_boolean_type() {
 
     // --- Test inplace version ---
     nlohmann::ordered_json result_inplace;
-    RowSerializer::to_json_inplace(col_instances, tb, 0, "", result_inplace);
+    RowSerializer::to_json_inplace(col_instances, tag_instances, tb, 0, "", result_inplace);
     assert(result_inplace["status"] == true);
     result_inplace.clear(); // Clear for reuse
-    RowSerializer::to_json_inplace(col_instances, tb, 1, "", result_inplace);
+    RowSerializer::to_json_inplace(col_instances, tag_instances, tb, 1, "", result_inplace);
     assert(result_inplace["status"] == false);
     (void)result_inplace;
 
@@ -113,6 +116,7 @@ void test_boolean_type() {
 
 void test_out_of_range_exception() {
     ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
     col_instances.emplace_back(ColumnConfig{"c1", "INT"});
 
     MultiBatch batch;
@@ -121,14 +125,14 @@ void test_out_of_range_exception() {
     batch.table_batches.emplace_back("t1", std::move(rows));
     batch.update_metadata();
 
-    MemoryPool pool(1, 1, 1, col_instances);
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
     const auto& tb = block->tables[0];
 
     bool exception_thrown = false;
     try {
         // Test original to_json
-        RowSerializer::to_json(col_instances, tb, 1, "");
+        RowSerializer::to_json(col_instances, tag_instances, tb, 1, "");
         assert(false && "Should have thrown an exception for to_json");
     } catch (const std::out_of_range& e) {
         std::string msg = e.what();
@@ -141,7 +145,7 @@ void test_out_of_range_exception() {
     exception_thrown = false;
     try {
         nlohmann::ordered_json result_inplace;
-        RowSerializer::to_json_inplace(col_instances, tb, 1, "", result_inplace);
+        RowSerializer::to_json_inplace(col_instances, tag_instances, tb, 1, "", result_inplace);
         assert(false && "Should have thrown an exception for to_json_inplace");
     } catch (const std::out_of_range& e) {
         std::string msg = e.what();
@@ -154,11 +158,60 @@ void test_out_of_range_exception() {
     std::cout << "test_out_of_range_exception passed." << std::endl;
 }
 
+void test_serialization_with_tags() {
+    ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
+
+    // Define columns
+    col_instances.emplace_back(ColumnConfig{"temp", "FLOAT"});
+
+    // Define tags
+    tag_instances.emplace_back(ColumnConfig{"region", "VARCHAR(10)"});
+    tag_instances.emplace_back(ColumnConfig{"sensor_id", "INT"});
+
+    MultiBatch batch;
+    std::vector<RowData> rows;
+    rows.push_back({1609459200000, {25.5f}});
+    batch.table_batches.emplace_back("weather_sensor", std::move(rows));
+    batch.update_metadata();
+
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
+    auto* block = pool.convert_to_memory_block(std::move(batch));
+
+    // Register and assign tags to the table block
+    std::vector<ColumnType> tag_values = {std::string("us-west"), int32_t(1001)};
+    block->tables[0].tags_ptr = pool.register_table_tags("weather_sensor", tag_values);
+
+    const auto& tb = block->tables[0];
+
+    // Test to_json
+    nlohmann::ordered_json result = RowSerializer::to_json(col_instances, tag_instances, tb, 0, "tbname");
+
+    assert(result["tbname"] == "weather_sensor");
+    assert(result["ts"] == 1609459200000);
+    assert(result["temp"] == 25.5f);
+    assert(result["region"] == "us-west");
+    assert(result["sensor_id"] == 1001);
+
+    // Test to_json_inplace
+    nlohmann::ordered_json result_inplace;
+    RowSerializer::to_json_inplace(col_instances, tag_instances, tb, 0, "tbname", result_inplace);
+
+    assert(result_inplace["tbname"] == "weather_sensor");
+    assert(result_inplace["ts"] == 1609459200000);
+    assert(result_inplace["temp"] == 25.5f);
+    assert(result_inplace["region"] == "us-west");
+    assert(result_inplace["sensor_id"] == 1001);
+
+    std::cout << "test_serialization_with_tags passed." << std::endl;
+}
+
 int main() {
     test_basic_serialization();
     test_without_tbname_key();
     test_boolean_type();
     test_out_of_range_exception();
+    test_serialization_with_tags();
     std::cout << "All RowSerializer tests passed." << std::endl;
     return 0;
 }

@@ -1103,6 +1103,7 @@ schema:
     - name: ts
       type: BIGINT
 format: sql
+auto_create_table: true
 timestamp_precision: us
 concurrency: 8
 queue_capacity: 2048
@@ -1129,6 +1130,7 @@ checkpoint:
     assert(idc.tdengine.dsn == "taos://root:taosdata@localhost:6030/test");
     assert(idc.schema.name == "test_schema");
     assert(idc.data_format.format_type == "sql");
+    assert(idc.data_format.stmt.auto_create_table == true);
     assert(idc.timestamp_precision == "us");
     assert(idc.insert_threads == 8);
     assert(idc.queue_capacity == 2048);

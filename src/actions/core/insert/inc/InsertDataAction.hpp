@@ -18,6 +18,7 @@ public:
     explicit InsertDataAction(const GlobalConfig& global, const InsertDataConfig& config)
             : global_(global), config_(config) {
         col_instances_ = create_column_instances();
+        tag_instances_ = create_tag_instances();
     }
 
     void execute() override;
@@ -28,6 +29,7 @@ private:
     const GlobalConfig& global_;
     InsertDataConfig config_;
     ColumnConfigInstanceVector col_instances_;
+    ColumnConfigInstanceVector tag_instances_;
     bool is_checkpoint_recover_ = false;
     std::atomic<bool> stop_execution_{false};
 
@@ -35,6 +37,7 @@ private:
     void set_thread_affinity(size_t thread_id, bool reverse = false, const std::string& purpose = "");
 
     ColumnConfigInstanceVector create_column_instances() const;
+    ColumnConfigInstanceVector create_tag_instances() const;
     void print_writer_times(const std::vector<std::unique_ptr<IWriter>>& writers);
 
     void producer_thread_function(
