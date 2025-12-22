@@ -1,2 +1,2 @@
 #pragma once
-#define TAOSGEN_VERSION "0.8.0"
+#define TAOSGEN_VERSION "0.8.1"
