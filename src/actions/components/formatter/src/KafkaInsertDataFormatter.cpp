@@ -102,21 +102,6 @@ KafkaInsertData KafkaInsertDataFormatter::format_influx(const ColumnConfigInstan
 
     KeyGenerator key_generator(format.key_pattern, format.key_serializer, col_instances, tag_instances);
 
-    std::vector<const char*> field_formats;
-
-    for (const auto& col : col_instances) {
-        const char* fmt_str;
-
-        if (ColumnTypeTraits::needs_quotes(col.type_tag())) {
-            fmt_str = "{}=\"{}\"";  // name="value"
-        } else if (ColumnTypeTraits::is_integer(col.type_tag())) {
-            fmt_str = "{}={}i";     // name=valuei
-        } else {
-            fmt_str = "{}={}";      // name=value
-        }
-        field_formats.emplace_back(fmt_str);
-    }
-
     fmt::memory_buffer line_buffer;
     line_buffer.reserve(1048576);
     std::string first_record_key;
@@ -124,45 +109,15 @@ KafkaInsertData KafkaInsertDataFormatter::format_influx(const ColumnConfigInstan
 
     for (size_t table_idx = 0; table_idx < batch->used_tables; ++table_idx) {
         auto& table_block = batch->tables[table_idx];
-        const char* measurement = table_block.table_name ? table_block.table_name : "unknown";
 
         for (size_t row_idx = 0; row_idx < table_block.used_rows; ++row_idx) {
             if (records_in_current_message == 0) {
                 first_record_key = key_generator.generate(table_block, row_idx);
             } else {
-                fmt::format_to(std::back_inserter(line_buffer), "\n");
+                line_buffer.push_back('\n');
             }
 
-            // 1. Measurement
-            fmt::format_to(std::back_inserter(line_buffer), "{}", measurement);
-
-            // 2. Tags
-            for (size_t tag_idx = 0; tag_idx < tag_instances.size(); ++tag_idx) {
-                fmt::format_to(std::back_inserter(line_buffer), ",{}=\"{}\"",
-                               tag_instances[tag_idx].name(),
-                               table_block.get_tag_cell(0, tag_idx));
-            }
-
-            // 3. Space separator
-            line_buffer.push_back(' ');
-
-            // 4. Fields
-            bool first_field = true;
-            for (size_t col_idx = 0; col_idx < col_instances.size(); ++col_idx) {
-                if (!first_field) {
-                    line_buffer.push_back(',');
-                }
-
-                // The format string can handles quotes and integer suffixes
-                fmt::format_to(std::back_inserter(line_buffer), fmt::runtime(field_formats[col_idx]),
-                               col_instances[col_idx].name(),
-                               table_block.get_column_cell(row_idx, col_idx));
-                first_field = false;
-            }
-
-            // 5. Timestamp
-            fmt::format_to(std::back_inserter(line_buffer), " {}", table_block.timestamps[row_idx]);
-
+            RowSerializer::to_influx_inplace(col_instances, tag_instances, table_block, row_idx, line_buffer);
             records_in_current_message++;
 
             // If the message is full, push it to the batch and reset
