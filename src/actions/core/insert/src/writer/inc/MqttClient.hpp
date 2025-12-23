@@ -1,18 +1,10 @@
 #pragma once
 
-#include "BaseInsertData.hpp"
 #include "MqttConfig.hpp"
 #include "MqttInsertData.hpp"
-#include "InsertDataConfig.hpp"
-#include "FormatResult.hpp"
-#include "Compressor.hpp"
-#include "CompressionType.hpp"
-#include "EncodingConverter.hpp"
-#include "EncodingType.hpp"
 
 #include <mqtt/async_client.h>
 #include <mqtt/properties.h>
-#include <nlohmann/json.hpp>
 #include <memory>
 #include <vector>
 #include <functional>

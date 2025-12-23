@@ -1,13 +1,9 @@
 #pragma once
 
-#include "BaseInsertData.hpp"
 #include "KafkaConfig.hpp"
 #include "KafkaInsertData.hpp"
-#include "InsertDataConfig.hpp"
-#include "FormatResult.hpp"
 #include "ColumnConfigInstance.hpp"
 #include <memory>
-#include <nlohmann/json.hpp>
 
 // Forward declaration
 namespace RdKafka {
