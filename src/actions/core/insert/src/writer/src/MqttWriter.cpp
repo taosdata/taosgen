@@ -29,18 +29,11 @@ bool MqttWriter::connect(std::optional<ConnectorSource>& conn_source) {
     }
 }
 
-bool MqttWriter::select_db(const std::string& db_name) {
+bool MqttWriter::prepare(const std::string& context) {
     if (!client_ || !client_->is_connected()) {
         throw std::runtime_error("MqttWriter is not connected");
     }
-    return client_->select_db(db_name);
-}
-
-bool MqttWriter::prepare(const std::string& sql) {
-    if (!client_ || !client_->is_connected()) {
-        throw std::runtime_error("MqttWriter is not connected");
-    }
-    return client_->prepare(sql);
+    return client_->prepare(context);
 }
 
 bool MqttWriter::write(const BaseInsertData& data) {

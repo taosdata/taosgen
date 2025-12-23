@@ -37,18 +37,11 @@ bool TDengineWriter::connect(std::optional<ConnectorSource>& conn_source) {
     }
 }
 
-bool TDengineWriter::select_db(const std::string& db_name) {
+bool TDengineWriter::prepare(const std::string& context) {
     if (!connector_) {
         throw std::runtime_error("TDengineWriter is not connected");
     }
-    return connector_->select_db(db_name);
-}
-
-bool TDengineWriter::prepare(const std::string& sql) {
-    if (!connector_) {
-        throw std::runtime_error("TDengineWriter is not connected");
-    }
-    return connector_->prepare(sql);
+    return connector_->prepare(context);
 }
 
 bool TDengineWriter::write(const BaseInsertData& data) {

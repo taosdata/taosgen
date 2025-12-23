@@ -135,7 +135,7 @@ void test_connection_failure() {
     std::cout << "test_connection_failure passed." << std::endl;
 }
 
-void test_select_db_and_prepare() {
+void test_prepare() {
     auto config = create_test_config();
     KafkaWriter writer(config);
 
@@ -144,15 +144,9 @@ void test_select_db_and_prepare() {
     kafka_client->set_client(std::make_unique<MockKafkaClient>());
     writer.set_client(std::move(kafka_client));
 
-    // select_db/prepare should throw when not connected
+    // prepare should throw when not connected
     try {
-        writer.select_db("db1");
-        assert(false);
-    } catch (const std::runtime_error& e) {
-        assert(std::string(e.what()) == "KafkaWriter is not connected");
-    }
-    try {
-        writer.prepare("sql");
+        writer.prepare("context");
         assert(false);
     } catch (const std::runtime_error& e) {
         assert(std::string(e.what()) == "KafkaWriter is not connected");
@@ -161,10 +155,9 @@ void test_select_db_and_prepare() {
     // After connecting, should be available
     std::optional<ConnectorSource> conn_src;
     assert(writer.connect(conn_src));
-    assert(writer.select_db("db1"));
-    assert(writer.prepare("sql"));
+    assert(writer.prepare("context"));
 
-    std::cout << "test_select_db_and_prepare passed." << std::endl;
+    std::cout << "test_prepare passed." << std::endl;
 }
 
 void test_write_operations() {
@@ -308,7 +301,7 @@ int main() {
     test_constructor();
     test_connection();
     test_connection_failure();
-    test_select_db_and_prepare();
+    test_prepare();
     test_write_operations();
     test_write_with_retry();
     test_write_without_connection();

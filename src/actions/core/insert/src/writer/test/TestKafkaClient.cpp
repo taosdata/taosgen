@@ -126,15 +126,14 @@ void test_connect_failure() {
     std::cout << "test_connect_failure passed." << std::endl;
 }
 
-void test_select_db_and_prepare() {
+void test_prepare() {
     auto connector_config = create_test_connector_config();
     auto format_config = create_test_format_config();
 
     KafkaClient client(connector_config, format_config);
 
-    assert(client.select_db("db1"));
-    assert(client.prepare("sql"));
-    std::cout << "test_select_db_and_prepare passed." << std::endl;
+    assert(client.prepare("context"));
+    std::cout << "test_prepare passed." << std::endl;
 }
 
 void test_execute_and_produce() {
@@ -224,7 +223,7 @@ void test_produce_failure() {
 int main() {
     test_connect_and_close();
     test_connect_failure();
-    test_select_db_and_prepare();
+    test_prepare();
     test_execute_and_produce();
     test_execute_not_connected();
     test_produce_failure();

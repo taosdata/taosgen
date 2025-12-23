@@ -148,13 +148,8 @@ void KafkaClient::close() {
     }
 }
 
-bool KafkaClient::select_db(const std::string& db_name) {
-    (void)db_name;
-    return true;
-}
-
-bool KafkaClient::prepare(const std::string& sql) {
-    (void)sql;
+bool KafkaClient::prepare(const std::string& context) {
+    (void)context;
     return true;
 }
 

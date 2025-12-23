@@ -69,8 +69,7 @@ public:
     bool connect();
     bool is_connected() const;
     void close();
-    bool select_db(const std::string& db_name);
-    bool prepare(const std::string& sql);
+    bool prepare(const std::string& context);
     bool execute(const MqttInsertData& data);
 
     void set_client(std::unique_ptr<IMqttClient> client) {

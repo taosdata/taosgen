@@ -78,18 +78,11 @@ void test_connection() {
     std::cout << "test_connection passed." << std::endl;
 }
 
-void test_select_db_and_prepare() {
+void test_prepare() {
     auto config = create_test_config();
     TDengineWriter writer(config);
 
     // Not connected, should throw
-    try {
-        writer.select_db("information_schema");
-        assert(false);
-    } catch (const std::runtime_error& e) {
-        assert(std::string(e.what()) == "TDengineWriter is not connected");
-    }
-
     std::string sql = "SELECT * FROM `information_schema`.`ins_dnodes` where id=?";
 
     try {
@@ -99,20 +92,17 @@ void test_select_db_and_prepare() {
         assert(std::string(e.what()) == "TDengineWriter is not connected");
     }
 
-    // Connect and test select_db/prepare
+    // Connect and test prepare
     std::optional<ConnectorSource> conn_src;
     auto connected = writer.connect(conn_src);
     (void)connected;
     assert(connected);
 
-    auto db_ok = writer.select_db("information_schema");
     auto prep_ok = writer.prepare(sql);
-    (void)db_ok;
     (void)prep_ok;
-    assert(db_ok);
     assert(prep_ok);
 
-    std::cout << "test_select_db_and_prepare passed." << std::endl;
+    std::cout << "test_prepare passed." << std::endl;
 }
 
 void test_write_operations() {
@@ -269,7 +259,7 @@ void test_metrics_and_time() {
 int main() {
     test_constructor();
     test_connection();
-    test_select_db_and_prepare();
+    test_prepare();
     test_write_operations();
     test_write_without_connection();
     test_retry_mechanism();

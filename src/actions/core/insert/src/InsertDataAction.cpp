@@ -590,12 +590,6 @@ void InsertDataAction::consumer_thread_function(
     }
 
     if (config_.target_type == "tdengine") {
-        if (!writer->select_db(config_.tdengine.database)) {
-            handle_startup_error("Failed to select database for writer thread {} with database name: {}",
-                consumer_id, config_.tdengine.database);
-            return;
-        }
-
         auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(config_.data_format);
         auto sql = formatter->prepare(config_, col_instances_, tag_instances_);
 
