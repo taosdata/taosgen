@@ -6,8 +6,10 @@
 #include <iostream>
 
 void CreateDatabaseAction::prepare_connector() {
+    auto tdengine = config_.tdengine;
+    tdengine.database.clear();
     connector_ = ConnectorFactory::create(
-        config_.tdengine
+        tdengine
     );
 }
 

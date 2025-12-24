@@ -6,7 +6,6 @@
 #include "Compressor.hpp"
 #include "EncodingConverter.hpp"
 #include "RowSerializer.hpp"
-#include "taos.h"
 #include <nlohmann/json.hpp>
 
 class MqttInsertDataFormatter final : public IInsertDataFormatter {

@@ -4,7 +4,6 @@
 #include "FormatterFactory.hpp"
 #include "KeyGenerator.hpp"
 #include "RowSerializer.hpp"
-#include "taos.h"
 #include <nlohmann/json.hpp>
 
 class KafkaInsertDataFormatter final : public IInsertDataFormatter {

@@ -38,4 +38,17 @@ struct GenerationConfig {
     int64_t rows_per_table = 10000;
     size_t rows_per_batch = 10000;
     bool tables_reuse_data = true;
+
+    GenerationConfig() {
+        if (data_cache.enabled) {
+            size_t batches_needed = 0;
+            if (interlace_mode.enabled) {
+                batches_needed = (static_cast<size_t>(rows_per_table) + interlace_mode.rows - 1) / interlace_mode.rows;
+            } else {
+                batches_needed = (static_cast<size_t>(rows_per_table) + rows_per_batch - 1) / rows_per_batch;
+            }
+
+            data_cache.num_cached_batches = std::min<size_t>(batches_needed, data_cache.num_cached_batches);
+        }
+    }
 };
