@@ -30,7 +30,7 @@ private:
                                MemoryPool::MemoryBlock* batch) const;
 
     inline static bool registered_ = []() {
-        FormatterFactory::instance().register_formatter<InsertDataConfig>(
+        FormatterFactory::register_formatter<InsertDataConfig>(
             "mqtt",
             [](const DataFormat& format) {
                 return std::make_unique<MqttInsertDataFormatter>(format);

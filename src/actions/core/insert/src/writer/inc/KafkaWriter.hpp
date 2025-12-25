@@ -1,5 +1,6 @@
 #pragma once
 #include "BaseWriter.hpp"
+#include "WriterFactory.hpp"
 #include "KafkaClient.hpp"
 
 class KafkaWriter : public BaseWriter {
@@ -20,4 +21,13 @@ private:
     bool handle_insert(const T& data);
 
     std::unique_ptr<KafkaClient> client_;
+
+    inline static bool registered_ = []() {
+        WriterFactory::register_writer(
+            "kafka",
+            [](const InsertDataConfig& config, size_t no, std::shared_ptr<ActionRegisterInfo>) {
+                return std::make_unique<KafkaWriter>(config, no);
+            });
+        return true;
+    }();
 };

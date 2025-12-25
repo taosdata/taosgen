@@ -91,7 +91,7 @@ void CreateChildTableAction::execute() {
                     int batch_size = config_.batch.size;
                     int total_batches = (group_table_names.size() + batch_size - 1) / batch_size;
 
-                    auto formatter = FormatterFactory::instance().create_formatter<CreateChildTableConfig>(DataFormat());
+                    auto formatter = FormatterFactory::create_formatter<CreateChildTableConfig>(DataFormat());
 
                     for (int batch_idx = 0; batch_idx < total_batches; ++batch_idx) {
                         int batch_start = batch_idx * batch_size;

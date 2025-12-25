@@ -177,7 +177,7 @@ private:
     const DataFormat& format_;
 
     inline static bool registered_ = []() {
-        FormatterFactory::instance().register_formatter<InsertDataConfig>(
+        FormatterFactory::register_formatter<InsertDataConfig>(
             "sql",
             [](const DataFormat& format) {
                 return std::make_unique<SqlInsertDataFormatter>(format);

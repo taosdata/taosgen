@@ -101,7 +101,7 @@ void test_format_insert_data_multiple_tables() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
     (void)block;
 
-    auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(format);
+    auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(format);
     FormatResult result = formatter->format(config, col_instances, tag_instances, block);
 
     assert(std::holds_alternative<SqlInsertData>(result));

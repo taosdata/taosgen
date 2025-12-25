@@ -19,7 +19,7 @@ void CreateDatabaseAction::execute() {
     try {
         prepare_connector();
 
-        auto formatter = FormatterFactory::instance().create_formatter<CreateDatabaseConfig>(DataFormat());
+        auto formatter = FormatterFactory::create_formatter<CreateDatabaseConfig>(DataFormat());
 
         if (CheckpointAction::is_recover(global_, config_.checkpoint_info)) {
             config_.tdengine.drop_if_exists = false;

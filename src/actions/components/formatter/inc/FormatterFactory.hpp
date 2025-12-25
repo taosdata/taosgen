@@ -48,37 +48,37 @@ public:
 
 
     template<typename ActionConfig>
-    void register_formatter(const std::string& format_type, CreatorType<ActionConfig> creator) {
-        // using Interface = typename FormatterTraits<ActionConfig>::Interface;
-    
+    static void register_formatter(const std::string& format_type, CreatorType<ActionConfig> creator) {
+        auto& inst = instance();
+
         const std::string key = std::string(FormatterTraits<ActionConfig>::prefix) + "." + format_type;
-    
+
         auto adapter = [creator](const DataFormat& fmt) -> std::unique_ptr<IFormatter> {
             return creator(fmt);
         };
-    
-        std::lock_guard<std::mutex> lock(mutex_);
-        creators_[key] = std::move(adapter);
+
+        std::lock_guard<std::mutex> lock(inst.mutex_);
+        inst.creators_[key] = std::move(adapter);
     }
 
 
     template<typename ActionConfig>
-    std::unique_ptr<typename FormatterTraits<ActionConfig>::Interface> create_formatter(const DataFormat& format) {
+    static std::unique_ptr<typename FormatterTraits<ActionConfig>::Interface> create_formatter(const DataFormat& format) {
         auto base_ptr = create_base_formatter<ActionConfig>(format);
-    
+
         return std::unique_ptr<typename FormatterTraits<ActionConfig>::Interface>(
             static_cast<typename FormatterTraits<ActionConfig>::Interface*>(base_ptr.release())
         );
     }
 
-
 private:
     template<typename ActionConfig>
-    std::unique_ptr<IFormatter> create_base_formatter(const DataFormat& format) {
+    static std::unique_ptr<IFormatter> create_base_formatter(const DataFormat& format) {
+        auto& inst = instance();
         const std::string key = std::string(FormatterTraits<ActionConfig>::prefix) + "." + format.format_type;
-    
-        std::lock_guard<std::mutex> lock(mutex_);
-        if (auto it = creators_.find(key); it != creators_.end()) {
+
+        std::lock_guard<std::mutex> lock(inst.mutex_);
+        if (auto it = inst.creators_.find(key); it != inst.creators_.end()) {
             return it->second(format);
         }
         throw std::invalid_argument("Unsupported formatter type: " + key);

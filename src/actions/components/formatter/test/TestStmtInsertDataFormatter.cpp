@@ -143,7 +143,7 @@ void test_stmt_format_insert_data_multiple_tables() {
     MemoryPool pool(1, 2, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
-    auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(format);
+    auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(format);
     FormatResult result = formatter->format(config, col_instances, tag_instances, block);
 
     assert(std::holds_alternative<StmtV2InsertData>(result));
@@ -259,7 +259,7 @@ void test_stmt_format_insert_data_with_empty_rows() {
     MemoryPool pool(1, 3, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
-    auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(format);
+    auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(format);
     FormatResult result = formatter->format(config, col_instances, tag_instances, block);
 
     assert(std::holds_alternative<StmtV2InsertData>(result));

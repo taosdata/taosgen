@@ -24,7 +24,7 @@ void test_format_create_super_table_with_columns_and_tags() {
     };
     config.schema.apply();
 
-    auto formatter = FormatterFactory::instance().create_formatter<CreateSuperTableConfig>(format);
+    auto formatter = FormatterFactory::create_formatter<CreateSuperTableConfig>(format);
     FormatResult result = formatter->format(config);
 
     assert(std::holds_alternative<std::string>(result));
@@ -50,7 +50,7 @@ void test_format_create_super_table_without_columns() {
     };
     config.schema.apply();
 
-    auto formatter = FormatterFactory::instance().create_formatter<CreateSuperTableConfig>(format);
+    auto formatter = FormatterFactory::create_formatter<CreateSuperTableConfig>(format);
     FormatResult result = formatter->format(config);
 
     assert(std::holds_alternative<std::string>(result));
@@ -76,7 +76,7 @@ void test_format_create_super_table_without_tags() {
     config.schema.tags = {};
     config.schema.apply();
 
-    auto formatter = FormatterFactory::instance().create_formatter<CreateSuperTableConfig>(format);
+    auto formatter = FormatterFactory::create_formatter<CreateSuperTableConfig>(format);
     FormatResult result = formatter->format(config);
 
     assert(std::holds_alternative<std::string>(result));
@@ -98,7 +98,7 @@ void test_format_create_super_table_with_empty_config() {
     config.schema.tags = {};
     config.schema.apply();
 
-    auto formatter = FormatterFactory::instance().create_formatter<CreateSuperTableConfig>(format);
+    auto formatter = FormatterFactory::create_formatter<CreateSuperTableConfig>(format);
     FormatResult result = formatter->format(config);
 
     assert(std::holds_alternative<std::string>(result));

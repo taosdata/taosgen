@@ -247,7 +247,7 @@ void test_kafka_format_factory_creation() {
     DataFormat format;
     format.format_type = "kafka";
 
-    auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(format);
+    auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(format);
     assert(formatter != nullptr);
 
     auto* kafka_formatter = dynamic_cast<KafkaInsertDataFormatter*>(formatter.get());

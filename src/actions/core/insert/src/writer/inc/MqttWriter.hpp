@@ -1,5 +1,6 @@
 #pragma once
 #include "BaseWriter.hpp"
+#include "WriterFactory.hpp"
 #include "MqttClient.hpp"
 
 class MqttWriter : public BaseWriter {
@@ -20,4 +21,13 @@ private:
     bool handle_insert(const T& data);
 
     std::unique_ptr<MqttClient> client_;
+
+    inline static bool registered_ = []() {
+        WriterFactory::register_writer(
+            "mqtt",
+            [](const InsertDataConfig& config, size_t no, std::shared_ptr<ActionRegisterInfo>) {
+                return std::make_unique<MqttWriter>(config, no);
+            });
+        return true;
+    }();
 };

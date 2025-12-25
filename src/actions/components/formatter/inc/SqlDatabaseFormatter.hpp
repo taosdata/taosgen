@@ -26,7 +26,7 @@ private:
 
     // Register SqlDatabaseFormatter to FormatterFactory
     inline static bool registered_ = []() {
-        FormatterFactory::instance().register_formatter<CreateDatabaseConfig>(
+        FormatterFactory::register_formatter<CreateDatabaseConfig>(
             "sql",
             [](const DataFormat& format) {
                 return std::make_unique<SqlDatabaseFormatter>(format);

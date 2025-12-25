@@ -32,7 +32,7 @@ private:
                                   MemoryPool::MemoryBlock* batch) const;
 
     inline static bool registered_ = []() {
-        FormatterFactory::instance().register_formatter<InsertDataConfig>(
+        FormatterFactory::register_formatter<InsertDataConfig>(
             "kafka",
             [](const DataFormat& format) {
                 return std::make_unique<KafkaInsertDataFormatter>(format);

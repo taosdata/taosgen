@@ -10,7 +10,7 @@ void test_format_drop_database() {
     config.tdengine.database = "test_db";
     config.tdengine.drop_if_exists = true;
 
-    auto formatter = FormatterFactory::instance().create_formatter<CreateDatabaseConfig>(format);
+    auto formatter = FormatterFactory::create_formatter<CreateDatabaseConfig>(format);
     FormatResult result = formatter->format(config);
 
     assert(std::holds_alternative<std::vector<std::string>>(result));
@@ -28,7 +28,7 @@ void test_format_create_database_without_properties() {
     config.tdengine.database = "test_db";
     config.tdengine.drop_if_exists = false;
 
-    auto formatter = FormatterFactory::instance().create_formatter<CreateDatabaseConfig>(format);
+    auto formatter = FormatterFactory::create_formatter<CreateDatabaseConfig>(format);
     FormatResult result = formatter->format(config);
 
     assert(std::holds_alternative<std::vector<std::string>>(result));
@@ -47,7 +47,7 @@ void test_format_create_database_with_properties() {
     config.tdengine.drop_if_exists = true;
     config.tdengine.properties = "KEEP 3650";
 
-    auto formatter = FormatterFactory::instance().create_formatter<CreateDatabaseConfig>(format);
+    auto formatter = FormatterFactory::create_formatter<CreateDatabaseConfig>(format);
     FormatResult result = formatter->format(config);
 
     assert(std::holds_alternative<std::vector<std::string>>(result));

@@ -180,7 +180,7 @@ void test_mqtt_format_insert_data_with_empty_rows() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
 
-    auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(config.data_format);
+    auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(config.data_format);
     FormatResult result = formatter->format(config, col_instances, tag_instances, block);
 
     assert(std::holds_alternative<MqttInsertData>(result));
@@ -239,7 +239,7 @@ void test_mqtt_format_factory_creation() {
     DataFormat format;
     format.format_type = "mqtt";
 
-    auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(format);
+    auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(format);
     assert(formatter != nullptr);
 
     auto* mqtt_formatter = dynamic_cast<MqttInsertDataFormatter*>(formatter.get());
