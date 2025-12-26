@@ -9,6 +9,7 @@ add_subdirectory(actions)
 add_subdirectory(parameter)
 add_subdirectory(workflow)
 add_subdirectory(engine)
+add_subdirectory(plugins)
 
 # Main executable
 add_executable(taosgen benchmark.cpp)
@@ -24,6 +25,7 @@ target_include_directories(taosgen
 target_link_libraries(taosgen
   PRIVATE
     actions
+    plugins
     engine
     workflow
     parameter

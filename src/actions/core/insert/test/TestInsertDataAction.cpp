@@ -1,4 +1,5 @@
 #include "InsertDataAction.hpp"
+#include "TDengineRegistrar.hpp"
 #include <cassert>
 #include <memory>
 #include <thread>

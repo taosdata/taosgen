@@ -1,8 +1,4 @@
 #include "WriterFactory.hpp"
-#include "WriterRegistrar.hpp"
-#include "TDengineWriter.hpp"
-#include "MqttWriter.hpp"
-#include "KafkaWriter.hpp"
 #include "InsertDataConfig.hpp"
 #include "ColumnConfigInstance.hpp"
 
@@ -17,45 +13,6 @@ InsertDataConfig create_test_config(const std::string& target_type) {
     InsertDataConfig config;
     config.target_type = target_type;
     return config;
-}
-
-void test_create_tdengine_writer() {
-    auto config = create_test_config("tdengine");
-    auto writer = WriterFactory::create_writer(config);
-    assert(writer != nullptr);
-
-    // Verify the created type
-    auto* td_writer = dynamic_cast<TDengineWriter*>(writer.get());
-    assert(td_writer != nullptr);
-    (void)td_writer;
-
-    std::cout << "test_create_tdengine_writer passed." << std::endl;
-}
-
-void test_create_mqtt_writer() {
-    auto config = create_test_config("mqtt");
-    auto writer = WriterFactory::create_writer(config);
-    assert(writer != nullptr);
-
-    // Verify the created type
-    auto* mqtt_writer = dynamic_cast<MqttWriter*>(writer.get());
-    assert(mqtt_writer != nullptr);
-    (void)mqtt_writer;
-
-    std::cout << "test_create_mqtt_writer passed." << std::endl;
-}
-
-void test_create_kafka_writer() {
-    auto config = create_test_config("kafka");
-    auto writer = WriterFactory::create_writer(config);
-    assert(writer != nullptr);
-
-    // Verify the created type
-    auto* kafka_writer = dynamic_cast<KafkaWriter*>(writer.get());
-    assert(kafka_writer != nullptr);
-    (void)kafka_writer;
-
-    std::cout << "test_create_kafka_writer passed." << std::endl;
 }
 
 void test_create_unsupported_writer() {
@@ -87,9 +44,6 @@ void test_create_csv_writer_throws() {
 }
 
 int main() {
-    test_create_tdengine_writer();
-    test_create_mqtt_writer();
-    test_create_kafka_writer();
     test_create_unsupported_writer();
     test_create_csv_writer_throws();
 

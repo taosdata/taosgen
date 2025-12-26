@@ -136,8 +136,6 @@ find_package(Iconv REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(luajit REQUIRED)
 find_package(nlohmann_json REQUIRED)
-find_package(PahoMqttCpp REQUIRED)
-find_package(RdKafka REQUIRED)
 find_package(Threads REQUIRED)
 find_package(spdlog REQUIRED)
 

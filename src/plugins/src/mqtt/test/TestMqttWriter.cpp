@@ -1,6 +1,6 @@
-#include "KafkaWriter.hpp"
-#include "KafkaInsertData.hpp"
-#include "KafkaClient.hpp"
+#include "MqttWriter.hpp"
+#include "MqttInsertData.hpp"
+#include "MqttClient.hpp"
 
 #include <cassert>
 #include <iostream>
@@ -8,14 +8,13 @@
 #include <memory>
 #include <stdexcept>
 
-// Mock implementation of the IKafkaClient interface for testing purposes.
-class MockKafkaClient : public IKafkaClient {
+class MockMqttClient : public IMqttClient {
 public:
     bool connected = false;
-    size_t produce_count = 0;
-    size_t total_rows_produced = 0;
+    size_t publish_count = 0;
+    size_t total_rows_published = 0;
     bool fail_connect = false;
-    int fail_produce_times = 0;
+    int fail_publish_times = 0;
 
     bool connect() override {
         if (fail_connect) {
@@ -29,42 +28,45 @@ public:
         return connected;
     }
 
-    void close() override {
+    void disconnect() override {
         connected = false;
     }
 
-    bool produce(const KafkaInsertData& data) override {
-        produce_count++;
+    bool publish(const MqttInsertData& data) override {
+        publish_count++;
 
-        if (fail_produce_times > 0) {
-            fail_produce_times--;
+        if (fail_publish_times > 0) {
+            fail_publish_times--;
             return false;
         }
 
-        total_rows_produced += data.total_rows;
+        total_rows_published += data.total_rows;
         return true;
     }
 };
 
-// Creates a test configuration for the Kafka writer.
+
 InsertDataConfig create_test_config() {
     InsertDataConfig config;
 
     // Connector Config
-    auto& conn_conf = config.kafka;
-    conn_conf.bootstrap_servers = "localhost:9092";
-    conn_conf.topic = "test_topic";
+    auto& conn_conf = config.mqtt;
+    conn_conf.uri = "tcp://localhost:1883";
+    conn_conf.user = "user";
+    conn_conf.password = "pass";
     conn_conf.client_id = "test_client";
+    conn_conf.keep_alive = 60;
+    conn_conf.clean_session = true;
 
     // Format Config
-    auto& format_conf = config.data_format.kafka;
-    format_conf.key_pattern = "{device_id}";
-    format_conf.key_serializer = "string-utf8";
-    format_conf.value_serializer = "json";
-    format_conf.tbname_key = "table";
-    format_conf.acks = "1";
+    auto& format_conf = config.data_format.mqtt;
+    format_conf.topic = "factory/{factory_id}/device-{device_id}/data";
+    format_conf.qos = 1;
+    format_conf.retain = false;
     format_conf.compression = "none";
-    format_conf.records_per_message = 1;
+    format_conf.encoding = "utf8";
+    format_conf.content_type = "json";
+    format_conf.records_per_message = 10;
 
     // Failure Handling
     config.failure_handling.max_retries = 1;
@@ -73,7 +75,6 @@ InsertDataConfig create_test_config() {
     return config;
 }
 
-// Creates a vector of column config instances for testing.
 ColumnConfigInstanceVector create_col_instances() {
     ColumnConfigInstanceVector col_instances;
     col_instances.emplace_back(ColumnConfig{"factory_id", "VARCHAR(16)"});
@@ -81,22 +82,37 @@ ColumnConfigInstanceVector create_col_instances() {
     return col_instances;
 }
 
+void test_create_mqtt_writer() {
+    InsertDataConfig config;
+    config.target_type = "mqtt";
+
+    auto writer = WriterFactory::create_writer(config);
+    assert(writer != nullptr);
+
+    // Verify the created type
+    auto* mqtt_writer = dynamic_cast<MqttWriter*>(writer.get());
+    assert(mqtt_writer != nullptr);
+    (void)mqtt_writer;
+
+    std::cout << "test_create_mqtt_writer passed." << std::endl;
+}
+
 void test_constructor() {
     auto config = create_test_config();
-    KafkaWriter writer(config);
+    MqttWriter writer(config);
     std::cout << "test_constructor passed." << std::endl;
 }
 
 void test_connection() {
     auto config = create_test_config();
-    KafkaWriter writer(config);
+    MqttWriter writer(config);
 
     // Replace with mock
-    auto mock = std::make_unique<MockKafkaClient>();
+    auto mock = std::make_unique<MockMqttClient>();
     auto* mock_ptr = mock.get();
-    auto kafka_client = std::make_unique<KafkaClient>(config.kafka, config.data_format.kafka);
-    kafka_client->set_client(std::move(mock));
-    writer.set_client(std::move(kafka_client));
+    auto mqtt_client = std::make_unique<MqttClient>(config.mqtt, config.data_format.mqtt);
+    mqtt_client->set_client(std::move(mock));
+    writer.set_client(std::move(mqtt_client));
 
     std::optional<ConnectorSource> conn_src;
     assert(writer.connect(conn_src));
@@ -116,15 +132,15 @@ void test_connection() {
 
 void test_connection_failure() {
     auto config = create_test_config();
-    KafkaWriter writer(config);
+    MqttWriter writer(config);
 
     // Replace with mock
-    auto mock = std::make_unique<MockKafkaClient>();
+    auto mock = std::make_unique<MockMqttClient>();
     mock->fail_connect = true;
     auto* mock_ptr = mock.get();
-    auto kafka_client = std::make_unique<KafkaClient>(config.kafka, config.data_format.kafka);
-    kafka_client->set_client(std::move(mock));
-    writer.set_client(std::move(kafka_client));
+    auto mqtt_client = std::make_unique<MqttClient>(config.mqtt, config.data_format.mqtt);
+    mqtt_client->set_client(std::move(mock));
+    writer.set_client(std::move(mqtt_client));
 
     std::optional<ConnectorSource> conn_src;
     assert(!writer.connect(conn_src));
@@ -137,19 +153,19 @@ void test_connection_failure() {
 
 void test_prepare() {
     auto config = create_test_config();
-    KafkaWriter writer(config);
+    MqttWriter writer(config);
 
     // Replace with mock
-    auto kafka_client = std::make_unique<KafkaClient>(config.kafka, config.data_format.kafka);
-    kafka_client->set_client(std::make_unique<MockKafkaClient>());
-    writer.set_client(std::move(kafka_client));
+    auto mqtt_client = std::make_unique<MqttClient>(config.mqtt, config.data_format.mqtt);
+    mqtt_client->set_client(std::make_unique<MockMqttClient>());
+    writer.set_client(std::move(mqtt_client));
 
     // prepare should throw when not connected
     try {
         writer.prepare("context");
         assert(false);
     } catch (const std::runtime_error& e) {
-        assert(std::string(e.what()) == "KafkaWriter is not connected");
+        assert(std::string(e.what()) == "MqttWriter is not connected");
     }
 
     // After connecting, should be available
@@ -164,21 +180,21 @@ void test_write_operations() {
     auto config = create_test_config();
     auto col_instances = create_col_instances();
     auto tag_instances = ColumnConfigInstanceVector{};
-    KafkaWriter writer(config);
+    MqttWriter writer(config);
 
     // Replace with mock
-    auto mock = std::make_unique<MockKafkaClient>();
+    auto mock = std::make_unique<MockMqttClient>();
     auto* mock_ptr = mock.get();
-    auto kafka_client = std::make_unique<KafkaClient>(config.kafka, config.data_format.kafka);
-    kafka_client->set_client(std::move(mock));
-    writer.set_client(std::move(kafka_client));
+    auto mqtt_client = std::make_unique<MqttClient>(config.mqtt, config.data_format.mqtt);
+    mqtt_client->set_client(std::move(mock));
+    writer.set_client(std::move(mqtt_client));
 
     std::optional<ConnectorSource> conn_src;
     auto connected = writer.connect(conn_src);
     (void)connected;
     assert(connected);
 
-    // Construct kafka data
+    // Construct mqtt data
     {
         MultiBatch batch;
         std::vector<RowData> rows;
@@ -189,14 +205,15 @@ void test_write_operations() {
         MemoryPool pool(1, 1, 1, col_instances, tag_instances);
         auto* block = pool.convert_to_memory_block(std::move(batch));
 
-        KafkaMessageBatch msg_batch;
-        msg_batch.emplace_back("d01", R"({"device_id":"d01","factory_id":"f01"})");
-        KafkaInsertData msg(block, col_instances, tag_instances, std::move(msg_batch));
+        // Create a simple message batch for the test
+        MqttMessageBatch msg_batch;
+        msg_batch.emplace_back("test/topic", "{\"factory_id\":\"f01\", \"device_id\":\"d01\"}");
+        MqttInsertData msg(block, col_instances, tag_instances, std::move(msg_batch));
 
         writer.write(msg);
         (void)mock_ptr;
-        assert(mock_ptr->produce_count == 1);
-        assert(mock_ptr->total_rows_produced == 1);
+        assert(mock_ptr->publish_count == 1);
+        assert(mock_ptr->total_rows_published == 1);
     }
 
     // Unsupported data type
@@ -227,15 +244,15 @@ void test_write_with_retry() {
     config.failure_handling.max_retries = 1;
     auto col_instances = create_col_instances();
     auto tag_instances = ColumnConfigInstanceVector{};
-    KafkaWriter writer(config);
+    MqttWriter writer(config);
 
     // Replace with mock
-    auto mock = std::make_unique<MockKafkaClient>();
-    mock->fail_produce_times = 1; // Fail once
+    auto mock = std::make_unique<MockMqttClient>();
+    mock->fail_publish_times = 1; // Fail once
     auto* mock_ptr = mock.get();
-    auto kafka_client = std::make_unique<KafkaClient>(config.kafka, config.data_format.kafka);
-    kafka_client->set_client(std::move(mock));
-    writer.set_client(std::move(kafka_client));
+    auto mqtt_client = std::make_unique<MqttClient>(config.mqtt, config.data_format.mqtt);
+    mqtt_client->set_client(std::move(mock));
+    writer.set_client(std::move(mqtt_client));
 
     std::optional<ConnectorSource> conn_src;
     auto connected = writer.connect(conn_src);
@@ -251,13 +268,13 @@ void test_write_with_retry() {
     MemoryPool pool(1, 1, 1, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
-    KafkaMessageBatch msg_batch;
-    msg_batch.emplace_back("d01", R"({"device_id":"d01","factory_id":"f01"})");
-    KafkaInsertData msg(block, col_instances, tag_instances, std::move(msg_batch));
+    MqttMessageBatch msg_batch;
+    msg_batch.emplace_back("test/topic", "{\"factory_id\":\"f01\", \"device_id\":\"d01\"}");
+    MqttInsertData msg(block, col_instances, tag_instances, std::move(msg_batch));
 
     assert(writer.write(msg));
-    assert(mock_ptr->produce_count == 2);           // Called twice: 1 fail + 1 success
-    assert(mock_ptr->total_rows_produced == 1);     // Only succeeded once
+    assert(mock_ptr->publish_count == 2);           // Called twice: 1 fail + 1 success
+    assert(mock_ptr->total_rows_published == 1);    // Only succeeded once
 
     (void)mock_ptr;
     (void)conn_src;
@@ -269,12 +286,12 @@ void test_write_without_connection() {
     auto config = create_test_config();
     auto col_instances = create_col_instances();
     auto tag_instances = ColumnConfigInstanceVector{};
-    KafkaWriter writer(config);
+    MqttWriter writer(config);
 
     // Replace with mock
-    auto kafka_client = std::make_unique<KafkaClient>(config.kafka, config.data_format.kafka);
-    kafka_client->set_client(std::make_unique<MockKafkaClient>());
-    writer.set_client(std::move(kafka_client));
+    auto mqtt_client = std::make_unique<MqttClient>(config.mqtt, config.data_format.mqtt);
+    mqtt_client->set_client(std::make_unique<MockMqttClient>());
+    writer.set_client(std::move(mqtt_client));
 
     MultiBatch batch;
     std::vector<RowData> rows;
@@ -285,19 +302,20 @@ void test_write_without_connection() {
 
     MemoryPool pool(1, 1, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
-    KafkaInsertData data(block, col_instances, tag_instances, {});
+    MqttInsertData data(block, col_instances, tag_instances, {});
 
     try {
         writer.write(data);
         assert(false);
     } catch (const std::runtime_error& e) {
-        assert(std::string(e.what()) == "KafkaWriter is not connected");
+        assert(std::string(e.what()) == "MqttWriter is not connected");
     }
 
     std::cout << "test_write_without_connection passed." << std::endl;
 }
 
 int main() {
+    test_create_mqtt_writer();
     test_constructor();
     test_connection();
     test_connection_failure();
@@ -305,6 +323,6 @@ int main() {
     test_write_operations();
     test_write_with_retry();
     test_write_without_connection();
-    std::cout << "All KafkaWriter tests passed." << std::endl;
+    std::cout << "All MqttWriter tests passed." << std::endl;
     return 0;
 }

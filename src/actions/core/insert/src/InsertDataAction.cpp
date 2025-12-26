@@ -5,7 +5,7 @@
 #include "TableNameManager.hpp"
 #include "TableDataManager.hpp"
 #include "WriterFactory.hpp"
-#include "WriterRegistrar.hpp"
+#include "BaseWriter.hpp"
 #include "TimeRecorder.hpp"
 #include "ProcessUtils.hpp"
 #include <sched.h>

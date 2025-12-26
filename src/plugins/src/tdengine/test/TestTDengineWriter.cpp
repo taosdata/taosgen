@@ -33,6 +33,21 @@ InsertDataConfig create_test_config() {
     return config;
 }
 
+void test_create_tdengine_writer() {
+    InsertDataConfig config;
+    config.target_type = "tdengine";
+
+    auto writer = WriterFactory::create_writer(config);
+    assert(writer != nullptr);
+
+    // Verify the created type
+    auto* td_writer = dynamic_cast<TDengineWriter*>(writer.get());
+    assert(td_writer != nullptr);
+    (void)td_writer;
+
+    std::cout << "test_create_tdengine_writer passed." << std::endl;
+}
+
 void test_constructor() {
     // Test valid timestamp precision
     auto config = create_test_config();
@@ -257,6 +272,7 @@ void test_metrics_and_time() {
 }
 
 int main() {
+    test_create_tdengine_writer();
     test_constructor();
     test_connection();
     test_prepare();
