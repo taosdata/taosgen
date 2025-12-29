@@ -97,23 +97,3 @@ target_link_libraries(TestRowSerializer
     insert_writer
 )
 add_test(NAME TestRowSerializer COMMAND TestRowSerializer)
-
-# Test MqttInsertDataFormatter
-add_executable(TestMqttInsertDataFormatter
-  TestMqttInsertDataFormatter.cpp
-)
-target_link_libraries(TestMqttInsertDataFormatter
-  PRIVATE
-    insert_writer
-)
-add_test(NAME TestMqttInsertDataFormatter COMMAND TestMqttInsertDataFormatter)
-
-# Test KafkaInsertDataFormatter
-add_executable(TestKafkaInsertDataFormatter
-  TestKafkaInsertDataFormatter.cpp
-)
-target_link_libraries(TestKafkaInsertDataFormatter
-  PRIVATE
-    insert_writer
-)
-add_test(NAME TestKafkaInsertDataFormatter COMMAND TestKafkaInsertDataFormatter)

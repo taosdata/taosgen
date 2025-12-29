@@ -47,14 +47,15 @@ bool MqttWriter::write(const BaseInsertData& data) {
     // Execute write
     bool success = false;
     try {
-        switch(data.type) {
-            case BaseInsertData::DataType::MQTT:
-                success = execute_with_retry([&] {
-                    return handle_insert(static_cast<const MqttInsertData&>(data));
-                }, "mqtt message insert");
-                break;
-            default:
-                throw std::runtime_error("Unsupported data type for MqttWritter: " + std::to_string(static_cast<int>(data.type)));
+        if (data.type == MQTT_TYPE_ID) {
+            success = execute_with_retry([&] {
+                return handle_insert(static_cast<const MqttInsertData&>(data));
+            }, "mqtt message insert");
+        } else {
+            throw std::runtime_error(
+                "Unsupported data type for MqttWriter: " +
+                std::string(data.type.name())
+            );
         }
     } catch (const std::exception& e) {
         // Handling after retry failure

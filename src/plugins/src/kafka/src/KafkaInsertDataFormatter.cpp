@@ -1,5 +1,5 @@
-#include "KafkaInsertDataFormatter.hpp"
 #include "KafkaInsertData.hpp"
+#include "KafkaInsertDataFormatter.hpp"
 #include <fmt/core.h>
 #include <fmt/format.h>
 #include <stdexcept>
@@ -36,9 +36,9 @@ FormatResult KafkaInsertDataFormatter::format(const InsertDataConfig& config,
     }
 }
 
-KafkaInsertData KafkaInsertDataFormatter::format_json(const ColumnConfigInstanceVector& col_instances,
-                                                      const ColumnConfigInstanceVector& tag_instances,
-                                                      MemoryPool::MemoryBlock* batch) const {
+ FormatResult KafkaInsertDataFormatter::format_json(const ColumnConfigInstanceVector& col_instances,
+                                                    const ColumnConfigInstanceVector& tag_instances,
+                                                    MemoryPool::MemoryBlock* batch) const {
     const auto& format = format_.kafka;
     KafkaMessageBatch msg_batch;
     msg_batch.reserve((batch->total_rows + format.records_per_message - 1) / format.records_per_message);
@@ -89,13 +89,14 @@ KafkaInsertData KafkaInsertDataFormatter::format_json(const ColumnConfigInstance
         }
     }
 
-    return KafkaInsertData(batch, col_instances, tag_instances, std::move(msg_batch));
+    auto payload = std::make_unique<KafkaInsertData>(batch, col_instances, tag_instances, std::move(msg_batch));
+    return FormatResult(std::move(payload));
 }
 
 // Formats data into InfluxDB Line Protocol.
-KafkaInsertData KafkaInsertDataFormatter::format_influx(const ColumnConfigInstanceVector& col_instances,
-                                                        const ColumnConfigInstanceVector& tag_instances,
-                                                        MemoryPool::MemoryBlock* batch) const {
+FormatResult KafkaInsertDataFormatter::format_influx(const ColumnConfigInstanceVector& col_instances,
+                                                     const ColumnConfigInstanceVector& tag_instances,
+                                                     MemoryPool::MemoryBlock* batch) const {
     const auto& format = format_.kafka;
     KafkaMessageBatch msg_batch;
     msg_batch.reserve((batch->total_rows + format.records_per_message - 1) / format.records_per_message);
@@ -134,5 +135,6 @@ KafkaInsertData KafkaInsertDataFormatter::format_influx(const ColumnConfigInstan
         msg_batch.emplace_back(std::move(first_record_key), fmt::to_string(line_buffer));
     }
 
-    return KafkaInsertData(batch, col_instances, tag_instances, std::move(msg_batch));
+    auto payload = std::make_unique<KafkaInsertData>(batch, col_instances, tag_instances, std::move(msg_batch));
+    return FormatResult(std::move(payload));
 }

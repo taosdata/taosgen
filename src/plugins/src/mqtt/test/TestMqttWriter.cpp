@@ -226,7 +226,7 @@ void test_write_operations() {
 
         MemoryPool pool(1, 1, 1, col_instances, tag_instances);
         auto* block = pool.convert_to_memory_block(std::move(batch));
-        BaseInsertData invalid_data(static_cast<BaseInsertData::DataType>(999), block, col_instances, tag_instances);
+        BaseInsertData invalid_data(typeid(void), block, col_instances, tag_instances);
 
         try {
             writer.write(invalid_data);

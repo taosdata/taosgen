@@ -612,9 +612,9 @@ void InsertDataAction::consumer_thread_function(
             try {
                 // Use writer to execute write
                 std::visit([&](const auto& formatted_result) {
-                    // using T = std::decay_t<decltype(formatted_result)>;
-                    if constexpr (std::is_base_of_v<BaseInsertData, std::decay_t<decltype(formatted_result)>>) {
-                        auto success = writer->write(formatted_result);
+                    using T = std::decay_t<decltype(formatted_result)>;
+                    if constexpr (std::is_same_v<T, InsertFormatResult>) {
+                        auto success = writer->write(*formatted_result);
                         if (!success) {
                             failed_count++;
                         }

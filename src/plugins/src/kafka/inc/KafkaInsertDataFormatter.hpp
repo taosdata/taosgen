@@ -2,6 +2,7 @@
 
 #include "IFormatter.hpp"
 #include "FormatterFactory.hpp"
+#include "KafkaInsertData.hpp"
 #include "KeyGenerator.hpp"
 #include "RowSerializer.hpp"
 #include <nlohmann/json.hpp>
@@ -23,13 +24,13 @@ public:
 private:
     const DataFormat& format_;
 
-    KafkaInsertData format_json(const ColumnConfigInstanceVector& col_instances,
-                                const ColumnConfigInstanceVector& tag_instances,
-                                MemoryPool::MemoryBlock* batch) const;
+    FormatResult format_json(const ColumnConfigInstanceVector& col_instances,
+                             const ColumnConfigInstanceVector& tag_instances,
+                             MemoryPool::MemoryBlock* batch) const;
 
-    KafkaInsertData format_influx(const ColumnConfigInstanceVector& col_instances,
-                                  const ColumnConfigInstanceVector& tag_instances,
-                                  MemoryPool::MemoryBlock* batch) const;
+    FormatResult format_influx(const ColumnConfigInstanceVector& col_instances,
+                               const ColumnConfigInstanceVector& tag_instances,
+                               MemoryPool::MemoryBlock* batch) const;
 
     inline static bool registered_ = []() {
         FormatterFactory::register_formatter<InsertDataConfig>(

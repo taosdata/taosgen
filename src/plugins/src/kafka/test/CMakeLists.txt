@@ -1,3 +1,23 @@
+# Test KafkaInsertData
+add_executable(TestKafkaInsertData
+  TestKafkaInsertData.cpp
+)
+target_link_libraries(TestKafkaInsertData
+  PRIVATE
+    plugin_kafka
+)
+add_test(NAME TestKafkaInsertData COMMAND TestKafkaInsertData)
+
+# Test KafkaInsertDataFormatter
+add_executable(TestKafkaInsertDataFormatter
+  TestKafkaInsertDataFormatter.cpp
+)
+target_link_libraries(TestKafkaInsertDataFormatter
+  PRIVATE
+    plugin_kafka
+)
+add_test(NAME TestKafkaInsertDataFormatter COMMAND TestKafkaInsertDataFormatter)
+
 # Test KafkaClient
 add_executable(TestKafkaClient
   TestKafkaClient.cpp

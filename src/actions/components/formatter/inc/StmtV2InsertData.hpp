@@ -9,14 +9,14 @@ struct StmtV2InsertData : public BaseInsertData {
                      const ColumnConfigInstanceVector& col_instances,
                      const ColumnConfigInstanceVector& tag_instances,
                      bool is_checkpoint_recover = false)
-        : BaseInsertData(DataType::STMT, block, col_instances, tag_instances) {
+        : BaseInsertData(typeid(StmtV2InsertData), block, col_instances, tag_instances) {
             block->build_bindv(is_checkpoint_recover);
           }
 
     StmtV2InsertData(StmtV2InsertData&& other) noexcept
           : BaseInsertData(std::move(other))
     {
-        this->type = DataType::STMT;
+        this->type = typeid(StmtV2InsertData);
     }
 
     // Disable copy
@@ -26,3 +26,6 @@ struct StmtV2InsertData : public BaseInsertData {
 
     ~StmtV2InsertData() = default;
 };
+
+inline std::type_index STMTV2_TYPE_ID = std::type_index(typeid(StmtV2InsertData));
+inline uint64_t STMTV2_TYPE_HASH = STMTV2_TYPE_ID.hash_code();

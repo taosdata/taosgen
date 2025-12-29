@@ -3,7 +3,6 @@
 #include "SqlData.hpp"
 #include <string>
 
-
 struct SqlInsertData : public BaseInsertData {
     SqlData data;
 
@@ -11,13 +10,13 @@ struct SqlInsertData : public BaseInsertData {
                   const ColumnConfigInstanceVector& col_instances,
                   const ColumnConfigInstanceVector& tag_instances,
                   std::string&& sql)
-        : BaseInsertData(DataType::SQL, block, col_instances, tag_instances), data(std::move(sql)) {}
+        : BaseInsertData(typeid(SqlInsertData), block, col_instances, tag_instances), data(std::move(sql)) {}
 
     SqlInsertData(SqlInsertData&& other) noexcept
         : BaseInsertData(std::move(other))
         , data(std::move(other.data))
     {
-        this->type = DataType::SQL;
+        this->type = typeid(SqlInsertData);
     }
 
     // Disable copy
@@ -27,3 +26,6 @@ struct SqlInsertData : public BaseInsertData {
 
     ~SqlInsertData() = default;
 };
+
+inline std::type_index SQL_TYPE_ID = std::type_index(typeid(SqlInsertData));
+inline uint64_t SQL_TYPE_HASH = SQL_TYPE_ID.hash_code();

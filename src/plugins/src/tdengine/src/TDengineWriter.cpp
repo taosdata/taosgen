@@ -55,20 +55,19 @@ bool TDengineWriter::write(const BaseInsertData& data) {
     // Execute write
     bool success = false;
     try {
-        switch(data.type) {
-            case BaseInsertData::DataType::SQL:
-                success = execute_with_retry([&] {
-                    return handle_insert(static_cast<const SqlInsertData&>(data));
-                }, "sql insert");
-                break;
-
-            case BaseInsertData::DataType::STMT:
-                success = execute_with_retry([&] {
-                    return handle_insert(static_cast<const StmtV2InsertData&>(data));
-                }, "stmt insert");
-                break;
-            default:
-                throw std::runtime_error("Unsupported data type: " + std::to_string(static_cast<int>(data.type)));
+        if (data.type == SQL_TYPE_ID) {
+            success = execute_with_retry([&] {
+                return handle_insert(static_cast<const SqlInsertData&>(data));
+            }, "sql insert");
+        } else if (data.type == STMTV2_TYPE_ID) {
+            success = execute_with_retry([&] {
+                return handle_insert(static_cast<const StmtV2InsertData&>(data));
+            }, "stmt v2 insert");
+        } else {
+            throw std::runtime_error(
+                "Unsupported data type for TDengineWriter: " +
+                std::string(data.type.name())
+            );
         }
     } catch (const std::exception& e) {
         // Handling after retry failure

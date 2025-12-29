@@ -1,3 +1,4 @@
+#include "MqttInsertData.hpp"
 #include "MqttInsertDataFormatter.hpp"
 
 std::string MqttInsertDataFormatter::prepare(const InsertDataConfig& config,
@@ -11,7 +12,7 @@ std::string MqttInsertDataFormatter::prepare(const InsertDataConfig& config,
 
 FormatResult MqttInsertDataFormatter::format(const InsertDataConfig& config,
                                              const ColumnConfigInstanceVector& col_instances,
-                                                const ColumnConfigInstanceVector& tag_instances,
+                                             const ColumnConfigInstanceVector& tag_instances,
                                              MemoryPool::MemoryBlock* batch, bool is_checkpoint_recover) const {
     (void)config;
     (void)is_checkpoint_recover;
@@ -22,9 +23,9 @@ FormatResult MqttInsertDataFormatter::format(const InsertDataConfig& config,
     return format_json(col_instances, tag_instances, batch);
 }
 
-MqttInsertData MqttInsertDataFormatter::format_json(const ColumnConfigInstanceVector& col_instances,
-                                                    const ColumnConfigInstanceVector& tag_instances,
-                                                    MemoryPool::MemoryBlock* batch) const {
+FormatResult MqttInsertDataFormatter::format_json(const ColumnConfigInstanceVector& col_instances,
+                                                  const ColumnConfigInstanceVector& tag_instances,
+                                                  MemoryPool::MemoryBlock* batch) const {
     const DataFormat::MqttConfig& format = format_.mqtt;
     CompressionType compression_type = string_to_compression(format.compression);
     EncodingType encoding_type = string_to_encoding(format.encoding);
@@ -110,5 +111,6 @@ MqttInsertData MqttInsertDataFormatter::format_json(const ColumnConfigInstanceVe
         }
     }
 
-    return MqttInsertData(batch, col_instances, tag_instances, std::move(msg_batch));
+    auto payload = std::make_unique<MqttInsertData>(batch, col_instances, tag_instances, std::move(msg_batch));
+    return FormatResult(std::move(payload));
 }

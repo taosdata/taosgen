@@ -2,6 +2,7 @@
 
 #include "IFormatter.hpp"
 #include "FormatterFactory.hpp"
+#include "MqttInsertData.hpp"
 #include "TopicGenerator.hpp"
 #include "Compressor.hpp"
 #include "EncodingConverter.hpp"
@@ -25,9 +26,9 @@ public:
 private:
     const DataFormat& format_;
 
-    MqttInsertData format_json(const ColumnConfigInstanceVector& col_instances,
-                               const ColumnConfigInstanceVector& tag_instances,
-                               MemoryPool::MemoryBlock* batch) const;
+    FormatResult format_json(const ColumnConfigInstanceVector& col_instances,
+                             const ColumnConfigInstanceVector& tag_instances,
+                             MemoryPool::MemoryBlock* batch) const;
 
     inline static bool registered_ = []() {
         FormatterFactory::register_formatter<InsertDataConfig>(

@@ -62,11 +62,18 @@ void test_format_insert_data_single_table() {
     SqlInsertDataFormatter formatter(format);
     FormatResult result = formatter.format(config, col_instances, tag_instances, block);
 
-    assert(std::holds_alternative<SqlInsertData>(result));
-    assert(std::get<SqlInsertData>(result).data.str() ==
+    assert(std::holds_alternative<InsertFormatResult>(result));
+    const auto& ptr = std::get<InsertFormatResult>(result);
+
+    if (auto* sql_ptr = dynamic_cast<SqlInsertData*>(ptr.get())) {
+        assert(sql_ptr->data.str() ==
            "INSERT INTO `table1` VALUES "
            "(1500000000000,3.14,42,'value1')"
            "(1500000000001,2.71,43,'value2');");
+    } else {
+        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    }
+
     std::cout << "test_format_insert_data_single_table passed!" << std::endl;
 }
 
@@ -104,14 +111,20 @@ void test_format_insert_data_multiple_tables() {
     auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(format);
     FormatResult result = formatter->format(config, col_instances, tag_instances, block);
 
-    assert(std::holds_alternative<SqlInsertData>(result));
-    assert(std::get<SqlInsertData>(result).data.str() ==
+    assert(std::holds_alternative<InsertFormatResult>(result));
+    const auto& ptr = std::get<InsertFormatResult>(result);
+
+    if (auto* sql_ptr = dynamic_cast<SqlInsertData*>(ptr.get())) {
+        assert(sql_ptr->data.str() ==
            "INSERT INTO `table1` VALUES "
            "(1500000000000,3.14,42)"
            "(1500000000001,2.71,43) "
            "`table2` VALUES "
            "(1500000000002,1.23,44)"
            "(1500000000003,4.56,45);");
+    } else {
+        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    }
     std::cout << "test_format_insert_data_multiple_tables passed!" << std::endl;
 }
 
@@ -167,10 +180,17 @@ void test_format_insert_data_different_types() {
     SqlInsertDataFormatter formatter(format);
     FormatResult result = formatter.format(config, col_instances, tag_instances, block);
 
-    assert(std::holds_alternative<SqlInsertData>(result));
-    assert(std::get<SqlInsertData>(result).data.str() ==
+    assert(std::holds_alternative<InsertFormatResult>(result));
+    const auto& ptr = std::get<InsertFormatResult>(result);
+
+    if (auto* sql_ptr = dynamic_cast<SqlInsertData*>(ptr.get())) {
+        assert(sql_ptr->data.str() ==
            "INSERT INTO `table1` VALUES "
            "(1500000000000,3.14,true,'测试','{\"key\":\"value\"}');");
+    } else {
+        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    }
+
     std::cout << "test_format_insert_data_different_types passed!" << std::endl;
 }
 
@@ -210,14 +230,19 @@ void test_format_insert_data_auto_create_table() {
     SqlInsertDataFormatter formatter(format);
     FormatResult result = formatter.format(config, col_instances, tag_instances, block);
 
-    assert(std::holds_alternative<SqlInsertData>(result));
-    std::string sql = std::get<SqlInsertData>(result).data.str();
+    assert(std::holds_alternative<InsertFormatResult>(result));
+    const auto& ptr = std::get<InsertFormatResult>(result);
 
-    std::string expected_prefix = "INSERT INTO `d1001` USING `meters` TAGS (1,'北京') VALUES ";
-    std::string expected_values = "(1600000000000,10.5,220)(1600000001000,11.2,221);";
+    if (auto* sql_ptr = dynamic_cast<SqlInsertData*>(ptr.get())) {
+        std::string sql = sql_ptr->data.str();
+        std::string expected_prefix = "INSERT INTO `d1001` USING `meters` TAGS (1,'北京') VALUES ";
+        std::string expected_values = "(1600000000000,10.5,220)(1600000001000,11.2,221);";
 
-    assert(sql.find(expected_prefix) != std::string::npos);
-    assert(sql.find(expected_values) != std::string::npos);
+        assert(sql.find(expected_prefix) != std::string::npos);
+        assert(sql.find(expected_values) != std::string::npos);
+    } else {
+        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    }
 
     std::cout << "test_format_insert_data_auto_create_table passed!" << std::endl;
 }
@@ -266,16 +291,21 @@ void test_format_insert_data_multiple_tables_with_tags() {
     SqlInsertDataFormatter formatter(format);
     FormatResult result = formatter.format(config, col_instances, tag_instances, block);
 
-    assert(std::holds_alternative<SqlInsertData>(result));
-    std::string sql = std::get<SqlInsertData>(result).data.str();
+    assert(std::holds_alternative<InsertFormatResult>(result));
+    const auto& ptr = std::get<InsertFormatResult>(result);
 
-    std::string part1 = "`t1` USING `sensors` TAGS (101) VALUES (1600000000000,36.5)";
-    std::string part2 = "`t2` USING `sensors` TAGS (102) VALUES (1600000000000,37.2)";
+    if (auto* sql_ptr = dynamic_cast<SqlInsertData*>(ptr.get())) {
+        std::string sql = sql_ptr->data.str();
+        std::string part1 = "`t1` USING `sensors` TAGS (101) VALUES (1600000000000,36.5)";
+        std::string part2 = "`t2` USING `sensors` TAGS (102) VALUES (1600000000000,37.2)";
 
-    assert(sql.find("INSERT INTO") == 0);
-    assert(sql.find(part1) != std::string::npos);
-    assert(sql.find(part2) != std::string::npos);
-    assert(sql.back() == ';');
+        assert(sql.find("INSERT INTO") == 0);
+        assert(sql.find(part1) != std::string::npos);
+        assert(sql.find(part2) != std::string::npos);
+        assert(sql.back() == ';');
+    } else {
+        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    }
 
     std::cout << "test_format_insert_data_multiple_tables_with_tags passed!" << std::endl;
 }

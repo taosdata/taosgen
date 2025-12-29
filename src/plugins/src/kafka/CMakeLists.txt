@@ -1,5 +1,6 @@
 # Create library target
 add_library(plugin_kafka STATIC
+  src/KafkaInsertDataFormatter.cpp
   src/KafkaClient.cpp
   src/KafkaWriter.cpp
 )

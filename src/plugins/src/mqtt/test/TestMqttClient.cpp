@@ -93,7 +93,15 @@ MqttInsertData create_test_mqtt_data(MemoryPool& pool,
 
     auto formatter = MqttInsertDataFormatter(config.data_format);
     auto result = formatter.format(config, col_instances, tag_instances, block);
-    return std::move(std::get<MqttInsertData>(result));
+    assert(std::holds_alternative<InsertFormatResult>(result));
+    const auto& ptr = std::get<InsertFormatResult>(result);
+
+    auto* mqtt_ptr = dynamic_cast<MqttInsertData*>(ptr.get());
+    if (!mqtt_ptr) {
+        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    }
+
+    return std::move(*mqtt_ptr);
 }
 
 void test_connect_and_close() {

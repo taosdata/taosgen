@@ -38,8 +38,15 @@ void test_kafka_format_json_single_record() {
     KafkaInsertDataFormatter formatter(config.data_format);
     FormatResult result = formatter.format(config, col_instances, tag_instances, block);
 
-    assert(std::holds_alternative<KafkaInsertData>(result));
-    const auto& kafka_data = std::get<KafkaInsertData>(result);
+    assert(std::holds_alternative<InsertFormatResult>(result));
+    const auto& ptr = std::get<InsertFormatResult>(result);
+
+    auto* kafka_ptr = dynamic_cast<KafkaInsertData*>(ptr.get());
+    if (!kafka_ptr) {
+        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    }
+
+    const auto& kafka_data = *kafka_ptr;
     assert(kafka_data.start_time == 1500000000000);
     assert(kafka_data.end_time == 1500000000001);
     assert(kafka_data.total_rows == 2);
@@ -89,8 +96,15 @@ void test_kafka_format_json_multiple_records() {
     KafkaInsertDataFormatter formatter(config.data_format);
     FormatResult result = formatter.format(config, col_instances, tag_instances, block);
 
-    assert(std::holds_alternative<KafkaInsertData>(result));
-    const auto& kafka_data = std::get<KafkaInsertData>(result);
+    assert(std::holds_alternative<InsertFormatResult>(result));
+    const auto& ptr = std::get<InsertFormatResult>(result);
+
+    auto* kafka_ptr = dynamic_cast<KafkaInsertData*>(ptr.get());
+    if (!kafka_ptr) {
+        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    }
+
+    const auto& kafka_data = *kafka_ptr;
     const auto& messages = kafka_data.data;
 
     assert(messages.size() == 2);
@@ -137,8 +151,15 @@ void test_kafka_format_influx_single_record() {
     KafkaInsertDataFormatter formatter(config.data_format);
     FormatResult result = formatter.format(config, col_instances, tag_instances, block);
 
-    assert(std::holds_alternative<KafkaInsertData>(result));
-    const auto& kafka_data = std::get<KafkaInsertData>(result);
+    assert(std::holds_alternative<InsertFormatResult>(result));
+    const auto& ptr = std::get<InsertFormatResult>(result);
+
+    auto* kafka_ptr = dynamic_cast<KafkaInsertData*>(ptr.get());
+    if (!kafka_ptr) {
+        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    }
+
+    const auto& kafka_data = *kafka_ptr;
     const auto& messages = kafka_data.data;
 
     (void)messages;
@@ -178,8 +199,15 @@ void test_kafka_format_influx_multiple_records() {
     KafkaInsertDataFormatter formatter(config.data_format);
     FormatResult result = formatter.format(config, col_instances, tag_instances, block);
 
-    assert(std::holds_alternative<KafkaInsertData>(result));
-    const auto& kafka_data = std::get<KafkaInsertData>(result);
+    assert(std::holds_alternative<InsertFormatResult>(result));
+    const auto& ptr = std::get<InsertFormatResult>(result);
+
+    auto* kafka_ptr = dynamic_cast<KafkaInsertData*>(ptr.get());
+    if (!kafka_ptr) {
+        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    }
+
+    const auto& kafka_data = *kafka_ptr;
     const auto& messages = kafka_data.data;
 
     assert(messages.size() == 1);
@@ -286,8 +314,15 @@ void test_kafka_format_with_tags() {
     // Test JSON format with tags
     {
         FormatResult result = formatter.format(config, col_instances, tag_instances, block);
-        assert(std::holds_alternative<KafkaInsertData>(result));
-        const auto& kafka_data = std::get<KafkaInsertData>(result);
+        assert(std::holds_alternative<InsertFormatResult>(result));
+        const auto& ptr = std::get<InsertFormatResult>(result);
+
+        auto* kafka_ptr = dynamic_cast<KafkaInsertData*>(ptr.get());
+        if (!kafka_ptr) {
+            throw std::runtime_error("Unexpected derived type in BaseInsertData");
+        }
+
+        const auto& kafka_data = *kafka_ptr;
         const auto& messages = kafka_data.data;
 
         assert(messages.size() == 1);
@@ -305,8 +340,15 @@ void test_kafka_format_with_tags() {
     {
         config.data_format.kafka.value_serializer = "influx";
         FormatResult result = formatter.format(config, col_instances, tag_instances, block);
-        assert(std::holds_alternative<KafkaInsertData>(result));
-        const auto& kafka_data = std::get<KafkaInsertData>(result);
+        assert(std::holds_alternative<InsertFormatResult>(result));
+        const auto& ptr = std::get<InsertFormatResult>(result);
+
+        auto* kafka_ptr = dynamic_cast<KafkaInsertData*>(ptr.get());
+        if (!kafka_ptr) {
+            throw std::runtime_error("Unexpected derived type in BaseInsertData");
+        }
+
+        const auto& kafka_data = *kafka_ptr;
         const auto& messages = kafka_data.data;
 
         assert(messages.size() == 1);

@@ -2,6 +2,7 @@
 
 #include "IFormatter.hpp"
 #include "FormatterFactory.hpp"
+#include "StmtV2InsertData.hpp"
 #include "taos.h"
 #include <sstream>
 #include <limits>
@@ -91,7 +92,8 @@ public:
             throw std::invalid_argument("Unsupported stmt version: " + format_.stmt.version);
         }
 
-        return StmtV2InsertData(batch, col_instances, tag_instances, is_checkpoint_recover);
+        auto payload = std::make_unique<StmtV2InsertData>(batch, col_instances, tag_instances, is_checkpoint_recover);
+        return FormatResult(std::move(payload));
     }
 
 private:

@@ -1,6 +1,6 @@
 # Create library target
 add_library(plugin_mqtt STATIC
-  # src/MqttInsertFormater.cpp
+  src/MqttInsertDataFormatter.cpp
   src/MqttClient.cpp
   src/MqttWriter.cpp
 )

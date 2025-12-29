@@ -114,7 +114,7 @@ void test_data_pipeline() {
             auto* block = pool.convert_to_memory_block(std::move(batch));
 
             pipeline.push_data(0, FormatResult{
-                SqlInsertData(block, col_instances, tag_instances, "INSERT INTO test_table VALUES (...)")
+                std::make_unique<SqlInsertData>(block, col_instances, tag_instances, "INSERT INTO test_table VALUES (...)")
             });
             rows_generated++;
         }
@@ -128,8 +128,8 @@ void test_data_pipeline() {
             if (result.status == DataPipeline<FormatResult>::Status::Success) {
                 std::visit([&](const auto& data) {
                     using T = std::decay_t<decltype(data)>;
-                    if constexpr (std::is_same_v<T, SqlInsertData>) {
-                        assert(data.total_rows == 2);
+                    if constexpr (std::is_same_v<T, InsertFormatResult>) {
+                        assert(data->total_rows == 2);
                         rows_consumed++;
                     }
                 }, *result.data);
@@ -180,7 +180,7 @@ void test_data_pipeline_with_tags() {
             block->tables[0].tags_ptr = pool.register_table_tags("table" + std::to_string(i), tag_values);
 
             pipeline.push_data(0, FormatResult{
-                SqlInsertData(block, col_instances, tag_instances, "INSERT INTO ...")
+                std::make_unique<SqlInsertData>(block, col_instances, tag_instances, "INSERT INTO ...")
             });
             rows_generated++;
         }
@@ -194,16 +194,16 @@ void test_data_pipeline_with_tags() {
             if (result.status == DataPipeline<FormatResult>::Status::Success) {
                 std::visit([&](const auto& data) {
                     using T = std::decay_t<decltype(data)>;
-                    if constexpr (std::is_same_v<T, SqlInsertData>) {
-                        assert(data.total_rows == 1);
-                        assert(data.column_count() == 1);
-                        assert(data.tag_count() == 1);
+                    if constexpr (std::is_same_v<T, InsertFormatResult>) {
+                        assert(data->total_rows == 1);
+                        assert(data->column_count() == 1);
+                        assert(data->tag_count() == 1);
 
-                        auto col_val = data.get_block()->tables[0].get_column_cell(0, 0);
+                        auto col_val = data->get_block()->tables[0].get_column_cell(0, 0);
                         assert(std::holds_alternative<float>(col_val));
                         assert(std::get<float>(col_val) == 3.14f);
 
-                        auto tag_val = data.get_block()->tables[0].get_tag_cell(0, 0);
+                        auto tag_val = data->get_block()->tables[0].get_tag_cell(0, 0);
                         assert(std::holds_alternative<int32_t>(tag_val));
                         assert(std::get<int32_t>(tag_val) == 100);
 

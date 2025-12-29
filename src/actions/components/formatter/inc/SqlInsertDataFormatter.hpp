@@ -2,6 +2,7 @@
 
 #include "IFormatter.hpp"
 #include "FormatterFactory.hpp"
+#include "SqlInsertData.hpp"
 #include "taos.h"
 #include <limits>
 #include <string>
@@ -170,7 +171,8 @@ public:
 
         fmt::format_to(out, ";");
 
-        return SqlInsertData(batch, col_instances, tag_instances, std::move(sql_buffer));
+        auto payload = std::make_unique<SqlInsertData>(batch, col_instances, tag_instances, std::move(sql_buffer));
+        return FormatResult(std::move(payload));
     }
 
 private:

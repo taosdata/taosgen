@@ -13,13 +13,13 @@ struct KafkaInsertData : public BaseInsertData {
                     const ColumnConfigInstanceVector& col_instances,
                     const ColumnConfigInstanceVector& tag_instances,
                     KafkaMessageBatch&& msgs) noexcept
-        : BaseInsertData(DataType::KAFKA, block, col_instances, tag_instances), data(std::move(msgs)) {}
+        : BaseInsertData(typeid(KafkaInsertData), block, col_instances, tag_instances), data(std::move(msgs)) {}
 
     KafkaInsertData(KafkaInsertData&& other) noexcept
         : BaseInsertData(std::move(other))
         , data(std::move(other.data))
     {
-        this->type = DataType::KAFKA;
+        this->type = typeid(KafkaInsertData);
     }
 
     // Disable copy
@@ -29,3 +29,6 @@ struct KafkaInsertData : public BaseInsertData {
 
     ~KafkaInsertData() = default;
 };
+
+inline std::type_index KAFKA_TYPE_ID = std::type_index(typeid(KafkaInsertData));
+inline uint64_t KAFKA_TYPE_HASH = KAFKA_TYPE_ID.hash_code();

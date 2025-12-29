@@ -45,14 +45,15 @@ bool KafkaWriter::write(const BaseInsertData& data) {
     // Execute write
     bool success = false;
     try {
-        switch(data.type) {
-            case BaseInsertData::DataType::KAFKA:
-                success = execute_with_retry([&] {
-                    return handle_insert(static_cast<const KafkaInsertData&>(data));
-                }, "kafka message insert");
-                break;
-            default:
-                throw std::runtime_error("Unsupported data type for KafkaWriter: " + std::to_string(static_cast<int>(data.type)));
+        if (data.type == KAFKA_TYPE_ID) {
+            success = execute_with_retry([&] {
+                return handle_insert(static_cast<const KafkaInsertData&>(data));
+            }, "kafka message insert");
+        } else {
+            throw std::runtime_error(
+                "Unsupported data type for KafkaWriter: " +
+                std::string(data.type.name())
+            );
         }
     } catch (const std::exception& e) {
         if (config_.failure_handling.on_failure == "exit") {

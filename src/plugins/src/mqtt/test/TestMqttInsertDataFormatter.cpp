@@ -39,8 +39,15 @@ void test_mqtt_format_single_record_per_message() {
     MqttInsertDataFormatter formatter(config.data_format);
     FormatResult result = formatter.format(config, col_instances, tag_instances, block);
 
-    assert(std::holds_alternative<MqttInsertData>(result));
-    const auto& mqtt_data = std::get<MqttInsertData>(result);
+    assert(std::holds_alternative<InsertFormatResult>(result));
+    const auto& ptr = std::get<InsertFormatResult>(result);
+
+    auto* mqtt_ptr = dynamic_cast<MqttInsertData*>(ptr.get());
+    if (!mqtt_ptr) {
+        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    }
+
+    const auto& mqtt_data = *mqtt_ptr;
     assert(mqtt_data.start_time == 1500000000000);
     assert(mqtt_data.end_time == 1500000000001);
     assert(mqtt_data.total_rows == 2);
@@ -94,8 +101,15 @@ void test_mqtt_format_multiple_records_per_message() {
     MqttInsertDataFormatter formatter(config.data_format);
     FormatResult result = formatter.format(config, col_instances, tag_instances, block);
 
-    assert(std::holds_alternative<MqttInsertData>(result));
-    const auto& mqtt_data = std::get<MqttInsertData>(result);
+    assert(std::holds_alternative<InsertFormatResult>(result));
+    const auto& ptr = std::get<InsertFormatResult>(result);
+
+    auto* mqtt_ptr = dynamic_cast<MqttInsertData*>(ptr.get());
+    if (!mqtt_ptr) {
+        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    }
+
+    const auto& mqtt_data = *mqtt_ptr;
     assert(mqtt_data.start_time == 1500000000000);
     assert(mqtt_data.end_time == 1500000000002);
     assert(mqtt_data.total_rows == 3);
@@ -183,17 +197,24 @@ void test_mqtt_format_insert_data_with_empty_rows() {
     auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(config.data_format);
     FormatResult result = formatter->format(config, col_instances, tag_instances, block);
 
-    assert(std::holds_alternative<MqttInsertData>(result));
-    const auto& msg_data = std::get<MqttInsertData>(result);
+    assert(std::holds_alternative<InsertFormatResult>(result));
+    const auto& ptr = std::get<InsertFormatResult>(result);
+
+    auto* mqtt_ptr = dynamic_cast<MqttInsertData*>(ptr.get());
+    if (!mqtt_ptr) {
+        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    }
+
+    const auto& mqtt_data = *mqtt_ptr;
 
     // Verify the timing information
-    (void)msg_data;
-    assert(msg_data.start_time == 1500000000000);
-    assert(msg_data.end_time == 1500000000002);
+    (void)mqtt_data;
+    assert(mqtt_data.start_time == 1500000000000);
+    assert(mqtt_data.end_time == 1500000000002);
 
     // Verify total rows
-    assert(msg_data.total_rows == 3);
-    assert(msg_data.data.size() == 3);
+    assert(mqtt_data.total_rows == 3);
+    assert(mqtt_data.data.size() == 3);
 
     std::cout << "test_mqtt_format_insert_data_with_empty_rows passed!" << std::endl;
 }
@@ -220,8 +241,15 @@ void test_mqtt_format_with_compression() {
     MqttInsertDataFormatter formatter(config.data_format);
     FormatResult result = formatter.format(config, col_instances, tag_instances, block);
 
-    assert(std::holds_alternative<MqttInsertData>(result));
-    const auto& mqtt_data = std::get<MqttInsertData>(result);
+    assert(std::holds_alternative<InsertFormatResult>(result));
+    const auto& ptr = std::get<InsertFormatResult>(result);
+
+    auto* mqtt_ptr = dynamic_cast<MqttInsertData*>(ptr.get());
+    if (!mqtt_ptr) {
+        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    }
+
+    const auto& mqtt_data = *mqtt_ptr;
     const auto& messages = mqtt_data.data;
 
     assert(messages.size() == 1);
@@ -277,8 +305,15 @@ void test_mqtt_format_with_tags() {
     MqttInsertDataFormatter formatter(config.data_format);
     FormatResult result = formatter.format(config, col_instances, tag_instances, block);
 
-    assert(std::holds_alternative<MqttInsertData>(result));
-    const auto& mqtt_data = std::get<MqttInsertData>(result);
+    assert(std::holds_alternative<InsertFormatResult>(result));
+    const auto& ptr = std::get<InsertFormatResult>(result);
+
+    auto* mqtt_ptr = dynamic_cast<MqttInsertData*>(ptr.get());
+    if (!mqtt_ptr) {
+        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    }
+
+    const auto& mqtt_data = *mqtt_ptr;
     const auto& messages = mqtt_data.data;
 
     assert(messages.size() == 1);
