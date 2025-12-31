@@ -27,6 +27,7 @@ public:
     virtual bool is_connected() const = 0;
     virtual void disconnect() = 0;
     virtual bool publish(const MqttInsertData& data) = 0;
+    virtual void close() = 0;
 };
 
 // MQTT client implementation wrapper
@@ -40,6 +41,7 @@ public:
     bool is_connected() const override;
     void disconnect() override;
     bool publish(const MqttInsertData& data) override;
+    void close() override;
 
 private:
     const MqttConfig& config_;
@@ -49,6 +51,7 @@ private:
     std::thread token_wait_thread_;
     mqtt::properties default_props_;
     mqtt::thread_queue<mqtt::delivery_token_ptr> token_queue_;
+    std::atomic<bool> closed_{false};
 
     void token_wait_func() {
         while (true) {

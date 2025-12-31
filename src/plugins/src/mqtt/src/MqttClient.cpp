@@ -34,13 +34,7 @@ PahoMqttClient::PahoMqttClient(const MqttConfig& config, const DataFormat::MqttC
 
 PahoMqttClient::~PahoMqttClient() {
     LogUtils::debug("Destroying MQTT client #{}", no_);
-    token_queue_.put(nullptr);
-
-    if (token_wait_thread_.joinable()) {
-        token_wait_thread_.join();
-    }
-
-    disconnect();
+    close();
 }
 
 bool PahoMqttClient::connect() {
@@ -107,6 +101,21 @@ bool PahoMqttClient::publish(const MqttInsertData& data) {
     return true;
 }
 
+void PahoMqttClient::close() {
+    if (closed_.exchange(true)) {
+        return;
+    }
+
+    // stop token waiter after draining current tokens
+    token_queue_.put(nullptr);
+    if (token_wait_thread_.joinable()) {
+        token_wait_thread_.join();
+    }
+
+    // disconnect
+    disconnect();
+}
+
 // MqttClient implementation
 MqttClient::MqttClient(const MqttConfig& config,
                        const DataFormat::MqttConfig& format,
@@ -126,7 +135,7 @@ bool MqttClient::is_connected() const {
 
 void MqttClient::close() {
     if (client_) {
-        client_->disconnect();
+        client_->close();
     }
 }
 

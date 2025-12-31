@@ -44,6 +44,10 @@ public:
         }
         return true;
     }
+
+    void close() override {
+        connected = false;
+    }
 };
 
 // Creates a test configuration for the MQTT connector.

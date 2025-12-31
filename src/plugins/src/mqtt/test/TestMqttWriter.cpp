@@ -43,6 +43,10 @@ public:
         total_rows_published += data.total_rows;
         return true;
     }
+
+    void close() override {
+        connected = false;
+    }
 };
 
 
