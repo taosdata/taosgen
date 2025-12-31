@@ -66,6 +66,7 @@ void test_format_insert_data_single_table() {
     const auto& ptr = std::get<InsertFormatResult>(result);
 
     if (auto* sql_ptr = dynamic_cast<SqlInsertData*>(ptr.get())) {
+        (void)sql_ptr;
         assert(sql_ptr->data.str() ==
            "INSERT INTO `table1` VALUES "
            "(1500000000000,3.14,42,'value1')"
@@ -115,6 +116,7 @@ void test_format_insert_data_multiple_tables() {
     const auto& ptr = std::get<InsertFormatResult>(result);
 
     if (auto* sql_ptr = dynamic_cast<SqlInsertData*>(ptr.get())) {
+        (void)sql_ptr;
         assert(sql_ptr->data.str() ==
            "INSERT INTO `table1` VALUES "
            "(1500000000000,3.14,42)"
@@ -184,6 +186,7 @@ void test_format_insert_data_different_types() {
     const auto& ptr = std::get<InsertFormatResult>(result);
 
     if (auto* sql_ptr = dynamic_cast<SqlInsertData*>(ptr.get())) {
+        (void)sql_ptr;
         assert(sql_ptr->data.str() ==
            "INSERT INTO `table1` VALUES "
            "(1500000000000,3.14,true,'测试','{\"key\":\"value\"}');");
