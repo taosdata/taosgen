@@ -91,7 +91,8 @@ void TDengineConnector::init_driver() {
             std::ostringstream oss;
             oss << "Failed to set driver to " << display_name_ << ": "
                 << taos_errstr_(nullptr) << " [0x"
-                << std::hex << taos_errno_(nullptr) << "]";
+                << std::hex << taos_errno_(nullptr) << "], code: 0x"
+                << std::hex << code;
             throw std::runtime_error(oss.str());
         }
     });
