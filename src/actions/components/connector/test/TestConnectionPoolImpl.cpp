@@ -5,6 +5,7 @@
 
 void test_pool_initialization() {
     TDengineConfig info;
+    info.database.clear();
     info.pool.enabled = true;
     info.pool.min_size = 2;
     info.pool.max_size = 4;
@@ -21,6 +22,7 @@ void test_pool_initialization() {
 
 void test_get_and_return_connection() {
     TDengineConfig info;
+    info.database.clear();
     info.pool.enabled = true;
     info.pool.min_size = 2;
     info.pool.max_size = 4;
@@ -42,6 +44,7 @@ void test_get_and_return_connection() {
 
 void test_pool_max_size() {
     TDengineConfig info;
+    info.database.clear();
     info.pool.enabled = true;
     info.pool.max_size = 2;
     info.pool.min_size = 1;
@@ -64,6 +67,7 @@ void test_pool_max_size() {
 
 void test_connection_timeout() {
     TDengineConfig info;
+    info.database.clear();
     info.pool.enabled = true;
     info.pool.min_size = 1;
     info.pool.max_size = 1;
