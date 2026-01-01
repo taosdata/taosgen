@@ -36,7 +36,7 @@ void test_format_create_child_table_multiple() {
         {2.71, std::string("New York")}
     };
 
-    auto formatter = FormatterFactory::instance().create_formatter<CreateChildTableConfig>(format);
+    auto formatter = FormatterFactory::create_formatter<CreateChildTableConfig>(format);
     FormatResult result = formatter->format(config, table_names, tags);
 
     assert(std::holds_alternative<std::string>(result));

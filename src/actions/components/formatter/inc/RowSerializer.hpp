@@ -22,4 +22,11 @@ public:
         const std::string& tbname_key,
         nlohmann::ordered_json& out
     );
+
+    static void to_influx_inplace(
+        const ColumnConfigInstanceVector& col_instances,
+        const ColumnConfigInstanceVector& tag_instances,
+        const MemoryPool::TableBlock& table,
+        size_t row_index,
+        fmt::memory_buffer& out);
 };

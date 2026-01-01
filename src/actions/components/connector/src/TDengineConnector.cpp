@@ -91,7 +91,8 @@ void TDengineConnector::init_driver() {
             std::ostringstream oss;
             oss << "Failed to set driver to " << display_name_ << ": "
                 << taos_errstr_(nullptr) << " [0x"
-                << std::hex << taos_errno_(nullptr) << "]";
+                << std::hex << taos_errno_(nullptr) << "], code: 0x"
+                << std::hex << code;
             throw std::runtime_error(oss.str());
         }
     });
@@ -113,17 +114,19 @@ bool TDengineConnector::connect() {
         conn_info_.host.c_str(),
         conn_info_.user.c_str(),
         conn_info_.password.c_str(),
-        nullptr,
+        conn_info_.database.c_str(),
         conn_info_.port
     );
 
     if (!conn_) {
         LogUtils::error(
-            "{} connection failed: {} (host: {}, port: {})",
+            "{} connection failed: {} (host: {}, port: {}, user: {}, database: {})",
             display_name_,
             taos_errstr_(nullptr),
             conn_info_.host,
-            conn_info_.port
+            conn_info_.port,
+            conn_info_.user,
+            conn_info_.database
         );
         return false;
     }

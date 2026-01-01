@@ -2,6 +2,8 @@
 
 #include "CreateDatabaseConfig.hpp"
 #include "FormatResult.hpp"
+#include "SqlInsertData.hpp"
+#include "StmtV2InsertData.hpp"
 #include <memory>
 #include <string>
 

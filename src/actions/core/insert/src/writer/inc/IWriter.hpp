@@ -15,9 +15,6 @@ public:
     // Connect/open resource
     virtual bool connect(std::optional<ConnectorSource>& conn_source) = 0;
 
-    // Select database
-    virtual bool select_db(const std::string& db_name) = 0;
-
     // Prepare for write operation
     virtual bool prepare(const std::string& sql) = 0;
 

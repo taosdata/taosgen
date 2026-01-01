@@ -4,7 +4,7 @@
 
 void test_native_connector_create_database() {
     // Set connection info
-    TDengineConfig conn_info("taos://root:taosdata@localhost:6030/tsbench");
+    TDengineConfig conn_info("taos://root:taosdata@localhost:6030/");
 
     // Create connector instance using ConnectorFactory::create
     auto connector = ConnectorFactory::create(conn_info);

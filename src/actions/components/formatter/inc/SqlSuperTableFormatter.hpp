@@ -73,7 +73,7 @@ private:
 
 
     inline static bool registered_ = []() {
-        FormatterFactory::instance().register_formatter<CreateSuperTableConfig>(
+        FormatterFactory::register_formatter<CreateSuperTableConfig>(
             "sql",
             [](const DataFormat& format) {
                 return std::make_unique<SqlSuperTableFormatter>(format);

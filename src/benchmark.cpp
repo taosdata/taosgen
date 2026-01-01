@@ -2,6 +2,7 @@
 #include "SignalManager.hpp"
 #include "ParameterContext.hpp"
 #include "JobScheduler.hpp"
+#include "PluginRegistrar.hpp"
 #include <iostream>
 #include <chrono>
 #include <thread>

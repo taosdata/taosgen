@@ -9,10 +9,10 @@
 class TimestampGenerator {
 public:
     explicit TimestampGenerator(const TimestampGeneratorConfig& config);
-    
+
     Timestamp generate() const;
     void reset();
-    
+
     std::vector<Timestamp> generate(size_t count) const;
 
     const std::string& timestamp_precision() const;
@@ -24,4 +24,5 @@ public:
 private:
     TimestampGeneratorConfig config_;
     mutable int64_t current_ = 0;
+    Timestamp timestamp_step_;
 };

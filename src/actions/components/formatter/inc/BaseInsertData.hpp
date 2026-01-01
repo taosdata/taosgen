@@ -2,17 +2,10 @@
 #include "MemoryPool.hpp"
 #include <cstdint>
 #include <cstddef>
+#include <typeindex>
 
 struct BaseInsertData {
-    enum class DataType {
-        BASE,
-        SQL,
-        STMT,
-        MQTT,
-        KAFKA
-    };
-    DataType type;
-
+    std::type_index type;
     int64_t start_time;
     int64_t end_time;
     size_t total_rows;
@@ -20,9 +13,9 @@ struct BaseInsertData {
     BaseInsertData(MemoryPool::MemoryBlock* block,
                    const ColumnConfigInstanceVector& col_instances,
                    const ColumnConfigInstanceVector& tag_instances)
-        : BaseInsertData(DataType::BASE, block, col_instances, tag_instances) {}
+        : BaseInsertData(typeid(BaseInsertData), block, col_instances, tag_instances) {}
 
-    BaseInsertData(DataType t,
+    BaseInsertData(std::type_index t,
                    MemoryPool::MemoryBlock* block,
                    const ColumnConfigInstanceVector& col_instances,
                    const ColumnConfigInstanceVector& tag_instances)
@@ -44,7 +37,7 @@ struct BaseInsertData {
           col_instances_(other.col_instances_),
           tag_instances_(other.tag_instances_) {
         other.block_ = nullptr;
-        other.type = DataType::BASE;
+        other.type = typeid(BaseInsertData);
     }
 
     virtual ~BaseInsertData() {

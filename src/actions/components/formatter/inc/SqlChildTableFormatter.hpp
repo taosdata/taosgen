@@ -69,7 +69,7 @@ private:
     const DataFormat& format_;
 
     inline static bool registered_ = []() {
-        FormatterFactory::instance().register_formatter<CreateChildTableConfig>(
+        FormatterFactory::register_formatter<CreateChildTableConfig>(
             "sql",
             [](const DataFormat& format) {
                 return std::make_unique<SqlChildTableFormatter>(format);

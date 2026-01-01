@@ -37,6 +37,10 @@ void setup() {
     for (const auto& kv : callbacks) {
         std::signal(kv.first, signal_handler);
     }
+
+#if defined(__unix__) || defined(__APPLE__)
+    ::signal(SIGPIPE, SIG_IGN);
+#endif
 }
 
 }

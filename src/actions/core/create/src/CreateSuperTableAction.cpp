@@ -16,7 +16,7 @@ void CreateSuperTableAction::execute() {
     try {
         prepare_connector();
 
-        auto formatter = FormatterFactory::instance().create_formatter<CreateSuperTableConfig>(DataFormat());
+        auto formatter = FormatterFactory::create_formatter<CreateSuperTableConfig>(DataFormat());
         FormatResult formatted_result = formatter->format(config_);
         auto sql = std::get<std::string>(formatted_result);
         if (!connector_->execute(sql)) {

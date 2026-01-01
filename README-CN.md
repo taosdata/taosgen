@@ -27,6 +27,7 @@
 - [8. 提交 PR](#8-提交-pr)
 - [9. 引用](#9-引用)
 - [10. 附录](#10-附录)
+  - [10.1 性能测试](#101-性能测试)
 - [11. 许可证](#11-许可证)
 
 ## 1. 简介
@@ -116,93 +117,149 @@ cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_SYSROOT=$(xcrun --show-sdk-path)
 ```
 <root>
 ├── cmake
-├── inc
-├── src
-│   ├── actions
-│   │   ├── base
-│   │   ├── components
-│   │   │   ├── connector
-│   │   │   │   ├── inc
-│   │   │   │   ├── src
-│   │   │   │   └── test
-│   │   │   ├── formatter
-│   │   │   │   ├── inc
-│   │   │   │   ├── src
-│   │   │   │   └── test
-│   │   │   ├── garbage_collector
-│   │   │   │   ├── inc
-│   │   │   │   ├── src
-│   │   │   │   └── test
-│   │   │   ├── generator
-│   │   │   │   ├── inc
-│   │   │   │   ├── src
-│   │   │   │   └── test
-│   │   │   ├── memory_pool
-│   │   │   │   ├── inc
-│   │   │   │   ├── src
-│   │   │   │   └── test
-│   │   │   ├── metrics
-│   │   │   │   ├── inc
-│   │   │   │   ├── src
-│   │   │   │   └── test
-│   │   │   └── reader
-│   │   │       ├── csv
-│   │   │       │   ├── inc
-│   │   │       │   ├── src
-│   │   │       │   └── test
-│   │   │       └── kafka
-│   │   ├── config
-│   │   │   ├── inc
-│   │   │   ├── src
-│   │   │   └── test
-│   │   └── core
-│   │       ├── create
-│   │       │   ├── inc
-│   │       │   ├── src
-│   │       │   └── test
-│   │       ├── insert
-│   │       │   ├── inc
-│   │       │   ├── src
-│   │       │   │   ├── generator
-│   │       │   │   │   ├── inc
-│   │       │   │   │   ├── src
-│   │       │   │   │   └── test
-│   │       │   │   ├── pipeline
-│   │       │   │   │   ├── inc
-│   │       │   │   │   ├── src
-│   │       │   │   │   └── test
-│   │       │   │   └── writer
-│   │       │   │       ├── inc
-│   │       │   │       ├── src
-│   │       │   │       └── test
-│   │       │   └── test
-│   │       ├── query
-│   │       │   ├── inc
-│   │       │   ├── src
-│   │       │   └── test
-│   │       └── subscribe
-│   │           ├── inc
-│   │           ├── src
-│   │           └── test
-│   ├── engine
-│   │   ├── inc
-│   │   ├── src
-│   │   └── test
-│   ├── parameter
-│   │   ├── conf
-│   │   ├── inc
-│   │   ├── src
-│   │   └── test
-│   ├── utils
-│   │   ├── inc
-│   │   ├── src
-│   │   └── test
-│   └── workflow
-│       ├── inc
-│       ├── src
-│       └── test
-└── test
+├── conf
+└── src
+    ├── actions
+    │   ├── base
+    │   ├── components
+    │   │   ├── compressor
+    │   │   │   ├── inc
+    │   │   │   ├── src
+    │   │   │   └── test
+    │   │   ├── connector
+    │   │   │   ├── inc
+    │   │   │   ├── src
+    │   │   │   └── test
+    │   │   ├── encoding
+    │   │   │   ├── inc
+    │   │   │   ├── src
+    │   │   │   └── test
+    │   │   ├── expression
+    │   │   │   ├── inc
+    │   │   │   ├── src
+    │   │   │   └── test
+    │   │   ├── formatter
+    │   │   │   ├── inc
+    │   │   │   ├── src
+    │   │   │   └── test
+    │   │   ├── garbage_collector
+    │   │   │   ├── inc
+    │   │   │   ├── src
+    │   │   │   └── test
+    │   │   ├── generator
+    │   │   │   ├── inc
+    │   │   │   ├── src
+    │   │   │   └── test
+    │   │   ├── memory_pool
+    │   │   │   ├── inc
+    │   │   │   ├── src
+    │   │   │   └── test
+    │   │   ├── metrics
+    │   │   │   ├── inc
+    │   │   │   ├── src
+    │   │   │   └── test
+    │   │   └── reader
+    │   │       └── csv
+    │   │           ├── inc
+    │   │           ├── src
+    │   │           └── test
+    │   ├── config
+    │   │   ├── inc
+    │   │   ├── src
+    │   │   └── test
+    │   └── core
+    │       ├── checkpoint
+    │       │   ├── inc
+    │       │   ├── src
+    │       │   └── test
+    │       ├── create
+    │       │   ├── inc
+    │       │   ├── src
+    │       │   └── test
+    │       ├── insert
+    │       │   ├── inc
+    │       │   ├── src
+    │       │   │   ├── generator
+    │       │   │   │   ├── inc
+    │       │   │   │   ├── src
+    │       │   │   │   └── test
+    │       │   │   ├── pipeline
+    │       │   │   │   ├── inc
+    │       │   │   │   ├── src
+    │       │   │   │   └── test
+    │       │   │   └── writer
+    │       │   │       ├── inc
+    │       │   │       ├── src
+    │       │   │       └── test
+    │       │   └── test
+    │       ├── query
+    │       │   └── inc
+    │       └── subscribe
+    │           ├── inc
+    │           └── src
+    ├── engine
+    │   ├── inc
+    │   ├── src
+    │   └── test
+    ├── parameter
+    │   ├── conf
+    │   ├── inc
+    │   ├── src
+    │   └── test
+    ├── plugins
+    │   ├── inc
+    │   └── src
+    │       ├── kafka
+    │       │   ├── inc
+    │       │   ├── src
+    │       │   └── test
+    │       ├── mqtt
+    │       │   ├── inc
+    │       │   ├── src
+    │       │   └── test
+    │       └── tdengine
+    │           ├── inc
+    │           ├── src
+    │           └── test
+    ├── utils
+    │   ├── inc
+    │   ├── src
+    │   └── test
+    └── workflow
+        ├── inc
+        └── src
 ```
+
+### 10.1 性能测试
+
+- 环境（客户端与服务端一致）：
+
+  | 组件 | 规格 |
+  |---|---|
+  | 操作系统 | Ubuntu 20.04.6 LTS |
+  | CPU | Intel Xeon E5-2650 v3 @ 2.30GHz（Haswell-EP），双路 |
+  | 核心/线程 | 20C/40T（每路 10C/20T，超线程） |
+  | 缓存 | L3 25MB（cache size: 25600 KB） |
+  | 内存 | 251 GB |
+  | 存储 | 447 GB SSD × 2，1.76 TB SSD |
+  | 软件 | TDengine Enterprise 3.3.8.9（默认）；FlashMQ v1.24.0（默认）；Kafka 2.13-4.1.0（默认） |
+
+- 数据模型：100万子表 meters，电流/电压/相位三列；按 interlace=1 交错写入。
+- 结果为示范性数据，实际性能受网络/服务器配置/消息大小/并发度影响。
+- 单位：K=千条/秒，M=百万条/秒。
+
+| 目标 | 场景 | 基线 | taosgen | 配置摘要 | 提升 |
+|---|---|---:|---:|---|---:|
+| TDengine | 1亿行、20线程 | 3.168M rps（taosBenchmark） | 3.534M rps | vgroups=32、stmt2、batch=10k | +11.58% |
+| MQTT | 200万行、20线程、单条/消息 | — | 15.15K rps | qos=0、records_per_message=1 | — |
+| MQTT | 1亿行、20线程、打包500条/消息 | — | 3.127M rps | qos=0、records_per_message=500 | 显著提升 |
+| Kafka（单线程） | 1亿行、官方脚本 | 912.70K rps | 968.93K rps | acks=0、batch优化 | +6.16% |
+| Kafka（20并发） | 官方脚本 20 进程 | 2.772M rps | 4.577M rps | taosgen 20 线程 | +65.14% |
+
+说明：
+- MQTT 在 QoS0 下，打包发送可显著提高吞吐；Broker 配置与消息大小对结果影响极大。
+- TDengine 对标 taosBenchmark，taosgen 在等价模型下具备更高吞吐与更低框架开销。
+- Kafka 对标官方脚本，单线程与多并发场景下 taosgen 均有优势。
 
 ## 11. 许可证
 [MIT License](./LICENSE)

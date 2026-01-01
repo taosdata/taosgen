@@ -27,6 +27,7 @@
 - [8. Submitting PRs](#8-submitting-prs)
 - [9. References](#9-references)
 - [10. Appendix](#10-appendix)
+  - [10.1 Performance Benchmarks](#101-performance-benchmarks)
 - [11. License](#11-license)
 
 ## 1. Introduction
@@ -35,8 +36,8 @@
 Currently, `taosgen` supports Linux and macOS systems.
 
 ## 2. Documentation
-- For usage, refer to the [Reference Manual](https://docs.taosdata.com/reference/tools/taosgen/), which covers running, command-line arguments, configuration parameters, and sample configuration files.
-- This quick guide is mainly for developers who want to contribute, build, and test the `taosgen` tool. For more information about TDengine, visit the [official documentation](https://docs.taosdata.com/).
+- For usage, refer to the [Reference Manual](https://docs.tdengine.com/tdengine-reference/tools/taosgen/), which covers running, command-line arguments, configuration parameters, and sample configuration files.
+- This quick guide is mainly for developers who want to contribute, build, and test the `taosgen` tool. For more information about TDengine, visit the [official documentation](https://docs.tdengine.com/).
 
 ## 3. Prerequisites
 First, ensure TDengine is deployed locally. For detailed deployment steps, see [Deploy TDengine](https://docs.tdengine.com/get-started/deploy-from-package/). Make sure both taosd and taosAdapter services are running.
@@ -116,93 +117,150 @@ Project source code layout (directories only):
 ```
 <root>
 ├── cmake
-├── inc
-├── src
-│   ├── actions
-│   │   ├── base
-│   │   ├── components
-│   │   │   ├── connector
-│   │   │   │   ├── inc
-│   │   │   │   ├── src
-│   │   │   │   └── test
-│   │   │   ├── formatter
-│   │   │   │   ├── inc
-│   │   │   │   ├── src
-│   │   │   │   └── test
-│   │   │   ├── garbage_collector
-│   │   │   │   ├── inc
-│   │   │   │   ├── src
-│   │   │   │   └── test
-│   │   │   ├── generator
-│   │   │   │   ├── inc
-│   │   │   │   ├── src
-│   │   │   │   └── test
-│   │   │   ├── memory_pool
-│   │   │   │   ├── inc
-│   │   │   │   ├── src
-│   │   │   │   └── test
-│   │   │   ├── metrics
-│   │   │   │   ├── inc
-│   │   │   │   ├── src
-│   │   │   │   └── test
-│   │   │   └── reader
-│   │   │       ├── csv
-│   │   │       │   ├── inc
-│   │   │       │   ├── src
-│   │   │       │   └── test
-│   │   │       └── kafka
-│   │   ├── config
-│   │   │   ├── inc
-│   │   │   ├── src
-│   │   │   └── test
-│   │   └── core
-│   │       ├── create
-│   │       │   ├── inc
-│   │       │   ├── src
-│   │       │   └── test
-│   │       ├── insert
-│   │       │   ├── inc
-│   │       │   ├── src
-│   │       │   │   ├── generator
-│   │       │   │   │   ├── inc
-│   │       │   │   │   ├── src
-│   │       │   │   │   └── test
-│   │       │   │   ├── pipeline
-│   │       │   │   │   ├── inc
-│   │       │   │   │   ├── src
-│   │       │   │   │   └── test
-│   │       │   │   └── writer
-│   │       │   │       ├── inc
-│   │       │   │       ├── src
-│   │       │   │       └── test
-│   │       │   └── test
-│   │       ├── query
-│   │       │   ├── inc
-│   │       │   ├── src
-│   │       │   └── test
-│   │       └── subscribe
-│   │           ├── inc
-│   │           ├── src
-│   │           └── test
-│   ├── engine
-│   │   ├── inc
-│   │   ├── src
-│   │   └── test
-│   ├── parameter
-│   │   ├── conf
-│   │   ├── inc
-│   │   ├── src
-│   │   └── test
-│   ├── utils
-│   │   ├── inc
-│   │   ├── src
-│   │   └── test
-│   └── workflow
-│       ├── inc
-│       ├── src
-│       └── test
-└── test
+├── conf
+└── src
+    ├── actions
+    │   ├── base
+    │   ├── components
+    │   │   ├── compressor
+    │   │   │   ├── inc
+    │   │   │   ├── src
+    │   │   │   └── test
+    │   │   ├── connector
+    │   │   │   ├── inc
+    │   │   │   ├── src
+    │   │   │   └── test
+    │   │   ├── encoding
+    │   │   │   ├── inc
+    │   │   │   ├── src
+    │   │   │   └── test
+    │   │   ├── expression
+    │   │   │   ├── inc
+    │   │   │   ├── src
+    │   │   │   └── test
+    │   │   ├── formatter
+    │   │   │   ├── inc
+    │   │   │   ├── src
+    │   │   │   └── test
+    │   │   ├── garbage_collector
+    │   │   │   ├── inc
+    │   │   │   ├── src
+    │   │   │   └── test
+    │   │   ├── generator
+    │   │   │   ├── inc
+    │   │   │   ├── src
+    │   │   │   └── test
+    │   │   ├── memory_pool
+    │   │   │   ├── inc
+    │   │   │   ├── src
+    │   │   │   └── test
+    │   │   ├── metrics
+    │   │   │   ├── inc
+    │   │   │   ├── src
+    │   │   │   └── test
+    │   │   └── reader
+    │   │       └── csv
+    │   │           ├── inc
+    │   │           ├── src
+    │   │           └── test
+    │   ├── config
+    │   │   ├── inc
+    │   │   ├── src
+    │   │   └── test
+    │   └── core
+    │       ├── checkpoint
+    │       │   ├── inc
+    │       │   ├── src
+    │       │   └── test
+    │       ├── create
+    │       │   ├── inc
+    │       │   ├── src
+    │       │   └── test
+    │       ├── insert
+    │       │   ├── inc
+    │       │   ├── src
+    │       │   │   ├── generator
+    │       │   │   │   ├── inc
+    │       │   │   │   ├── src
+    │       │   │   │   └── test
+    │       │   │   ├── pipeline
+    │       │   │   │   ├── inc
+    │       │   │   │   ├── src
+    │       │   │   │   └── test
+    │       │   │   └── writer
+    │       │   │       ├── inc
+    │       │   │       ├── src
+    │       │   │       └── test
+    │       │   └── test
+    │       ├── query
+    │       │   └── inc
+    │       └── subscribe
+    │           ├── inc
+    │           └── src
+    ├── engine
+    │   ├── inc
+    │   ├── src
+    │   └── test
+    ├── parameter
+    │   ├── conf
+    │   ├── inc
+    │   ├── src
+    │   └── test
+    ├── plugins
+    │   ├── inc
+    │   └── src
+    │       ├── kafka
+    │       │   ├── inc
+    │       │   ├── src
+    │       │   └── test
+    │       ├── mqtt
+    │       │   ├── inc
+    │       │   ├── src
+    │       │   └── test
+    │       └── tdengine
+    │           ├── inc
+    │           ├── src
+    │           └── test
+    ├── utils
+    │   ├── inc
+    │   ├── src
+    │   └── test
+    └── workflow
+        ├── inc
+        └── src
 ```
+
+// ...existing code...
+### 10.1 Performance Benchmarks
+
+- Test environment: Client and server identical
+
+  | Component | Specification |
+  |---|---|
+  | OS | Ubuntu 20.04.6 LTS |
+  | CPU | Intel Xeon E5-2650 v3 @ 2.30GHz (Haswell-EP), dual-socket |
+  | Cores/Threads | 20C/40T (10C/20T per socket, Hyper-Threading) |
+  | Cache | L3 25MB (cache size: 25600 KB) |
+  | Memory | 251 GB |
+  | Storage | 447 GB SSD × 2, 1.76 TB SSD |
+  | Software | TDengine Enterprise 3.3.8.9 (default) ; FlashMQ v1.24.0 (default); Kafka 2.13-4.1.0 (default) |
+
+- Data model: 1,000,000 sub-tables (meters) with current/voltage/phase; interlace=1.
+- Results are indicative; actual throughput depends on network, server settings, message size, and concurrency.
+- Units: K = thousand rows/sec, M = million rows/sec.
+
+| Target | Scenario | Baseline | taosgen | Config Summary | Gain |
+|---|---|---:|---:|---|---:|
+| TDengine | 100M rows, 20 threads | 3.168M rps (taosBenchmark) | 3.534M rps | vgroups=32, stmt2, batch=10k | +11.58% |
+| MQTT | 2M rows, 20 threads, single record/message | — | 15.15K rps | qos=0, records_per_message=1 | — |
+| MQTT | 100M rows, 20 threads, 500 records/message | — | 3.127M rps | qos=0, records_per_message=500 | Significant |
+| Kafka (single thread) | 100M rows, official script | 912.70K rps | 968.93K rps | acks=0, batch tuned | +6.16% |
+| Kafka (20-way concurrency) | Official script (20 processes) | 2.772M rps | 4.577M rps | taosgen 20 threads | +65.14% |
+
+Notes:
+- MQTT QoS 0 with batching improves throughput; broker limits and payload size have major impact.
+- TDengine vs taosBenchmark: under equivalent setup, taosgen shows higher throughput and low framework overhead.
+- Kafka vs official tool: taosgen outperforms in single-thread and multi-process scenarios.
 
 ## 11. License
 [MIT License](./LICENSE)

@@ -103,12 +103,19 @@ void test_stmt_format_insert_data_single_table() {
     StmtInsertDataFormatter formatter(format);
     FormatResult result = formatter.format(config, col_instances, tag_instances, block);
 
-    assert(std::holds_alternative<StmtV2InsertData>(result));
-    const auto& stmt_data = std::get<StmtV2InsertData>(result);
-    (void)stmt_data;
-    assert(stmt_data.start_time == 1500000000000);
-    assert(stmt_data.end_time == 1500000000001);
-    assert(stmt_data.total_rows == 2);
+    assert(std::holds_alternative<InsertFormatResult>(result));
+    const auto& ptr = std::get<InsertFormatResult>(result);
+
+    if (auto* stmt_ptr = dynamic_cast<StmtV2InsertData*>(ptr.get())) {
+        const auto& stmt_data = *stmt_ptr;
+        (void)stmt_data;
+        assert(stmt_data.start_time == 1500000000000);
+        assert(stmt_data.end_time == 1500000000001);
+        assert(stmt_data.total_rows == 2);
+    } else {
+        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    }
+
     std::cout << "test_stmt_format_insert_data_single_table passed!" << std::endl;
 }
 
@@ -143,15 +150,23 @@ void test_stmt_format_insert_data_multiple_tables() {
     MemoryPool pool(1, 2, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
-    auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(format);
+    auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(format);
     FormatResult result = formatter->format(config, col_instances, tag_instances, block);
 
-    assert(std::holds_alternative<StmtV2InsertData>(result));
-    const auto& stmt_data = std::get<StmtV2InsertData>(result);
-    (void)stmt_data;
-    assert(stmt_data.start_time == 1500000000000);
-    assert(stmt_data.end_time == 1500000000003);
-    assert(stmt_data.total_rows == 4);
+    assert(std::holds_alternative<InsertFormatResult>(result));
+    const auto& ptr = std::get<InsertFormatResult>(result);
+
+    if (auto* stmt_ptr = dynamic_cast<StmtV2InsertData*>(ptr.get())) {
+        const auto& stmt_data = *stmt_ptr;
+        (void)stmt_data;
+
+        assert(stmt_data.start_time == 1500000000000);
+        assert(stmt_data.end_time == 1500000000003);
+        assert(stmt_data.total_rows == 4);
+    } else {
+        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    }
+
     std::cout << "test_stmt_format_insert_data_multiple_tables passed!" << std::endl;
 }
 
@@ -259,19 +274,25 @@ void test_stmt_format_insert_data_with_empty_rows() {
     MemoryPool pool(1, 3, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
-    auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(format);
+    auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(format);
     FormatResult result = formatter->format(config, col_instances, tag_instances, block);
 
-    assert(std::holds_alternative<StmtV2InsertData>(result));
-    const auto& stmt_data = std::get<StmtV2InsertData>(result);
+    assert(std::holds_alternative<InsertFormatResult>(result));
+    const auto& ptr = std::get<InsertFormatResult>(result);
 
-    // Verify the timing information excludes empty table
-    (void)stmt_data;
-    assert(stmt_data.start_time == 1500000000000);
-    assert(stmt_data.end_time == 1500000000002);
+    if (auto* stmt_ptr = dynamic_cast<StmtV2InsertData*>(ptr.get())) {
+        const auto& stmt_data = *stmt_ptr;
+        (void)stmt_data;
 
-    // Verify total rows only counts non-empty tables
-    assert(stmt_data.total_rows == 3);  // 2 rows from table1 + 1 row from table3
+        // Verify the timing information excludes empty table
+        assert(stmt_data.start_time == 1500000000000);
+        assert(stmt_data.end_time == 1500000000002);
+
+        // Verify total rows only counts non-empty tables
+        assert(stmt_data.total_rows == 3);  // 2 rows from table1 + 1 row from table3
+    } else {
+        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    }
 
     std::cout << "test_stmt_format_insert_data_with_empty_rows passed!" << std::endl;
 }

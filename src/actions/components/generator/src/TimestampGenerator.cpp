@@ -19,11 +19,15 @@ void TimestampGenerator::reset() {
         config_.start_timestamp,
         config_.timestamp_precision
     );
+    timestamp_step_ = TimestampUtils::parse_step(
+        config_.timestamp_step,
+        config_.timestamp_precision
+    );
 }
 
 Timestamp TimestampGenerator::generate() const {
     Timestamp ts{current_};
-    current_ += std::get<Timestamp>(config_.timestamp_step);
+    current_ += timestamp_step_;
     return ts;
 }
 

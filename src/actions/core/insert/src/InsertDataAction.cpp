@@ -5,6 +5,7 @@
 #include "TableNameManager.hpp"
 #include "TableDataManager.hpp"
 #include "WriterFactory.hpp"
+#include "BaseWriter.hpp"
 #include "TimeRecorder.hpp"
 #include "ProcessUtils.hpp"
 #include <sched.h>
@@ -182,7 +183,7 @@ void InsertDataAction::execute() {
         // Create all writer instances
         for (size_t i = 0; i < consumer_thread_count; i++) {
             LogUtils::debug("Creating writer instance for consumer thread #{}", i);
-            writers.push_back(WriterFactory::create(config_, i, action_info));
+            writers.push_back(WriterFactory::create_writer(config_, i, action_info));
         }
 
         auto consumer_running = std::make_unique<std::atomic<bool>[]>(consumer_thread_count);
@@ -535,7 +536,7 @@ void InsertDataAction::producer_thread_function(
     }
 
     // Create formatter
-    auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(config_.data_format);
+    auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(config_.data_format);
 
     // Data generation loop
     while (!stop_execution_.load()) {
@@ -590,13 +591,7 @@ void InsertDataAction::consumer_thread_function(
     }
 
     if (config_.target_type == "tdengine") {
-        if (!writer->select_db(config_.tdengine.database)) {
-            handle_startup_error("Failed to select database for writer thread {} with database name: {}",
-                consumer_id, config_.tdengine.database);
-            return;
-        }
-
-        auto formatter = FormatterFactory::instance().create_formatter<InsertDataConfig>(config_.data_format);
+        auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(config_.data_format);
         auto sql = formatter->prepare(config_, col_instances_, tag_instances_);
 
         if (!writer->prepare(sql)) {
@@ -617,9 +612,9 @@ void InsertDataAction::consumer_thread_function(
             try {
                 // Use writer to execute write
                 std::visit([&](const auto& formatted_result) {
-                    // using T = std::decay_t<decltype(formatted_result)>;
-                    if constexpr (std::is_base_of_v<BaseInsertData, std::decay_t<decltype(formatted_result)>>) {
-                        auto success = writer->write(formatted_result);
+                    using T = std::decay_t<decltype(formatted_result)>;
+                    if constexpr (std::is_same_v<T, InsertFormatResult>) {
+                        auto success = writer->write(*formatted_result);
                         if (!success) {
                             failed_count++;
                         }

@@ -6,8 +6,6 @@ add_library(components_formatter STATIC
   src/KeyGenerator.cpp
   src/TopicGenerator.cpp
   src/RowSerializer.cpp
-  src/MqttInsertDataFormatter.cpp
-  src/KafkaInsertDataFormatter.cpp
 )
 
 # Set include directories
