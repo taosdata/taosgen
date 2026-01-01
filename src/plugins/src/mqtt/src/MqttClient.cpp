@@ -29,7 +29,9 @@ PahoMqttClient::PahoMqttClient(const MqttConfig& config, const DataFormat::MqttC
         default_props_.add(mqtt::property(mqtt::property::USER_PROPERTY, "encoding", format.encoding));
     }
 
-    token_wait_thread_ = std::thread(&PahoMqttClient::token_wait_func, this);
+    if (format_.qos > 0) {
+        token_wait_thread_ = std::thread(&PahoMqttClient::token_wait_func, this);
+    }
 }
 
 PahoMqttClient::~PahoMqttClient() {
@@ -69,6 +71,9 @@ void PahoMqttClient::disconnect() {
 }
 
 bool PahoMqttClient::publish(const MqttInsertData& data) {
+    if (closed_.load(std::memory_order_relaxed))
+        return false;
+
     const MqttMessageBatch& batch_msgs = data.data;
     auto it = batch_msgs.begin();
 
@@ -86,13 +91,15 @@ bool PahoMqttClient::publish(const MqttInsertData& data) {
 
         try {
             auto token = client_->publish(pubmsg);
-            token_queue_.put(std::move(token));
+            if (format_.qos > 0) {
+                token_queue_.put(std::move(token));
+            }
             ++it;
         } catch (const mqtt::exception& e) {
             std::string msg = e.what();
             if (msg.find("No more messages can be buffered") != std::string::npos ||
                 msg.find("MQTT error [-12]") != std::string::npos) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
             } else {
                 throw std::runtime_error(std::string("MQTT publish failed: ") + msg);
             }
@@ -101,19 +108,38 @@ bool PahoMqttClient::publish(const MqttInsertData& data) {
     return true;
 }
 
+static void wait_pending_drained(mqtt::async_client& c, std::chrono::milliseconds max_wait) {
+    using namespace std::chrono;
+    const auto deadline = steady_clock::now() + max_wait;
+
+    while (true) {
+        auto toks = c.get_pending_delivery_tokens();
+        if (toks.empty()) break;
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        if (steady_clock::now() >= deadline) break;
+    }
+}
+
 void PahoMqttClient::close() {
     if (closed_.exchange(true)) {
         return;
     }
 
+    if (client_) {
+        wait_pending_drained(*client_, std::chrono::seconds(60));
+    }
+
     // stop token waiter after draining current tokens
-    token_queue_.put(nullptr);
     if (token_wait_thread_.joinable()) {
+        token_queue_.put(nullptr);
         token_wait_thread_.join();
     }
 
     // disconnect
     disconnect();
+
+    client_.reset();
 }
 
 // MqttClient implementation
