@@ -232,7 +232,7 @@ cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_SYSROOT=$(xcrun --show-sdk-path)
 
 ### 10.1 性能测试
 
-- 测试环境：客户端（Ubuntu 20.04.6 LTS，40C/251G，SSD），服务端（Ubuntu 20.04.6 LTS，40C/251G，SSD；TDengine Enterprise 3.3.8.9；MQTT Broker: FlashMQ Version 1.24.0 默认配置；Kafka 2.13-4.1.0 默认配置）。
+- 测试环境：客户端与服务端配置一致——Ubuntu 20.04.6 LTS；硬件：双路 Intel Xeon E5-2650 v3 @ 2.30GHz（每路 10 核 20 线程，合计 20C/40T，L3 25MB，支持 AVX2/FMA/AES-NI/SSE4.2）；内存 251G；存储 SSD。服务端软件：TDengine Enterprise 3.3.8.9；MQTT Broker：FlashMQ v1.24.0（默认配置）；Kafka：2.13-4.1.0（默认配置）。
 - 数据模型：100万子表 meters，电流/电压/相位三列；按 interlace=1 交错写入。
 - 结果为示范性数据，实际性能受网络/服务器配置/消息大小/并发度影响。
 - 单位：K=千条/秒，M=百万条/秒。

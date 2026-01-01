@@ -233,7 +233,7 @@ Project source code layout (directories only):
 // ...existing code...
 ### 10.1 Performance Benchmarks
 
-- Test environment: Client (Ubuntu 20.04.6 LTS, 40C/251G, SSD), Server (Ubuntu 20.04.6 LTS, 40C/251G, SSD; TDengine Enterprise 3.3.8.9; MQTT Broker: FlashMQ v1.24.0 default; Kafka 2.13-4.1.0 default).
+- Test environment: Client and server identical — Ubuntu 20.04.6 LTS; hardware: dual-socket Intel Xeon E5-2650 v3 @ 2.30GHz (10 cores / 20 threads per socket, total 20C/40T, L3 25MB, AVX2/FMA/AES-NI/SSE4.2); memory 251G; SSD storage. Server software: TDengine Enterprise 3.3.8.9; MQTT Broker: FlashMQ v1.24.0 (default); Kafka: 2.13-4.1.0 (default).
 - Data model: 1,000,000 sub-tables (meters) with current/voltage/phase; interlace=1.
 - Results are indicative; actual throughput depends on network, server settings, message size, and concurrency.
 - Units: K = thousand rows/sec, M = million rows/sec.
@@ -242,8 +242,7 @@ Project source code layout (directories only):
 |---|---|---:|---:|---|---:|
 | TDengine | 100M rows, 20 threads | 3.168M rps (taosBenchmark) | 3.534M rps | vgroups=32, stmt2, batch=10k | +11.58% |
 | MQTT | 2M rows, 20 threads, single record/message | — | 15.15K rps | qos=0, records_per_message=1 | — |
-| MQTT | 2M rows, 20 threads, single record/message | — | 15.15K rps | qos=0, records_per_message=1 | — |
-| MQTT | 100M rows, 20 threads, 500 records/message | — | 3.127M rps | records_per_message=500 | Significant |
+| MQTT | 100M rows, 20 threads, 500 records/message | — | 3.127M rps | qos=0, records_per_message=500 | Significant |
 | Kafka (single thread) | 100M rows, official script | 912.70K rps | 968.93K rps | acks=0, batch tuned | +6.16% |
 | Kafka (20-way concurrency) | Official script (20 processes) | 2.772M rps | 4.577M rps | taosgen 20 threads | +65.14% |
 
