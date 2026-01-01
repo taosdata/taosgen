@@ -1,2 +1,2 @@
 #pragma once
-#define TAOSGEN_VERSION "0.8.1"
+inline constexpr const char* TAOSGEN_VERSION = "0.8.2";
