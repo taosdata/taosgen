@@ -36,8 +36,8 @@
 Currently, `taosgen` supports Linux and macOS systems.
 
 ## 2. Documentation
-- For usage, refer to the [Reference Manual](https://docs.taosdata.com/reference/tools/taosgen/), which covers running, command-line arguments, configuration parameters, and sample configuration files.
-- This quick guide is mainly for developers who want to contribute, build, and test the `taosgen` tool. For more information about TDengine, visit the [official documentation](https://docs.taosdata.com/).
+- For usage, refer to the [Reference Manual](https://docs.tdengine.com/tdengine-reference/tools/taosgen/), which covers running, command-line arguments, configuration parameters, and sample configuration files.
+- This quick guide is mainly for developers who want to contribute, build, and test the `taosgen` tool. For more information about TDengine, visit the [official documentation](https://docs.tdengine.com/).
 
 ## 3. Prerequisites
 First, ensure TDengine is deployed locally. For detailed deployment steps, see [Deploy TDengine](https://docs.tdengine.com/get-started/deploy-from-package/). Make sure both taosd and taosAdapter services are running.
@@ -233,7 +233,18 @@ Project source code layout (directories only):
 // ...existing code...
 ### 10.1 Performance Benchmarks
 
-- Test environment: Client and server identical — Ubuntu 20.04.6 LTS; hardware: dual-socket Intel Xeon E5-2650 v3 @ 2.30GHz (10 cores / 20 threads per socket, total 20C/40T, L3 25MB, AVX2/FMA/AES-NI/SSE4.2); memory 251G; SSD storage. Server software: TDengine Enterprise 3.3.8.9; MQTT Broker: FlashMQ v1.24.0 (default); Kafka: 2.13-4.1.0 (default).
+- Test environment: Client and server identical
+
+  | Component | Specification |
+  |---|---|
+  | OS | Ubuntu 20.04.6 LTS |
+  | CPU | Intel Xeon E5-2650 v3 @ 2.30GHz (Haswell-EP), dual-socket |
+  | Cores/Threads | 20C/40T (10C/20T per socket, Hyper-Threading) |
+  | Cache | L3 25MB (cache size: 25600 KB) |
+  | Memory | 251 GB |
+  | Storage | 447 GB SSD × 2, 1.76 TB SSD |
+  | Software | TDengine Enterprise 3.3.8.9 (default) ; FlashMQ v1.24.0 (default); Kafka 2.13-4.1.0 (default) |
+
 - Data model: 1,000,000 sub-tables (meters) with current/voltage/phase; interlace=1.
 - Results are indicative; actual throughput depends on network, server settings, message size, and concurrency.
 - Units: K = thousand rows/sec, M = million rows/sec.
