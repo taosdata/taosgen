@@ -3,6 +3,11 @@
 #include "FormatterRegistrar.hpp"
 #include "StmtInsertDataFormatter.hpp"
 
+TDengineConfig* get_tdengine_config(InsertDataConfig& config) {
+    set_plugin_config(config.extensions, "tdengine", TDengineConfig{});
+    return get_plugin_config_mut<TDengineConfig>(config.extensions, "tdengine");
+}
+
 void test_stmt_prepare_subtable() {
     DataFormat format;
     format.format_type = "stmt";
@@ -10,8 +15,10 @@ void test_stmt_prepare_subtable() {
     format.stmt.auto_create_table = false;
 
     InsertDataConfig config;
-    config.tdengine.database = "test_db";
-    config.tdengine.protocol_type = TDengineConfig::ProtocolType::Native;
+    auto* tc = get_tdengine_config(config);
+    assert(tc != nullptr);
+    tc->database = "test_db";
+    tc->protocol_type = TDengineConfig::ProtocolType::Native;
 
     ColumnConfigInstanceVector col_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
@@ -34,9 +41,11 @@ void test_stmt_prepare_supertable_websocket() {
     format.stmt.auto_create_table = false;
 
     InsertDataConfig config;
-    config.tdengine.database = "test_db";
+    auto* tc = get_tdengine_config(config);
+    assert(tc != nullptr);
+    tc->database = "test_db";
+    tc->protocol_type = TDengineConfig::ProtocolType::WebSocket;
     config.schema.name = "test_stb";
-    config.tdengine.protocol_type = TDengineConfig::ProtocolType::WebSocket;
 
     ColumnConfigInstanceVector col_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
@@ -59,7 +68,9 @@ void test_stmt_prepare_auto_create_table() {
     format.stmt.auto_create_table = true;
 
     InsertDataConfig config;
-    config.tdengine.database = "test_db";
+    auto* tc = get_tdengine_config(config);
+    assert(tc != nullptr);
+    tc->database = "test_db";
     config.schema.name = "test_stb";
 
     ColumnConfigInstanceVector col_instances;
@@ -83,7 +94,9 @@ void test_stmt_format_insert_data_single_table() {
     format.stmt.version = "v2";
 
     InsertDataConfig config;
-    config.tdengine.database = "test_db";
+    auto* tc = get_tdengine_config(config);
+    assert(tc != nullptr);
+    tc->database = "test_db";
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -125,7 +138,9 @@ void test_stmt_format_insert_data_multiple_tables() {
     format.stmt.version = "v2";
 
     InsertDataConfig config;
-    config.tdengine.database = "test_db";
+    auto* tc = get_tdengine_config(config);
+    assert(tc != nullptr);
+    tc->database = "test_db";
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -176,7 +191,9 @@ void test_stmt_format_insert_data_empty_batch() {
     format.stmt.version = "v2";
 
     InsertDataConfig config;
-    config.tdengine.database = "test_db";
+    auto* tc = get_tdengine_config(config);
+    assert(tc != nullptr);
+    tc->database = "test_db";
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -212,7 +229,9 @@ void test_stmt_format_insert_data_invalid_version() {
     format.stmt.version = "v1";  // Unsupported version
 
     InsertDataConfig config;
-    config.tdengine.database = "test_db";
+    auto* tc = get_tdengine_config(config);
+    assert(tc != nullptr);
+    tc->database = "test_db";
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -246,7 +265,9 @@ void test_stmt_format_insert_data_with_empty_rows() {
     format.stmt.version = "v2";
 
     InsertDataConfig config;
-    config.tdengine.database = "test_db";
+    auto* tc = get_tdengine_config(config);
+    assert(tc != nullptr);
+    tc->database = "test_db";
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;

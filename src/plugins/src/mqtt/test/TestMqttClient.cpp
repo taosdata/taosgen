@@ -75,9 +75,17 @@ DataFormat::MqttConfig create_test_format_config() {
     return format;
 }
 
+MqttConfig* get_mqtt_config(InsertDataConfig& config) {
+    set_plugin_config(config.extensions, "mqtt", MqttConfig{});
+    return get_plugin_config_mut<MqttConfig>(config.extensions, "mqtt");
+}
+
 InsertDataConfig create_test_insert_data_config() {
     InsertDataConfig config;
-    config.mqtt = create_test_connector_config();
+    auto* mc = get_mqtt_config(config);
+    assert(mc != nullptr);
+
+    *mc = create_test_connector_config();
     config.data_format.format_type = "mqtt";
     config.data_format.mqtt = create_test_format_config();
     return config;
@@ -150,7 +158,10 @@ void test_prepare() {
 
 void test_execute_and_publish() {
     InsertDataConfig config = create_test_insert_data_config();
-    MqttClient client(config.mqtt, config.data_format.mqtt);
+    auto* mc = get_mqtt_config(config);
+    assert(mc != nullptr);
+
+    MqttClient client(*mc, config.data_format.mqtt);
     auto mock = std::make_unique<MockMqttClient>();
     auto* mock_ptr = mock.get();
     client.set_client(std::move(mock));
@@ -184,7 +195,10 @@ void test_execute_and_publish() {
 
 void test_execute_not_connected() {
     InsertDataConfig config = create_test_insert_data_config();
-    MqttClient client(config.mqtt, config.data_format.mqtt);
+    auto* mc = get_mqtt_config(config);
+    assert(mc != nullptr);
+
+    MqttClient client(*mc, config.data_format.mqtt);
     client.set_client(std::make_unique<MockMqttClient>());
 
     // Prepare mock data
@@ -205,7 +219,10 @@ void test_execute_not_connected() {
 
 void test_publish_failure() {
     InsertDataConfig config = create_test_insert_data_config();
-    MqttClient client(config.mqtt, config.data_format.mqtt);
+    auto* mc = get_mqtt_config(config);
+    assert(mc != nullptr);
+
+    MqttClient client(*mc, config.data_format.mqtt);
 
     auto mock = std::make_unique<MockMqttClient>();
     mock->fail_publish = true;

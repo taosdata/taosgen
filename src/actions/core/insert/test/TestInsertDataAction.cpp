@@ -1,12 +1,17 @@
 #include "InsertDataAction.hpp"
 #include "TDengineRegistrar.hpp"
+#include "TableNameManager.hpp"
 #include <cassert>
 #include <memory>
 #include <thread>
 #include <chrono>
 #include <filesystem>
-#include "TableNameManager.hpp"
 
+
+TDengineConfig* get_tdengine_config(InsertDataConfig& config) {
+    set_plugin_config(config.extensions, "tdengine", TDengineConfig{});
+    return get_plugin_config_mut<TDengineConfig>(config.extensions, "tdengine");
+}
 
 InsertDataConfig create_test_config() {
     InsertDataConfig config;
@@ -50,7 +55,10 @@ InsertDataConfig create_test_config() {
     // Setup target
     config.timestamp_precision = "ms";
     config.target_type = "tdengine";
-    config.tdengine = TDengineConfig("taos+ws://localhost:6041/test_action");
+
+    auto* tc = get_tdengine_config(config);
+    *tc = TDengineConfig("taos+ws://localhost:6041/test_action");
+    tc->init();
     config.schema.name = "test_super_table";
 
     return config;
@@ -338,7 +346,10 @@ void test_end_to_end_data_generation() {
             config.insert_threads = 1;
             config.schema.tbname.generator.count = 4;           // 4 tables total
             config.target_type = "tdengine";
-            config.tdengine.database = "test_action";
+
+            auto* tc = get_tdengine_config(config);
+            assert(tc != nullptr);
+            tc->database = "test_action";
             config.schema.name = "test_super_table";
 
             InsertDataAction action(global, config);
@@ -391,7 +402,10 @@ void test_end_to_end_data_generation_with_tags() {
             config.insert_threads = 1;
             config.schema.tbname.generator.count = 4;           // 4 tables total
             config.target_type = "tdengine";
-            config.tdengine.database = "test_action";
+
+            auto* tc = get_tdengine_config(config);
+            assert(tc != nullptr);
+            tc->database = "test_action";
             config.schema.name = "test_super_table";
 
             InsertDataAction action(global, config);
@@ -412,7 +426,10 @@ void test_concurrent_data_generation() {
     config.insert_threads = 4;
     config.schema.tbname.generator.count = 8;             // 8 tables
     config.target_type = "tdengine";
-    config.tdengine.database = "test_action";
+
+    auto* tc = get_tdengine_config(config);
+    assert(tc != nullptr);
+    tc->database = "test_action";
     config.schema.name = "test_super_table";
 
     InsertDataAction action(global, config);
@@ -624,6 +641,7 @@ void test_cache_units_data_generator_failure() {
 }
 
 int main() {
+    register_tdengine_plugin_config_hooks();
     test_basic_initialization();
     test_table_name_generation();
     test_data_pipeline();

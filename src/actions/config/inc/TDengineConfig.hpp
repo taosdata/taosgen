@@ -1,9 +1,9 @@
 #pragma once
-
+#include "ISinkConfig.hpp"
 #include <string>
 #include <optional>
 
-struct TDengineConfig {
+struct TDengineConfig : ISinkConfig {
     bool enabled = false;
     std::string dsn = "taos+ws://root:taosdata@localhost:6041/tsbench";
     std::string host = "localhost";
@@ -32,4 +32,12 @@ struct TDengineConfig {
 
     void init();
     void parse_dsn();
+
+    std::string get_sink_info() const override {
+        return "TDengine(" + host + ":" + std::to_string(port) + ")";
+    }
+
+    std::string get_sink_type() const override { return "TDengine"; }
+
+    bool is_enabled() const override { return enabled; }
 };

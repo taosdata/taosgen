@@ -4,6 +4,7 @@ add_library(actions_config STATIC
   src/ColumnType.cpp
   src/ColumnConfig.cpp
   src/TypeConverter.cpp
+  src/PluginConfigRegistrar.cpp
 )
 
 # Set include directories
@@ -17,7 +18,7 @@ target_include_directories(actions_config
 target_link_libraries(actions_config
   PUBLIC
     utils
-    # TAOS::TAOS
+    yaml-cpp::yaml-cpp
 )
 
 # Enable tests

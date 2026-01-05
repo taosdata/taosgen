@@ -1,14 +1,12 @@
 #pragma once
 
 #include <string>
-#include "TDengineConfig.hpp"
-#include "MqttConfig.hpp"
-#include "KafkaConfig.hpp"
 #include "SchemaConfig.hpp"
 #include "DatabaseInfo.hpp"
 #include "SuperTableInfo.hpp"
 #include "DataFormat.hpp"
 #include "DataChannel.hpp"
+#include "PluginExtensions.hpp"
 
 struct GlobalConfig {
     bool confirm_prompt = false;
@@ -16,14 +14,12 @@ struct GlobalConfig {
     std::string log_dir = "log/";
     std::string cfg_dir = "/etc/taos/";
     std::string yaml_cfg_dir = "./";
-    TDengineConfig connection_info;
+    // TDengineConfig connection_info;
     DataFormat data_format;
     DataChannel data_channel;
     DatabaseInfo database_info;
     SuperTableInfo super_table_info;
 
-    TDengineConfig tdengine;
-    MqttConfig mqtt;
-    KafkaConfig kafka;
     SchemaConfig schema;
+    PluginExtensions extensions;
 };

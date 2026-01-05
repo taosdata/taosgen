@@ -1,8 +1,13 @@
 #include "TDengineWriter.hpp"
+#include "TDengineRegistrar.hpp"
 #include <cassert>
 #include <iostream>
 #include <stdexcept>
 #include <optional>
+
+TDengineConfig* get_tdengine_config(InsertDataConfig& config) {
+    return get_plugin_config_mut<TDengineConfig>(config.extensions, "tdengine");
+}
 
 InsertDataConfig create_test_config() {
     InsertDataConfig config;
@@ -15,10 +20,13 @@ InsertDataConfig create_test_config() {
     };
 
     // Target config
+    set_plugin_config(config.extensions, "tdengine", TDengineConfig{});
+    auto* tc = get_tdengine_config(config);
+    assert(tc != nullptr);
+    tc->dsn = "taos://root:taosdata@localhost:6030/test_action";
+    tc->init();
+    config.target_type = "tdengine";
     config.timestamp_precision = "ms";
-    config.tdengine = TDengineConfig{
-        "taos://root:taosdata@localhost:6030/test_action"
-    };
     config.schema.name = "test_super_table";
     config.schema.apply();
 
@@ -34,9 +42,7 @@ InsertDataConfig create_test_config() {
 }
 
 void test_create_tdengine_writer() {
-    InsertDataConfig config;
-    config.target_type = "tdengine";
-
+    auto config = create_test_config();
     auto writer = WriterFactory::create_writer(config);
     assert(writer != nullptr);
 
@@ -85,7 +91,9 @@ void test_connection() {
     assert(connected);
 
     // Test connection with invalid config
-    config.tdengine.host = "invalid_host";
+    auto* tc = get_tdengine_config(config);
+    assert(tc != nullptr);
+    tc->host = "invalid_host";
     TDengineWriter invalid_writer(config);
     connected = invalid_writer.connect(conn_src);
     assert(!connected);
@@ -149,8 +157,11 @@ void test_write_operations() {
 
     // Test STMT write
     {
+        auto* tc = get_tdengine_config(config);
+        assert(tc != nullptr);
+
         std::string sql = "INSERT INTO `"
-            + config.tdengine.database + "`.`"
+            + tc->database + "`.`"
             + config.schema.name + "`(tbname,ts,col1,col2) VALUES(?,?,?,?)";
 
         auto prepared = writer.prepare(sql);
@@ -272,6 +283,7 @@ void test_metrics_and_time() {
 }
 
 int main() {
+    register_tdengine_plugin_config_hooks();
     test_create_tdengine_writer();
     test_constructor();
     test_connection();

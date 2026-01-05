@@ -2,7 +2,7 @@
 
 #include "ConfigParser.hpp"
 #include "ConfigData.hpp"
-// #include "ParamDescriptor.hpp"
+#include "PluginConfigRegistrar.hpp"
 
 #include <unordered_map>
 #include <vector>
@@ -53,9 +53,9 @@ private:
     // Helper methods
     YAML::Node load_default_config();
     YAML::Node load_config(const std::string& file_path);
-    void parse_tdengine(const YAML::Node& td_node);
-    void parse_mqtt(const YAML::Node& mqtt_node);
-    void parse_kafka(const YAML::Node& kafka_node);
+    // void parse_tdengine(const YAML::Node& td_node);
+    // void parse_mqtt(const YAML::Node& mqtt_node);
+    // void parse_kafka(const YAML::Node& kafka_node);
     void parse_schema(const YAML::Node& schema_node);
     void parse_jobs(const YAML::Node& jobs_node);
     void parse_steps(const YAML::Node& steps_node, Job& job);

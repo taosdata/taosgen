@@ -7,7 +7,17 @@
 
 MqttWriter::MqttWriter(const InsertDataConfig& config, size_t no)
     : BaseWriter(config) {
-    client_ = std::make_unique<MqttClient>(config.mqtt, config.data_format.mqtt, no);
+
+    const auto* mc = get_plugin_config<MqttConfig>(config.extensions, "mqtt");
+    if (mc == nullptr) {
+        throw std::runtime_error("Mqtt configuration not found in insert extensions");
+    }
+
+    if (no == 0) {
+        LogUtils::info("Inserting data into: {}{}", config.target_type, mc->get_sink_info());
+    }
+
+    client_ = std::make_unique<MqttClient>(*mc, config.data_format.mqtt, no);
 }
 
 MqttWriter::~MqttWriter() {

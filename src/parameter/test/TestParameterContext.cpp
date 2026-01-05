@@ -1,4 +1,8 @@
 #include "ParameterContext.hpp"
+#include "PluginRegistrar.hpp"
+#include "TDengineConfig.hpp"
+#include "MqttConfig.hpp"
+#include "KafkaConfig.hpp"
 #include "LogUtils.hpp"
 #include <cassert>
 #include <cstdlib>
@@ -68,14 +72,24 @@ void test_commandline_merge() {
     ctx.init(5, const_cast<char**>(argv));
 
     const auto& global = ctx.get_global_config();
-    assert(global.tdengine.host == "cli.host");
-    assert(global.tdengine.port == 1234);
-    assert(global.tdengine.user == "cli_user");
-    assert(global.tdengine.password == "cli_pass");
+    const auto& tc = get_plugin_config<TDengineConfig>(global.extensions, "tdengine");
+    (void)tc;
+    assert(tc != nullptr);
+    assert(tc->host == "cli.host");
+    assert(tc->port == 1234);
+    assert(tc->user == "cli_user");
+    assert(tc->password == "cli_pass");
 
     // Verify derived URI/bootstrap_servers are updated
-    assert(global.mqtt.uri == "tcp://cli.host:1234");
-    assert(global.kafka.bootstrap_servers == "cli.host:1234");
+    const auto& mc = get_plugin_config<MqttConfig>(global.extensions, "mqtt");
+    (void)mc;
+    assert(mc != nullptr);
+    assert(mc->uri == "tcp://cli.host:1234");
+
+    const auto& kc = get_plugin_config<KafkaConfig>(global.extensions, "kafka");
+    (void)kc;
+    assert(kc != nullptr);
+    assert(kc->bootstrap_servers == "cli.host:1234");
 
     (void)global;
     std::cout << "Commandline merge test passed.\n";
@@ -92,12 +106,22 @@ void test_environment_merge() {
     ctx.init(1, const_cast<char**>(argv));
 
     const auto& global = ctx.get_global_config();
-    assert(global.tdengine.host == "env.host");
-    assert(global.tdengine.port == 5678);
+    const auto& tc = get_plugin_config<TDengineConfig>(global.extensions, "tdengine");
+    (void)tc;
+    assert(tc != nullptr);
+    assert(tc->host == "env.host");
+    assert(tc->port == 5678);
 
     // Verify derived URI/bootstrap_servers are updated
-    assert(global.mqtt.uri == "tcp://env.host:5678");
-    assert(global.kafka.bootstrap_servers == "env.host:5678");
+    const auto& mc = get_plugin_config<MqttConfig>(global.extensions, "mqtt");
+    (void)mc;
+    assert(mc != nullptr);
+    assert(mc->uri == "tcp://env.host:5678");
+
+    const auto& kc = get_plugin_config<KafkaConfig>(global.extensions, "kafka");
+    (void)kc;
+    assert(kc != nullptr);
+    assert(kc->bootstrap_servers == "env.host:5678");
 
     (void)global;
     std::cout << "Environment merge test passed.\n";
@@ -198,8 +222,11 @@ jobs:
     const auto& data = ctx.get_config_data();
 
     // Validate global config
-    assert(data.global.tdengine.host == "10.0.0.1");
-    assert(data.global.tdengine.port == 6043);
+    const auto& gtc = get_plugin_config<TDengineConfig>(data.global.extensions, "tdengine");
+    (void)gtc;
+    assert(gtc != nullptr);
+    assert(gtc->host == "10.0.0.1");
+    assert(gtc->port == 6043);
     assert(data.concurrency == 4);
 
     // Validate job parsing
@@ -285,13 +312,16 @@ jobs:
     assert(ts_csv_cfg.timestamp_index == 0);
     assert(ts_csv_cfg.timestamp_precision == "ms");
 
+    const auto& tc = get_plugin_config<TDengineConfig>(insert_config.extensions, "tdengine");
+    (void)tc;
+    assert(tc != nullptr);
     assert(insert_config.target_type == "tdengine");
-    assert(insert_config.tdengine.protocol_type == TDengineConfig::ProtocolType::Native);
-    assert(insert_config.tdengine.host == "10.0.0.1");
-    assert(insert_config.tdengine.port == 6043);
-    assert(insert_config.tdengine.user == "root");
-    assert(insert_config.tdengine.password == "secret");
-    assert(insert_config.tdengine.database == "testdb");
+    assert(tc->protocol_type == TDengineConfig::ProtocolType::Native);
+    assert(tc->host == "10.0.0.1");
+    assert(tc->port == 6043);
+    assert(tc->user == "root");
+    assert(tc->password == "secret");
+    assert(tc->database == "testdb");
     assert(insert_config.schema.name == "points");
     assert(insert_config.schema.columns_cfg.get_schema().size() > 0);
     assert(insert_config.schema.tags_cfg.get_schema().size() == 0);
@@ -447,10 +477,17 @@ kafka:
 )");
     ctx.merge_yaml(config);
     const auto& global = ctx.get_global_config();
-    assert(global.mqtt.uri == "tcp://mqtt.broker:1883");
-    assert(global.kafka.bootstrap_servers == "kafka.broker:9092");
+    const auto& mc = get_plugin_config<MqttConfig>(global.extensions, "mqtt");
+    assert(mc != nullptr);
+    assert(mc->uri == "tcp://mqtt.broker:1883");
+
+    const auto& kc = get_plugin_config<KafkaConfig>(global.extensions, "kafka");
+    assert(kc != nullptr);
+    assert(kc->bootstrap_servers == "kafka.broker:9092");
 
     (void)global;
+    (void)mc;
+    (void)kc;
     std::cout << "MQTT/Kafka global config test passed.\n";
 }
 
@@ -478,8 +515,11 @@ jobs:
     const auto& insert_config = std::get<InsertDataConfig>(data.jobs[0].steps[0].action_config);
 
     // Inherits connection from global
-    assert(insert_config.tdengine.host == "global.host");
-    assert(insert_config.tdengine.database == "global_db");
+    const auto& tc = get_plugin_config<TDengineConfig>(insert_config.extensions, "tdengine");
+    (void)tc;
+    assert(tc != nullptr);
+    assert(tc->host == "global.host");
+    assert(tc->database == "global_db");
 
     // Inherits columns from global schema, but name is overridden locally
     assert(insert_config.schema.name == "local_schema");
@@ -549,6 +589,7 @@ void test_show_version() {
 }
 
 int main() {
+    register_plugin_hooks();
     test_commandline_merge();
     test_environment_merge();
     test_yaml_merge();

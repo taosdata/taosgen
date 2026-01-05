@@ -69,10 +69,18 @@ DataFormat::KafkaConfig create_test_format_config() {
     return format;
 }
 
+KafkaConfig* get_kafka_config(InsertDataConfig& config) {
+    set_plugin_config(config.extensions, "kafka", KafkaConfig{});
+    return get_plugin_config_mut<KafkaConfig>(config.extensions, "kafka");
+}
+
 // Creates a full InsertDataConfig for testing.
 InsertDataConfig create_test_insert_data_config() {
     InsertDataConfig config;
-    config.kafka = create_test_connector_config();
+    auto* kc = get_kafka_config(config);
+    assert(kc != nullptr);
+
+    *kc = create_test_connector_config();
     config.data_format.format_type = "kafka";
     config.data_format.kafka = create_test_format_config();
     return config;
@@ -146,7 +154,10 @@ void test_prepare() {
 
 void test_execute_and_produce() {
     InsertDataConfig config = create_test_insert_data_config();
-    KafkaClient client(config.kafka, config.data_format.kafka);
+    auto* kc = get_kafka_config(config);
+    assert(kc != nullptr);
+
+    KafkaClient client(*kc, config.data_format.kafka);
     auto mock = std::make_unique<MockKafkaClient>();
     auto* mock_ptr = mock.get();
     client.set_client(std::move(mock));
@@ -181,7 +192,10 @@ void test_execute_and_produce() {
 
 void test_execute_not_connected() {
     InsertDataConfig config = create_test_insert_data_config();
-    KafkaClient client(config.kafka, config.data_format.kafka);
+    auto* kc = get_kafka_config(config);
+    assert(kc != nullptr);
+
+    KafkaClient client(*kc, config.data_format.kafka);
     client.set_client(std::make_unique<MockKafkaClient>());
 
     // Prepare mock data
@@ -202,7 +216,10 @@ void test_execute_not_connected() {
 
 void test_produce_failure() {
     InsertDataConfig config = create_test_insert_data_config();
-    KafkaClient client(config.kafka, config.data_format.kafka);
+    auto* kc = get_kafka_config(config);
+    assert(kc != nullptr);
+
+    KafkaClient client(*kc, config.data_format.kafka);
 
     auto mock = std::make_unique<MockKafkaClient>();
     mock->fail_produce = true;

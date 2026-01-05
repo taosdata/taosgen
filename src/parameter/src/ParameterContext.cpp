@@ -78,20 +78,20 @@ void ParameterContext::show_version() {
     LogUtils::info("build: {}-{} {}", TSGEN_BUILD_TARGET_OSTYPE, TSGEN_BUILD_TARGET_CPUTYPE, TSGEN_BUILD_DATE);
 }
 
-void ParameterContext::parse_tdengine(const YAML::Node& td_node) {
-    auto& global_config = config_data.global;
-    global_config.tdengine = td_node.as<TDengineConfig>();
-}
+// void ParameterContext::parse_tdengine(const YAML::Node& td_node) {
+//     auto& global_config = config_data.global;
+//     global_config.tdengine = td_node.as<TDengineConfig>();
+// }
 
-void ParameterContext::parse_mqtt(const YAML::Node& mqtt_node) {
-    auto& global_config = config_data.global;
-    global_config.mqtt = mqtt_node.as<MqttConfig>();
-}
+// void ParameterContext::parse_mqtt(const YAML::Node& mqtt_node) {
+//     auto& global_config = config_data.global;
+//     global_config.mqtt = mqtt_node.as<MqttConfig>();
+// }
 
-void ParameterContext::parse_kafka(const YAML::Node& kafka_node) {
-    auto& global_config = config_data.global;
-    global_config.kafka = kafka_node.as<KafkaConfig>();
-}
+// void ParameterContext::parse_kafka(const YAML::Node& kafka_node) {
+//     auto& global_config = config_data.global;
+//     global_config.kafka = kafka_node.as<KafkaConfig>();
+// }
 
 void ParameterContext::parse_schema(const YAML::Node& schema_node) {
     auto& global_config = config_data.global;
@@ -109,9 +109,10 @@ void ParameterContext::parse_schema(const YAML::Node& schema_node) {
 void ParameterContext::parse_jobs(const YAML::Node& jobs_node) {
     for (const auto& job_node : jobs_node) {
         Job job;
-        job.tdengine = config_data.global.tdengine;
-        job.mqtt = config_data.global.mqtt;
-        job.kafka = config_data.global.kafka;
+        // job.tdengine = config_data.global.tdengine;
+        // job.mqtt = config_data.global.mqtt;
+        // job.kafka = config_data.global.kafka;
+        job.extensions = config_data.global.extensions;
         job.schema = config_data.global.schema;
 
         job.key = job_node.first.as<std::string>(); // Get job identifier
@@ -136,7 +137,7 @@ void ParameterContext::parse_jobs(const YAML::Node& jobs_node) {
         if (job_content["steps"]) {
             parse_steps(job_content["steps"], job);
         }
-        config_data.jobs.push_back(job);
+        config_data.jobs.emplace_back(std::move(job));
     }
 
     prepare_work();
@@ -163,6 +164,11 @@ void ParameterContext::prepare_work() {
                 continue;
             }
 
+            const auto* tc = get_plugin_config<TDengineConfig>(job.extensions, "tdengine");
+            if (tc == nullptr) {
+                throw std::runtime_error("TDengine configuration not found for job: " + job.name);
+            }
+
             job.steps.insert(
                 job.steps.begin(),
                 Step{
@@ -170,7 +176,7 @@ void ParameterContext::prepare_work() {
                     .uses = "tdengine/create-database",
                     .with = YAML::Node(YAML::NodeType::Map),
                     .action_config = CreateDatabaseConfig{
-                        .tdengine = job.tdengine,
+                        .tdengine = *tc,
                         .checkpoint_info = CheckpointInfo{
                             .enabled = false,
                             .interval_sec = 60
@@ -248,14 +254,19 @@ void ParameterContext::parse_steps(const YAML::Node& steps_node, Job& job) {
             throw std::runtime_error("Unknown action type: " + step.uses);
         }
 
-        job.steps.push_back(step);
+        job.steps.emplace_back(std::move(step));
     }
 }
 
 void ParameterContext::parse_td_create_database_action(Job& job, Step& step) {
     CreateDatabaseConfig create_db_config = step.with.as<CreateDatabaseConfig>();
 
-    create_db_config.tdengine = job.tdengine;
+    const auto* tc = get_plugin_config<TDengineConfig>(job.extensions, "tdengine");
+    if (tc == nullptr) {
+        throw std::runtime_error("TDengine configuration not found for job: " + job.name);
+    }
+
+    create_db_config.tdengine = *tc;
 
     // Parse database_info (required)
     if (step.with["checkpoint"]) {
@@ -272,7 +283,12 @@ void ParameterContext::parse_td_create_database_action(Job& job, Step& step) {
 void ParameterContext::parse_td_create_super_table_action(Job& job, Step& step) {
     CreateSuperTableConfig create_stb_config = step.with.as<CreateSuperTableConfig>();
 
-    create_stb_config.tdengine = job.tdengine;
+    const auto* tc = get_plugin_config<TDengineConfig>(job.extensions, "tdengine");
+    if (tc == nullptr) {
+        throw std::runtime_error("TDengine configuration not found for job: " + job.name);
+    }
+
+    create_stb_config.tdengine = *tc;
     create_stb_config.schema = job.schema;
 
     if (step.with["schema"]) {
@@ -321,7 +337,12 @@ void ParameterContext::parse_td_create_super_table_action(Job& job, Step& step) 
 void ParameterContext::parse_td_create_child_table_action(Job& job, Step& step) {
     CreateChildTableConfig create_ctb_config = step.with.as<CreateChildTableConfig>();
 
-    create_ctb_config.tdengine = job.tdengine;
+    const auto* tc = get_plugin_config<TDengineConfig>(job.extensions, "tdengine");
+    if (tc == nullptr) {
+        throw std::runtime_error("TDengine configuration not found for job: " + job.name);
+    }
+
+    create_ctb_config.tdengine = *tc;
     create_ctb_config.schema = job.schema;
 
     if (step.with["schema"]) {
@@ -371,22 +392,25 @@ void ParameterContext::parse_insert_action(Job& job, Step& step, std::string tar
     InsertDataConfig insert_config = step.with.as<InsertDataConfig>();
 
     insert_config.target_type = target_type;
-    insert_config.tdengine = job.tdengine;
-    insert_config.mqtt = job.mqtt;
-    insert_config.kafka = job.kafka;
+    // insert_config.tdengine = job.tdengine;
+    // insert_config.mqtt = job.mqtt;
+    // insert_config.kafka = job.kafka;
+    insert_config.extensions = job.extensions;
     insert_config.schema = job.schema;
 
-    if (step.with["tdengine"]) {
-        insert_config.tdengine = step.with["tdengine"].as<TDengineConfig>();
-    }
+    // if (step.with["tdengine"]) {
+    //     insert_config.tdengine = step.with["tdengine"].as<TDengineConfig>();
+    // }
 
-    if (step.with["mqtt"]) {
-        insert_config.mqtt = step.with["mqtt"].as<MqttConfig>();
-    }
+    // if (step.with["mqtt"]) {
+    //     insert_config.mqtt = step.with["mqtt"].as<MqttConfig>();
+    // }
 
-    if (step.with["kafka"]) {
-        insert_config.kafka = step.with["kafka"].as<KafkaConfig>();
-    }
+    // if (step.with["kafka"]) {
+    //     insert_config.kafka = step.with["kafka"].as<KafkaConfig>();
+    // }
+
+    PluginConfigRegistrar::parse_into_extensions(step.with, insert_config.extensions, true);
 
     if (step.with["schema"]) {
         const auto& schema = step.with["schema"];
@@ -461,9 +485,10 @@ void ParameterContext::parse_insert_action(Job& job, Step& step, std::string tar
     LogUtils::info("Parsed {} action", step.uses);
 
     // Save result to Step's action_config field
-    job.tdengine = insert_config.tdengine;
-    job.mqtt = insert_config.mqtt;
-    job.kafka = insert_config.kafka;
+    // job.tdengine = insert_config.tdengine;
+    // job.mqtt = insert_config.mqtt;
+    // job.kafka = insert_config.kafka;
+    job.extensions = insert_config.extensions;
     job.schema = insert_config.schema;
     step.action_config = std::move(insert_config);
 }
@@ -517,17 +542,19 @@ void ParameterContext::parse_subscribe_action(Job& /*job*/, Step& step) {
 }
 
 void ParameterContext::merge_yaml_global(const YAML::Node& config) {
-    if (config["tdengine"]) {
-        parse_tdengine(config["tdengine"]);
-    }
+    PluginConfigRegistrar::parse_into_extensions(config, config_data.global.extensions, false);
 
-    if (config["mqtt"]) {
-        parse_mqtt(config["mqtt"]);
-    }
+    // if (config["tdengine"]) {
+    //     parse_tdengine(config["tdengine"]);
+    // }
 
-    if (config["kafka"]) {
-        parse_kafka(config["kafka"]);
-    }
+    // if (config["mqtt"]) {
+    //     parse_mqtt(config["mqtt"]);
+    // }
+
+    // if (config["kafka"]) {
+    //     parse_kafka(config["kafka"]);
+    // }
 
     if (config["schema"]) {
         parse_schema(config["schema"]);
@@ -556,8 +583,7 @@ void ParameterContext::merge_yaml(const YAML::Node& config) {
 
 void ParameterContext::merge_yaml(const std::string& file_path) {
     YAML::Node config = load_config(file_path);
-    merge_yaml_global(config);
-    merge_yaml_jobs(config);
+    merge_yaml(config);
 }
 
 YAML::Node ParameterContext::load_default_config() {
@@ -719,47 +745,7 @@ void ParameterContext::merge_commandline(int argc, char* argv[]) {
 }
 
 void ParameterContext::merge_commandline() {
-    // Map command line parameters to global config
-    auto& tdengine = config_data.global.tdengine;
-    auto& mqtt = config_data.global.mqtt;
-    auto& kafka = config_data.global.kafka;
-    bool update_host_port = false;
-
-    if (cli_params.count("--host")) {
-        tdengine.host = cli_params["--host"];
-        mqtt.host = cli_params["--host"];
-        kafka.host = cli_params["--host"];
-        update_host_port = true;
-    }
-
-    if (cli_params.count("--port")) {
-        try {
-            int port = std::stoi(cli_params["--port"]);
-            tdengine.port = port;
-            mqtt.port = port;
-            kafka.port = port;
-            update_host_port = true;
-        } catch (const std::exception& e) {
-            throw std::runtime_error("Invalid port number: " + cli_params["--port"]);
-        }
-    }
-
-    if (update_host_port) {
-        mqtt.update_uri_from_host_port();
-        kafka.update_bootstrap_servers_from_host_port();
-    }
-
-    if (cli_params.count("--user")) {
-        tdengine.user = cli_params["--user"];
-        mqtt.user = cli_params["--user"];
-        kafka.rdkafka_options["sasl.username"] = cli_params["--user"];
-    }
-
-    if (cli_params.count("--password")) {
-        tdengine.password = cli_params["--password"];
-        mqtt.password = cli_params["--password"];
-        kafka.rdkafka_options["sasl.password"] = cli_params["--password"];
-    }
+    PluginConfigRegistrar::apply_cli_mergers(cli_params, config_data.global.extensions);
 
     if (cli_params.count("--verbose")) {
         config_data.global.verbose = true;
@@ -767,54 +753,7 @@ void ParameterContext::merge_commandline() {
 }
 
 void ParameterContext::merge_environment_vars() {
-    // Define environment variables to read
-    std::vector<std::pair<std::string, std::string>> env_mappings = {
-        {"TAOS_HOST", "host"},
-        {"TAOS_PORT", "port"},
-        {"TAOS_USER", "user"},
-        {"TAOS_PASSWORD", "password"}
-    };
-
-    auto& tdengine = config_data.global.tdengine;
-    auto& mqtt = config_data.global.mqtt;
-    auto& kafka = config_data.global.kafka;
-    bool update_host_port = false;
-
-    // Iterate environment variables and update connection info
-    for (const auto& [env_var, key] : env_mappings) {
-        const char* env_value = std::getenv(env_var.c_str());
-        if (env_value) {
-            if (key == "host") {
-                tdengine.host = env_value;
-                mqtt.host = env_value;
-                kafka.host = env_value;
-                update_host_port = true;
-            } else if (key == "port") {
-                try {
-                    int port = std::stoi(env_value);
-                    tdengine.port = port;
-                    mqtt.port = port;
-                    kafka.port = port;
-                    update_host_port = true;
-                } catch (const std::exception& e) {
-                    throw std::runtime_error("Invalid port number in environment variable " + env_var + ": " + std::string(env_value));
-                }
-            } else if (key == "user") {
-                tdengine.user = env_value;
-                mqtt.user = env_value;
-                kafka.rdkafka_options["sasl.username"] = env_value;
-            } else if (key == "password") {
-                tdengine.password = env_value;
-                mqtt.password = env_value;
-                kafka.rdkafka_options["sasl.password"] = env_value;
-            }
-        }
-    }
-
-    if (update_host_port) {
-        mqtt.update_uri_from_host_port();
-        kafka.update_bootstrap_servers_from_host_port();
-    }
+    PluginConfigRegistrar::apply_env_mergers(config_data.global.extensions);
 }
 
 void ParameterContext::merge_all() {
@@ -865,7 +804,12 @@ const GlobalConfig& ParameterContext::get_global_config() const {
 }
 
 const TDengineConfig& ParameterContext::get_tdengine() const {
-    return config_data.global.tdengine;
+    const auto* tc = get_plugin_config<TDengineConfig>(config_data.global.extensions, "tdengine");
+    if (tc == nullptr) {
+        throw std::runtime_error("TDengine configuration not found in global extensions.");
+    }
+
+    return *tc;
 }
 
 const DatabaseInfo& ParameterContext::get_database_info() const {

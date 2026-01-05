@@ -5,7 +5,17 @@
 
 KafkaWriter::KafkaWriter(const InsertDataConfig& config, size_t no)
     : BaseWriter(config) {
-    client_ = std::make_unique<KafkaClient>(config.kafka, config.data_format.kafka, no);
+
+    const auto* kc = get_plugin_config<KafkaConfig>(config.extensions, "kafka");
+    if (kc == nullptr) {
+        throw std::runtime_error("Kafka configuration not found in insert extensions");
+    }
+
+    if (no == 0) {
+        LogUtils::info("Inserting data into: {}{}", config.target_type, kc->get_sink_info());
+    }
+
+    client_ = std::make_unique<KafkaClient>(*kc, config.data_format.kafka, no);
 }
 
 KafkaWriter::~KafkaWriter() {

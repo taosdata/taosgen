@@ -6,9 +6,19 @@
 #include <iostream>
 
 TDengineWriter::TDengineWriter(const InsertDataConfig& config,
-                               size_t /*no*/,
+                               size_t no,
                                std::shared_ptr<ActionRegisterInfo> action_info)
-    : BaseWriter(config, action_info) {}
+    : BaseWriter(config, action_info) {
+
+    const auto* tc = get_plugin_config<TDengineConfig>(config_.extensions, "tdengine");
+    if (tc == nullptr) {
+        throw std::runtime_error("TDengine configuration not found in insert extensions");
+    }
+
+    if (no == 0) {
+        LogUtils::info("Inserting data into: {}{}", config.target_type, tc->get_sink_info());
+    }
+}
 
 TDengineWriter::~TDengineWriter() {
     close();
@@ -25,9 +35,12 @@ bool TDengineWriter::connect(std::optional<ConnectorSource>& conn_source) {
             connector_ = conn_source->get_connector();
             return connector_->is_connected();
         } else {
-            connector_ = ConnectorFactory::create(
-                config_.tdengine
-            );
+            const auto* tc = get_plugin_config<TDengineConfig>(config_.extensions, "tdengine");
+            if (tc == nullptr) {
+                throw std::runtime_error("TDengine configuration not found in insert extensions");
+            }
+
+            connector_ = ConnectorFactory::create(*tc);
             return connector_->connect();
         }
     } catch (const std::exception& e) {

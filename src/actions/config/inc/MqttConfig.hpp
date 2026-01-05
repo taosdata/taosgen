@@ -1,8 +1,9 @@
 #pragma once
-
+#include "ISinkConfig.hpp"
 #include <string>
 
-struct MqttConfig {
+struct MqttConfig : ISinkConfig {
+    bool enabled = false;
     std::string uri = "tcp://localhost:1883";
     std::string host = "localhost";
     int port = 1883;
@@ -33,6 +34,14 @@ struct MqttConfig {
         , user(std::move(user_))
         , password(std::move(password_))
     {}
+
+    std::string get_sink_info() const override {
+        return "MQTT(" + uri + ")";
+    }
+
+    std::string get_sink_type() const override { return "MQTT"; }
+
+    bool is_enabled() const override { return enabled; }
 
 private:
     std::string topic_;

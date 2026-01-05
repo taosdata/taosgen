@@ -1,14 +1,24 @@
-#include <iostream>
-#include <cassert>
 #include "FormatterRegistrar.hpp"
 #include "SqlInsertDataFormatter.hpp"
+#include "PluginExtensions.hpp"
+#include <iostream>
+#include <cassert>
+
+
+void set_tdengine_database(InsertDataConfig& config, const std::string& db_name) {
+    set_plugin_config(config.extensions, "tdengine", TDengineConfig{});
+    auto* tc = get_plugin_config_mut<TDengineConfig>(config.extensions, "tdengine");
+    if (tc) {
+        tc->database = db_name;
+    }
+}
 
 void test_format_insert_data_single_table() {
     DataFormat format;
     format.format_type = "sql";
 
     InsertDataConfig config;
-    config.tdengine.database = "test_db";
+    set_tdengine_database(config, "test_db");
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -83,7 +93,7 @@ void test_format_insert_data_multiple_tables() {
     format.format_type = "sql";
 
     InsertDataConfig config;
-    config.tdengine.database = "test_db";
+    set_tdengine_database(config, "test_db");
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -135,7 +145,7 @@ void test_format_insert_data_empty_rows() {
     format.format_type = "sql";
 
     InsertDataConfig config;
-    config.tdengine.database = "test_db";
+    set_tdengine_database(config, "test_db");
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -161,7 +171,7 @@ void test_format_insert_data_different_types() {
     format.format_type = "sql";
 
     InsertDataConfig config;
-    config.tdengine.database = "test_db";
+    set_tdengine_database(config, "test_db");
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -203,7 +213,7 @@ void test_format_insert_data_auto_create_table() {
     format.sql.auto_create_table = true;
 
     InsertDataConfig config;
-    config.tdengine.database = "test_db";
+    set_tdengine_database(config, "test_db");
     config.schema.name = "meters";
 
     ColumnConfigInstanceVector col_instances;
@@ -256,7 +266,7 @@ void test_format_insert_data_multiple_tables_with_tags() {
     format.sql.auto_create_table = true;
 
     InsertDataConfig config;
-    config.tdengine.database = "test_db";
+    set_tdengine_database(config, "test_db");
     config.schema.name = "sensors";
 
     ColumnConfigInstanceVector col_instances;

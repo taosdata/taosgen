@@ -19,6 +19,7 @@ add_subdirectory(src/kafka)
 
 # Create library target
 add_library(plugins STATIC
+  src/PluginRegistrar.cpp
   $<TARGET_OBJECTS:plugin_tdengine>
   $<TARGET_OBJECTS:plugin_mqtt>
   $<TARGET_OBJECTS:plugin_kafka>

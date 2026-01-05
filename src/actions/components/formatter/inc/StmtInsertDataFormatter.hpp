@@ -20,9 +20,14 @@ public:
         //               -ntb   : INSERT INTO `db_name`.`stb_name`(ts,cols-name) VALUES(?,cols-qmark)
         // 3. auto create table : INSERT INTO ? USING `db_name`.`stb_name` TAGS (tags-qmark) VALUES(?,cols-qmark)
 
+        const auto* tc = get_plugin_config<TDengineConfig>(config.extensions, "tdengine");
+        if (tc == nullptr) {
+            throw std::runtime_error("TDengine configuration not found in insert extensions");
+        }
+
         if (format_.stmt.auto_create_table) {
             mode_ = InsertMode::AutoCreateTable;
-        } else if (config.tdengine.protocol_type == TDengineConfig::ProtocolType::WebSocket) {
+        } else if (tc->protocol_type == TDengineConfig::ProtocolType::WebSocket) {
             mode_ = InsertMode::SuperTable;
         } else {
             mode_ = InsertMode::SubTable;

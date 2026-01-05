@@ -1,5 +1,6 @@
 # Create library target
 add_library(plugin_tdengine STATIC
+  src/TDengineRegistrar.cpp
   # src/SqlInsertFormater.cpp
   # src/StmtInsertFormater.cpp
   src/TDengineWriter.cpp
@@ -14,6 +15,7 @@ target_include_directories(plugin_tdengine
 # Link dependent libraries
 target_link_libraries(plugin_tdengine
   PUBLIC
+    parameter
     insert_writer
 )
 
