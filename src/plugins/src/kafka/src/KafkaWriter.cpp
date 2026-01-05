@@ -12,7 +12,7 @@ KafkaWriter::KafkaWriter(const InsertDataConfig& config, size_t no)
     }
 
     if (no == 0) {
-        LogUtils::info("Inserting data into: {}{}", config.target_type, kc->get_sink_info());
+        LogUtils::info("Inserting data into: {}", kc->get_sink_info());
     }
 
     client_ = std::make_unique<KafkaClient>(*kc, config.data_format.kafka, no);

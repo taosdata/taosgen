@@ -16,7 +16,7 @@ TDengineWriter::TDengineWriter(const InsertDataConfig& config,
     }
 
     if (no == 0) {
-        LogUtils::info("Inserting data into: {}{}", config.target_type, tc->get_sink_info());
+        LogUtils::info("Inserting data into: {}", tc->get_sink_info());
     }
 }
 

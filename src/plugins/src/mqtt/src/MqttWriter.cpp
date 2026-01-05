@@ -14,7 +14,7 @@ MqttWriter::MqttWriter(const InsertDataConfig& config, size_t no)
     }
 
     if (no == 0) {
-        LogUtils::info("Inserting data into: {}{}", config.target_type, mc->get_sink_info());
+        LogUtils::info("Inserting data into: {}", mc->get_sink_info());
     }
 
     client_ = std::make_unique<MqttClient>(*mc, config.data_format.mqtt, no);
