@@ -51,7 +51,9 @@ private:
     std::thread token_wait_thread_;
     mqtt::properties default_props_;
     mqtt::thread_queue<mqtt::delivery_token_ptr> token_queue_;
+    bool is_connected_ = false;
     std::atomic<bool> closed_{false};
+    std::atomic<bool> sigpipe_seen_{false};
 
     void token_wait_func() {
         while (true) {
@@ -61,6 +63,8 @@ private:
             token->wait();
         }
     }
+
+    void flush(std::chrono::seconds timeout);
 };
 
 class MqttClient {

@@ -11,7 +11,7 @@ struct MqttConfig {
     std::string client_id = "taosgen";
 
     bool clean_session = true;
-    size_t keep_alive = 5;
+    size_t keep_alive = 120;
     size_t max_buffered_messages = 10000;
 
     void update_uri_from_host_port() {

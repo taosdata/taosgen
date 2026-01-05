@@ -1,5 +1,6 @@
 #include "MqttClient.hpp"
 #include "LogUtils.hpp"
+#include "SignalManager.hpp"
 #include <sstream>
 #include <iomanip>
 
@@ -12,6 +13,11 @@ PahoMqttClient::PahoMqttClient(const MqttConfig& config, const DataFormat::MqttC
     : config_(config), format_(format), no_(no) {
 
     LogUtils::debug("Creating MQTT client #{}", no_);
+
+    SignalManager::register_signal(SIGPIPE, [this](int){
+        sigpipe_seen_.store(true, std::memory_order_relaxed);
+    }, false);
+
     std::string client_id = config.generate_client_id(no);
     mqtt::create_options create_opts;
     create_opts.set_server_uri(config.uri);
@@ -19,6 +25,17 @@ PahoMqttClient::PahoMqttClient(const MqttConfig& config, const DataFormat::MqttC
     create_opts.set_max_buffered_messages(static_cast<int>(config.max_buffered_messages));
 
     client_ = std::make_unique<mqtt::async_client>(create_opts);
+
+    client_->set_connection_lost_handler([this](const std::string& cause) {
+        LogUtils::error("MQTT client #{} connection lost: {}", no_, cause);
+        is_connected_ = false;
+    });
+
+    client_->set_connected_handler([this](const std::string& server_uri) {
+        LogUtils::info("MQTT client #{} reconnected to {}", no_, server_uri);
+        is_connected_ = true;
+    });
+
     default_props_.add(mqtt::property(mqtt::property::USER_PROPERTY, "content-type", format.content_type));
 
     if (!format.compression.empty()) {
@@ -40,6 +57,10 @@ PahoMqttClient::~PahoMqttClient() {
 }
 
 bool PahoMqttClient::connect() {
+    if (is_connected_) {
+        return true;
+    }
+
     mqtt::connect_options conn_opts;
     conn_opts.set_user_name(config_.user);
     conn_opts.set_password(config_.password);
@@ -49,6 +70,7 @@ bool PahoMqttClient::connect() {
 
     try {
         client_->connect(conn_opts)->wait();
+        is_connected_ = true;
         return true;
     } catch (const mqtt::exception& e) {
         LogUtils::error("MQTT connection failed: {}", e.what());
@@ -57,13 +79,17 @@ bool PahoMqttClient::connect() {
 }
 
 bool PahoMqttClient::is_connected() const {
-    return client_ && client_->is_connected();
+    // return client_ && client_->is_connected();
+    return is_connected_ && client_;
 }
 
 void PahoMqttClient::disconnect() {
     if (client_ && is_connected()) {
         try {
-            client_->disconnect()->wait();
+            mqtt::disconnect_options disc;
+            disc.set_timeout(3000); // ms
+            auto tok = client_->disconnect(disc);
+            (void)tok->wait_for(std::chrono::milliseconds(3000));
         } catch (const mqtt::exception& e) {
             LogUtils::error("MQTT disconnect failed: {}", e.what());
         }
@@ -108,16 +134,19 @@ bool PahoMqttClient::publish(const MqttInsertData& data) {
     return true;
 }
 
-static void wait_pending_drained(mqtt::async_client& c, std::chrono::milliseconds max_wait) {
-    using namespace std::chrono;
-    const auto deadline = steady_clock::now() + max_wait;
+void PahoMqttClient::flush(std::chrono::seconds timeout) {
+    if (!client_ || !is_connected()) return;
 
-    while (true) {
-        auto toks = c.get_pending_delivery_tokens();
-        if (toks.empty()) break;
+    const auto deadline = std::chrono::steady_clock::now() + timeout;
+    while (std::chrono::steady_clock::now() < deadline) {
+        if (sigpipe_seen_.load(std::memory_order_relaxed)) {
+            LogUtils::warn("MQTT client #{} saw SIGPIPE while flushing; aborting flush", no_);
+            break;
+        }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(2));
-        if (steady_clock::now() >= deadline) break;
+        auto pending = client_->get_pending_delivery_tokens();
+        if (pending.empty()) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 }
 
@@ -127,7 +156,7 @@ void PahoMqttClient::close() {
     }
 
     if (client_) {
-        wait_pending_drained(*client_, std::chrono::seconds(60));
+        flush(std::chrono::seconds(60));
     }
 
     // stop token waiter after draining current tokens
