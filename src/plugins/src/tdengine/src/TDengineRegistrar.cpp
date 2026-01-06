@@ -1,8 +1,12 @@
+#include "ParameterContext.hpp"
+#include "PluginConfigRegistry.hpp"
+#include "StepParserRegistry.hpp"
 #include "TDengineRegistrar.hpp"
+#include "InsertDataAction.hpp"
 
 void register_tdengine_plugin_config_hooks() {
     // YAML -> TDengineConfig
-    PluginConfigRegistrar::register_parser("tdengine",
+    PluginConfigRegistry::register_parser("tdengine",
         [](const YAML::Node& node) -> std::any {
             if (node.IsDefined()) {
                 return node.as<TDengineConfig>();
@@ -12,7 +16,7 @@ void register_tdengine_plugin_config_hooks() {
         });
 
     // Formatting configuration decoding
-    PluginConfigRegistrar::register_format_decoder("tdengine",
+    PluginConfigRegistry::register_format_decoder("tdengine",
         [](const YAML::Node& node, InsertDataConfig& cfg) {
             // Detect unknown configuration keys
             static const std::set<std::string> target_tdengine = {
@@ -53,7 +57,7 @@ void register_tdengine_plugin_config_hooks() {
         });
 
     // CLI merger
-    PluginConfigRegistrar::register_cli_merger("tdengine",
+    PluginConfigRegistry::register_cli_merger("tdengine",
         [](const std::unordered_map<std::string, std::string>& cli, PluginExtensions& exts) {
             auto* cfg = get_plugin_config_mut<TDengineConfig>(exts, "tdengine");
             if (!cfg) {
@@ -80,7 +84,7 @@ void register_tdengine_plugin_config_hooks() {
         });
 
     // ENV merger
-    PluginConfigRegistrar::register_env_merger("tdengine",
+    PluginConfigRegistry::register_env_merger("tdengine",
         [](PluginExtensions& exts) {
             auto* cfg = get_plugin_config_mut<TDengineConfig>(exts, "tdengine");
             if (!cfg) {
@@ -111,5 +115,20 @@ void register_tdengine_plugin_config_hooks() {
             if (env_pass && *env_pass) {
                 cfg->password = env_pass;
             }
+        });
+
+    // Register action step parser
+    StepParserRegistry::register_parser("tdengine/insert",
+        [](ParameterContext& ctx, Job& job, Step& step) {
+            ctx.parse_insert_action(job, step, "tdengine");
+            CheckpointAction::checkpoint_recover(ctx.get_global_config(),
+                                                 std::get<InsertDataConfig>(step.action_config));
+        });
+
+    // Register action to ActionFactory
+    ActionFactory::instance().register_action(
+        "tdengine/insert",
+        [](const GlobalConfig& global, const ActionConfigVariant& config) {
+            return std::make_unique<InsertDataAction>(global, std::get<InsertDataConfig>(config));
         });
 }

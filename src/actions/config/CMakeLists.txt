@@ -4,7 +4,7 @@ add_library(actions_config STATIC
   src/ColumnType.cpp
   src/ColumnConfig.cpp
   src/TypeConverter.cpp
-  src/PluginConfigRegistrar.cpp
+  src/PluginConfigRegistry.cpp
 )
 
 # Set include directories

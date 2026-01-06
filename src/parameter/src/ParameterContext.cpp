@@ -1,4 +1,5 @@
 #include "ParameterContext.hpp"
+#include "StepParserRegistry.hpp"
 #include "LogUtils.hpp"
 #include "version.hpp"
 #include <cstdlib>
@@ -7,7 +8,9 @@
 #include <sstream>
 #include "CheckpointAction.hpp"
 
-ParameterContext::ParameterContext() {}
+ParameterContext::ParameterContext() {
+    register_core_step_parsers();
+}
 
 // Define static member variable
 const std::vector<ParameterContext::CommandOption> ParameterContext::valid_options = {
@@ -78,21 +81,6 @@ void ParameterContext::show_version() {
     LogUtils::info("build: {}-{} {}", TSGEN_BUILD_TARGET_OSTYPE, TSGEN_BUILD_TARGET_CPUTYPE, TSGEN_BUILD_DATE);
 }
 
-// void ParameterContext::parse_tdengine(const YAML::Node& td_node) {
-//     auto& global_config = config_data.global;
-//     global_config.tdengine = td_node.as<TDengineConfig>();
-// }
-
-// void ParameterContext::parse_mqtt(const YAML::Node& mqtt_node) {
-//     auto& global_config = config_data.global;
-//     global_config.mqtt = mqtt_node.as<MqttConfig>();
-// }
-
-// void ParameterContext::parse_kafka(const YAML::Node& kafka_node) {
-//     auto& global_config = config_data.global;
-//     global_config.kafka = kafka_node.as<KafkaConfig>();
-// }
-
 void ParameterContext::parse_schema(const YAML::Node& schema_node) {
     auto& global_config = config_data.global;
     global_config.schema = schema_node.as<SchemaConfig>();
@@ -109,9 +97,6 @@ void ParameterContext::parse_schema(const YAML::Node& schema_node) {
 void ParameterContext::parse_jobs(const YAML::Node& jobs_node) {
     for (const auto& job_node : jobs_node) {
         Job job;
-        // job.tdengine = config_data.global.tdengine;
-        // job.mqtt = config_data.global.mqtt;
-        // job.kafka = config_data.global.kafka;
         job.extensions = config_data.global.extensions;
         job.schema = config_data.global.schema;
 
@@ -217,40 +202,7 @@ void ParameterContext::parse_steps(const YAML::Node& steps_node, Job& job) {
         }
 
         // Parse action by uses field
-        if (step.uses == "tdengine/create-database") {
-            parse_td_create_database_action(job, step);
-        }
-        else if (step.uses == "tdengine/create-super-table") {
-            parse_td_create_super_table_action(job, step);
-        }
-        else if (step.uses == "tdengine/create-child-table") {
-            parse_td_create_child_table_action(job, step);
-        }
-        else if (step.uses == "tdengine/insert" || step.uses == "tdengine/insert-data") {
-            if (step.uses == "tdengine/insert-data") {
-                LogUtils::warn("Action 'tdengine/insert-data' is deprecated and will be removed in future versions. Please use 'tdengine/insert' instead.");
-                step.uses = "tdengine/insert";
-            }
-            parse_insert_action(job, step, "tdengine");
-            CheckpointAction::checkpoint_recover(config_data.global, std::get<InsertDataConfig>(step.action_config));
-        }
-        else if (step.uses == "mqtt/publish" || step.uses == "mqtt/publish-data") {
-            if (step.uses == "mqtt/publish-data") {
-                LogUtils::warn("Action 'mqtt/publish-data' is deprecated and will be removed in future versions. Please use 'mqtt/publish' instead.");
-                step.uses = "mqtt/publish";
-            }
-            parse_insert_action(job, step, "mqtt");
-        }
-        else if (step.uses == "kafka/produce") {
-            parse_insert_action(job, step, "kafka");
-        }
-        else if (step.uses == "tdengine/query") {
-            parse_query_action(job, step);
-        }
-        else if (step.uses == "tdengine/subscribe") {
-            parse_subscribe_action(job, step);
-        }
-        else {
+        if (!StepParserRegistry::apply(step.uses, *this, job, step)) {
             throw std::runtime_error("Unknown action type: " + step.uses);
         }
 
@@ -387,30 +339,42 @@ void ParameterContext::parse_td_create_child_table_action(Job& job, Step& step) 
     step.action_config = std::move(create_ctb_config);
 }
 
+void ParameterContext::register_core_step_parsers() {
+    StepParserRegistry::register_parser("tdengine/create-database",
+        [](ParameterContext& ctx, Job& job, Step& step) {
+            ctx.parse_td_create_database_action(job, step);
+        });
+
+    StepParserRegistry::register_parser("tdengine/create-super-table",
+        [](ParameterContext& ctx, Job& job, Step& step) {
+            ctx.parse_td_create_super_table_action(job, step);
+        });
+
+    StepParserRegistry::register_parser("tdengine/create-child-table",
+        [](ParameterContext& ctx, Job& job, Step& step) {
+            ctx.parse_td_create_child_table_action(job, step);
+        });
+
+    StepParserRegistry::register_parser("tdengine/query",
+        [](ParameterContext& ctx, Job& job, Step& step) {
+            ctx.parse_query_action(job, step);
+        });
+
+    StepParserRegistry::register_parser("tdengine/subscribe",
+        [](ParameterContext& ctx, Job& job, Step& step) {
+            ctx.parse_subscribe_action(job, step);
+        });
+}
+
 void ParameterContext::parse_insert_action(Job& job, Step& step, std::string target_type) {
     step.with["target"] = target_type;
     InsertDataConfig insert_config = step.with.as<InsertDataConfig>();
 
     insert_config.target_type = target_type;
-    // insert_config.tdengine = job.tdengine;
-    // insert_config.mqtt = job.mqtt;
-    // insert_config.kafka = job.kafka;
     insert_config.extensions = job.extensions;
     insert_config.schema = job.schema;
 
-    // if (step.with["tdengine"]) {
-    //     insert_config.tdengine = step.with["tdengine"].as<TDengineConfig>();
-    // }
-
-    // if (step.with["mqtt"]) {
-    //     insert_config.mqtt = step.with["mqtt"].as<MqttConfig>();
-    // }
-
-    // if (step.with["kafka"]) {
-    //     insert_config.kafka = step.with["kafka"].as<KafkaConfig>();
-    // }
-
-    PluginConfigRegistrar::parse_into_extensions(step.with, insert_config.extensions, true);
+    PluginConfigRegistry::parse_into_extensions(step.with, insert_config.extensions, true);
 
     if (step.with["schema"]) {
         const auto& schema = step.with["schema"];
@@ -462,15 +426,7 @@ void ParameterContext::parse_insert_action(Job& job, Step& step, std::string tar
 
     if (insert_config.data_format.support_tags) {
         if (insert_config.schema.tags_cfg.source_type != "generator") {
-            if (insert_config.data_format.format_type == "mqtt" || insert_config.data_format.format_type == "kafka") {
-                insert_config.data_format.support_tags = false;
-                LogUtils::warn("Configuration 'data_format.{}' does not support tags from source type '{}', tags will be ignored",
-                               insert_config.data_format.format_type,
-                               insert_config.schema.tags_cfg.source_type);
-
-                insert_config.schema.tags.clear();
-                insert_config.schema.tags_cfg.clear_schema();
-            } else {
+            if (insert_config.schema.tags.size() > 0) {
                 throw std::runtime_error("Configuration 'data_format." + insert_config.data_format.format_type +
                                          "' does not support tags from source type '" +
                                          insert_config.schema.tags_cfg.source_type + "'");
@@ -485,9 +441,6 @@ void ParameterContext::parse_insert_action(Job& job, Step& step, std::string tar
     LogUtils::info("Parsed {} action", step.uses);
 
     // Save result to Step's action_config field
-    // job.tdengine = insert_config.tdengine;
-    // job.mqtt = insert_config.mqtt;
-    // job.kafka = insert_config.kafka;
     job.extensions = insert_config.extensions;
     job.schema = insert_config.schema;
     step.action_config = std::move(insert_config);
@@ -542,19 +495,7 @@ void ParameterContext::parse_subscribe_action(Job& /*job*/, Step& step) {
 }
 
 void ParameterContext::merge_yaml_global(const YAML::Node& config) {
-    PluginConfigRegistrar::parse_into_extensions(config, config_data.global.extensions, false);
-
-    // if (config["tdengine"]) {
-    //     parse_tdengine(config["tdengine"]);
-    // }
-
-    // if (config["mqtt"]) {
-    //     parse_mqtt(config["mqtt"]);
-    // }
-
-    // if (config["kafka"]) {
-    //     parse_kafka(config["kafka"]);
-    // }
+    PluginConfigRegistry::parse_into_extensions(config, config_data.global.extensions, false);
 
     if (config["schema"]) {
         parse_schema(config["schema"]);
@@ -745,7 +686,7 @@ void ParameterContext::merge_commandline(int argc, char* argv[]) {
 }
 
 void ParameterContext::merge_commandline() {
-    PluginConfigRegistrar::apply_cli_mergers(cli_params, config_data.global.extensions);
+    PluginConfigRegistry::apply_cli_mergers(cli_params, config_data.global.extensions);
 
     if (cli_params.count("--verbose")) {
         config_data.global.verbose = true;
@@ -753,7 +694,7 @@ void ParameterContext::merge_commandline() {
 }
 
 void ParameterContext::merge_environment_vars() {
-    PluginConfigRegistrar::apply_env_mergers(config_data.global.extensions);
+    PluginConfigRegistry::apply_env_mergers(config_data.global.extensions);
 }
 
 void ParameterContext::merge_all() {

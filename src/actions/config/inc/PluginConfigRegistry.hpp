@@ -8,14 +8,14 @@
 
 struct InsertDataConfig;
 
-class PluginConfigRegistrar {
+class PluginConfigRegistry {
 public:
     using Parser        = std::function<std::any(const YAML::Node&)>;
     using CliMerger     = std::function<void(const std::unordered_map<std::string, std::string>&, PluginExtensions&)>;
     using EnvMerger     = std::function<void(PluginExtensions&)>;
     using FormatDecoder = std::function<void(const YAML::Node&, InsertDataConfig&)>;
 
-    static PluginConfigRegistrar& instance();
+    static PluginConfigRegistry& instance();
 
     // YAML Parsing Registration and Dispatching
     static void register_parser(const std::string& plugin, Parser parser);

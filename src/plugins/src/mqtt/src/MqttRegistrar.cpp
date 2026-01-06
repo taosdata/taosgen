@@ -1,8 +1,12 @@
+#include "ParameterContext.hpp"
+#include "PluginConfigRegistry.hpp"
+#include "StepParserRegistry.hpp"
 #include "MqttRegistrar.hpp"
+#include "InsertDataAction.hpp"
 
 void register_mqtt_plugin_config_hooks() {
     // YAML -> MqttConfig
-    PluginConfigRegistrar::register_parser("mqtt",
+    PluginConfigRegistry::register_parser("mqtt",
         [](const YAML::Node& node) -> std::any {
             if (node.IsDefined()) {
                 return node.as<MqttConfig>();
@@ -12,7 +16,7 @@ void register_mqtt_plugin_config_hooks() {
         });
 
     // Formatting configuration decoding
-    PluginConfigRegistrar::register_format_decoder("mqtt",
+    PluginConfigRegistry::register_format_decoder("mqtt",
         [](const YAML::Node& node, InsertDataConfig& cfg) {
             // Detect unknown configuration keys
             static const std::set<std::string> target_mqtt = {
@@ -79,7 +83,7 @@ void register_mqtt_plugin_config_hooks() {
         });
 
     // CLI merger
-    PluginConfigRegistrar::register_cli_merger("mqtt",
+    PluginConfigRegistry::register_cli_merger("mqtt",
         [](const std::unordered_map<std::string, std::string>& cli, PluginExtensions& exts) {
             auto* mc = get_plugin_config_mut<MqttConfig>(exts, "mqtt");
             if (!mc) {
@@ -114,7 +118,7 @@ void register_mqtt_plugin_config_hooks() {
         });
 
     // ENV merger
-    PluginConfigRegistrar::register_env_merger("mqtt",
+    PluginConfigRegistry::register_env_merger("mqtt",
         [](PluginExtensions& exts) {
             auto* mc = get_plugin_config_mut<MqttConfig>(exts, "mqtt");
             if (!mc) {
@@ -149,5 +153,18 @@ void register_mqtt_plugin_config_hooks() {
             if (env_pass && *env_pass) {
                 mc->password = env_pass;
             }
+        });
+
+    // Register action step parser
+    StepParserRegistry::register_parser("mqtt/publish",
+        [](ParameterContext& ctx, Job& job, Step& step) {
+            ctx.parse_insert_action(job, step, "mqtt");
+        });
+
+    // Register action to ActionFactory
+    ActionFactory::instance().register_action(
+        "mqtt/publish",
+        [](const GlobalConfig& global, const ActionConfigVariant& config) {
+            return std::make_unique<InsertDataAction>(global, std::get<InsertDataConfig>(config));
         });
 }

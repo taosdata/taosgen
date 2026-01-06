@@ -1,8 +1,12 @@
+#include "ParameterContext.hpp"
+#include "PluginConfigRegistry.hpp"
+#include "StepParserRegistry.hpp"
 #include "KafkaRegistrar.hpp"
+#include "InsertDataAction.hpp"
 
 void register_kafka_plugin_config_hooks() {
     // YAML -> KafkaConfig
-    PluginConfigRegistrar::register_parser("kafka",
+    PluginConfigRegistry::register_parser("kafka",
         [](const YAML::Node& node) -> std::any {
             if (node.IsDefined()) {
                 return node.as<KafkaConfig>();
@@ -12,7 +16,7 @@ void register_kafka_plugin_config_hooks() {
         });
 
     // Formatting configuration decoding
-    PluginConfigRegistrar::register_format_decoder("kafka",
+    PluginConfigRegistry::register_format_decoder("kafka",
         [](const YAML::Node& node, InsertDataConfig& cfg) {
             // Detect unknown configuration keys
             static const std::set<std::string> target_kafka = {
@@ -89,7 +93,7 @@ void register_kafka_plugin_config_hooks() {
         });
 
     // CLI merger
-    PluginConfigRegistrar::register_cli_merger("kafka",
+    PluginConfigRegistry::register_cli_merger("kafka",
         [](const std::unordered_map<std::string, std::string>& cli, PluginExtensions& exts) {
             auto* kc = get_plugin_config_mut<KafkaConfig>(exts, "kafka");
             if (!kc) {
@@ -125,7 +129,7 @@ void register_kafka_plugin_config_hooks() {
         });
 
     // ENV merger
-    PluginConfigRegistrar::register_env_merger("kafka",
+    PluginConfigRegistry::register_env_merger("kafka",
         [](PluginExtensions& exts) {
             auto* kc = get_plugin_config_mut<KafkaConfig>(exts, "kafka");
             if (!kc) {
@@ -163,5 +167,18 @@ void register_kafka_plugin_config_hooks() {
             if (env_pass && *env_pass) {
                 kc->rdkafka_options["sasl.password"] = env_pass;
             }
+        });
+
+    // Register action step parser
+    StepParserRegistry::register_parser("kafka/produce",
+        [](ParameterContext& ctx, Job& job, Step& step) {
+            ctx.parse_insert_action(job, step, "kafka");
+        });
+
+    // Register action to ActionFactory
+    ActionFactory::instance().register_action(
+        "kafka/produce",
+        [](const GlobalConfig& global, const ActionConfigVariant& config) {
+            return std::make_unique<InsertDataAction>(global, std::get<InsertDataConfig>(config));
         });
 }

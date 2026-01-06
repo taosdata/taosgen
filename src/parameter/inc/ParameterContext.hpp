@@ -2,7 +2,7 @@
 
 #include "ConfigParser.hpp"
 #include "ConfigData.hpp"
-#include "PluginConfigRegistrar.hpp"
+#include "PluginConfigRegistry.hpp"
 
 #include <unordered_map>
 #include <vector>
@@ -41,6 +41,7 @@ public:
     const DatabaseInfo& get_database_info() const;
     const SuperTableInfo& get_super_table_info() const;
 
+    void parse_insert_action(Job& job, Step& step, std::string target_type);
 
 private:
     // int concurrency = 1;
@@ -53,18 +54,15 @@ private:
     // Helper methods
     YAML::Node load_default_config();
     YAML::Node load_config(const std::string& file_path);
-    // void parse_tdengine(const YAML::Node& td_node);
-    // void parse_mqtt(const YAML::Node& mqtt_node);
-    // void parse_kafka(const YAML::Node& kafka_node);
     void parse_schema(const YAML::Node& schema_node);
     void parse_jobs(const YAML::Node& jobs_node);
     void parse_steps(const YAML::Node& steps_node, Job& job);
 
+    void register_core_step_parsers();
     void prepare_work();
     void parse_td_create_database_action(Job& job, Step& step);
     void parse_td_create_super_table_action(Job& job, Step& step);
     void parse_td_create_child_table_action(Job& job, Step& step);
-    void parse_insert_action(Job& job, Step& step, std::string target_type);
     void parse_query_action(Job& job, Step& step);
     void parse_subscribe_action(Job& job, Step& step);
 

@@ -2,7 +2,7 @@
 
 #include "GlobalConfig.hpp"
 #include "ActionConfigVariant.hpp"
-#include "PluginConfigRegistrar.hpp"
+#include "PluginConfigRegistry.hpp"
 #include <string>
 #include <vector>
 #include <optional>
@@ -1556,7 +1556,7 @@ namespace YAML {
                 rhs.target_type = "tdengine";
             }
 
-            const bool handled = PluginConfigRegistrar::apply_format_decoder(rhs.target_type, node, rhs);
+            const bool handled = PluginConfigRegistry::apply_format_decoder(rhs.target_type, node, rhs);
             if (!handled) {
                 throw std::runtime_error("Invalid or unsupported target type (no format decoder registered): " + rhs.target_type);
             }
