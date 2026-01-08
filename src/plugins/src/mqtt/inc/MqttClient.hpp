@@ -1,6 +1,7 @@
 #pragma once
 
 #include "MqttConfig.hpp"
+#include "MqttFormatOptions.hpp"
 #include "MqttInsertData.hpp"
 
 #include <mqtt/async_client.h>
@@ -33,7 +34,7 @@ public:
 // MQTT client implementation wrapper
 class PahoMqttClient : public IMqttClient {
 public:
-    PahoMqttClient(const MqttConfig& config, const DataFormat::MqttConfig& format, size_t no = 0);
+    PahoMqttClient(const MqttConfig& config, const MqttFormatOptions& format, size_t no = 0);
 
     ~PahoMqttClient();
 
@@ -45,7 +46,7 @@ public:
 
 private:
     const MqttConfig& config_;
-    const DataFormat::MqttConfig& format_;
+    const MqttFormatOptions& format_;
     size_t no_;
     std::unique_ptr<mqtt::async_client> client_;
     std::thread token_wait_thread_;
@@ -69,7 +70,7 @@ private:
 
 class MqttClient {
 public:
-    MqttClient(const MqttConfig& config, const DataFormat::MqttConfig& format, size_t no = 0);
+    MqttClient(const MqttConfig& config, const MqttFormatOptions& format, size_t no = 0);
     ~MqttClient();
 
     // Connect to MQTT broker

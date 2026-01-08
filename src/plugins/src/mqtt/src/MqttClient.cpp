@@ -9,7 +9,7 @@
 #include <mqtt/connect_options.h>
 #include <mqtt/properties.h>
 
-PahoMqttClient::PahoMqttClient(const MqttConfig& config, const DataFormat::MqttConfig& format, size_t no)
+PahoMqttClient::PahoMqttClient(const MqttConfig& config, const MqttFormatOptions& format, size_t no)
     : config_(config), format_(format), no_(no) {
 
     LogUtils::debug("Creating MQTT client #{}", no_);
@@ -31,8 +31,8 @@ PahoMqttClient::PahoMqttClient(const MqttConfig& config, const DataFormat::MqttC
         is_connected_ = false;
     });
 
-    client_->set_connected_handler([this](const std::string& server_uri) {
-        LogUtils::info("MQTT client #{} reconnected to {}", no_, server_uri);
+    client_->set_connected_handler([this](const std::string& cause) {
+        LogUtils::debug("MQTT client #{} connected: {}", no_, cause);
         is_connected_ = true;
     });
 
@@ -173,7 +173,7 @@ void PahoMqttClient::close() {
 
 // MqttClient implementation
 MqttClient::MqttClient(const MqttConfig& config,
-                       const DataFormat::MqttConfig& format,
+                       const MqttFormatOptions& format,
                        size_t no) {
     client_ = std::make_unique<PahoMqttClient>(config, format, no);
 }

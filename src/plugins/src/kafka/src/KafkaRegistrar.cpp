@@ -2,6 +2,7 @@
 #include "PluginConfigRegistry.hpp"
 #include "StepParserRegistry.hpp"
 #include "KafkaRegistrar.hpp"
+#include "KafkaFormatOptions.hpp"
 #include "InsertDataAction.hpp"
 
 void register_kafka_plugin_config_hooks() {
@@ -37,46 +38,51 @@ void register_kafka_plugin_config_hooks() {
                 *kc = node["kafka"].as<KafkaConfig>();
             }
 
-            auto& rhs = cfg.data_format.kafka;
+            auto* fmt = get_format_opt_mut<KafkaFormatOptions>(cfg.data_format, "kafka");
+            if (!fmt) {
+                set_format_opt(cfg.data_format, "kafka", KafkaFormatOptions{});
+                fmt = get_format_opt_mut<KafkaFormatOptions>(cfg.data_format, "kafka");
+                if (!fmt) return;
+            }
 
             if (node["key_pattern"]) {
-                rhs.key_pattern = node["key_pattern"].as<std::string>();
+                fmt->key_pattern = node["key_pattern"].as<std::string>();
             }
 
             if (node["key_serializer"]) {
-                rhs.key_serializer = node["key_serializer"].as<std::string>();
+                fmt->key_serializer = node["key_serializer"].as<std::string>();
                 const std::set<std::string> valid_serializers = {
                     "string-utf8", "int8", "uint8", "int16", "uint16",
                     "int32", "uint32", "int64", "uint64"
                 };
-                if (valid_serializers.find(rhs.key_serializer) == valid_serializers.end()) {
-                    throw std::runtime_error("Unsupported key_serializer: " + rhs.key_serializer + ". Supported serializers are 'string-utf8', 'int8', 'uint8', 'int16', 'uint16', 'int32', 'uint32', 'int64', 'uint64'.");
+                if (valid_serializers.find(fmt->key_serializer) == valid_serializers.end()) {
+                    throw std::runtime_error("Unsupported key_serializer: " + fmt->key_serializer + ". Supported serializers are 'string-utf8', 'int8', 'uint8', 'int16', 'uint16', 'int32', 'uint32', 'int64', 'uint64'.");
                 }
             }
 
             if (node["value_serializer"]) {
-                rhs.value_serializer = node["value_serializer"].as<std::string>();
-                if (rhs.value_serializer != "influx" && rhs.value_serializer != "json") {
-                    throw std::runtime_error("Unsupported value_serializer: " + rhs.value_serializer + ". Supported serializers are 'json' and 'influx'.");
+                fmt->value_serializer = node["value_serializer"].as<std::string>();
+                if (fmt->value_serializer != "influx" && fmt->value_serializer != "json") {
+                    throw std::runtime_error("Unsupported value_serializer: " + fmt->value_serializer + ". Supported serializers are 'json' and 'influx'.");
                 }
             }
 
             if (node["tbname_key"]) {
-                rhs.tbname_key = node["tbname_key"].as<std::string>();
+                fmt->tbname_key = node["tbname_key"].as<std::string>();
             }
 
             if (node["acks"]) {
-                rhs.acks = node["acks"].as<std::string>();
-                if (rhs.acks != "all" && rhs.acks != "1" && rhs.acks != "0") {
-                    throw std::runtime_error("Invalid acks value: " + rhs.acks + " in kafka config.");
+                fmt->acks = node["acks"].as<std::string>();
+                if (fmt->acks != "all" && fmt->acks != "1" && fmt->acks != "0") {
+                    throw std::runtime_error("Invalid acks value: " + fmt->acks + " in kafka config.");
                 }
             }
 
             if (node["compression"]) {
-                rhs.compression = node["compression"].as<std::string>();
+                fmt->compression = node["compression"].as<std::string>();
                 const std::set<std::string> valid_compressions = {"none", "gzip", "snappy", "lz4", "zstd"};
-                if (valid_compressions.find(rhs.compression) == valid_compressions.end()) {
-                    throw std::runtime_error("Invalid compression value: " + rhs.compression + " in kafka config.");
+                if (valid_compressions.find(fmt->compression) == valid_compressions.end()) {
+                    throw std::runtime_error("Invalid compression value: " + fmt->compression + " in kafka config.");
                 }
             }
 
@@ -85,7 +91,7 @@ void register_kafka_plugin_config_hooks() {
                 if (val <= 0) {
                     throw std::runtime_error("records_per_message must be greater than 0 in kafka config.");
                 }
-                rhs.records_per_message = static_cast<size_t>(val);
+                fmt->records_per_message = static_cast<size_t>(val);
             }
 
             cfg.data_format.format_type = "kafka";

@@ -47,8 +47,11 @@ public:
 };
 
 KafkaConfig* get_kafka_config(InsertDataConfig& config) {
-    set_plugin_config(config.extensions, "kafka", KafkaConfig{});
     return get_plugin_config_mut<KafkaConfig>(config.extensions, "kafka");
+}
+
+KafkaFormatOptions* get_kafka_format_options(InsertDataConfig& config) {
+    return get_format_opt_mut<KafkaFormatOptions>(config.data_format, "kafka");
 }
 
 // Creates a test configuration for the Kafka writer.
@@ -56,6 +59,7 @@ InsertDataConfig create_test_config() {
     InsertDataConfig config;
 
     // Connector Config
+    set_plugin_config(config.extensions, "kafka", KafkaConfig{});
     auto* kc = get_kafka_config(config);
     assert(kc != nullptr);
 
@@ -65,7 +69,11 @@ InsertDataConfig create_test_config() {
     conn_conf.client_id = "test_client";
 
     // Format Config
-    auto& format_conf = config.data_format.kafka;
+    set_format_opt(config.data_format, "kafka", KafkaFormatOptions{});
+    auto* kf = get_kafka_format_options(config);
+    assert(kf != nullptr);
+
+    auto& format_conf = *kf;
     format_conf.key_pattern = "{device_id}";
     format_conf.key_serializer = "string-utf8";
     format_conf.value_serializer = "json";
@@ -94,6 +102,9 @@ void test_create_kafka_writer() {
     config.target_type = "kafka";
     set_plugin_config(config.extensions, "kafka", KafkaConfig{});
 
+    config.data_format.format_type = "kafka";
+    set_format_opt(config.data_format, "kafka", KafkaFormatOptions{});
+
     auto writer = WriterFactory::create_writer(config);
     assert(writer != nullptr);
 
@@ -121,7 +132,10 @@ void test_connection() {
     auto* kc = get_kafka_config(config);
     assert(kc != nullptr);
 
-    auto kafka_client = std::make_unique<KafkaClient>(*kc, config.data_format.kafka);
+    auto* kf = get_kafka_format_options(config);
+    assert(kf != nullptr);
+
+    auto kafka_client = std::make_unique<KafkaClient>(*kc, *kf);
     kafka_client->set_client(std::move(mock));
     writer.set_client(std::move(kafka_client));
 
@@ -152,7 +166,10 @@ void test_connection_failure() {
     auto* kc = get_kafka_config(config);
     assert(kc != nullptr);
 
-    auto kafka_client = std::make_unique<KafkaClient>(*kc, config.data_format.kafka);
+    auto* kf = get_kafka_format_options(config);
+    assert(kf != nullptr);
+
+    auto kafka_client = std::make_unique<KafkaClient>(*kc, *kf);
     kafka_client->set_client(std::move(mock));
     writer.set_client(std::move(kafka_client));
 
@@ -172,7 +189,11 @@ void test_prepare() {
     // Replace with mock
     auto* kc = get_kafka_config(config);
     assert(kc != nullptr);
-    auto kafka_client = std::make_unique<KafkaClient>(*kc, config.data_format.kafka);
+
+    auto* kf = get_kafka_format_options(config);
+    assert(kf != nullptr);
+
+    auto kafka_client = std::make_unique<KafkaClient>(*kc, *kf);
     kafka_client->set_client(std::make_unique<MockKafkaClient>());
     writer.set_client(std::move(kafka_client));
 
@@ -203,7 +224,11 @@ void test_write_operations() {
     auto* mock_ptr = mock.get();
     auto* kc = get_kafka_config(config);
     assert(kc != nullptr);
-    auto kafka_client = std::make_unique<KafkaClient>(*kc, config.data_format.kafka);
+
+    auto* kf = get_kafka_format_options(config);
+    assert(kf != nullptr);
+
+    auto kafka_client = std::make_unique<KafkaClient>(*kc, *kf);
     kafka_client->set_client(std::move(mock));
     writer.set_client(std::move(kafka_client));
 
@@ -270,7 +295,10 @@ void test_write_with_retry() {
     auto* kc = get_kafka_config(config);
     assert(kc != nullptr);
 
-    auto kafka_client = std::make_unique<KafkaClient>(*kc, config.data_format.kafka);
+    auto* kf = get_kafka_format_options(config);
+    assert(kf != nullptr);
+
+    auto kafka_client = std::make_unique<KafkaClient>(*kc, *kf);
     kafka_client->set_client(std::move(mock));
     writer.set_client(std::move(kafka_client));
 
@@ -311,7 +339,11 @@ void test_write_without_connection() {
     // Replace with mock
     auto* kc = get_kafka_config(config);
     assert(kc != nullptr);
-    auto kafka_client = std::make_unique<KafkaClient>(*kc, config.data_format.kafka);
+
+    auto* kf = get_kafka_format_options(config);
+    assert(kf != nullptr);
+
+    auto kafka_client = std::make_unique<KafkaClient>(*kc, *kf);
     kafka_client->set_client(std::make_unique<MockKafkaClient>());
     writer.set_client(std::move(kafka_client));
 

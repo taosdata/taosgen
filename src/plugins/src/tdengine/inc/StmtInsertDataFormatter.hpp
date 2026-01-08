@@ -2,6 +2,7 @@
 
 #include "IFormatter.hpp"
 #include "FormatterFactory.hpp"
+#include "StmtFormatOptions.hpp"
 #include "StmtV2InsertData.hpp"
 #include "taos.h"
 #include <sstream>
@@ -9,7 +10,12 @@
 
 class StmtInsertDataFormatter final : public IInsertDataFormatter {
 public:
-    explicit StmtInsertDataFormatter(const DataFormat& format) : format_(format) {}
+    explicit StmtInsertDataFormatter(const DataFormat& format) : format_(format) {
+        format_options_ = get_format_opt<StmtFormatOptions>(format_, "stmt");
+        if (!format_options_) {
+            throw std::runtime_error("STMT formatter options not found in DataFormat");
+        }
+    }
 
     std::string prepare(const InsertDataConfig& config,
                         const ColumnConfigInstanceVector& col_instances,
@@ -25,7 +31,7 @@ public:
             throw std::runtime_error("TDengine configuration not found in insert extensions");
         }
 
-        if (format_.stmt.auto_create_table) {
+        if (format_options_->auto_create_table) {
             mode_ = InsertMode::AutoCreateTable;
         } else if (tc->protocol_type == TDengineConfig::ProtocolType::WebSocket) {
             mode_ = InsertMode::SuperTable;
@@ -93,8 +99,8 @@ public:
                         bool is_checkpoint_recover = false) const override {
         (void)config;
 
-        if (format_.stmt.version != "v2") {
-            throw std::invalid_argument("Unsupported stmt version: " + format_.stmt.version);
+        if (format_options_->version != "v2") {
+            throw std::invalid_argument("Unsupported stmt version: " + format_options_->version);
         }
 
         auto payload = std::make_unique<StmtV2InsertData>(batch, col_instances, tag_instances, is_checkpoint_recover);
@@ -103,6 +109,7 @@ public:
 
 private:
     const DataFormat& format_;
+    const StmtFormatOptions* format_options_;
 
     inline static bool registered_ = []() {
         FormatterFactory::register_formatter<InsertDataConfig>(

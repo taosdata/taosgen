@@ -1,18 +1,28 @@
-#include <iostream>
-#include <cassert>
+#include "DataFormat.hpp"
 #include "FormatterRegistrar.hpp"
 #include "StmtInsertDataFormatter.hpp"
+#include <iostream>
+#include <cassert>
 
 TDengineConfig* get_tdengine_config(InsertDataConfig& config) {
     set_plugin_config(config.extensions, "tdengine", TDengineConfig{});
     return get_plugin_config_mut<TDengineConfig>(config.extensions, "tdengine");
 }
 
+StmtFormatOptions* get_stmt_format_options(DataFormat& format) {
+    set_format_opt(format, "stmt", StmtFormatOptions{});
+    return get_format_opt_mut<StmtFormatOptions>(format, "stmt");
+}
+
 void test_stmt_prepare_subtable() {
     DataFormat format;
     format.format_type = "stmt";
-    format.stmt.version = "v2";
-    format.stmt.auto_create_table = false;
+
+    auto* sf = get_stmt_format_options(format);
+    assert(sf != nullptr);
+
+    sf->version = "v2";
+    sf->auto_create_table = false;
 
     InsertDataConfig config;
     auto* tc = get_tdengine_config(config);
@@ -37,8 +47,11 @@ void test_stmt_prepare_subtable() {
 void test_stmt_prepare_supertable_websocket() {
     DataFormat format;
     format.format_type = "stmt";
-    format.stmt.version = "v2";
-    format.stmt.auto_create_table = false;
+
+    auto* sf = get_stmt_format_options(format);
+    assert(sf != nullptr);
+    sf->version = "v2";
+    sf->auto_create_table = false;
 
     InsertDataConfig config;
     auto* tc = get_tdengine_config(config);
@@ -64,8 +77,11 @@ void test_stmt_prepare_supertable_websocket() {
 void test_stmt_prepare_auto_create_table() {
     DataFormat format;
     format.format_type = "stmt";
-    format.stmt.version = "v2";
-    format.stmt.auto_create_table = true;
+
+    auto* sf = get_stmt_format_options(format);
+    assert(sf != nullptr);
+    sf->version = "v2";
+    sf->auto_create_table = true;
 
     InsertDataConfig config;
     auto* tc = get_tdengine_config(config);
@@ -91,7 +107,10 @@ void test_stmt_prepare_auto_create_table() {
 void test_stmt_format_insert_data_single_table() {
     DataFormat format;
     format.format_type = "stmt";
-    format.stmt.version = "v2";
+
+    auto* sf = get_stmt_format_options(format);
+    assert(sf != nullptr);
+    sf->version = "v2";
 
     InsertDataConfig config;
     auto* tc = get_tdengine_config(config);
@@ -135,7 +154,10 @@ void test_stmt_format_insert_data_single_table() {
 void test_stmt_format_insert_data_multiple_tables() {
     DataFormat format;
     format.format_type = "stmt";
-    format.stmt.version = "v2";
+
+    auto* sf = get_stmt_format_options(format);
+    assert(sf != nullptr);
+    sf->version = "v2";
 
     InsertDataConfig config;
     auto* tc = get_tdengine_config(config);
@@ -188,7 +210,10 @@ void test_stmt_format_insert_data_multiple_tables() {
 void test_stmt_format_insert_data_empty_batch() {
     DataFormat format;
     format.format_type = "stmt";
-    format.stmt.version = "v2";
+
+    auto* sf = get_stmt_format_options(format);
+    assert(sf != nullptr);
+    sf->version = "v2";
 
     InsertDataConfig config;
     auto* tc = get_tdengine_config(config);
@@ -226,7 +251,10 @@ void test_stmt_format_insert_data_empty_batch() {
 void test_stmt_format_insert_data_invalid_version() {
     DataFormat format;
     format.format_type = "stmt";
-    format.stmt.version = "v1";  // Unsupported version
+
+    auto* sf = get_stmt_format_options(format);
+    assert(sf != nullptr);
+    sf->version = "v1";  // Unsupported version
 
     InsertDataConfig config;
     auto* tc = get_tdengine_config(config);
@@ -262,7 +290,10 @@ void test_stmt_format_insert_data_invalid_version() {
 void test_stmt_format_insert_data_with_empty_rows() {
     DataFormat format;
     format.format_type = "stmt";
-    format.stmt.version = "v2";
+
+    auto* sf = get_stmt_format_options(format);
+    assert(sf != nullptr);
+    sf->version = "v2";
 
     InsertDataConfig config;
     auto* tc = get_tdengine_config(config);

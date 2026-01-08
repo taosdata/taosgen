@@ -50,7 +50,6 @@ InsertDataConfig create_test_config() {
 
     // Data format settings
     config.data_format.format_type = "stmt";
-    config.data_format.stmt.version = "v2";
 
     // Setup target
     config.timestamp_precision = "ms";
@@ -325,10 +324,14 @@ void test_end_to_end_data_generation() {
         DataChannel{"websocket"}
     };
 
-    std::vector<DataFormat> format_types = {
-        DataFormat{"sql"},
-        DataFormat{"stmt", DataFormat::StmtConfig{"v2"}}
-    };
+    std::vector<DataFormat> format_types(2);
+    format_types[0].format_type = "sql";
+    format_types[1].format_type = "stmt";
+    set_format_opt(format_types[0], "sql", SqlFormatOptions{});
+    set_format_opt(format_types[1], "stmt", StmtFormatOptions{});
+    auto* sf = get_format_opt_mut<StmtFormatOptions>(format_types[1], "stmt");
+    assert(sf != nullptr);
+    sf->version = "v2";
 
     for (const auto& channel : channel_types) {
         for (const auto& format : format_types) {
@@ -373,10 +376,14 @@ void test_end_to_end_data_generation_with_tags() {
         DataChannel{"websocket"}
     };
 
-    std::vector<DataFormat> format_types = {
-        DataFormat{"sql"},
-        DataFormat{"stmt", DataFormat::StmtConfig{"v2"}}
-    };
+    std::vector<DataFormat> format_types(2);
+    format_types[0].format_type = "sql";
+    format_types[1].format_type = "stmt";
+    set_format_opt(format_types[0], "sql", SqlFormatOptions{});
+    set_format_opt(format_types[1], "stmt", StmtFormatOptions{});
+    auto* sf = get_format_opt_mut<StmtFormatOptions>(format_types[1], "stmt");
+    assert(sf != nullptr);
+    sf->version = "v2";
 
     for (const auto& channel : channel_types) {
         for (const auto& format : format_types) {
@@ -431,6 +438,9 @@ void test_concurrent_data_generation() {
     assert(tc != nullptr);
     tc->database = "test_action";
     config.schema.name = "test_super_table";
+
+    config.data_format.format_type = "stmt";
+    set_format_opt(config.data_format, "stmt", StmtFormatOptions{});
 
     InsertDataAction action(global, config);
 

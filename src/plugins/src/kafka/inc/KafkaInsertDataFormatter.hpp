@@ -3,13 +3,14 @@
 #include "IFormatter.hpp"
 #include "FormatterFactory.hpp"
 #include "KafkaInsertData.hpp"
+#include "KafkaFormatOptions.hpp"
 #include "KeyGenerator.hpp"
 #include "RowSerializer.hpp"
 #include <nlohmann/json.hpp>
 
 class KafkaInsertDataFormatter final : public IInsertDataFormatter {
 public:
-    explicit KafkaInsertDataFormatter(const DataFormat& format) : format_(format) {}
+    explicit KafkaInsertDataFormatter(const DataFormat& format);
 
     std::string prepare(const InsertDataConfig& config,
                         const ColumnConfigInstanceVector& col_instances,
@@ -23,6 +24,7 @@ public:
 
 private:
     const DataFormat& format_;
+    const KafkaFormatOptions* format_options_;
 
     FormatResult format_json(const ColumnConfigInstanceVector& col_instances,
                              const ColumnConfigInstanceVector& tag_instances,

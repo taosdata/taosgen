@@ -5,7 +5,7 @@
 #include <sstream>
 
 // --- RdKafkaClient Implementation ---
-RdKafkaClient::RdKafkaClient(const KafkaConfig& config, const DataFormat::KafkaConfig& format, size_t no)
+RdKafkaClient::RdKafkaClient(const KafkaConfig& config, const KafkaFormatOptions& format, size_t no)
     : config_(config), format_(format), no_(no) {
 
     LogUtils::debug("Creating Kafka client #{}", no_);
@@ -127,7 +127,7 @@ bool RdKafkaClient::produce(const KafkaInsertData& data) {
 
 // --- KafkaClient Implementation ---
 KafkaClient::KafkaClient(const KafkaConfig& config,
-                         const DataFormat::KafkaConfig& format,
+                         const KafkaFormatOptions& format,
                          size_t no) {
     client_ = std::make_unique<RdKafkaClient>(config, format, no);
 }

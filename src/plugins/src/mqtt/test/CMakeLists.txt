@@ -8,6 +8,16 @@ target_link_libraries(TestMqttConfigParser
 )
 add_test(NAME TestMqttConfigParser COMMAND TestMqttConfigParser)
 
+# Test MqttParameterContext
+add_executable(TestMqttParameterContext
+  TestMqttParameterContext.cpp
+)
+target_link_libraries(TestMqttParameterContext
+  PRIVATE
+    plugins
+)
+add_test(NAME TestMqttParameterContext COMMAND TestMqttParameterContext)
+
 # Test MqttInsertData
 add_executable(TestMqttInsertData
   TestMqttInsertData.cpp

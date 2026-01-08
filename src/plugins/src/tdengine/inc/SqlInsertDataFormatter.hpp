@@ -2,6 +2,7 @@
 
 #include "IFormatter.hpp"
 #include "FormatterFactory.hpp"
+#include "SqlFormatOptions.hpp"
 #include "SqlInsertData.hpp"
 #include "taos.h"
 #include <limits>
@@ -12,7 +13,12 @@
 
 class SqlInsertDataFormatter final : public IInsertDataFormatter {
 public:
-    explicit SqlInsertDataFormatter(const DataFormat& format) : format_(format) {}
+    explicit SqlInsertDataFormatter(const DataFormat& format) : format_(format) {
+        format_options_ = get_format_opt<SqlFormatOptions>(format_, "sql");
+        if (!format_options_) {
+            throw std::runtime_error("SQL formatter options not found in DataFormat");
+        }
+    }
 
     std::string prepare(const InsertDataConfig& config,
                         const ColumnConfigInstanceVector& col_instances,
@@ -140,7 +146,7 @@ public:
             // Table name
             fmt::format_to(out, " `{}`", table_block.table_name);
 
-            if (format_.sql.auto_create_table && table_block.tags_ptr) {
+            if (format_options_->auto_create_table && table_block.tags_ptr) {
                 fmt::format_to(out, " USING `{}` TAGS (", config.schema.name);
 
                 for (size_t tag_idx = 0; tag_idx < tag_instances.size(); ++tag_idx) {
@@ -177,6 +183,7 @@ public:
 
 private:
     const DataFormat& format_;
+    const SqlFormatOptions* format_options_;
 
     inline static bool registered_ = []() {
         FormatterFactory::register_formatter<InsertDataConfig>(

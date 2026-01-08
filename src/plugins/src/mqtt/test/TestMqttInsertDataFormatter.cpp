@@ -3,11 +3,20 @@
 #include <iostream>
 #include <cassert>
 
+MqttFormatOptions* get_mqtt_format_options(InsertDataConfig& config) {
+    return get_format_opt_mut<MqttFormatOptions>(config.data_format, "mqtt");
+}
+
 // Helper to create a base config for tests
 InsertDataConfig create_base_config() {
     InsertDataConfig config;
     config.data_format.format_type = "mqtt";
-    auto& mqtt_format = config.data_format.mqtt;
+
+    set_format_opt(config.data_format, "mqtt", MqttFormatOptions{});
+    auto* mf = get_mqtt_format_options(config);
+    assert(mf != nullptr);
+
+    auto& mqtt_format = *mf;
     mqtt_format.records_per_message = 1;
     mqtt_format.topic = "telemetry/{table}";
     mqtt_format.compression = "none";
@@ -19,7 +28,10 @@ InsertDataConfig create_base_config() {
 
 void test_mqtt_format_single_record_per_message() {
     InsertDataConfig config = create_base_config();
-    config.data_format.mqtt.records_per_message = 1;
+
+    auto* mf = get_mqtt_format_options(config);
+    assert(mf != nullptr);
+    mf->records_per_message = 1;
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -77,7 +89,10 @@ void test_mqtt_format_single_record_per_message() {
 
 void test_mqtt_format_multiple_records_per_message() {
     InsertDataConfig config = create_base_config();
-    config.data_format.mqtt.records_per_message = 2;
+
+    auto* mf = get_mqtt_format_options(config);
+    assert(mf != nullptr);
+    mf->records_per_message = 2;
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -221,9 +236,13 @@ void test_mqtt_format_insert_data_with_empty_rows() {
 
 void test_mqtt_format_with_compression() {
     auto config = create_base_config();
-    config.data_format.mqtt.records_per_message = 1;
-    config.data_format.mqtt.compression = "gzip";
-    config.data_format.mqtt.tbname_key = "";
+
+    auto* mf = get_mqtt_format_options(config);
+    assert(mf != nullptr);
+
+    mf->records_per_message = 1;
+    mf->compression = "gzip";
+    mf->tbname_key = "";
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -266,6 +285,7 @@ void test_mqtt_format_with_compression() {
 void test_mqtt_format_factory_creation() {
     DataFormat format;
     format.format_type = "mqtt";
+    set_format_opt(format, "mqtt", MqttFormatOptions{});
 
     auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(format);
     assert(formatter != nullptr);
@@ -279,8 +299,11 @@ void test_mqtt_format_factory_creation() {
 
 void test_mqtt_format_with_tags() {
     InsertDataConfig config = create_base_config();
-    config.data_format.mqtt.records_per_message = 1;
-    config.data_format.mqtt.topic = "telemetry/{region}/{table}";
+
+    auto* mf = get_mqtt_format_options(config);
+    assert(mf != nullptr);
+    mf->records_per_message = 1;
+    mf->topic = "telemetry/{region}/{table}";
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;

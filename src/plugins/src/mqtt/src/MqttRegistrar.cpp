@@ -2,6 +2,7 @@
 #include "PluginConfigRegistry.hpp"
 #include "StepParserRegistry.hpp"
 #include "MqttRegistrar.hpp"
+#include "MqttFormatOptions.hpp"
 #include "InsertDataAction.hpp"
 
 void register_mqtt_plugin_config_hooks() {
@@ -37,45 +38,50 @@ void register_mqtt_plugin_config_hooks() {
                 *mc = node["mqtt"].as<MqttConfig>();
             }
 
-            auto& rhs = cfg.data_format.mqtt;
-
-            if (node["format"]) {
-                rhs.content_type = node["format"].as<std::string>();
-                if (rhs.content_type != "json") {
-                    throw std::runtime_error("Invalid format type for mqtt target: " + rhs.content_type + ". It must be 'json'.");
-                }
-            } else {
-                rhs.content_type = "json";
+            auto* fmt = get_format_opt_mut<MqttFormatOptions>(cfg.data_format, "mqtt");
+            if (!fmt) {
+                set_format_opt(cfg.data_format, "mqtt", MqttFormatOptions{});
+                fmt = get_format_opt_mut<MqttFormatOptions>(cfg.data_format, "mqtt");
+                if (!fmt) return;
             }
 
-            if (node["topic"]) rhs.topic = node["topic"].as<std::string>();
+            if (node["format"]) {
+                fmt->content_type = node["format"].as<std::string>();
+                if (fmt->content_type != "json") {
+                    throw std::runtime_error("Invalid format type for mqtt target: " + fmt->content_type + ". It must be 'json'.");
+                }
+            } else {
+                fmt->content_type = "json";
+            }
+
+            if (node["topic"]) fmt->topic = node["topic"].as<std::string>();
 
             if (node["compression"]) {
-                rhs.compression = node["compression"].as<std::string>();
+                fmt->compression = node["compression"].as<std::string>();
                 const std::set<std::string> valid = {"none", "gzip", "lz4", "zstd", ""};
-                if (!valid.count(rhs.compression)) {
-                    throw std::runtime_error("Invalid compression value: " + rhs.compression + " in mqtt config.");
+                if (!valid.count(fmt->compression)) {
+                    throw std::runtime_error("Invalid compression value: " + fmt->compression + " in mqtt config.");
                 }
             }
 
             if (node["encoding"]) {
-                rhs.encoding = node["encoding"].as<std::string>();
+                fmt->encoding = node["encoding"].as<std::string>();
                 const std::set<std::string> valid = {"NONE", "GBK", "GB18030", "BIG5", "UTF-8"};
-                if (!valid.count(rhs.encoding)) {
-                    throw std::runtime_error("Invalid encoding value: " + rhs.encoding + " in mqtt config.");
+                if (!valid.count(fmt->encoding)) {
+                    throw std::runtime_error("Invalid encoding value: " + fmt->encoding + " in mqtt config.");
                 }
             }
 
-            if (node["tbname_key"]) rhs.tbname_key = node["tbname_key"].as<std::string>();
+            if (node["tbname_key"]) fmt->tbname_key = node["tbname_key"].as<std::string>();
             if (node["qos"]) {
-                rhs.qos = node["qos"].as<size_t>();
-                if (rhs.qos > 2) throw std::runtime_error("Invalid QoS value: " + std::to_string(rhs.qos));
+                fmt->qos = node["qos"].as<size_t>();
+                if (fmt->qos > 2) throw std::runtime_error("Invalid QoS value: " + std::to_string(fmt->qos));
             }
-            if (node["retain"]) rhs.retain = node["retain"].as<bool>();
+            if (node["retain"]) fmt->retain = node["retain"].as<bool>();
             if (node["records_per_message"]) {
                 int64_t v = node["records_per_message"].as<int64_t>();
                 if (v <= 0) throw std::runtime_error("records_per_message must be greater than 0 in mqtt config.");
-                rhs.records_per_message = static_cast<size_t>(v);
+                fmt->records_per_message = static_cast<size_t>(v);
             }
 
             cfg.data_format.format_type = "mqtt";

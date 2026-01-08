@@ -7,6 +7,7 @@ add_library(utils STATIC
   src/Barrier.cpp
   src/Latch.cpp
   src/SignalManager.cpp
+  src/ScopedEnvVar.cpp
 )
 
 # Set include directories

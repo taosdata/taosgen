@@ -3,6 +3,7 @@
 #include "IFormatter.hpp"
 #include "FormatterFactory.hpp"
 #include "MqttInsertData.hpp"
+#include "MqttFormatOptions.hpp"
 #include "TopicGenerator.hpp"
 #include "Compressor.hpp"
 #include "EncodingConverter.hpp"
@@ -11,7 +12,7 @@
 
 class MqttInsertDataFormatter final : public IInsertDataFormatter {
 public:
-    explicit MqttInsertDataFormatter(const DataFormat& format) : format_(format) {}
+    explicit MqttInsertDataFormatter(const DataFormat& format);
 
     std::string prepare(const InsertDataConfig& config,
                         const ColumnConfigInstanceVector& col_instances,
@@ -25,6 +26,7 @@ public:
 
 private:
     const DataFormat& format_;
+    const MqttFormatOptions* format_options_;
 
     FormatResult format_json(const ColumnConfigInstanceVector& col_instances,
                              const ColumnConfigInstanceVector& tag_instances,

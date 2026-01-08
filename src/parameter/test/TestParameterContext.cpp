@@ -1,63 +1,10 @@
 #include "ParameterContext.hpp"
 #include "PluginRegistrar.hpp"
 #include "TDengineConfig.hpp"
-#include "MqttConfig.hpp"
-#include "KafkaConfig.hpp"
 #include "LogUtils.hpp"
+#include "ScopedEnvVar.hpp"
 #include <cassert>
-#include <cstdlib>
 #include <iostream>
-#include <vector>
-#include <stdexcept>
-#include <sstream>
-#include <stdlib.h>
-
-class ScopedEnvVar {
-private:
-    std::string name_;
-    std::string old_value_;
-    bool had_old_value_;
-
-public:
-    ScopedEnvVar(const std::string& name, const std::string& new_value)
-        : name_(name), had_old_value_(false) {
-
-        const char* old = getenv(name.c_str());
-        if (old) {
-            old_value_ = old;
-            had_old_value_ = true;
-        }
-
-#ifdef _WIN32
-        _putenv_s(name.c_str(), new_value.c_str());
-#else
-        setenv(name.c_str(), new_value.c_str(), 1);
-#endif
-    }
-
-    ~ScopedEnvVar() {
-        restore();
-    }
-
-    void restore() {
-#ifdef _WIN32
-        if (had_old_value_) {
-            _putenv_s(name_.c_str(), old_value_.c_str());
-        } else {
-            _putenv((name_ + "=").c_str());
-        }
-#else
-        if (had_old_value_) {
-            setenv(name_.c_str(), old_value_.c_str(), 1);
-        } else {
-            unsetenv(name_.c_str());
-        }
-#endif
-    }
-
-    ScopedEnvVar(const ScopedEnvVar&) = delete;
-    ScopedEnvVar& operator=(const ScopedEnvVar&) = delete;
-};
 
 // Test command line parameter parsing
 void test_commandline_merge() {
@@ -80,18 +27,6 @@ void test_commandline_merge() {
     assert(tc->user == "cli_user");
     assert(tc->password == "cli_pass");
 
-    // Verify derived URI/bootstrap_servers are updated
-    const auto& mc = get_plugin_config<MqttConfig>(global.extensions, "mqtt");
-    (void)mc;
-    assert(mc != nullptr);
-    assert(mc->uri == "tcp://cli.host:1234");
-
-    const auto& kc = get_plugin_config<KafkaConfig>(global.extensions, "kafka");
-    (void)kc;
-    assert(kc != nullptr);
-    assert(kc->bootstrap_servers == "cli.host:1234");
-
-    (void)global;
     std::cout << "Commandline merge test passed.\n";
 }
 
@@ -112,18 +47,6 @@ void test_environment_merge() {
     assert(tc->host == "env.host");
     assert(tc->port == 5678);
 
-    // Verify derived URI/bootstrap_servers are updated
-    const auto& mc = get_plugin_config<MqttConfig>(global.extensions, "mqtt");
-    (void)mc;
-    assert(mc != nullptr);
-    assert(mc->uri == "tcp://env.host:5678");
-
-    const auto& kc = get_plugin_config<KafkaConfig>(global.extensions, "kafka");
-    (void)kc;
-    assert(kc != nullptr);
-    assert(kc->bootstrap_servers == "env.host:5678");
-
-    (void)global;
     std::cout << "Environment merge test passed.\n";
 }
 
@@ -467,30 +390,6 @@ void test_load_default_schema() {
     std::cout << "Default schema loaded test passed.\n";
 }
 
-void test_mqtt_kafka_global_config() {
-    ParameterContext ctx;
-    YAML::Node config = YAML::Load(R"(
-mqtt:
-  uri: "tcp://mqtt.broker:1883"
-kafka:
-  bootstrap_servers: "kafka.broker:9092"
-)");
-    ctx.merge_yaml(config);
-    const auto& global = ctx.get_global_config();
-    const auto& mc = get_plugin_config<MqttConfig>(global.extensions, "mqtt");
-    assert(mc != nullptr);
-    assert(mc->uri == "tcp://mqtt.broker:1883");
-
-    const auto& kc = get_plugin_config<KafkaConfig>(global.extensions, "kafka");
-    assert(kc != nullptr);
-    assert(kc->bootstrap_servers == "kafka.broker:9092");
-
-    (void)global;
-    (void)mc;
-    (void)kc;
-    std::cout << "MQTT/Kafka global config test passed.\n";
-}
-
 void test_insert_action_inheritance() {
     ParameterContext ctx;
     YAML::Node config = YAML::Load(R"(
@@ -597,7 +496,6 @@ int main() {
     test_unknown_key_detection();
     test_nested_unknown_key_detection();
     test_load_default_schema();
-    test_mqtt_kafka_global_config();
     test_insert_action_inheritance();
     test_init_with_config_file();
     test_auto_create_database_step();

@@ -6,6 +6,14 @@
 #include <cassert>
 #include <yaml-cpp/yaml.h>
 
+MqttConfig* get_mqtt_config(InsertDataConfig& config) {
+    return get_plugin_config_mut<MqttConfig>(config.extensions, "mqtt");
+}
+
+MqttFormatOptions* get_mqtt_format_options(InsertDataConfig& config) {
+    return get_format_opt_mut<MqttFormatOptions>(config.data_format, "mqtt");
+}
+
 void test_Mqtt() {
     std::string yaml = R"(
 uri: mqtt.example.com:1883
@@ -49,7 +57,7 @@ records_per_message: 10
 )";
     YAML::Node node = YAML::Load(yaml);
     InsertDataConfig idc = node.as<InsertDataConfig>();
-    auto* mc = get_plugin_config_mut<MqttConfig>(idc.extensions, "mqtt");
+    auto* mc = get_mqtt_config(idc);
     (void)mc;
     assert(mc != nullptr);
     assert(idc.target_type == "mqtt");
@@ -57,14 +65,18 @@ records_per_message: 10
     assert(mc->user == "user1");
     assert(idc.schema.name == "test_schema");
     assert(idc.data_format.format_type == "mqtt");
-    assert(idc.data_format.mqtt.content_type == "json");
-    assert(idc.data_format.mqtt.topic == "test/topic/{tag1}");
-    assert(idc.data_format.mqtt.compression == "gzip");
-    assert(idc.data_format.mqtt.encoding == "GBK");
-    assert(idc.data_format.mqtt.tbname_key == "table");
-    assert(idc.data_format.mqtt.qos == 2);
-    assert(idc.data_format.mqtt.retain == true);
-    assert(idc.data_format.mqtt.records_per_message == 10);
+
+    auto* mf = get_mqtt_format_options(idc);
+    (void)mf;
+    assert(mf != nullptr);
+    assert(mf->content_type == "json");
+    assert(mf->topic == "test/topic/{tag1}");
+    assert(mf->compression == "gzip");
+    assert(mf->encoding == "GBK");
+    assert(mf->tbname_key == "table");
+    assert(mf->qos == 2);
+    assert(mf->retain == true);
+    assert(mf->records_per_message == 10);
 }
 
 int main() {

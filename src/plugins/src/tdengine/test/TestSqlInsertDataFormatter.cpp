@@ -4,7 +4,6 @@
 #include <iostream>
 #include <cassert>
 
-
 void set_tdengine_database(InsertDataConfig& config, const std::string& db_name) {
     set_plugin_config(config.extensions, "tdengine", TDengineConfig{});
     auto* tc = get_plugin_config_mut<TDengineConfig>(config.extensions, "tdengine");
@@ -13,9 +12,17 @@ void set_tdengine_database(InsertDataConfig& config, const std::string& db_name)
     }
 }
 
+SqlFormatOptions* get_sql_format_options(DataFormat& format) {
+    set_format_opt(format, "sql", SqlFormatOptions{});
+    return get_format_opt_mut<SqlFormatOptions>(format, "sql");
+}
+
 void test_format_insert_data_single_table() {
     DataFormat format;
     format.format_type = "sql";
+    auto* sf = get_sql_format_options(format);
+    (void)sf;
+    assert(sf != nullptr);
 
     InsertDataConfig config;
     set_tdengine_database(config, "test_db");
@@ -91,6 +98,9 @@ void test_format_insert_data_single_table() {
 void test_format_insert_data_multiple_tables() {
     DataFormat format;
     format.format_type = "sql";
+    auto* sf = get_sql_format_options(format);
+    (void)sf;
+    assert(sf != nullptr);
 
     InsertDataConfig config;
     set_tdengine_database(config, "test_db");
@@ -143,6 +153,9 @@ void test_format_insert_data_multiple_tables() {
 void test_format_insert_data_empty_rows() {
     DataFormat format;
     format.format_type = "sql";
+    auto* sf = get_sql_format_options(format);
+    (void)sf;
+    assert(sf != nullptr);
 
     InsertDataConfig config;
     set_tdengine_database(config, "test_db");
@@ -169,6 +182,9 @@ void test_format_insert_data_empty_rows() {
 void test_format_insert_data_different_types() {
     DataFormat format;
     format.format_type = "sql";
+    auto* sf = get_sql_format_options(format);
+    (void)sf;
+    assert(sf != nullptr);
 
     InsertDataConfig config;
     set_tdengine_database(config, "test_db");
@@ -210,7 +226,10 @@ void test_format_insert_data_different_types() {
 void test_format_insert_data_auto_create_table() {
     DataFormat format;
     format.format_type = "sql";
-    format.sql.auto_create_table = true;
+
+    auto* sf = get_sql_format_options(format);
+    assert(sf != nullptr);
+    sf->auto_create_table = true;
 
     InsertDataConfig config;
     set_tdengine_database(config, "test_db");
@@ -263,7 +282,10 @@ void test_format_insert_data_auto_create_table() {
 void test_format_insert_data_multiple_tables_with_tags() {
     DataFormat format;
     format.format_type = "sql";
-    format.sql.auto_create_table = true;
+
+    auto* sf = get_sql_format_options(format);
+    assert(sf != nullptr);
+    sf->auto_create_table = true;
 
     InsertDataConfig config;
     set_tdengine_database(config, "test_db");

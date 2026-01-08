@@ -1,6 +1,7 @@
 #pragma once
 
 #include "KafkaConfig.hpp"
+#include "KafkaFormatOptions.hpp"
 #include "KafkaInsertData.hpp"
 #include "ColumnConfigInstance.hpp"
 #include <memory>
@@ -24,7 +25,7 @@ public:
 // librdkafka client implementation
 class RdKafkaClient : public IKafkaClient {
 public:
-    explicit RdKafkaClient(const KafkaConfig& config, const DataFormat::KafkaConfig& format, size_t no = 0);
+    explicit RdKafkaClient(const KafkaConfig& config, const KafkaFormatOptions& format, size_t no = 0);
     ~RdKafkaClient() override;
 
     bool connect() override;
@@ -34,7 +35,7 @@ public:
 
 private:
     const KafkaConfig& config_;
-    const DataFormat::KafkaConfig& format_;
+    const KafkaFormatOptions& format_;
     size_t no_;
     std::unique_ptr<RdKafka::Producer> producer_;
     bool is_connected_ = false;
@@ -44,7 +45,7 @@ private:
 // Main KafkaClient class that will be used by KafkaWriter
 class KafkaClient {
 public:
-    KafkaClient(const KafkaConfig& config, const DataFormat::KafkaConfig& format, size_t no = 0);
+    KafkaClient(const KafkaConfig& config, const KafkaFormatOptions& format, size_t no = 0);
     ~KafkaClient();
 
     bool connect();

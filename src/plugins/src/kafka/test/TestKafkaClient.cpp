@@ -58,8 +58,8 @@ KafkaConfig create_test_connector_config() {
 }
 
 // Creates a test configuration for the Kafka data format.
-DataFormat::KafkaConfig create_test_format_config() {
-    DataFormat::KafkaConfig format;
+KafkaFormatOptions create_test_format_config() {
+    KafkaFormatOptions format;
     format.key_pattern = "{device_id}";
     format.key_serializer = "string-utf8";
     format.value_serializer = "json";
@@ -70,19 +70,27 @@ DataFormat::KafkaConfig create_test_format_config() {
 }
 
 KafkaConfig* get_kafka_config(InsertDataConfig& config) {
-    set_plugin_config(config.extensions, "kafka", KafkaConfig{});
     return get_plugin_config_mut<KafkaConfig>(config.extensions, "kafka");
+}
+
+KafkaFormatOptions* get_kafka_format_options(InsertDataConfig& config) {
+    return get_format_opt_mut<KafkaFormatOptions>(config.data_format, "kafka");
 }
 
 // Creates a full InsertDataConfig for testing.
 InsertDataConfig create_test_insert_data_config() {
     InsertDataConfig config;
+    set_plugin_config(config.extensions, "kafka", KafkaConfig{});
     auto* kc = get_kafka_config(config);
     assert(kc != nullptr);
 
     *kc = create_test_connector_config();
     config.data_format.format_type = "kafka";
-    config.data_format.kafka = create_test_format_config();
+
+    set_format_opt(config.data_format, "kafka", KafkaFormatOptions{});
+    auto* kf = get_kafka_format_options(config);
+    assert(kf != nullptr);
+    *kf = create_test_format_config();
     return config;
 }
 
@@ -157,7 +165,10 @@ void test_execute_and_produce() {
     auto* kc = get_kafka_config(config);
     assert(kc != nullptr);
 
-    KafkaClient client(*kc, config.data_format.kafka);
+    auto* kf = get_kafka_format_options(config);
+    assert(kf != nullptr);
+
+    KafkaClient client(*kc, *kf);
     auto mock = std::make_unique<MockKafkaClient>();
     auto* mock_ptr = mock.get();
     client.set_client(std::move(mock));
@@ -195,7 +206,10 @@ void test_execute_not_connected() {
     auto* kc = get_kafka_config(config);
     assert(kc != nullptr);
 
-    KafkaClient client(*kc, config.data_format.kafka);
+    auto* kf = get_kafka_format_options(config);
+    assert(kf != nullptr);
+
+    KafkaClient client(*kc, *kf);
     client.set_client(std::make_unique<MockKafkaClient>());
 
     // Prepare mock data
@@ -219,7 +233,10 @@ void test_produce_failure() {
     auto* kc = get_kafka_config(config);
     assert(kc != nullptr);
 
-    KafkaClient client(*kc, config.data_format.kafka);
+    auto* kf = get_kafka_format_options(config);
+    assert(kf != nullptr);
+
+    KafkaClient client(*kc, *kf);
 
     auto mock = std::make_unique<MockKafkaClient>();
     mock->fail_produce = true;

@@ -11,11 +11,16 @@ KafkaWriter::KafkaWriter(const InsertDataConfig& config, size_t no)
         throw std::runtime_error("Kafka configuration not found in insert extensions");
     }
 
+    const auto* kf = get_format_opt<KafkaFormatOptions>(config.data_format, "kafka");
+    if (kf == nullptr) {
+        throw std::runtime_error("Kafka format options not found in DataFormat");
+    }
+
     if (no == 0) {
         LogUtils::info("Inserting data into: {}", kc->get_sink_info());
     }
 
-    client_ = std::make_unique<KafkaClient>(*kc, config.data_format.kafka, no);
+    client_ = std::make_unique<KafkaClient>(*kc, *kf, no);
 }
 
 KafkaWriter::~KafkaWriter() {

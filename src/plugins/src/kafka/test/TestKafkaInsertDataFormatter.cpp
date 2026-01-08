@@ -1,14 +1,22 @@
 #include "FormatterRegistrar.hpp"
 #include "KafkaInsertDataFormatter.hpp"
-
 #include <iostream>
 #include <cassert>
+
+KafkaFormatOptions* get_kafka_format_options(InsertDataConfig& config) {
+    return get_format_opt_mut<KafkaFormatOptions>(config.data_format, "kafka");
+}
 
 // Helper to create a base config for tests
 InsertDataConfig create_base_kafka_config() {
     InsertDataConfig config;
     config.data_format.format_type = "kafka";
-    auto& kafka_format = config.data_format.kafka;
+
+    set_format_opt(config.data_format, "kafka", KafkaFormatOptions{});
+    auto* kf = get_kafka_format_options(config);
+    assert(kf != nullptr);
+
+    auto& kafka_format = *kf;
     kafka_format.records_per_message = 1;
     kafka_format.value_serializer = "json";
     kafka_format.key_pattern = "{table}-{ts}";
@@ -75,7 +83,10 @@ void test_kafka_format_json_single_record() {
 
 void test_kafka_format_json_multiple_records() {
     auto config = create_base_kafka_config();
-    config.data_format.kafka.records_per_message = 3;
+
+    auto* kf = get_kafka_format_options(config);
+    assert(kf != nullptr);
+    kf->records_per_message = 3;
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -129,8 +140,11 @@ void test_kafka_format_json_multiple_records() {
 
 void test_kafka_format_influx_single_record() {
     auto config = create_base_kafka_config();
-    config.data_format.kafka.value_serializer = "influx";
-    config.data_format.kafka.records_per_message = 1;
+
+    auto* kf = get_kafka_format_options(config);
+    assert(kf != nullptr);
+    kf->value_serializer = "influx";
+    kf->records_per_message = 1;
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -178,8 +192,11 @@ void test_kafka_format_influx_single_record() {
 
 void test_kafka_format_influx_multiple_records() {
     auto config = create_base_kafka_config();
-    config.data_format.kafka.value_serializer = "influx";
-    config.data_format.kafka.records_per_message = 2;
+
+    auto* kf = get_kafka_format_options(config);
+    assert(kf != nullptr);
+    kf->value_serializer = "influx";
+    kf->records_per_message = 2;
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -245,7 +262,10 @@ void test_kafka_format_empty_batch() {
 
 void test_kafka_format_invalid_serializer() {
     auto config = create_base_kafka_config();
-    config.data_format.kafka.value_serializer = "unsupported_format";
+
+    auto* kf = get_kafka_format_options(config);
+    assert(kf != nullptr);
+    kf->value_serializer = "unsupported_format";
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -274,6 +294,7 @@ void test_kafka_format_invalid_serializer() {
 void test_kafka_format_factory_creation() {
     DataFormat format;
     format.format_type = "kafka";
+    set_format_opt(format, "kafka", KafkaFormatOptions{});
 
     auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(format);
     assert(formatter != nullptr);
@@ -287,7 +308,10 @@ void test_kafka_format_factory_creation() {
 
 void test_kafka_format_with_tags() {
     auto config = create_base_kafka_config();
-    config.data_format.kafka.key_pattern = "{region}-{table}"; // Use tag in key
+
+    auto* kf = get_kafka_format_options(config);
+    assert(kf != nullptr);
+    kf->key_pattern = "{region}-{table}"; // Use tag in key
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -338,7 +362,9 @@ void test_kafka_format_with_tags() {
 
     // Test Influx format with tags
     {
-        config.data_format.kafka.value_serializer = "influx";
+        auto* kf = get_kafka_format_options(config);
+        assert(kf != nullptr);
+        kf->value_serializer = "influx";
         FormatResult result = formatter.format(config, col_instances, tag_instances, block);
         assert(std::holds_alternative<InsertFormatResult>(result));
         const auto& ptr = std::get<InsertFormatResult>(result);

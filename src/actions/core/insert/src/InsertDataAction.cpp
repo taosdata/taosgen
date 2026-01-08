@@ -156,8 +156,7 @@ void InsertDataAction::execute() {
         GarbageCollector<FormatResult> gc((consumer_thread_count + group_size - 1) / group_size);
 
         auto action_info = std::make_shared<ActionRegisterInfo>();
-        if (config_.checkpoint_info.enabled && config_.data_format.format_type == "stmt"
-            && config_.data_format.stmt.version == "v2") {
+        if (config_.checkpoint_info.enabled && config_.data_format.format_type == "stmt") {
             LogUtils::info("Starting checkpoint configuration construction...");
             CheckpointAction::register_signal_handlers();
             CheckpointActionConfig checkpoint_config(this->config_);
@@ -583,7 +582,7 @@ void InsertDataAction::consumer_thread_function(
         return;
     }
 
-    if (config_.target_type == "tdengine") {
+    {
         auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(config_.data_format);
         auto sql = formatter->prepare(config_, col_instances_, tag_instances_);
 

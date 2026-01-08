@@ -16,7 +16,7 @@ target_include_directories(plugin_tdengine
 target_link_libraries(plugin_tdengine
   PUBLIC
     parameter
-    insert_writer
+    core_insert
 )
 
 # Enable tests

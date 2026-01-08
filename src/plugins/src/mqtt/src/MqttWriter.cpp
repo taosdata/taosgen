@@ -10,14 +10,19 @@ MqttWriter::MqttWriter(const InsertDataConfig& config, size_t no)
 
     const auto* mc = get_plugin_config<MqttConfig>(config.extensions, "mqtt");
     if (mc == nullptr) {
-        throw std::runtime_error("Mqtt configuration not found in insert extensions");
+        throw std::runtime_error("MQTT configuration not found in insert extensions");
+    }
+
+    const auto* mf = get_format_opt<MqttFormatOptions>(config.data_format, "mqtt");
+    if (mf == nullptr) {
+        throw std::runtime_error("MQTT format options not found in DataFormat");
     }
 
     if (no == 0) {
         LogUtils::info("Inserting data into: {}", mc->get_sink_info());
     }
 
-    client_ = std::make_unique<MqttClient>(*mc, config.data_format.mqtt, no);
+    client_ = std::make_unique<MqttClient>(*mc, *mf, no);
 }
 
 MqttWriter::~MqttWriter() {

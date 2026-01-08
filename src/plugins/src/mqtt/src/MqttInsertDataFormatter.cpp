@@ -1,5 +1,13 @@
 #include "MqttInsertData.hpp"
 #include "MqttInsertDataFormatter.hpp"
+#include <stdexcept>
+
+MqttInsertDataFormatter::MqttInsertDataFormatter(const DataFormat& format) : format_(format) {
+    format_options_ = get_format_opt<MqttFormatOptions>(format_, "mqtt");
+    if (!format_options_) {
+        throw std::runtime_error("MQTT formatter options not found in DataFormat");
+    }
+}
 
 std::string MqttInsertDataFormatter::prepare(const InsertDataConfig& config,
                                              const ColumnConfigInstanceVector& col_instances,
@@ -26,24 +34,24 @@ FormatResult MqttInsertDataFormatter::format(const InsertDataConfig& config,
 FormatResult MqttInsertDataFormatter::format_json(const ColumnConfigInstanceVector& col_instances,
                                                   const ColumnConfigInstanceVector& tag_instances,
                                                   MemoryPool::MemoryBlock* batch) const {
-    const DataFormat::MqttConfig& format = format_.mqtt;
-    CompressionType compression_type = string_to_compression(format.compression);
-    EncodingType encoding_type = string_to_encoding(format.encoding);
+
+    CompressionType compression_type = string_to_compression(format_options_->compression);
+    EncodingType encoding_type = string_to_encoding(format_options_->encoding);
 
     MqttMessageBatch msg_batch;
-    msg_batch.reserve((batch->total_rows + format.records_per_message - 1) / format.records_per_message);
+    msg_batch.reserve((batch->total_rows + format_options_->records_per_message - 1) / format_options_->records_per_message);
 
-    TopicGenerator topic_generator(format.topic, col_instances, tag_instances);
+    TopicGenerator topic_generator(format_options_->topic, col_instances, tag_instances);
 
 
-    if (format.records_per_message == 1) {
+    if (format_options_->records_per_message == 1) {
         nlohmann::ordered_json json_data;
 
         for (size_t table_idx = 0; table_idx < batch->used_tables; ++table_idx) {
             auto& table_block = batch->tables[table_idx];
             for (size_t row_idx = 0; row_idx < table_block.used_rows; ++row_idx) {
                 std::string topic = topic_generator.generate(table_block, row_idx);
-                RowSerializer::to_json_inplace(col_instances, tag_instances, table_block, row_idx, format.tbname_key, json_data);
+                RowSerializer::to_json_inplace(col_instances, tag_instances, table_block, row_idx, format_options_->tbname_key, json_data);
                 std::string payload = json_data.dump();
 
                 // Encoding conversion
@@ -74,12 +82,12 @@ FormatResult MqttInsertDataFormatter::format_json(const ColumnConfigInstanceVect
                 }
 
                 // Add the current record's JSON to the array
-                RowSerializer::to_json_inplace(col_instances, tag_instances, table_block, row_idx, format.tbname_key, record_json);
+                RowSerializer::to_json_inplace(col_instances, tag_instances, table_block, row_idx, format_options_->tbname_key, record_json);
                 json_array.emplace_back(std::move(record_json));
                 record_json.clear();
 
                 // If the batch is full, create the message and reset
-                if (json_array.size() >= format.records_per_message) {
+                if (json_array.size() >= format_options_->records_per_message) {
                     std::string payload = json_array.dump();
 
                     // Encoding conversion

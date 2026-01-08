@@ -1,6 +1,4 @@
 # Find dependent packages
-find_package(PahoMqttCpp REQUIRED)
-find_package(RdKafka REQUIRED)
 
 # Add interface library
 add_library(plugin_base INTERFACE)

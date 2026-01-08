@@ -70,7 +70,13 @@ checkpoint:
     assert(tc->dsn == "taos://root:taosdata@localhost:6030/test");
     assert(idc.schema.name == "test_schema");
     assert(idc.data_format.format_type == "sql");
-    assert(idc.data_format.stmt.auto_create_table == true);
+    assert(idc.data_format.support_tags == true);
+
+    auto* sf = get_format_opt_mut<SqlFormatOptions>(idc.data_format, "sql");
+    (void)sf;
+    assert(sf != nullptr);
+    assert(sf->auto_create_table == true);
+
     assert(idc.timestamp_precision == "us");
     assert(idc.insert_threads == 8);
     assert(idc.queue_capacity == 2048);

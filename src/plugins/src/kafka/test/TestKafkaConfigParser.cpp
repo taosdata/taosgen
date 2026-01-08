@@ -6,6 +6,14 @@
 #include <cassert>
 #include <yaml-cpp/yaml.h>
 
+KafkaConfig* get_kafka_config(InsertDataConfig& config) {
+    return get_plugin_config_mut<KafkaConfig>(config.extensions, "kafka");
+}
+
+KafkaFormatOptions* get_kafka_format_options(InsertDataConfig& config) {
+    return get_format_opt_mut<KafkaFormatOptions>(config.data_format, "kafka");
+}
+
 void test_KafkaConfig() {
     std::string yaml = R"(
 topic: my-kafka-topic
@@ -72,13 +80,17 @@ records_per_message: 100
     assert(kc->topic == "default-topic");
     assert(idc.schema.name == "test_schema");
     assert(idc.data_format.format_type == "kafka");
-    assert(idc.data_format.kafka.key_pattern == "key-{c1}");
-    assert(idc.data_format.kafka.key_serializer == "string-utf8");
-    assert(idc.data_format.kafka.value_serializer == "influx");
-    assert(idc.data_format.kafka.tbname_key == "device_id");
-    assert(idc.data_format.kafka.acks == "all");
-    assert(idc.data_format.kafka.compression == "snappy");
-    assert(idc.data_format.kafka.records_per_message == 100);
+
+    auto* kf = get_kafka_format_options(idc);
+    (void)kf;
+    assert(kf != nullptr);
+    assert(kf->key_pattern == "key-{c1}");
+    assert(kf->key_serializer == "string-utf8");
+    assert(kf->value_serializer == "influx");
+    assert(kf->tbname_key == "device_id");
+    assert(kf->acks == "all");
+    assert(kf->compression == "snappy");
+    assert(kf->records_per_message == 100);
 }
 
 int main() {

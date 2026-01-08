@@ -50,14 +50,18 @@ public:
 };
 
 MqttConfig* get_mqtt_config(InsertDataConfig& config) {
-    set_plugin_config(config.extensions, "mqtt", MqttConfig{});
     return get_plugin_config_mut<MqttConfig>(config.extensions, "mqtt");
+}
+
+MqttFormatOptions* get_mqtt_format_options(InsertDataConfig& config) {
+    return get_format_opt_mut<MqttFormatOptions>(config.data_format, "mqtt");
 }
 
 InsertDataConfig create_test_config() {
     InsertDataConfig config;
 
     // Connector Config
+    set_plugin_config(config.extensions, "mqtt", MqttConfig{});
     auto* mc = get_mqtt_config(config);
     assert(mc != nullptr);
 
@@ -70,7 +74,10 @@ InsertDataConfig create_test_config() {
     conn_conf.clean_session = true;
 
     // Format Config
-    auto& format_conf = config.data_format.mqtt;
+    set_format_opt(config.data_format, "mqtt", MqttFormatOptions{});
+    auto* mf = get_mqtt_format_options(config);
+    assert(mf != nullptr);
+    auto& format_conf = *mf;
     format_conf.topic = "factory/{factory_id}/device-{device_id}/data";
     format_conf.qos = 1;
     format_conf.retain = false;
@@ -97,6 +104,9 @@ void test_create_mqtt_writer() {
     InsertDataConfig config;
     config.target_type = "mqtt";
     set_plugin_config(config.extensions, "mqtt", MqttConfig{});
+
+    config.data_format.format_type = "mqtt";
+    set_format_opt(config.data_format, "mqtt", MqttFormatOptions{});
 
     auto writer = WriterFactory::create_writer(config);
     assert(writer != nullptr);
@@ -125,7 +135,10 @@ void test_connection() {
     auto* mc = get_mqtt_config(config);
     assert(mc != nullptr);
 
-    auto mqtt_client = std::make_unique<MqttClient>(*mc, config.data_format.mqtt);
+    auto* mf = get_mqtt_format_options(config);
+    assert(mf != nullptr);
+
+    auto mqtt_client = std::make_unique<MqttClient>(*mc, *mf);
     mqtt_client->set_client(std::move(mock));
     writer.set_client(std::move(mqtt_client));
 
@@ -156,7 +169,10 @@ void test_connection_failure() {
     auto* mc = get_mqtt_config(config);
     assert(mc != nullptr);
 
-    auto mqtt_client = std::make_unique<MqttClient>(*mc, config.data_format.mqtt);
+    auto* mf = get_mqtt_format_options(config);
+    assert(mf != nullptr);
+
+    auto mqtt_client = std::make_unique<MqttClient>(*mc, *mf);
     mqtt_client->set_client(std::move(mock));
     writer.set_client(std::move(mqtt_client));
 
@@ -176,7 +192,10 @@ void test_prepare() {
     // Replace with mock
     auto* mc = get_mqtt_config(config);
     assert(mc != nullptr);
-    auto mqtt_client = std::make_unique<MqttClient>(*mc, config.data_format.mqtt);
+    auto* mf = get_mqtt_format_options(config);
+    assert(mf != nullptr);
+
+    auto mqtt_client = std::make_unique<MqttClient>(*mc, *mf);
     mqtt_client->set_client(std::make_unique<MockMqttClient>());
     writer.set_client(std::move(mqtt_client));
 
@@ -207,7 +226,10 @@ void test_write_operations() {
     auto* mock_ptr = mock.get();
     auto* mc = get_mqtt_config(config);
     assert(mc != nullptr);
-    auto mqtt_client = std::make_unique<MqttClient>(*mc, config.data_format.mqtt);
+    auto* mf = get_mqtt_format_options(config);
+    assert(mf != nullptr);
+
+    auto mqtt_client = std::make_unique<MqttClient>(*mc, *mf);
     mqtt_client->set_client(std::move(mock));
     writer.set_client(std::move(mqtt_client));
 
@@ -275,7 +297,10 @@ void test_write_with_retry() {
     auto* mc = get_mqtt_config(config);
     assert(mc != nullptr);
 
-    auto mqtt_client = std::make_unique<MqttClient>(*mc, config.data_format.mqtt);
+    auto* mf = get_mqtt_format_options(config);
+    assert(mf != nullptr);
+
+    auto mqtt_client = std::make_unique<MqttClient>(*mc, *mf);
     mqtt_client->set_client(std::move(mock));
     writer.set_client(std::move(mqtt_client));
 
@@ -316,7 +341,10 @@ void test_write_without_connection() {
     // Replace with mock
     auto* mc = get_mqtt_config(config);
     assert(mc != nullptr);
-    auto mqtt_client = std::make_unique<MqttClient>(*mc, config.data_format.mqtt);
+    auto* mf = get_mqtt_format_options(config);
+    assert(mf != nullptr);
+
+    auto mqtt_client = std::make_unique<MqttClient>(*mc, *mf);
     mqtt_client->set_client(std::make_unique<MockMqttClient>());
     writer.set_client(std::move(mqtt_client));
 

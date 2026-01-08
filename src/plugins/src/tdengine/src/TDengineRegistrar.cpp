@@ -2,6 +2,8 @@
 #include "PluginConfigRegistry.hpp"
 #include "StepParserRegistry.hpp"
 #include "TDengineRegistrar.hpp"
+#include "SqlFormatOptions.hpp"
+#include "StmtFormatOptions.hpp"
 #include "InsertDataAction.hpp"
 
 void register_tdengine_plugin_config_hooks() {
@@ -37,8 +39,6 @@ void register_tdengine_plugin_config_hooks() {
                 *tc = node["tdengine"].as<TDengineConfig>();
             }
 
-            auto& rhs = cfg.data_format.stmt;
-
             if (node["format"]) {
                 cfg.data_format.format_type = node["format"].as<std::string>();
                 if (cfg.data_format.format_type != "sql" && cfg.data_format.format_type != "stmt") {
@@ -48,12 +48,37 @@ void register_tdengine_plugin_config_hooks() {
                 cfg.data_format.format_type = "stmt";
             }
 
-            if (node["auto_create_table"]) {
-                rhs.auto_create_table = node["auto_create_table"].as<bool>();
-                cfg.data_format.sql.auto_create_table = rhs.auto_create_table;
+            // sql
+            {
+                auto* fmt = get_format_opt_mut<SqlFormatOptions>(cfg.data_format, "sql");
+                if (!fmt) {
+                    set_format_opt(cfg.data_format, "sql", SqlFormatOptions{});
+                    fmt = get_format_opt_mut<SqlFormatOptions>(cfg.data_format, "sql");
+                    if (!fmt) return;
+                }
+
+                if (node["auto_create_table"]) {
+                    fmt->auto_create_table = node["auto_create_table"].as<bool>();
+                }
+
+                cfg.data_format.support_tags = fmt->auto_create_table;
             }
 
-            cfg.data_format.support_tags = rhs.auto_create_table;
+            // stmt
+            {
+                auto* fmt = get_format_opt_mut<StmtFormatOptions>(cfg.data_format, "stmt");
+                if (!fmt) {
+                    set_format_opt(cfg.data_format, "stmt", StmtFormatOptions{});
+                    fmt = get_format_opt_mut<StmtFormatOptions>(cfg.data_format, "stmt");
+                    if (!fmt) return;
+                }
+
+                if (node["auto_create_table"]) {
+                    fmt->auto_create_table = node["auto_create_table"].as<bool>();
+                }
+
+                cfg.data_format.support_tags = fmt->auto_create_table;
+            }
         });
 
     // CLI merger
