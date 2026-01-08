@@ -1,6 +1,7 @@
 #include "DataFormat.hpp"
 #include "FormatterRegistrar.hpp"
 #include "StmtInsertDataFormatter.hpp"
+#include "StmtContext.hpp"
 #include <iostream>
 #include <cassert>
 
@@ -37,10 +38,13 @@ void test_stmt_prepare_subtable() {
     ColumnConfigInstanceVector tag_instances;
 
     StmtInsertDataFormatter formatter(format);
-    std::string sql = formatter.prepare(config, col_instances, tag_instances);
+    auto ctx = formatter.init(config, col_instances, tag_instances);
+    const auto* stmt = dynamic_cast<const StmtContext*>(ctx.get());
+    (void)stmt;
+    assert(stmt != nullptr);
 
     std::string expected = "INSERT INTO ? VALUES(?,?,?)";
-    assert(sql == expected);
+    assert(stmt->sql == expected);
     std::cout << "test_stmt_prepare_subtable passed!" << std::endl;
 }
 
@@ -67,10 +71,13 @@ void test_stmt_prepare_supertable_websocket() {
     ColumnConfigInstanceVector tag_instances;
 
     StmtInsertDataFormatter formatter(format);
-    std::string sql = formatter.prepare(config, col_instances, tag_instances);
+    auto ctx = formatter.init(config, col_instances, tag_instances);
+    const auto* stmt = dynamic_cast<const StmtContext*>(ctx.get());
+    (void)stmt;
+    assert(stmt != nullptr);
 
     std::string expected = "INSERT INTO `test_stb`(tbname,ts,f1,i1) VALUES(?,?,?,?)";
-    assert(sql == expected);
+    assert(stmt->sql == expected);
     std::cout << "test_stmt_prepare_supertable_websocket passed!" << std::endl;
 }
 
@@ -97,10 +104,13 @@ void test_stmt_prepare_auto_create_table() {
     tag_instances.emplace_back(ColumnConfig{"t2", "VARCHAR(10)"});
 
     StmtInsertDataFormatter formatter(format);
-    std::string sql = formatter.prepare(config, col_instances, tag_instances);
+    auto ctx = formatter.init(config, col_instances, tag_instances);
+    const auto* stmt = dynamic_cast<const StmtContext*>(ctx.get());
+    (void)stmt;
+    assert(stmt != nullptr);
 
     std::string expected = "INSERT INTO ? USING `test_stb` TAGS (?,?) VALUES(?,?)";
-    assert(sql == expected);
+    assert(stmt->sql == expected);
     std::cout << "test_stmt_prepare_auto_create_table passed!" << std::endl;
 }
 

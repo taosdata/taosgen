@@ -2,6 +2,7 @@
 
 #include "FormatResult.hpp"
 #include "InsertDataConfig.hpp"
+#include "ISinkContext.hpp"
 #include "ActionMetrics.hpp"
 #include "ConnectorSource.hpp"
 #include <memory>
@@ -16,7 +17,7 @@ public:
     virtual bool connect(std::optional<ConnectorSource>& conn_source) = 0;
 
     // Prepare for write operation
-    virtual bool prepare(const std::string& sql) = 0;
+    virtual bool prepare(std::unique_ptr<const ISinkContext> context) = 0;
 
     // Execute write operation
     virtual bool write(const BaseInsertData& data) = 0;

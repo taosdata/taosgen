@@ -182,37 +182,6 @@ void test_connection_failure() {
     std::cout << "test_connection_failure passed." << std::endl;
 }
 
-void test_prepare() {
-    auto config = create_test_config();
-    KafkaWriter writer(config);
-
-    // Replace with mock
-    auto* kc = get_kafka_config(config);
-    assert(kc != nullptr);
-
-    auto* kf = get_kafka_format_options(config);
-    assert(kf != nullptr);
-
-    auto kafka_client = std::make_unique<KafkaClient>(*kc, *kf);
-    kafka_client->set_client(std::make_unique<MockKafkaClient>());
-    writer.set_client(std::move(kafka_client));
-
-    // prepare should throw when not connected
-    try {
-        writer.prepare("context");
-        assert(false);
-    } catch (const std::runtime_error& e) {
-        assert(std::string(e.what()) == "KafkaWriter is not connected");
-    }
-
-    // After connecting, should be available
-    std::optional<ConnectorSource> conn_src;
-    assert(writer.connect(conn_src));
-    assert(writer.prepare("context"));
-
-    std::cout << "test_prepare passed." << std::endl;
-}
-
 void test_write_operations() {
     auto config = create_test_config();
     auto col_instances = create_col_instances();
@@ -373,7 +342,6 @@ int main() {
     test_constructor();
     test_connection();
     test_connection_failure();
-    test_prepare();
     test_write_operations();
     test_write_with_retry();
     test_write_without_connection();

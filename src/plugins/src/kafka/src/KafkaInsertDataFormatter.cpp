@@ -11,15 +11,6 @@ KafkaInsertDataFormatter::KafkaInsertDataFormatter(const DataFormat& format) : f
     }
 }
 
-std::string KafkaInsertDataFormatter::prepare(const InsertDataConfig& config,
-                                              const ColumnConfigInstanceVector& col_instances,
-                                              const ColumnConfigInstanceVector& tag_instances) {
-    (void)config;
-    (void)col_instances;
-    (void)tag_instances;
-    return "";
-}
-
 FormatResult KafkaInsertDataFormatter::format(const InsertDataConfig& config,
                                               const ColumnConfigInstanceVector& col_instances,
                                               const ColumnConfigInstanceVector& tag_instances,

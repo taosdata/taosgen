@@ -9,15 +9,6 @@ MqttInsertDataFormatter::MqttInsertDataFormatter(const DataFormat& format) : for
     }
 }
 
-std::string MqttInsertDataFormatter::prepare(const InsertDataConfig& config,
-                                             const ColumnConfigInstanceVector& col_instances,
-                                             const ColumnConfigInstanceVector& tag_instances) {
-    (void)config;
-    (void)col_instances;
-    (void)tag_instances;
-    return "";
-}
-
 FormatResult MqttInsertDataFormatter::format(const InsertDataConfig& config,
                                              const ColumnConfigInstanceVector& col_instances,
                                              const ColumnConfigInstanceVector& tag_instances,

@@ -51,7 +51,6 @@ public:
     bool connect();
     bool is_connected() const;
     void close();
-    bool prepare(const std::string& context);
     bool execute(const KafkaInsertData& data);
 
     void set_client(std::unique_ptr<IKafkaClient> client) {

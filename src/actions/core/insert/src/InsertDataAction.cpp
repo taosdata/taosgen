@@ -584,11 +584,10 @@ void InsertDataAction::consumer_thread_function(
 
     {
         auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(config_.data_format);
-        auto sql = formatter->prepare(config_, col_instances_, tag_instances_);
+        auto ctx = formatter->init(config_, col_instances_, tag_instances_);
 
-        if (!writer->prepare(sql)) {
-            handle_startup_error("Failed to prepare writer for thread {} with SQL: {}",
-                consumer_id, sql);
+        if (!writer->prepare(std::move(ctx))) {
+            handle_startup_error("Failed to prepare writer for thread {}", consumer_id);
         }
     }
 

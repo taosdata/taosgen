@@ -1,6 +1,7 @@
 #include "TDengineWriter.hpp"
 #include "ConnectorFactory.hpp"
 #include "TimeRecorder.hpp"
+#include "StmtContext.hpp"
 #include <stdexcept>
 #include <thread>
 #include <iostream>
@@ -50,11 +51,14 @@ bool TDengineWriter::connect(std::optional<ConnectorSource>& conn_source) {
     }
 }
 
-bool TDengineWriter::prepare(const std::string& context) {
+bool TDengineWriter::prepare(std::unique_ptr<const ISinkContext> context) {
     if (!connector_) {
         throw std::runtime_error("TDengineWriter is not connected");
     }
-    return connector_->prepare(context);
+    if (const auto* stmt = dynamic_cast<const StmtContext*>(context.get())) {
+        return connector_->prepare(stmt->sql);
+    }
+    return true;
 }
 
 bool TDengineWriter::write(const BaseInsertData& data) {

@@ -148,11 +148,6 @@ void KafkaClient::close() {
     }
 }
 
-bool KafkaClient::prepare(const std::string& context) {
-    (void)context;
-    return true;
-}
-
 bool KafkaClient::execute(const KafkaInsertData& data) {
     if (!is_connected()) {
         return false;

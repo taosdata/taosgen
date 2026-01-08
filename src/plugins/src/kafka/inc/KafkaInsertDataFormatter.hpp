@@ -12,10 +12,6 @@ class KafkaInsertDataFormatter final : public IInsertDataFormatter {
 public:
     explicit KafkaInsertDataFormatter(const DataFormat& format);
 
-    std::string prepare(const InsertDataConfig& config,
-                        const ColumnConfigInstanceVector& col_instances,
-                        const ColumnConfigInstanceVector& tag_instances) override;
-
     FormatResult format(const InsertDataConfig& config,
                         const ColumnConfigInstanceVector& col_instances,
                         const ColumnConfigInstanceVector& tag_instances,

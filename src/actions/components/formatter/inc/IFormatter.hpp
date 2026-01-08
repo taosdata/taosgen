@@ -1,10 +1,11 @@
 #pragma once
-#include <variant>
 #include "ActionConfigVariant.hpp"
 #include "ColumnConfigInstance.hpp"
 #include "TableData.hpp"
 #include "FormatResult.hpp"
-
+#include "ISinkContext.hpp"
+#include <variant>
+#include <memory>
 
 class IFormatter {
 public:
@@ -40,9 +41,15 @@ enum class InsertMode {
 
 class IInsertDataFormatter : public IFormatter {
 public:
-    virtual std::string prepare(const InsertDataConfig& config,
-                                const ColumnConfigInstanceVector& col_instances,
-                                const ColumnConfigInstanceVector& tag_instances) = 0;
+    virtual std::unique_ptr<ISinkContext> init(const InsertDataConfig& config,
+                                               const ColumnConfigInstanceVector& col_instances,
+                                               const ColumnConfigInstanceVector& tag_instances
+    ) {
+        (void)config;
+        (void)col_instances;
+        (void)tag_instances;
+        return nullptr;
+    }
 
     virtual FormatResult format(const InsertDataConfig& config,
                                 const ColumnConfigInstanceVector& col_instances,

@@ -77,7 +77,6 @@ public:
     bool connect();
     bool is_connected() const;
     void close();
-    bool prepare(const std::string& context);
     bool execute(const MqttInsertData& data);
 
     void set_client(std::unique_ptr<IMqttClient> client) {

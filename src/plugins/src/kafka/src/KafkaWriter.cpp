@@ -42,13 +42,6 @@ bool KafkaWriter::connect(std::optional<ConnectorSource>& conn_source) {
     }
 }
 
-bool KafkaWriter::prepare(const std::string& context) {
-    if (!client_ || !client_->is_connected()) {
-        throw std::runtime_error("KafkaWriter is not connected");
-    }
-    return client_->prepare(context);
-}
-
 bool KafkaWriter::write(const BaseInsertData& data) {
     if (!client_ || !client_->is_connected()) {
         throw std::runtime_error("KafkaWriter is not connected");

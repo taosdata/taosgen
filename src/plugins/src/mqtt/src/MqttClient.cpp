@@ -194,11 +194,6 @@ void MqttClient::close() {
     }
 }
 
-bool MqttClient::prepare(const std::string& context) {
-    (void)context;
-    return true;
-}
-
 bool MqttClient::execute(const MqttInsertData& data) {
     if (!is_connected()) {
         return false;

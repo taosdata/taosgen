@@ -1,5 +1,6 @@
 #include "TDengineWriter.hpp"
 #include "TDengineRegistrar.hpp"
+#include "StmtContext.hpp"
 #include <cassert>
 #include <iostream>
 #include <stdexcept>
@@ -104,26 +105,32 @@ void test_connection() {
 void test_prepare() {
     auto config = create_test_config();
     TDengineWriter writer(config);
-
-    // Not connected, should throw
     std::string sql = "SELECT * FROM `information_schema`.`ins_dnodes` where id=?";
 
-    try {
-        writer.prepare(sql);
-        assert(false);
-    } catch (const std::runtime_error& e) {
-        assert(std::string(e.what()) == "TDengineWriter is not connected");
+    // Not connected, should throw
+    {
+        std::unique_ptr<const ISinkContext> ctx = std::make_unique<StmtContext>(sql);
+
+        try {
+            writer.prepare(std::move(ctx));
+            assert(false);
+        } catch (const std::runtime_error& e) {
+            assert(std::string(e.what()) == "TDengineWriter is not connected");
+        }
     }
 
     // Connect and test prepare
-    std::optional<ConnectorSource> conn_src;
-    auto connected = writer.connect(conn_src);
-    (void)connected;
-    assert(connected);
+    {
+        std::optional<ConnectorSource> conn_src;
+        auto connected = writer.connect(conn_src);
+        (void)connected;
+        assert(connected);
 
-    auto prep_ok = writer.prepare(sql);
-    (void)prep_ok;
-    assert(prep_ok);
+        std::unique_ptr<const ISinkContext> ctx = std::make_unique<StmtContext>(sql);
+        auto prep_ok = writer.prepare(std::move(ctx));
+        (void)prep_ok;
+        assert(prep_ok);
+    }
 
     std::cout << "test_prepare passed." << std::endl;
 }
@@ -163,8 +170,9 @@ void test_write_operations() {
         std::string sql = "INSERT INTO `"
             + tc->database + "`.`"
             + config.schema.name + "`(tbname,ts,col1,col2) VALUES(?,?,?,?)";
+        std::unique_ptr<const ISinkContext> ctx = std::make_unique<StmtContext>(sql);
 
-        auto prepared = writer.prepare(sql);
+        auto prepared = writer.prepare(std::move(ctx));
         (void)prepared;
         assert(prepared);
 

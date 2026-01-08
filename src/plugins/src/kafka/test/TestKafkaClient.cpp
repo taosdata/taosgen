@@ -150,16 +150,6 @@ void test_connect_failure() {
     std::cout << "test_connect_failure passed." << std::endl;
 }
 
-void test_prepare() {
-    auto connector_config = create_test_connector_config();
-    auto format_config = create_test_format_config();
-
-    KafkaClient client(connector_config, format_config);
-
-    assert(client.prepare("context"));
-    std::cout << "test_prepare passed." << std::endl;
-}
-
 void test_execute_and_produce() {
     InsertDataConfig config = create_test_insert_data_config();
     auto* kc = get_kafka_config(config);
@@ -265,7 +255,6 @@ void test_produce_failure() {
 int main() {
     test_connect_and_close();
     test_connect_failure();
-    test_prepare();
     test_execute_and_produce();
     test_execute_not_connected();
     test_produce_failure();

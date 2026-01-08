@@ -185,36 +185,6 @@ void test_connection_failure() {
     std::cout << "test_connection_failure passed." << std::endl;
 }
 
-void test_prepare() {
-    auto config = create_test_config();
-    MqttWriter writer(config);
-
-    // Replace with mock
-    auto* mc = get_mqtt_config(config);
-    assert(mc != nullptr);
-    auto* mf = get_mqtt_format_options(config);
-    assert(mf != nullptr);
-
-    auto mqtt_client = std::make_unique<MqttClient>(*mc, *mf);
-    mqtt_client->set_client(std::make_unique<MockMqttClient>());
-    writer.set_client(std::move(mqtt_client));
-
-    // prepare should throw when not connected
-    try {
-        writer.prepare("context");
-        assert(false);
-    } catch (const std::runtime_error& e) {
-        assert(std::string(e.what()) == "MqttWriter is not connected");
-    }
-
-    // After connecting, should be available
-    std::optional<ConnectorSource> conn_src;
-    assert(writer.connect(conn_src));
-    assert(writer.prepare("context"));
-
-    std::cout << "test_prepare passed." << std::endl;
-}
-
 void test_write_operations() {
     auto config = create_test_config();
     auto col_instances = create_col_instances();
@@ -374,7 +344,6 @@ int main() {
     test_constructor();
     test_connection();
     test_connection_failure();
-    test_prepare();
     test_write_operations();
     test_write_with_retry();
     test_write_without_connection();
