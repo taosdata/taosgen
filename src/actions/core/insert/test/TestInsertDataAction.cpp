@@ -1,4 +1,5 @@
 #include "InsertDataAction.hpp"
+#include "SqlData.hpp"
 #include "TDengineRegistrar.hpp"
 #include "TableNameManager.hpp"
 #include <cassert>
@@ -120,9 +121,9 @@ void test_data_pipeline() {
 
             auto* block = pool.convert_to_memory_block(std::move(batch));
 
-            pipeline.push_data(0, FormatResult{
-                std::make_unique<SqlInsertData>(block, col_instances, tag_instances, "INSERT INTO test_table VALUES (...)")
-            });
+            auto insert_ptr = BaseInsertData::make_with_payload(block, col_instances, tag_instances, SqlData{"INSERT INTO test_table VALUES (...)"});
+            pipeline.push_data(0, FormatResult(std::move(insert_ptr)));
+
             rows_generated++;
         }
         producer_done = true;
@@ -186,9 +187,9 @@ void test_data_pipeline_with_tags() {
             std::vector<ColumnType> tag_values = {int32_t(100)};
             block->tables[0].tags_ptr = pool.register_table_tags("table" + std::to_string(i), tag_values);
 
-            pipeline.push_data(0, FormatResult{
-                std::make_unique<SqlInsertData>(block, col_instances, tag_instances, "INSERT INTO ...")
-            });
+            auto insert_ptr = BaseInsertData::make_with_payload(block, col_instances, tag_instances, SqlData{"INSERT INTO ..."});
+            pipeline.push_data(0, FormatResult(std::move(insert_ptr)));
+
             rows_generated++;
         }
         producer_done = true;

@@ -1,23 +1,15 @@
 #pragma once
-#include "BaseInsertData.hpp"
-#include "ColumnConfigInstance.hpp"
-#include "TableData.hpp"
+#include "MemoryPool.hpp"
+#include <cstdint>
+#include <typeindex>
 
-struct StmtV2InsertData : public BaseInsertData {
+struct StmtV2InsertData {
 
-    StmtV2InsertData(MemoryPool::MemoryBlock* block,
-                     const ColumnConfigInstanceVector& col_instances,
-                     const ColumnConfigInstanceVector& tag_instances,
-                     bool is_checkpoint_recover = false)
-        : BaseInsertData(typeid(StmtV2InsertData), block, col_instances, tag_instances) {
-            block->build_bindv(is_checkpoint_recover);
-          }
-
-    StmtV2InsertData(StmtV2InsertData&& other) noexcept
-          : BaseInsertData(std::move(other))
-    {
-        this->type = typeid(StmtV2InsertData);
+    StmtV2InsertData(MemoryPool::MemoryBlock* block, bool is_checkpoint_recover = false) : block_(block) {
+        block->build_bindv(is_checkpoint_recover);
     }
+
+    StmtV2InsertData(StmtV2InsertData&& other) noexcept = default;
 
     // Disable copy
     StmtV2InsertData(const StmtV2InsertData&) = delete;
@@ -25,6 +17,8 @@ struct StmtV2InsertData : public BaseInsertData {
     StmtV2InsertData& operator=(StmtV2InsertData&&) = delete;
 
     ~StmtV2InsertData() = default;
+
+    MemoryPool::MemoryBlock* block_;
 };
 
 inline std::type_index STMTV2_TYPE_ID = std::type_index(typeid(StmtV2InsertData));

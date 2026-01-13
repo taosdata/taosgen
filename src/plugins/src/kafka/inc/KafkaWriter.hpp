@@ -16,8 +16,8 @@ public:
     KafkaClient* get_client();
 
 private:
-    template<typename T>
-    bool handle_insert(const T& data);
+    template<typename PayloadT>
+    bool handle_insert(const BaseInsertData& data);
 
     std::unique_ptr<KafkaClient> client_;
 

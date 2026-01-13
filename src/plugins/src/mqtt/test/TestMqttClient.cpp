@@ -38,7 +38,7 @@ public:
         if (fail_publish || !connected) {
             return false;
         }
-        for (const auto& [topic, payload] : data.data) {
+        for (const auto& [topic, payload] : data) {
             published_topics.push_back(topic);
             published_payloads.push_back(payload);
         }
@@ -114,13 +114,21 @@ MqttInsertData create_test_mqtt_data(MemoryPool& pool,
     auto result = formatter.format(config, col_instances, tag_instances, block);
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
+    auto* base_ptr = ptr.get();
 
-    auto* mqtt_ptr = dynamic_cast<MqttInsertData*>(ptr.get());
-    if (!mqtt_ptr) {
-        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    if (!base_ptr) {
+        throw std::runtime_error("Unexpected null BaseInsertData pointer");
     }
 
-    return std::move(*mqtt_ptr);
+    assert(base_ptr->start_time == 1500000000000);
+    assert(base_ptr->end_time == 1500000000000);
+    assert(base_ptr->total_rows == 1);
+
+    const auto* payload = base_ptr->payload_as<MqttInsertData>();
+    assert(payload != nullptr);
+    assert(payload->size() == 1);
+
+    return *payload;
 }
 
 void test_connect_and_close() {

@@ -91,11 +91,10 @@ void RdKafkaClient::close() {
     is_connected_ = false;
 }
 
-bool RdKafkaClient::produce(const KafkaInsertData& data) {
-    const KafkaMessageBatch& batch_msgs = data.data;
-    auto it = batch_msgs.begin();
+bool RdKafkaClient::produce(const KafkaMessageBatch& msgs) {
+    auto it = msgs.begin();
 
-    while (it != batch_msgs.end()) {
+    while (it != msgs.end()) {
         const auto& [key, payload] = *it;
 
         RdKafka::ErrorCode err = producer_->produce(

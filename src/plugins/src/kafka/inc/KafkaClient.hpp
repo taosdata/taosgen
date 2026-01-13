@@ -19,7 +19,7 @@ public:
     virtual bool connect() = 0;
     virtual bool is_connected() const = 0;
     virtual void close() = 0;
-    virtual bool produce(const KafkaInsertData& data) = 0;
+    virtual bool produce(const KafkaMessageBatch& msgs) = 0;
 };
 
 // librdkafka client implementation
@@ -31,7 +31,7 @@ public:
     bool connect() override;
     bool is_connected() const override;
     void close() override;
-    bool produce(const KafkaInsertData& data) override;
+    bool produce(const KafkaMessageBatch& msgs) override;
 
 private:
     const KafkaConfig& config_;

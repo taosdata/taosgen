@@ -48,32 +48,32 @@ void test_kafka_format_json_single_record() {
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
+    auto* base_ptr = ptr.get();
 
-    auto* kafka_ptr = dynamic_cast<KafkaInsertData*>(ptr.get());
-    if (!kafka_ptr) {
-        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    if (!base_ptr) {
+        throw std::runtime_error("Unexpected null BaseInsertData pointer");
     }
 
-    const auto& kafka_data = *kafka_ptr;
-    assert(kafka_data.start_time == 1500000000000);
-    assert(kafka_data.end_time == 1500000000001);
-    assert(kafka_data.total_rows == 2);
-    assert(kafka_data.data.size() == 2);
+    assert(base_ptr->start_time == 1500000000000);
+    assert(base_ptr->end_time == 1500000000001);
+    assert(base_ptr->total_rows == 2);
 
-    const auto& messages = kafka_data.data;
-    assert(messages.size() == 2);
+    const auto* payload = base_ptr->payload_as<KafkaInsertData>();
+    assert(payload != nullptr);
+    (void)payload;
+    assert(payload->size() == 2);
 
     // Message 1
-    assert(messages[0].first == "table1-1500000000000");
-    nlohmann::json payload1 = nlohmann::json::parse(messages[0].second);
+    assert((*payload)[0].first == "table1-1500000000000");
+    nlohmann::json payload1 = nlohmann::json::parse((*payload)[0].second);
     assert(payload1["ts"] == 1500000000000);
     assert(payload1["f1"] == 3.14f);
     assert(payload1["i1"] == 42);
     assert(payload1["table_name"] == "table1");
 
     // Message 2
-    assert(messages[1].first == "table1-1500000000001");
-    nlohmann::json payload2 = nlohmann::json::parse(messages[1].second);
+    assert((*payload)[1].first == "table1-1500000000001");
+    nlohmann::json payload2 = nlohmann::json::parse((*payload)[1].second);
     assert(payload2["ts"] == 1500000000001);
     assert(payload2["f1"] == 2.71f);
     assert(payload2["i1"] == 43);
@@ -109,28 +109,32 @@ void test_kafka_format_json_multiple_records() {
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
+    auto* base_ptr = ptr.get();
 
-    auto* kafka_ptr = dynamic_cast<KafkaInsertData*>(ptr.get());
-    if (!kafka_ptr) {
-        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    if (!base_ptr) {
+        throw std::runtime_error("Unexpected null BaseInsertData pointer");
     }
 
-    const auto& kafka_data = *kafka_ptr;
-    const auto& messages = kafka_data.data;
+    assert(base_ptr->start_time == 1500000000000);
+    assert(base_ptr->end_time == 1500000000003);
+    assert(base_ptr->total_rows == 4);
 
-    assert(messages.size() == 2);
+    const auto* payload = base_ptr->payload_as<KafkaInsertData>();
+    assert(payload != nullptr);
+    (void)payload;
+    assert(payload->size() == 2);
 
     // Message 1 (full)
-    assert(messages[0].first == "table1-1500000000000");
-    nlohmann::json payload1 = nlohmann::json::parse(messages[0].second);
+    assert((*payload)[0].first == "table1-1500000000000");
+    nlohmann::json payload1 = nlohmann::json::parse((*payload)[0].second);
     assert(payload1.is_array() && payload1.size() == 3);
     assert(payload1[0]["f1"] == 1.1f);
     assert(payload1[1]["f1"] == 2.2f);
     assert(payload1[2]["f1"] == 3.3f);
 
     // Message 2 (partial)
-    assert(messages[1].first == "table1-1500000000003");
-    nlohmann::json payload2 = nlohmann::json::parse(messages[1].second);
+    assert((*payload)[1].first == "table1-1500000000003");
+    nlohmann::json payload2 = nlohmann::json::parse((*payload)[1].second);
     assert(payload2.is_array() && payload2.size() == 1);
     assert(payload2[0]["f1"] == 4.4f);
 
@@ -167,25 +171,27 @@ void test_kafka_format_influx_single_record() {
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
+    auto* base_ptr = ptr.get();
 
-    auto* kafka_ptr = dynamic_cast<KafkaInsertData*>(ptr.get());
-    if (!kafka_ptr) {
-        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    if (!base_ptr) {
+        throw std::runtime_error("Unexpected null BaseInsertData pointer");
     }
 
-    const auto& kafka_data = *kafka_ptr;
-    const auto& messages = kafka_data.data;
+    assert(base_ptr->start_time == 1609459200000);
+    assert(base_ptr->end_time == 1609459201000);
+    assert(base_ptr->total_rows == 2);
 
-    (void)messages;
-    assert(messages.size() == 2);
+    const auto* payload = base_ptr->payload_as<KafkaInsertData>();
+    assert(payload != nullptr);
+    (void)payload;
+    assert(payload->size() == 2);
 
     // Message 1
-    assert(messages[0].first == "weather-1609459200000");
-    assert(messages[0].second == "weather temp=25.5,device=\"dev1\",status=100i 1609459200000");
-
+    assert((*payload)[0].first == "weather-1609459200000");
+    assert((*payload)[0].second == "weather temp=25.5,device=\"dev1\",status=100i 1609459200000");
     // Message 2
-    assert(messages[1].first == "weather-1609459201000");
-    assert(messages[1].second == "weather temp=26.1,device=\"dev2\",status=101i 1609459201000");
+    assert((*payload)[1].first == "weather-1609459201000");
+    assert((*payload)[1].second == "weather temp=26.1,device=\"dev2\",status=101i 1609459201000");
 
     std::cout << "test_kafka_format_influx_single_record passed!" << std::endl;
 }
@@ -218,22 +224,26 @@ void test_kafka_format_influx_multiple_records() {
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
+    auto* base_ptr = ptr.get();
 
-    auto* kafka_ptr = dynamic_cast<KafkaInsertData*>(ptr.get());
-    if (!kafka_ptr) {
-        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    if (!base_ptr) {
+        throw std::runtime_error("Unexpected null BaseInsertData pointer");
     }
 
-    const auto& kafka_data = *kafka_ptr;
-    const auto& messages = kafka_data.data;
+    assert(base_ptr->start_time == 1609459200000);
+    assert(base_ptr->end_time == 1609459201000);
+    assert(base_ptr->total_rows == 2);
 
-    assert(messages.size() == 1);
-    assert(messages[0].first == "weather-1609459200000");
+    const auto* payload = base_ptr->payload_as<KafkaInsertData>();
+    assert(payload != nullptr);
+    assert(payload->size() == 1);
+
+    assert((*payload)[0].first == "weather-1609459200000");
     std::string expected_payload = "weather temp=25.5,device=\"dev1\" 1609459200000\n"
                                    "weather temp=26.1,device=\"dev2\" 1609459201000";
-    assert(messages[0].second == expected_payload);
+    assert((*payload)[0].second == expected_payload);
 
-    (void)messages;
+    (void)payload;
     (void)expected_payload;
 
     std::cout << "test_kafka_format_influx_multiple_records passed!" << std::endl;
@@ -340,24 +350,24 @@ void test_kafka_format_with_tags() {
         FormatResult result = formatter.format(config, col_instances, tag_instances, block);
         assert(std::holds_alternative<InsertFormatResult>(result));
         const auto& ptr = std::get<InsertFormatResult>(result);
+        auto* base_ptr = ptr.get();
 
-        auto* kafka_ptr = dynamic_cast<KafkaInsertData*>(ptr.get());
-        if (!kafka_ptr) {
-            throw std::runtime_error("Unexpected derived type in BaseInsertData");
+        if (!base_ptr) {
+            throw std::runtime_error("Unexpected null BaseInsertData pointer");
         }
 
-        const auto& kafka_data = *kafka_ptr;
-        const auto& messages = kafka_data.data;
+        const auto* payload = base_ptr->payload_as<KafkaInsertData>();
+        assert(payload != nullptr);
+        (void)payload;
+        assert(payload->size() == 1);
+        assert((*payload)[0].first == "us-west-table1");
 
-        assert(messages.size() == 1);
-        assert(messages[0].first == "us-west-table1");
-
-        nlohmann::json payload = nlohmann::json::parse(messages[0].second);
-        assert(payload["ts"] == 1500000000000);
-        assert(payload["f1"] == 3.14f);
-        assert(payload["region"] == "us-west");
-        assert(payload["sensor_id"] == 1001);
-        assert(payload["table_name"] == "table1");
+        nlohmann::json payload1 = nlohmann::json::parse((*payload)[0].second);
+        assert(payload1["ts"] == 1500000000000);
+        assert(payload1["f1"] == 3.14f);
+        assert(payload1["region"] == "us-west");
+        assert(payload1["sensor_id"] == 1001);
+        assert(payload1["table_name"] == "table1");
     }
 
     // Test Influx format with tags
@@ -368,21 +378,21 @@ void test_kafka_format_with_tags() {
         FormatResult result = formatter.format(config, col_instances, tag_instances, block);
         assert(std::holds_alternative<InsertFormatResult>(result));
         const auto& ptr = std::get<InsertFormatResult>(result);
+        auto* base_ptr = ptr.get();
 
-        auto* kafka_ptr = dynamic_cast<KafkaInsertData*>(ptr.get());
-        if (!kafka_ptr) {
-            throw std::runtime_error("Unexpected derived type in BaseInsertData");
+        if (!base_ptr) {
+            throw std::runtime_error("Unexpected null BaseInsertData pointer");
         }
 
-        const auto& kafka_data = *kafka_ptr;
-        const auto& messages = kafka_data.data;
-
-        assert(messages.size() == 1);
-        assert(messages[0].first == "us-west-table1");
+        const auto* payload = base_ptr->payload_as<KafkaInsertData>();
+        assert(payload != nullptr);
+        (void)payload;
+        assert(payload->size() == 1);
+        assert((*payload)[0].first == "us-west-table1");
 
         std::string expected_payload = "table1,region=us-west,sensor_id=1001 f1=3.14 1500000000000";
-        assert(messages[0].second == expected_payload);
-        (void)messages;
+        assert((*payload)[0].second == expected_payload);
+        (void)payload;
         (void)expected_payload;
     }
 

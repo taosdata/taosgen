@@ -96,14 +96,13 @@ void PahoMqttClient::disconnect() {
     }
 }
 
-bool PahoMqttClient::publish(const MqttInsertData& data) {
+bool PahoMqttClient::publish(const MqttMessageBatch& msgs) {
     if (closed_.load(std::memory_order_relaxed))
         return false;
 
-    const MqttMessageBatch& batch_msgs = data.data;
-    auto it = batch_msgs.begin();
+    auto it = msgs.begin();
 
-    while (it != batch_msgs.end()) {
+    while (it != msgs.end()) {
         const auto& [topic, payload] = *it;
 
         auto pubmsg = mqtt::make_message(

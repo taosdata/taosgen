@@ -74,11 +74,11 @@ bool TDengineWriter::write(const BaseInsertData& data) {
     try {
         if (data.type == SQL_TYPE_ID) {
             success = execute_with_retry([&] {
-                return handle_insert(static_cast<const SqlInsertData&>(data));
+                return handle_insert<SqlInsertData>(data);
             }, "sql insert");
         } else if (data.type == STMTV2_TYPE_ID) {
             success = execute_with_retry([&] {
-                return handle_insert(static_cast<const StmtV2InsertData&>(data));
+                return handle_insert<StmtV2InsertData>(data);
             }, "stmt v2 insert");
         } else {
             throw std::runtime_error(
@@ -100,14 +100,19 @@ bool TDengineWriter::write(const BaseInsertData& data) {
 }
 
 
-template<typename T>
-bool TDengineWriter::handle_insert(const T& data) {
+template<typename PayloadT>
+bool TDengineWriter::handle_insert(const BaseInsertData& data) {
     if (time_strategy_.is_literal_strategy()) {
         update_play_metrics(data);
     }
 
     TimeRecorder timer;
-    bool success = connector_->execute(data);
+    const auto* payload = data.payload_as<PayloadT>();
+    if (!payload) {
+        throw std::runtime_error("TDengineWriter: missing payload for requested type");
+    }
+
+    bool success = connector_->execute(*payload);
     write_metrics_.add_sample(timer.elapsed());
 
     return success;

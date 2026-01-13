@@ -35,7 +35,7 @@ FormatResult KafkaInsertDataFormatter::format(const InsertDataConfig& config,
  FormatResult KafkaInsertDataFormatter::format_json(const ColumnConfigInstanceVector& col_instances,
                                                     const ColumnConfigInstanceVector& tag_instances,
                                                     MemoryPool::MemoryBlock* batch) const {
-    KafkaMessageBatch msg_batch;
+    KafkaInsertData msg_batch;
     msg_batch.reserve((batch->total_rows + format_options_->records_per_message - 1) / format_options_->records_per_message);
 
     KeyGenerator key_generator(format_options_->key_pattern, format_options_->key_serializer, col_instances, tag_instances);
@@ -84,7 +84,7 @@ FormatResult KafkaInsertDataFormatter::format(const InsertDataConfig& config,
         }
     }
 
-    auto payload = std::make_unique<KafkaInsertData>(batch, col_instances, tag_instances, std::move(msg_batch));
+    auto payload = BaseInsertData::make_with_payload(batch, col_instances, tag_instances, std::move(msg_batch));
     return FormatResult(std::move(payload));
 }
 
@@ -92,7 +92,7 @@ FormatResult KafkaInsertDataFormatter::format(const InsertDataConfig& config,
 FormatResult KafkaInsertDataFormatter::format_influx(const ColumnConfigInstanceVector& col_instances,
                                                      const ColumnConfigInstanceVector& tag_instances,
                                                      MemoryPool::MemoryBlock* batch) const {
-    KafkaMessageBatch msg_batch;
+    KafkaInsertData msg_batch;
     msg_batch.reserve((batch->total_rows + format_options_->records_per_message - 1) / format_options_->records_per_message);
 
     KeyGenerator key_generator(format_options_->key_pattern, format_options_->key_serializer, col_instances, tag_instances);
@@ -129,6 +129,6 @@ FormatResult KafkaInsertDataFormatter::format_influx(const ColumnConfigInstanceV
         msg_batch.emplace_back(std::move(first_record_key), fmt::to_string(line_buffer));
     }
 
-    auto payload = std::make_unique<KafkaInsertData>(batch, col_instances, tag_instances, std::move(msg_batch));
+    auto payload = BaseInsertData::make_with_payload(batch, col_instances, tag_instances, std::move(msg_batch));
     return FormatResult(std::move(payload));
 }

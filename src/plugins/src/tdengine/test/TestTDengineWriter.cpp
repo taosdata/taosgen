@@ -158,8 +158,11 @@ void test_write_operations() {
         MemoryPool pool(1, 1, 2, col_instances, tag_instances);
         auto* block = pool.convert_to_memory_block(std::move(batch));
 
-        SqlInsertData sql_data(block, col_instances, tag_instances, "INSERT INTO `test_action`.`d0` VALUES (1700000000000, 105, 3.1415926)");
-        writer.write(sql_data);
+        SqlInsertData data("INSERT INTO `test_action`.`d0` VALUES (1700000000000, 105, 3.1415926)");
+        auto base_data = BaseInsertData::make_with_payload(block, col_instances, tag_instances, std::move(data));
+        assert(base_data != nullptr);
+
+        writer.write(*base_data);
     }
 
     // Test STMT write
@@ -186,8 +189,11 @@ void test_write_operations() {
         MemoryPool pool(1, 1, 2, col_instances, tag_instances);
         auto* block = pool.convert_to_memory_block(std::move(batch));
 
-        StmtV2InsertData stmt_data(block, col_instances, tag_instances);
-        writer.write(stmt_data);
+        StmtV2InsertData data(block);
+        auto base_data = BaseInsertData::make_with_payload(block, col_instances, tag_instances, std::move(data));
+        assert(base_data != nullptr);
+
+        writer.write(*base_data);
     }
 
     // Test unsupported data type
@@ -231,9 +237,12 @@ void test_write_without_connection() {
     MemoryPool pool(1, 1, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
-    SqlInsertData sql_data(block, col_instances, tag_instances, "test");
+    SqlInsertData data("test");
+    auto base_data = BaseInsertData::make_with_payload(block, col_instances, tag_instances, std::move(data));
+    assert(base_data != nullptr);
+
     try {
-        writer.write(sql_data);
+        writer.write(*base_data);
         assert(false);
     } catch (const std::runtime_error& e) {
         assert(std::string(e.what()) == "TDengineWriter is not connected");
@@ -266,8 +275,11 @@ void test_retry_mechanism() {
     MemoryPool pool(1, 1, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
-    SqlInsertData sql_data(block, col_instances, tag_instances, "show databases");
-    writer.write(sql_data);
+    SqlInsertData data("show databases");
+    auto base_data = BaseInsertData::make_with_payload(block, col_instances, tag_instances, std::move(data));
+    assert(base_data != nullptr);
+
+    writer.write(*base_data);
 
     std::cout << "test_retry_mechanism skipped (not implemented)." << std::endl;
 }

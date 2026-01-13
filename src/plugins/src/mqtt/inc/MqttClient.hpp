@@ -9,6 +9,7 @@
 #include <memory>
 #include <vector>
 #include <functional>
+#include <atomic>
 
 // Forward declaration
 namespace mqtt {
@@ -27,7 +28,7 @@ public:
     virtual bool connect() = 0;
     virtual bool is_connected() const = 0;
     virtual void disconnect() = 0;
-    virtual bool publish(const MqttInsertData& data) = 0;
+    virtual bool publish(const MqttMessageBatch& msgs) = 0;
     virtual void close() = 0;
 };
 
@@ -41,7 +42,7 @@ public:
     bool connect() override;
     bool is_connected() const override;
     void disconnect() override;
-    bool publish(const MqttInsertData& data) override;
+    bool publish(const MqttMessageBatch& msgs) override;
     void close() override;
 
 private:

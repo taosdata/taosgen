@@ -40,7 +40,7 @@ public:
             return false;
         }
 
-        total_rows_published += data.total_rows;
+        total_rows_published += data.size();
         return true;
     }
 
@@ -222,9 +222,11 @@ void test_write_operations() {
         // Create a simple message batch for the test
         MqttMessageBatch msg_batch;
         msg_batch.emplace_back("test/topic", "{\"factory_id\":\"f01\", \"device_id\":\"d01\"}");
-        MqttInsertData msg(block, col_instances, tag_instances, std::move(msg_batch));
 
-        writer.write(msg);
+        auto base_data = BaseInsertData::make_with_payload(block, col_instances, tag_instances, std::move(msg_batch));
+        assert(base_data != nullptr);
+
+        writer.write(*base_data);
         (void)mock_ptr;
         assert(mock_ptr->publish_count == 1);
         assert(mock_ptr->total_rows_published == 1);
@@ -290,9 +292,11 @@ void test_write_with_retry() {
 
     MqttMessageBatch msg_batch;
     msg_batch.emplace_back("test/topic", "{\"factory_id\":\"f01\", \"device_id\":\"d01\"}");
-    MqttInsertData msg(block, col_instances, tag_instances, std::move(msg_batch));
 
-    assert(writer.write(msg));
+    auto base_data = BaseInsertData::make_with_payload(block, col_instances, tag_instances, std::move(msg_batch));
+    assert(base_data != nullptr);
+
+    assert(writer.write(*base_data));
     assert(mock_ptr->publish_count == 2);           // Called twice: 1 fail + 1 success
     assert(mock_ptr->total_rows_published == 1);    // Only succeeded once
 
@@ -327,10 +331,12 @@ void test_write_without_connection() {
 
     MemoryPool pool(1, 1, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
-    MqttInsertData data(block, col_instances, tag_instances, {});
+
+    auto base_data = BaseInsertData::make_with_payload<MqttInsertData>(block, col_instances, tag_instances, {});
+    assert(base_data != nullptr);
 
     try {
-        writer.write(data);
+        writer.write(*base_data);
         assert(false);
     } catch (const std::runtime_error& e) {
         assert(std::string(e.what()) == "MqttWriter is not connected");

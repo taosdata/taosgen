@@ -57,7 +57,7 @@ bool MqttWriter::write(const BaseInsertData& data) {
     try {
         if (data.type == MQTT_TYPE_ID) {
             success = execute_with_retry([&] {
-                return handle_insert(static_cast<const MqttInsertData&>(data));
+                return handle_insert<MqttInsertData>(data);
             }, "mqtt message insert");
         } else {
             throw std::runtime_error(
@@ -78,14 +78,19 @@ bool MqttWriter::write(const BaseInsertData& data) {
     return success;
 }
 
-template<typename T>
-bool MqttWriter::handle_insert(const T& data) {
+template<typename PayloadT>
+bool MqttWriter::handle_insert(const BaseInsertData& data) {
     if (time_strategy_.is_literal_strategy()) {
         update_play_metrics(data);
     }
 
     TimeRecorder timer;
-    bool success = client_->execute(data);
+    const auto* payload = data.payload_as<PayloadT>();
+    if (!payload) {
+        throw std::runtime_error("MqttWriter: missing payload for requested type");
+    }
+
+    bool success = client_->execute(*payload);
     write_metrics_.add_sample(timer.elapsed());
 
     return success;

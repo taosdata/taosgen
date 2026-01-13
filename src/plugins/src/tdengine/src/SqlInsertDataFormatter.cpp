@@ -161,6 +161,6 @@ FormatResult SqlInsertDataFormatter::format(const InsertDataConfig& config,
 
     fmt::format_to(out, ";");
 
-    auto payload = std::make_unique<SqlInsertData>(batch, col_instances, tag_instances, std::move(sql_buffer));
+    auto payload = BaseInsertData::make_with_payload(batch, col_instances, tag_instances, SqlInsertData{ std::move(sql_buffer) });
     return FormatResult(std::move(payload));
 }

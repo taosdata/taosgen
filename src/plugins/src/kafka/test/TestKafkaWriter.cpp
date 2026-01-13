@@ -41,7 +41,7 @@ public:
             return false;
         }
 
-        total_rows_produced += data.total_rows;
+        total_rows_produced += data.size();
         return true;
     }
 };
@@ -219,9 +219,11 @@ void test_write_operations() {
 
         KafkaMessageBatch msg_batch;
         msg_batch.emplace_back("d01", R"({"device_id":"d01","factory_id":"f01"})");
-        KafkaInsertData msg(block, col_instances, tag_instances, std::move(msg_batch));
 
-        writer.write(msg);
+        auto base_data = BaseInsertData::make_with_payload(block, col_instances, tag_instances, std::move(msg_batch));
+        assert(base_data != nullptr);
+
+        writer.write(*base_data);
         (void)mock_ptr;
         assert(mock_ptr->produce_count == 1);
         assert(mock_ptr->total_rows_produced == 1);
@@ -287,9 +289,11 @@ void test_write_with_retry() {
 
     KafkaMessageBatch msg_batch;
     msg_batch.emplace_back("d01", R"({"device_id":"d01","factory_id":"f01"})");
-    KafkaInsertData msg(block, col_instances, tag_instances, std::move(msg_batch));
 
-    assert(writer.write(msg));
+    auto base_data = BaseInsertData::make_with_payload(block, col_instances, tag_instances, std::move(msg_batch));
+    assert(base_data != nullptr);
+
+    assert(writer.write(*base_data));
     assert(mock_ptr->produce_count == 2);           // Called twice: 1 fail + 1 success
     assert(mock_ptr->total_rows_produced == 1);     // Only succeeded once
 
@@ -325,10 +329,12 @@ void test_write_without_connection() {
 
     MemoryPool pool(1, 1, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
-    KafkaInsertData data(block, col_instances, tag_instances, {});
+
+    auto base_data = BaseInsertData::make_with_payload<KafkaInsertData>(block, col_instances, tag_instances, {});
+    assert(base_data != nullptr);
 
     try {
-        writer.write(data);
+        writer.write(*base_data);
         assert(false);
     } catch (const std::runtime_error& e) {
         assert(std::string(e.what()) == "KafkaWriter is not connected");

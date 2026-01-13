@@ -40,7 +40,7 @@ public:
         if (fail_produce || !connected) {
             return false;
         }
-        for (const auto& [key, payload] : data.data) {
+        for (const auto& [key, payload] : data) {
             produced_keys.push_back(key);
             produced_payloads.push_back(payload);
         }
@@ -111,13 +111,21 @@ KafkaInsertData create_test_kafka_data(MemoryPool& pool,
     auto result = formatter.format(config, col_instances, tag_instances, block);
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
+    auto* base_ptr = ptr.get();
 
-    auto* kafka_ptr = dynamic_cast<KafkaInsertData*>(ptr.get());
-    if (!kafka_ptr) {
-        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    if (!base_ptr) {
+        throw std::runtime_error("Unexpected null BaseInsertData pointer");
     }
 
-    return std::move(*kafka_ptr);
+    assert(base_ptr->start_time == 1500000000000);
+    assert(base_ptr->end_time == 1500000000000);
+    assert(base_ptr->total_rows == 1);
+
+    const auto* payload = base_ptr->payload_as<KafkaInsertData>();
+    assert(payload != nullptr);
+    assert(payload->size() == 1);
+
+    return *payload;
 }
 
 void test_connect_and_close() {

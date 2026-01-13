@@ -29,7 +29,7 @@ FormatResult MqttInsertDataFormatter::format_json(const ColumnConfigInstanceVect
     CompressionType compression_type = string_to_compression(format_options_->compression);
     EncodingType encoding_type = string_to_encoding(format_options_->encoding);
 
-    MqttMessageBatch msg_batch;
+    MqttInsertData msg_batch;
     msg_batch.reserve((batch->total_rows + format_options_->records_per_message - 1) / format_options_->records_per_message);
 
     TopicGenerator topic_generator(format_options_->topic, col_instances, tag_instances);
@@ -110,6 +110,6 @@ FormatResult MqttInsertDataFormatter::format_json(const ColumnConfigInstanceVect
         }
     }
 
-    auto payload = std::make_unique<MqttInsertData>(batch, col_instances, tag_instances, std::move(msg_batch));
+    auto payload = BaseInsertData::make_with_payload(batch, col_instances, tag_instances, std::move(msg_batch));
     return FormatResult(std::move(payload));
 }

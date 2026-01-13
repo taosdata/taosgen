@@ -98,6 +98,8 @@ FormatResult StmtInsertDataFormatter::format(const InsertDataConfig& config,
         throw std::invalid_argument("Unsupported stmt version: " + format_options_->version);
     }
 
-    auto payload = std::make_unique<StmtV2InsertData>(batch, col_instances, tag_instances, is_checkpoint_recover);
+    StmtV2InsertData data(batch, is_checkpoint_recover);
+    auto payload = BaseInsertData::make_with_payload(batch, col_instances, tag_instances, std::move(data));
+
     return FormatResult(std::move(payload));
 }

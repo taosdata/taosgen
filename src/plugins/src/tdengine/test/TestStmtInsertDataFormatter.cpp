@@ -148,14 +148,16 @@ void test_stmt_format_insert_data_single_table() {
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
 
-    if (auto* stmt_ptr = dynamic_cast<StmtV2InsertData*>(ptr.get())) {
-        const auto& stmt_data = *stmt_ptr;
-        (void)stmt_data;
-        assert(stmt_data.start_time == 1500000000000);
-        assert(stmt_data.end_time == 1500000000001);
-        assert(stmt_data.total_rows == 2);
+    if (auto* base_ptr = ptr.get()) {
+        const auto* payload = base_ptr->payload_as<StmtV2InsertData>();
+        assert(payload != nullptr);
+        (void)payload;
+
+        assert(base_ptr->start_time == 1500000000000);
+        assert(base_ptr->end_time == 1500000000001);
+        assert(base_ptr->total_rows == 2);
     } else {
-        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+        throw std::runtime_error("Unexpected null BaseInsertData pointer");
     }
 
     std::cout << "test_stmt_format_insert_data_single_table passed!" << std::endl;
@@ -203,15 +205,16 @@ void test_stmt_format_insert_data_multiple_tables() {
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
 
-    if (auto* stmt_ptr = dynamic_cast<StmtV2InsertData*>(ptr.get())) {
-        const auto& stmt_data = *stmt_ptr;
-        (void)stmt_data;
+    if (auto* base_ptr = ptr.get()) {
+        const auto* payload = base_ptr->payload_as<StmtV2InsertData>();
+        assert(payload != nullptr);
+        (void)payload;
 
-        assert(stmt_data.start_time == 1500000000000);
-        assert(stmt_data.end_time == 1500000000003);
-        assert(stmt_data.total_rows == 4);
+        assert(base_ptr->start_time == 1500000000000);
+        assert(base_ptr->end_time == 1500000000003);
+        assert(base_ptr->total_rows == 4);
     } else {
-        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+        throw std::runtime_error("Unexpected null BaseInsertData pointer");
     }
 
     std::cout << "test_stmt_format_insert_data_multiple_tables passed!" << std::endl;
@@ -342,18 +345,19 @@ void test_stmt_format_insert_data_with_empty_rows() {
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
 
-    if (auto* stmt_ptr = dynamic_cast<StmtV2InsertData*>(ptr.get())) {
-        const auto& stmt_data = *stmt_ptr;
-        (void)stmt_data;
+    if (auto* base_ptr = ptr.get()) {
+        const auto* payload = base_ptr->payload_as<StmtV2InsertData>();
+        assert(payload != nullptr);
+        (void)payload;
 
         // Verify the timing information excludes empty table
-        assert(stmt_data.start_time == 1500000000000);
-        assert(stmt_data.end_time == 1500000000002);
+        assert(base_ptr->start_time == 1500000000000);
+        assert(base_ptr->end_time == 1500000000002);
 
         // Verify total rows only counts non-empty tables
-        assert(stmt_data.total_rows == 3);  // 2 rows from table1 + 1 row from table3
+        assert(base_ptr->total_rows == 3);  // 2 rows from table1 + 1 row from table3
     } else {
-        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+        throw std::runtime_error("Unexpected null BaseInsertData pointer");
     }
 
     std::cout << "test_stmt_format_insert_data_with_empty_rows passed!" << std::endl;
