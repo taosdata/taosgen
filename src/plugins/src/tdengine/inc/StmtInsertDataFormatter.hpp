@@ -14,10 +14,7 @@ public:
                                        const ColumnConfigInstanceVector& col_instances,
                                        const ColumnConfigInstanceVector& tag_instances) override;
 
-    FormatResult format(const InsertDataConfig& config,
-                        const ColumnConfigInstanceVector& col_instances,
-                        const ColumnConfigInstanceVector& tag_instances,
-                        MemoryPool::MemoryBlock* batch,
+    FormatResult format(MemoryPool::MemoryBlock* batch,
                         bool is_checkpoint_recover = false) const override;
 
 private:

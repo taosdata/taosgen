@@ -529,6 +529,7 @@ void InsertDataAction::producer_thread_function(
 
     // Create formatter
     auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(config_.data_format);
+    formatter->init(config_, col_instances_, tag_instances_);
 
     // Data generation loop
     while (!stop_execution_.load()) {
@@ -541,7 +542,7 @@ void InsertDataAction::producer_thread_function(
         // size_t total_rows = batch->total_rows;
 
         // Format data
-        FormatResult formatted_result = formatter->format(config_, col_instances_, tag_instances_, std::move(batch.value()), is_checkpoint_recover_);
+        FormatResult formatted_result = formatter->format(std::move(batch.value()), is_checkpoint_recover_);
 
         // Push data to pipeline
         try {

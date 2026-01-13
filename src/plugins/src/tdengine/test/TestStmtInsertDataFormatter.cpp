@@ -143,7 +143,8 @@ void test_stmt_format_insert_data_single_table() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     StmtInsertDataFormatter formatter(format);
-    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    FormatResult result = formatter.format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
@@ -200,7 +201,8 @@ void test_stmt_format_insert_data_multiple_tables() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(format);
-    FormatResult result = formatter->format(config, col_instances, tag_instances, block);
+    formatter->init(config, col_instances, tag_instances);
+    FormatResult result = formatter->format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
@@ -290,9 +292,10 @@ void test_stmt_format_insert_data_invalid_version() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     StmtInsertDataFormatter formatter(format);
+    formatter.init(config, col_instances, tag_instances);
 
     try {
-        formatter.format(config, col_instances, tag_instances, block);
+        formatter.format(block);
         assert(false && "Should throw exception for invalid version");
     } catch (const std::invalid_argument& e) {
         assert(std::string(e.what()) == "Unsupported stmt version: v1");
@@ -340,7 +343,8 @@ void test_stmt_format_insert_data_with_empty_rows() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(format);
-    FormatResult result = formatter->format(config, col_instances, tag_instances, block);
+    formatter->init(config, col_instances, tag_instances);
+    FormatResult result = formatter->format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);

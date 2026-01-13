@@ -111,7 +111,8 @@ MqttInsertData create_test_mqtt_data(MemoryPool& pool,
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     auto formatter = MqttInsertDataFormatter(config.data_format);
-    auto result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    auto result = formatter.format(block);
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
     auto* base_ptr = ptr.get();

@@ -21,6 +21,7 @@ std::unique_ptr<ISinkContext> StmtInsertDataFormatter::init(const InsertDataConf
     //               -ntb   : INSERT INTO `db_name`.`stb_name`(ts,cols-name) VALUES(?,cols-qmark)
     // 3. auto create table : INSERT INTO ? USING `db_name`.`stb_name` TAGS (tags-qmark) VALUES(?,cols-qmark)
 
+    IInsertDataFormatter::init(config, col_instances, tag_instances);
     const auto* tc = get_plugin_config<TDengineConfig>(config.extensions, "tdengine");
     if (tc == nullptr) {
         throw std::runtime_error("TDengine configuration not found in insert extensions");
@@ -87,19 +88,14 @@ std::unique_ptr<ISinkContext> StmtInsertDataFormatter::init(const InsertDataConf
     return std::make_unique<StmtContext>(result.str());
 }
 
-FormatResult StmtInsertDataFormatter::format(const InsertDataConfig& config,
-                                             const ColumnConfigInstanceVector& col_instances,
-                                             const ColumnConfigInstanceVector& tag_instances,
-                                             MemoryPool::MemoryBlock* batch,
+FormatResult StmtInsertDataFormatter::format(MemoryPool::MemoryBlock* batch,
                                              bool is_checkpoint_recover) const {
-    (void)config;
-
     if (format_options_->version != "v2") {
         throw std::invalid_argument("Unsupported stmt version: " + format_options_->version);
     }
 
     StmtV2InsertData data(batch, is_checkpoint_recover);
-    auto payload = BaseInsertData::make_with_payload(batch, col_instances, tag_instances, std::move(data));
+    auto payload = BaseInsertData::make_with_payload(batch, *col_instances_, *tag_instances_, std::move(data));
 
     return FormatResult(std::move(payload));
 }

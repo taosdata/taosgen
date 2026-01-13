@@ -9,22 +9,16 @@ MqttInsertDataFormatter::MqttInsertDataFormatter(const DataFormat& format) : for
     }
 }
 
-FormatResult MqttInsertDataFormatter::format(const InsertDataConfig& config,
-                                             const ColumnConfigInstanceVector& col_instances,
-                                             const ColumnConfigInstanceVector& tag_instances,
-                                             MemoryPool::MemoryBlock* batch, bool is_checkpoint_recover) const {
-    (void)config;
+FormatResult MqttInsertDataFormatter::format(MemoryPool::MemoryBlock* batch, bool is_checkpoint_recover) const {
     (void)is_checkpoint_recover;
     if (!batch || batch->total_rows == 0) {
         return FormatResult("");
     }
 
-    return format_json(col_instances, tag_instances, batch);
+    return format_json(batch);
 }
 
-FormatResult MqttInsertDataFormatter::format_json(const ColumnConfigInstanceVector& col_instances,
-                                                  const ColumnConfigInstanceVector& tag_instances,
-                                                  MemoryPool::MemoryBlock* batch) const {
+FormatResult MqttInsertDataFormatter::format_json(MemoryPool::MemoryBlock* batch) const {
 
     CompressionType compression_type = string_to_compression(format_options_->compression);
     EncodingType encoding_type = string_to_encoding(format_options_->encoding);
@@ -32,7 +26,7 @@ FormatResult MqttInsertDataFormatter::format_json(const ColumnConfigInstanceVect
     MqttInsertData msg_batch;
     msg_batch.reserve((batch->total_rows + format_options_->records_per_message - 1) / format_options_->records_per_message);
 
-    TopicGenerator topic_generator(format_options_->topic, col_instances, tag_instances);
+    TopicGenerator topic_generator(format_options_->topic, *col_instances_, *tag_instances_);
 
 
     if (format_options_->records_per_message == 1) {
@@ -42,7 +36,7 @@ FormatResult MqttInsertDataFormatter::format_json(const ColumnConfigInstanceVect
             auto& table_block = batch->tables[table_idx];
             for (size_t row_idx = 0; row_idx < table_block.used_rows; ++row_idx) {
                 std::string topic = topic_generator.generate(table_block, row_idx);
-                RowSerializer::to_json_inplace(col_instances, tag_instances, table_block, row_idx, format_options_->tbname_key, json_data);
+                RowSerializer::to_json_inplace(*col_instances_, *tag_instances_, table_block, row_idx, format_options_->tbname_key, json_data);
                 std::string payload = json_data.dump();
 
                 // Encoding conversion
@@ -73,7 +67,7 @@ FormatResult MqttInsertDataFormatter::format_json(const ColumnConfigInstanceVect
                 }
 
                 // Add the current record's JSON to the array
-                RowSerializer::to_json_inplace(col_instances, tag_instances, table_block, row_idx, format_options_->tbname_key, record_json);
+                RowSerializer::to_json_inplace(*col_instances_, *tag_instances_, table_block, row_idx, format_options_->tbname_key, record_json);
                 json_array.emplace_back(std::move(record_json));
                 record_json.clear();
 
@@ -110,6 +104,6 @@ FormatResult MqttInsertDataFormatter::format_json(const ColumnConfigInstanceVect
         }
     }
 
-    auto payload = BaseInsertData::make_with_payload(batch, col_instances, tag_instances, std::move(msg_batch));
+    auto payload = BaseInsertData::make_with_payload(batch, *col_instances_, *tag_instances_, std::move(msg_batch));
     return FormatResult(std::move(payload));
 }

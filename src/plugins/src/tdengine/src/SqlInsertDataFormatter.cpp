@@ -13,10 +13,7 @@ SqlInsertDataFormatter::SqlInsertDataFormatter(const DataFormat& format) : forma
     }
 }
 
-FormatResult SqlInsertDataFormatter::format(const InsertDataConfig& config,
-                                            const ColumnConfigInstanceVector& col_instances,
-                                            const ColumnConfigInstanceVector& tag_instances,
-                                            MemoryPool::MemoryBlock* batch,
+FormatResult SqlInsertDataFormatter::format(MemoryPool::MemoryBlock* batch,
                                             bool is_checkpoint_recover) const {
 
     (void)is_checkpoint_recover;
@@ -131,11 +128,11 @@ FormatResult SqlInsertDataFormatter::format(const InsertDataConfig& config,
         fmt::format_to(out, " `{}`", table_block.table_name);
 
         if (format_options_->auto_create_table && table_block.tags_ptr) {
-            fmt::format_to(out, " USING `{}` TAGS (", config.schema.name);
+            fmt::format_to(out, " USING `{}` TAGS (", config_->schema.name);
 
-            for (size_t tag_idx = 0; tag_idx < tag_instances.size(); ++tag_idx) {
+            for (size_t tag_idx = 0; tag_idx < tag_instances_->size(); ++tag_idx) {
                 if (tag_idx > 0) fmt::format_to(out, ",");
-                serialize_field(tag_instances[tag_idx],
+                serialize_field((*tag_instances_)[tag_idx],
                                 table_block.tags_ptr->columns[tag_idx],
                                 0);
             }
@@ -149,9 +146,9 @@ FormatResult SqlInsertDataFormatter::format(const InsertDataConfig& config,
             fmt::format_to(out, "({}", table_block.timestamps[row_idx]);
 
             // Columns
-            for (size_t col_idx = 0; col_idx < col_instances.size(); ++col_idx) {
+            for (size_t col_idx = 0; col_idx < col_instances_->size(); ++col_idx) {
                 fmt::format_to(out, ",");
-                serialize_field(col_instances[col_idx],
+                serialize_field((*col_instances_)[col_idx],
                                 table_block.columns[col_idx],
                                 row_idx);
             }
@@ -161,6 +158,6 @@ FormatResult SqlInsertDataFormatter::format(const InsertDataConfig& config,
 
     fmt::format_to(out, ";");
 
-    auto payload = BaseInsertData::make_with_payload(batch, col_instances, tag_instances, SqlInsertData{ std::move(sql_buffer) });
+    auto payload = BaseInsertData::make_with_payload(batch, *col_instances_, *tag_instances_, SqlInsertData{ std::move(sql_buffer) });
     return FormatResult(std::move(payload));
 }

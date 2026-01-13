@@ -49,7 +49,8 @@ void test_mqtt_format_single_record_per_message() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     MqttInsertDataFormatter formatter(config.data_format);
-    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    FormatResult result = formatter.format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
@@ -114,7 +115,8 @@ void test_mqtt_format_multiple_records_per_message() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     MqttInsertDataFormatter formatter(config.data_format);
-    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    FormatResult result = formatter.format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
@@ -171,7 +173,8 @@ void test_mqtt_format_empty_batch() {
     assert(block == nullptr);
 
     MqttInsertDataFormatter formatter(config.data_format);
-    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    FormatResult result = formatter.format(block);
     (void)result;
     assert(std::holds_alternative<std::string>(result));
     assert(std::get<std::string>(result).empty());
@@ -210,7 +213,8 @@ void test_mqtt_format_insert_data_with_empty_rows() {
 
 
     auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(config.data_format);
-    FormatResult result = formatter->format(config, col_instances, tag_instances, block);
+    formatter->init(config, col_instances, tag_instances);
+    FormatResult result = formatter->format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
@@ -256,7 +260,8 @@ void test_mqtt_format_with_compression() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     MqttInsertDataFormatter formatter(config.data_format);
-    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    FormatResult result = formatter.format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
@@ -328,7 +333,8 @@ void test_mqtt_format_with_tags() {
     block->tables[0].tags_ptr = pool.register_table_tags("table1", tag_values);
 
     MqttInsertDataFormatter formatter(config.data_format);
-    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    FormatResult result = formatter.format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);

@@ -44,7 +44,8 @@ void test_kafka_format_json_single_record() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     KafkaInsertDataFormatter formatter(config.data_format);
-    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    FormatResult result = formatter.format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
@@ -105,7 +106,8 @@ void test_kafka_format_json_multiple_records() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     KafkaInsertDataFormatter formatter(config.data_format);
-    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    FormatResult result = formatter.format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
@@ -167,7 +169,8 @@ void test_kafka_format_influx_single_record() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     KafkaInsertDataFormatter formatter(config.data_format);
-    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    FormatResult result = formatter.format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
@@ -220,7 +223,8 @@ void test_kafka_format_influx_multiple_records() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     KafkaInsertDataFormatter formatter(config.data_format);
-    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    FormatResult result = formatter.format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
@@ -262,7 +266,8 @@ void test_kafka_format_empty_batch() {
     assert(block == nullptr);
 
     KafkaInsertDataFormatter formatter(config.data_format);
-    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    FormatResult result = formatter.format(block);
 
     assert(std::holds_alternative<std::string>(result));
     assert(std::get<std::string>(result).empty());
@@ -291,9 +296,10 @@ void test_kafka_format_invalid_serializer() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     KafkaInsertDataFormatter formatter(config.data_format);
+    formatter.init(config, col_instances, tag_instances);
 
     try {
-        formatter.format(config, col_instances, tag_instances, block);
+        formatter.format(block);
         assert(false && "Should have thrown an exception");
     } catch (const std::runtime_error& e) {
         assert(std::string(e.what()) == "Unsupported Kafka value_serializer: unsupported_format");
@@ -344,10 +350,11 @@ void test_kafka_format_with_tags() {
     block->tables[0].tags_ptr = pool.register_table_tags("table1", tag_values);
 
     KafkaInsertDataFormatter formatter(config.data_format);
+    formatter.init(config, col_instances, tag_instances);
 
     // Test JSON format with tags
     {
-        FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+        FormatResult result = formatter.format(block);
         assert(std::holds_alternative<InsertFormatResult>(result));
         const auto& ptr = std::get<InsertFormatResult>(result);
         auto* base_ptr = ptr.get();
@@ -375,7 +382,7 @@ void test_kafka_format_with_tags() {
         auto* kf = get_kafka_format_options(config);
         assert(kf != nullptr);
         kf->value_serializer = "influx";
-        FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+        FormatResult result = formatter.format(block);
         assert(std::holds_alternative<InsertFormatResult>(result));
         const auto& ptr = std::get<InsertFormatResult>(result);
         auto* base_ptr = ptr.get();

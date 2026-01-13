@@ -77,7 +77,8 @@ void test_format_insert_data_single_table() {
     }
 
     SqlInsertDataFormatter formatter(format);
-    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    FormatResult result = formatter.format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
@@ -132,7 +133,8 @@ void test_format_insert_data_multiple_tables() {
     (void)block;
 
     auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(format);
-    FormatResult result = formatter->format(config, col_instances, tag_instances, block);
+    formatter->init(config, col_instances, tag_instances);
+    FormatResult result = formatter->format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
@@ -176,7 +178,8 @@ void test_format_insert_data_empty_rows() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     SqlInsertDataFormatter formatter(format);
-    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    FormatResult result = formatter.format(block);
 
     assert(std::holds_alternative<std::string>(result));
     assert(std::get<std::string>(result) == "");
@@ -210,7 +213,8 @@ void test_format_insert_data_different_types() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     SqlInsertDataFormatter formatter(format);
-    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    FormatResult result = formatter.format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
@@ -266,7 +270,8 @@ void test_format_insert_data_auto_create_table() {
     block->tables[0].tags_ptr = pool.register_table_tags("d1001", tag_values);
 
     SqlInsertDataFormatter formatter(format);
-    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    FormatResult result = formatter.format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
@@ -334,7 +339,8 @@ void test_format_insert_data_multiple_tables_with_tags() {
     block->tables[1].tags_ptr = pool.register_table_tags("t2", tags2);
 
     SqlInsertDataFormatter formatter(format);
-    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    FormatResult result = formatter.format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
