@@ -12,6 +12,16 @@ std::mutex CheckpointAction::global_mutex_;
 std::condition_variable CheckpointAction::global_cv_;
 std::atomic<int> CheckpointAction::active_threads_count_{0};
 
+namespace {
+const TDengineConfig& get_tdengine_config_from_global(const GlobalConfig& global) {
+    const auto* tc = get_plugin_config<TDengineConfig>(global.extensions, "tdengine");
+    if (tc == nullptr) {
+        throw std::runtime_error("TDengine configuration not found in global extensions.");
+    }
+    return *tc;
+}
+} // namespace
+
 void CheckpointAction::register_signal_handlers() {
     static std::once_flag flag;
     std::call_once(flag, [] {
@@ -106,13 +116,7 @@ void CheckpointAction::save_checkpoint() {
     );
     std::string min_table_name = min_it->first;
     // Save checkpoint_data to a file or database
-
-    const auto* tc = get_plugin_config<TDengineConfig>(global_.extensions, "tdengine");
-    if (tc == nullptr) {
-        throw std::runtime_error("TDengine configuration not found in global extensions.");
-    }
-
-    std::string file_path = global_.yaml_cfg_dir + "_"+ tc->database+ "_"+ global_.schema.name + "_checkpoints.json"; // Example file path
+    std::string file_path = global_.yaml_cfg_dir + "_" + get_tdengine_config_from_global(global_).database + "_" + global_.schema.name + "_checkpoints.json"; // Example file path
     nlohmann::json json_data;
     json_data["table_name"] = min_table_name;
     json_data["last_checkpoint_time"] = min_it->second.last_checkpoint_time;
@@ -171,13 +175,7 @@ bool CheckpointAction::is_recover(const GlobalConfig& global, const CheckpointIn
         return false;
     }
 
-    const auto* tc = get_plugin_config<TDengineConfig>(global.extensions, "tdengine");
-    if (tc == nullptr) {
-        throw std::runtime_error("TDengine configuration not found in global extensions.");
-    }
-
-    std::string file_path = global.yaml_cfg_dir + "_" + tc->database + "_" + global.schema.name + "_checkpoints.json"; // Example file path
-
+    std::string file_path = global.yaml_cfg_dir + "_" + get_tdengine_config_from_global(global).database + "_" + global.schema.name + "_checkpoints.json"; // Example file path
     std::ifstream ifs(file_path);
     if (!ifs) {
         return false; // Return if file doesn't exist
@@ -191,13 +189,7 @@ void CheckpointAction::checkpoint_recover(const GlobalConfig& global, InsertData
         return;
     }
 
-    const auto* tc = get_plugin_config<TDengineConfig>(global.extensions, "tdengine");
-    if (tc == nullptr) {
-        throw std::runtime_error("TDengine configuration not found in global extensions.");
-    }
-
-    std::string file_path = global.yaml_cfg_dir + "_" + tc->database + "_" + global.schema.name + "_checkpoints.json"; // Example file path
-
+    std::string file_path = global.yaml_cfg_dir + "_" + get_tdengine_config_from_global(global).database + "_" + global.schema.name + "_checkpoints.json"; // Example file path
     std::ifstream ifs(file_path);
     if (!ifs) {
         return; // Return if file doesn't exist
@@ -228,13 +220,7 @@ void CheckpointAction::checkpoint_recover(const GlobalConfig& global, InsertData
 
 void CheckpointAction::delete_checkpoint() {
     std::lock_guard<std::mutex> lock(map_mutex_);
-
-    const auto* tc = get_plugin_config<TDengineConfig>(global_.extensions, "tdengine");
-    if (tc == nullptr) {
-        throw std::runtime_error("TDengine configuration not found in global extensions.");
-    }
-
-    std::string file_path = global_.yaml_cfg_dir + "_" + tc->database + "_" + global_.schema.name + "_checkpoints.json";
+    std::string file_path = global_.yaml_cfg_dir + "_" + get_tdengine_config_from_global(global_).database + "_" + global_.schema.name + "_checkpoints.json";
     std::remove(file_path.c_str());
     checkpoint_map_.clear();
     LogUtils::info("[Checkpoint] delete checkpoint file and cleared all in-memory checkpoint data");
