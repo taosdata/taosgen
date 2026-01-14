@@ -52,7 +52,7 @@ std::unique_ptr<ISinkContext> StmtInsertDataFormatter::init(const InsertDataConf
 
         // Add column names
         for (size_t i = 0; i < col_instances.size(); i++) {
-            result << "," << col_instances[i].name();
+            result << ",`" << col_instances[i].name() << "`";
         }
 
         result << ") VALUES(?,?";
