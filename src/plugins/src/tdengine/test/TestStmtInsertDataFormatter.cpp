@@ -76,7 +76,7 @@ void test_stmt_prepare_supertable_websocket() {
     (void)stmt;
     assert(stmt != nullptr);
 
-    std::string expected = "INSERT INTO `test_stb`(tbname,ts,f1,i1) VALUES(?,?,?,?)";
+    std::string expected = "INSERT INTO `test_stb`(tbname,ts,`f1`,`i1`) VALUES(?,?,?,?)";
     assert(stmt->sql == expected);
     std::cout << "test_stmt_prepare_supertable_websocket passed!" << std::endl;
 }
