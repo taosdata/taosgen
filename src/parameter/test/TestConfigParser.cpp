@@ -231,7 +231,7 @@ void test_GenerationConfig_DataDisorder() {
     assert(disorder.intervals[1].latency_range == 200);
 }
 
-void test_GenerationConfig() {
+void test_GenerationConfig_base() {
     std::string yaml = R"(
 interlace: 100
 num_cached_batches: 18
@@ -272,6 +272,59 @@ rows_per_batch: 500
 
     assert(cfg.rows_per_table == 10000);
     assert(cfg.rows_per_batch == 500);
+}
+
+void test_GenerationConfig_data_cache() {
+    // interlace disabled
+    {
+        std::string yaml = R"(
+rows_per_table: 10000
+rows_per_batch: 500
+)";
+        YAML::Node node = YAML::Load(yaml);
+        GenerationConfig cfg = node.as<GenerationConfig>();
+        (void)cfg;
+        assert(cfg.interlace_mode.enabled == false);
+        assert(cfg.rows_per_table == 10000);
+        assert(cfg.rows_per_batch == 500);
+        assert(cfg.data_cache.enabled == true);
+        assert(cfg.data_cache.num_cached_batches == 20);
+    }
+
+    // interlace enabled
+    {
+        std::string yaml = R"(
+interlace: 100
+rows_per_table: 10000
+rows_per_batch: 500
+)";
+        YAML::Node node = YAML::Load(yaml);
+        GenerationConfig cfg = node.as<GenerationConfig>();
+        (void)cfg;
+        assert(cfg.interlace_mode.enabled == true);
+        assert(cfg.interlace_mode.rows == 100);
+        assert(cfg.rows_per_table == 10000);
+        assert(cfg.rows_per_batch == 500);
+        assert(cfg.data_cache.enabled == true);
+        assert(cfg.data_cache.num_cached_batches == 100);
+    }
+
+    // invalid
+    {
+        std::string yaml = R"(
+interlace: 100
+rows_per_table: 10000
+rows_per_batch: 500
+num_cached_batches: 200
+)";
+        YAML::Node node = YAML::Load(yaml);
+        try {
+            GenerationConfig cfg = node.as<GenerationConfig>();
+            assert(false && "Should throw for invalid num_cached_batches");
+        } catch (const std::runtime_error& e) {
+            assert(std::string(e.what()).find("num_cached_batches cannot be greater than the number of batches needed") != std::string::npos);
+        }
+    }
 }
 
 void test_SchemaConfig() {
@@ -1257,7 +1310,8 @@ int main() {
     test_FromCSVConfig_unknown_key_columns();
     test_GenerationConfig_DataDisorder_Interval();
     test_GenerationConfig_DataDisorder();
-    test_GenerationConfig();
+    test_GenerationConfig_base();
+    test_GenerationConfig_data_cache();
     test_SchemaConfig();
     test_SchemaConfig_csv_ts_gen();
 

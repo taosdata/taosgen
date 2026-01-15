@@ -403,7 +403,7 @@ namespace YAML {
                 }
 
                 if (!data_cache_specified) {
-                    rhs.data_cache.num_cached_batches = std::min<size_t>(batches_needed, rhs.data_cache.num_cached_batches);
+                    rhs.data_cache.num_cached_batches = batches_needed;
                 } else {
                     if (rhs.data_cache.num_cached_batches > batches_needed) {
                         throw std::runtime_error("num_cached_batches cannot be greater than the number of batches needed to fill a table.");
