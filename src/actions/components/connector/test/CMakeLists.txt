@@ -1,3 +1,13 @@
+# Test TDengineConnector
+add_executable(TestTDengineConnector
+  TestTDengineConnector.cpp
+)
+target_link_libraries(TestTDengineConnector
+  PRIVATE
+    components_connector
+)
+add_test(NAME TestTDengineConnector COMMAND TestTDengineConnector)
+
 # Test NativeConnector
 add_executable(TestNativeConnector
   TestNativeConnector.cpp

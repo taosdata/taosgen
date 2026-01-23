@@ -8,9 +8,16 @@
 #include <vector>
 #include <thread>
 #include <unistd.h>
+#include <limits.h>
 
-#ifdef __APPLE__
+#if defined(_WIN32) || defined(_WIN64)
+#include <Windows.h>
+#include <vector>
+#endif
+
+#if defined(__APPLE__)
 #include <mach/mach.h>
+#include <mach-o/dyld.h>
 #endif
 
 namespace ProcessUtils {
@@ -225,6 +232,56 @@ double get_system_free_memory_gb() {
 
 #else
     return -1.0; // Not implemented for this platform
+#endif
+}
+
+std::string get_exe_directory() {
+#if defined(_WIN32) || defined(_WIN64)
+    std::vector<char> buffer(MAX_PATH, '\0');
+    DWORD len = GetModuleFileNameA(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
+    if (len == 0) {
+        return "./";
+    }
+
+    std::string path(buffer.data(), len);
+    size_t pos = path.find_last_of("\\/");
+    if (pos != std::string::npos) {
+        path.erase(pos + 1);
+    } else {
+        path.push_back('\\');
+    }
+    return path;
+#elif defined(__APPLE__)
+    char buf[PATH_MAX];
+    uint32_t size = sizeof(buf);
+    if (_NSGetExecutablePath(buf, &size) == 0) {
+        std::string path(buf);
+        size_t pos = path.find_last_of('/');
+        if (pos != std::string::npos) {
+            path.erase(pos + 1);
+        } else {
+            path.push_back('/');
+        }
+        return path;
+    } else {
+        return "./";
+    }
+#else
+    char result[PATH_MAX];
+    ssize_t count = readlink("/proc/self/exe", result, sizeof(result) - 1);
+    if (count != -1) {
+        result[count] = '\0';
+        std::string path(result);
+        size_t pos = path.find_last_of('/');
+        if (pos != std::string::npos) {
+            path.erase(pos + 1);
+        } else {
+            path.push_back('/');
+        }
+        return path;
+    } else {
+        return "./";
+    }
 #endif
 }
 
