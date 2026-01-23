@@ -1,3 +1,23 @@
+# Test KafkaConfigParser
+add_executable(TestKafkaConfigParser
+  TestKafkaConfigParser.cpp
+)
+target_link_libraries(TestKafkaConfigParser
+  PRIVATE
+    plugin_kafka
+)
+add_test(NAME TestKafkaConfigParser COMMAND TestKafkaConfigParser)
+
+# Test KafkaParameterContext
+add_executable(TestKafkaParameterContext
+  TestKafkaParameterContext.cpp
+)
+target_link_libraries(TestKafkaParameterContext
+  PRIVATE
+    plugins
+)
+add_test(NAME TestKafkaParameterContext COMMAND TestKafkaParameterContext)
+
 # Test KafkaInsertData
 add_executable(TestKafkaInsertData
   TestKafkaInsertData.cpp

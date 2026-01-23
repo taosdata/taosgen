@@ -77,18 +77,6 @@ void InsertDataAction::set_thread_affinity(size_t thread_id, bool reverse, const
 }
 
 void InsertDataAction::execute() {
-    std::string target_info;
-    if (config_.target_type == "tdengine") {
-        target_info = "@" + config_.tdengine.host + ":" + std::to_string(config_.tdengine.port);
-    } else if (config_.target_type == "mqtt") {
-        target_info = "@" + config_.mqtt.uri;
-    } else if (config_.target_type == "kafka") {
-        target_info = "@" + config_.kafka.bootstrap_servers;
-    } else {
-        throw std::invalid_argument("Unsupported target type: " + config_.target_type);
-    }
-    LogUtils::info("Inserting data into: {}{}", config_.target_type, target_info);
-
     std::optional<ConnectorSource> conn_source;
 
     try {
@@ -168,8 +156,7 @@ void InsertDataAction::execute() {
         GarbageCollector<FormatResult> gc((consumer_thread_count + group_size - 1) / group_size);
 
         auto action_info = std::make_shared<ActionRegisterInfo>();
-        if (config_.checkpoint_info.enabled && config_.data_format.format_type == "stmt"
-            && config_.data_format.stmt.version == "v2") {
+        if (config_.checkpoint_info.enabled && config_.data_format.format_type == "stmt") {
             LogUtils::info("Starting checkpoint configuration construction...");
             CheckpointAction::register_signal_handlers();
             CheckpointActionConfig checkpoint_config(this->config_);
@@ -242,7 +229,12 @@ void InsertDataAction::execute() {
 
         // Start consumer threads
         if (config_.target_type == "tdengine") {
-            conn_source.emplace(config_.tdengine);
+            const auto* tc = get_plugin_config<TDengineConfig>(config_.extensions, config_.target_type);
+            if (tc == nullptr) {
+                throw std::invalid_argument("Unsupported target type: " + config_.target_type);
+            }
+
+            conn_source.emplace(*tc);
         }
 
         for (size_t i = 0; i < consumer_thread_count; i++) {
@@ -537,6 +529,7 @@ void InsertDataAction::producer_thread_function(
 
     // Create formatter
     auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(config_.data_format);
+    formatter->init(config_, col_instances_, tag_instances_);
 
     // Data generation loop
     while (!stop_execution_.load()) {
@@ -549,7 +542,7 @@ void InsertDataAction::producer_thread_function(
         // size_t total_rows = batch->total_rows;
 
         // Format data
-        FormatResult formatted_result = formatter->format(config_, col_instances_, tag_instances_, std::move(batch.value()), is_checkpoint_recover_);
+        FormatResult formatted_result = formatter->format(std::move(batch.value()), is_checkpoint_recover_);
 
         // Push data to pipeline
         try {
@@ -590,13 +583,12 @@ void InsertDataAction::consumer_thread_function(
         return;
     }
 
-    if (config_.target_type == "tdengine") {
+    {
         auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(config_.data_format);
-        auto sql = formatter->prepare(config_, col_instances_, tag_instances_);
+        auto ctx = formatter->init(config_, col_instances_, tag_instances_);
 
-        if (!writer->prepare(sql)) {
-            handle_startup_error("Failed to prepare writer for thread {} with SQL: {}",
-                consumer_id, sql);
+        if (!writer->prepare(std::move(ctx))) {
+            handle_startup_error("Failed to prepare writer for thread {}", consumer_id);
         }
     }
 

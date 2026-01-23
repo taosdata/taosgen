@@ -1,6 +1,7 @@
 # Create library target
 add_library(parameter STATIC
   src/ParameterContext.cpp
+  src/StepParserRegistry.cpp
 )
 
 target_compile_definitions(parameter PRIVATE

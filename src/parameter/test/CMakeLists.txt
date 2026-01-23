@@ -18,6 +18,7 @@ add_executable(TestConfigParser
 target_link_libraries(TestConfigParser
   PRIVATE
     parameter
+    plugins
 )
 add_test(NAME TestConfigParser COMMAND TestConfigParser)
 
@@ -28,5 +29,6 @@ add_executable(TestParameterContext
 target_link_libraries(TestParameterContext
   PRIVATE
     parameter
+    plugins
 )
 add_test(NAME TestParameterContext COMMAND TestParameterContext)

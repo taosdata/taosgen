@@ -5,7 +5,7 @@
 #include <sstream>
 
 // --- RdKafkaClient Implementation ---
-RdKafkaClient::RdKafkaClient(const KafkaConfig& config, const DataFormat::KafkaConfig& format, size_t no)
+RdKafkaClient::RdKafkaClient(const KafkaConfig& config, const KafkaFormatOptions& format, size_t no)
     : config_(config), format_(format), no_(no) {
 
     LogUtils::debug("Creating Kafka client #{}", no_);
@@ -91,11 +91,10 @@ void RdKafkaClient::close() {
     is_connected_ = false;
 }
 
-bool RdKafkaClient::produce(const KafkaInsertData& data) {
-    const KafkaMessageBatch& batch_msgs = data.data;
-    auto it = batch_msgs.begin();
+bool RdKafkaClient::produce(const KafkaMessageBatch& msgs) {
+    auto it = msgs.begin();
 
-    while (it != batch_msgs.end()) {
+    while (it != msgs.end()) {
         const auto& [key, payload] = *it;
 
         RdKafka::ErrorCode err = producer_->produce(
@@ -127,7 +126,7 @@ bool RdKafkaClient::produce(const KafkaInsertData& data) {
 
 // --- KafkaClient Implementation ---
 KafkaClient::KafkaClient(const KafkaConfig& config,
-                         const DataFormat::KafkaConfig& format,
+                         const KafkaFormatOptions& format,
                          size_t no) {
     client_ = std::make_unique<RdKafkaClient>(config, format, no);
 }
@@ -146,11 +145,6 @@ void KafkaClient::close() {
     if (client_) {
         client_->close();
     }
-}
-
-bool KafkaClient::prepare(const std::string& context) {
-    (void)context;
-    return true;
 }
 
 bool KafkaClient::execute(const KafkaInsertData& data) {

@@ -3,24 +3,19 @@
 #include "TableNameConfig.hpp"
 #include "TagsConfig.hpp"
 #include "ColumnsConfig.hpp"
-#include "TDengineConfig.hpp"
-#include "MqttConfig.hpp"
-#include "KafkaConfig.hpp"
 #include "CheckpointInfo.hpp"
 #include "DatabaseInfo.hpp"
 #include "SuperTableInfo.hpp"
 #include "DataFormat.hpp"
 #include "DataChannel.hpp"
-#include "TDengineConfig.hpp"
 #include "SchemaConfig.hpp"
+#include "PluginExtensions.hpp"
 #include <string>
 #include <vector>
 
 struct InsertDataConfig {
-    TDengineConfig tdengine;
-    MqttConfig mqtt;
-    KafkaConfig kafka;
     SchemaConfig schema;
+    PluginExtensions extensions;
 
     std::string target_type = "tdengine";
     std::string timestamp_precision = "ms";

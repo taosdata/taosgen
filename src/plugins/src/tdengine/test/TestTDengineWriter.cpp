@@ -1,8 +1,14 @@
 #include "TDengineWriter.hpp"
+#include "TDengineRegistrar.hpp"
+#include "StmtContext.hpp"
 #include <cassert>
 #include <iostream>
 #include <stdexcept>
 #include <optional>
+
+TDengineConfig* get_tdengine_config(InsertDataConfig& config) {
+    return get_plugin_config_mut<TDengineConfig>(config.extensions, "tdengine");
+}
 
 InsertDataConfig create_test_config() {
     InsertDataConfig config;
@@ -15,10 +21,13 @@ InsertDataConfig create_test_config() {
     };
 
     // Target config
+    set_plugin_config(config.extensions, "tdengine", TDengineConfig{});
+    auto* tc = get_tdengine_config(config);
+    assert(tc != nullptr);
+    tc->dsn = "taos://root:taosdata@localhost:6030/test_action";
+    tc->init();
+    config.target_type = "tdengine";
     config.timestamp_precision = "ms";
-    config.tdengine = TDengineConfig{
-        "taos://root:taosdata@localhost:6030/test_action"
-    };
     config.schema.name = "test_super_table";
     config.schema.apply();
 
@@ -34,9 +43,7 @@ InsertDataConfig create_test_config() {
 }
 
 void test_create_tdengine_writer() {
-    InsertDataConfig config;
-    config.target_type = "tdengine";
-
+    auto config = create_test_config();
     auto writer = WriterFactory::create_writer(config);
     assert(writer != nullptr);
 
@@ -85,7 +92,9 @@ void test_connection() {
     assert(connected);
 
     // Test connection with invalid config
-    config.tdengine.host = "invalid_host";
+    auto* tc = get_tdengine_config(config);
+    assert(tc != nullptr);
+    tc->host = "invalid_host";
     TDengineWriter invalid_writer(config);
     connected = invalid_writer.connect(conn_src);
     assert(!connected);
@@ -96,26 +105,32 @@ void test_connection() {
 void test_prepare() {
     auto config = create_test_config();
     TDengineWriter writer(config);
-
-    // Not connected, should throw
     std::string sql = "SELECT * FROM `information_schema`.`ins_dnodes` where id=?";
 
-    try {
-        writer.prepare(sql);
-        assert(false);
-    } catch (const std::runtime_error& e) {
-        assert(std::string(e.what()) == "TDengineWriter is not connected");
+    // Not connected, should throw
+    {
+        std::unique_ptr<const ISinkContext> ctx = std::make_unique<StmtContext>(sql);
+
+        try {
+            writer.prepare(std::move(ctx));
+            assert(false);
+        } catch (const std::runtime_error& e) {
+            assert(std::string(e.what()) == "TDengineWriter is not connected");
+        }
     }
 
     // Connect and test prepare
-    std::optional<ConnectorSource> conn_src;
-    auto connected = writer.connect(conn_src);
-    (void)connected;
-    assert(connected);
+    {
+        std::optional<ConnectorSource> conn_src;
+        auto connected = writer.connect(conn_src);
+        (void)connected;
+        assert(connected);
 
-    auto prep_ok = writer.prepare(sql);
-    (void)prep_ok;
-    assert(prep_ok);
+        std::unique_ptr<const ISinkContext> ctx = std::make_unique<StmtContext>(sql);
+        auto prep_ok = writer.prepare(std::move(ctx));
+        (void)prep_ok;
+        assert(prep_ok);
+    }
 
     std::cout << "test_prepare passed." << std::endl;
 }
@@ -143,17 +158,24 @@ void test_write_operations() {
         MemoryPool pool(1, 1, 2, col_instances, tag_instances);
         auto* block = pool.convert_to_memory_block(std::move(batch));
 
-        SqlInsertData sql_data(block, col_instances, tag_instances, "INSERT INTO `test_action`.`d0` VALUES (1700000000000, 105, 3.1415926)");
-        writer.write(sql_data);
+        SqlInsertData data("INSERT INTO `test_action`.`d0` VALUES (1700000000000, 105, 3.1415926)");
+        auto base_data = BaseInsertData::make_with_payload(block, col_instances, tag_instances, std::move(data));
+        assert(base_data != nullptr);
+
+        writer.write(*base_data);
     }
 
     // Test STMT write
     {
-        std::string sql = "INSERT INTO `"
-            + config.tdengine.database + "`.`"
-            + config.schema.name + "`(tbname,ts,col1,col2) VALUES(?,?,?,?)";
+        auto* tc = get_tdengine_config(config);
+        assert(tc != nullptr);
 
-        auto prepared = writer.prepare(sql);
+        std::string sql = "INSERT INTO `"
+            + tc->database + "`.`"
+            + config.schema.name + "`(tbname,ts,col1,col2) VALUES(?,?,?,?)";
+        std::unique_ptr<const ISinkContext> ctx = std::make_unique<StmtContext>(sql);
+
+        auto prepared = writer.prepare(std::move(ctx));
         (void)prepared;
         assert(prepared);
 
@@ -167,8 +189,11 @@ void test_write_operations() {
         MemoryPool pool(1, 1, 2, col_instances, tag_instances);
         auto* block = pool.convert_to_memory_block(std::move(batch));
 
-        StmtV2InsertData stmt_data(block, col_instances, tag_instances);
-        writer.write(stmt_data);
+        StmtV2InsertData data(block);
+        auto base_data = BaseInsertData::make_with_payload(block, col_instances, tag_instances, std::move(data));
+        assert(base_data != nullptr);
+
+        writer.write(*base_data);
     }
 
     // Test unsupported data type
@@ -212,9 +237,12 @@ void test_write_without_connection() {
     MemoryPool pool(1, 1, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
-    SqlInsertData sql_data(block, col_instances, tag_instances, "test");
+    SqlInsertData data("test");
+    auto base_data = BaseInsertData::make_with_payload(block, col_instances, tag_instances, std::move(data));
+    assert(base_data != nullptr);
+
     try {
-        writer.write(sql_data);
+        writer.write(*base_data);
         assert(false);
     } catch (const std::runtime_error& e) {
         assert(std::string(e.what()) == "TDengineWriter is not connected");
@@ -247,8 +275,11 @@ void test_retry_mechanism() {
     MemoryPool pool(1, 1, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
-    SqlInsertData sql_data(block, col_instances, tag_instances, "show databases");
-    writer.write(sql_data);
+    SqlInsertData data("show databases");
+    auto base_data = BaseInsertData::make_with_payload(block, col_instances, tag_instances, std::move(data));
+    assert(base_data != nullptr);
+
+    writer.write(*base_data);
 
     std::cout << "test_retry_mechanism skipped (not implemented)." << std::endl;
 }
@@ -272,6 +303,7 @@ void test_metrics_and_time() {
 }
 
 int main() {
+    register_tdengine_plugin_config_hooks();
     test_create_tdengine_writer();
     test_constructor();
     test_connection();

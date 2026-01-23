@@ -1,17 +1,35 @@
-#include <iostream>
-#include <cassert>
+#include "DataFormat.hpp"
 #include "FormatterRegistrar.hpp"
 #include "StmtInsertDataFormatter.hpp"
+#include "StmtContext.hpp"
+#include <iostream>
+#include <cassert>
+
+TDengineConfig* get_tdengine_config(InsertDataConfig& config) {
+    set_plugin_config(config.extensions, "tdengine", TDengineConfig{});
+    return get_plugin_config_mut<TDengineConfig>(config.extensions, "tdengine");
+}
+
+StmtFormatOptions* get_stmt_format_options(DataFormat& format) {
+    set_format_opt(format, "stmt", StmtFormatOptions{});
+    return get_format_opt_mut<StmtFormatOptions>(format, "stmt");
+}
 
 void test_stmt_prepare_subtable() {
     DataFormat format;
     format.format_type = "stmt";
-    format.stmt.version = "v2";
-    format.stmt.auto_create_table = false;
+
+    auto* sf = get_stmt_format_options(format);
+    assert(sf != nullptr);
+
+    sf->version = "v2";
+    sf->auto_create_table = false;
 
     InsertDataConfig config;
-    config.tdengine.database = "test_db";
-    config.tdengine.protocol_type = TDengineConfig::ProtocolType::Native;
+    auto* tc = get_tdengine_config(config);
+    assert(tc != nullptr);
+    tc->database = "test_db";
+    tc->protocol_type = TDengineConfig::ProtocolType::Native;
 
     ColumnConfigInstanceVector col_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
@@ -20,23 +38,31 @@ void test_stmt_prepare_subtable() {
     ColumnConfigInstanceVector tag_instances;
 
     StmtInsertDataFormatter formatter(format);
-    std::string sql = formatter.prepare(config, col_instances, tag_instances);
+    auto ctx = formatter.init(config, col_instances, tag_instances);
+    const auto* stmt = dynamic_cast<const StmtContext*>(ctx.get());
+    (void)stmt;
+    assert(stmt != nullptr);
 
     std::string expected = "INSERT INTO ? VALUES(?,?,?)";
-    assert(sql == expected);
+    assert(stmt->sql == expected);
     std::cout << "test_stmt_prepare_subtable passed!" << std::endl;
 }
 
 void test_stmt_prepare_supertable_websocket() {
     DataFormat format;
     format.format_type = "stmt";
-    format.stmt.version = "v2";
-    format.stmt.auto_create_table = false;
+
+    auto* sf = get_stmt_format_options(format);
+    assert(sf != nullptr);
+    sf->version = "v2";
+    sf->auto_create_table = false;
 
     InsertDataConfig config;
-    config.tdengine.database = "test_db";
+    auto* tc = get_tdengine_config(config);
+    assert(tc != nullptr);
+    tc->database = "test_db";
+    tc->protocol_type = TDengineConfig::ProtocolType::WebSocket;
     config.schema.name = "test_stb";
-    config.tdengine.protocol_type = TDengineConfig::ProtocolType::WebSocket;
 
     ColumnConfigInstanceVector col_instances;
     col_instances.emplace_back(ColumnConfig{"f1", "FLOAT"});
@@ -45,21 +71,29 @@ void test_stmt_prepare_supertable_websocket() {
     ColumnConfigInstanceVector tag_instances;
 
     StmtInsertDataFormatter formatter(format);
-    std::string sql = formatter.prepare(config, col_instances, tag_instances);
+    auto ctx = formatter.init(config, col_instances, tag_instances);
+    const auto* stmt = dynamic_cast<const StmtContext*>(ctx.get());
+    (void)stmt;
+    assert(stmt != nullptr);
 
-    std::string expected = "INSERT INTO `test_stb`(tbname,ts,f1,i1) VALUES(?,?,?,?)";
-    assert(sql == expected);
+    std::string expected = "INSERT INTO `test_stb`(tbname,ts,`f1`,`i1`) VALUES(?,?,?,?)";
+    assert(stmt->sql == expected);
     std::cout << "test_stmt_prepare_supertable_websocket passed!" << std::endl;
 }
 
 void test_stmt_prepare_auto_create_table() {
     DataFormat format;
     format.format_type = "stmt";
-    format.stmt.version = "v2";
-    format.stmt.auto_create_table = true;
+
+    auto* sf = get_stmt_format_options(format);
+    assert(sf != nullptr);
+    sf->version = "v2";
+    sf->auto_create_table = true;
 
     InsertDataConfig config;
-    config.tdengine.database = "test_db";
+    auto* tc = get_tdengine_config(config);
+    assert(tc != nullptr);
+    tc->database = "test_db";
     config.schema.name = "test_stb";
 
     ColumnConfigInstanceVector col_instances;
@@ -70,20 +104,28 @@ void test_stmt_prepare_auto_create_table() {
     tag_instances.emplace_back(ColumnConfig{"t2", "VARCHAR(10)"});
 
     StmtInsertDataFormatter formatter(format);
-    std::string sql = formatter.prepare(config, col_instances, tag_instances);
+    auto ctx = formatter.init(config, col_instances, tag_instances);
+    const auto* stmt = dynamic_cast<const StmtContext*>(ctx.get());
+    (void)stmt;
+    assert(stmt != nullptr);
 
     std::string expected = "INSERT INTO ? USING `test_stb` TAGS (?,?) VALUES(?,?)";
-    assert(sql == expected);
+    assert(stmt->sql == expected);
     std::cout << "test_stmt_prepare_auto_create_table passed!" << std::endl;
 }
 
 void test_stmt_format_insert_data_single_table() {
     DataFormat format;
     format.format_type = "stmt";
-    format.stmt.version = "v2";
+
+    auto* sf = get_stmt_format_options(format);
+    assert(sf != nullptr);
+    sf->version = "v2";
 
     InsertDataConfig config;
-    config.tdengine.database = "test_db";
+    auto* tc = get_tdengine_config(config);
+    assert(tc != nullptr);
+    tc->database = "test_db";
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -101,19 +143,22 @@ void test_stmt_format_insert_data_single_table() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     StmtInsertDataFormatter formatter(format);
-    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    FormatResult result = formatter.format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
 
-    if (auto* stmt_ptr = dynamic_cast<StmtV2InsertData*>(ptr.get())) {
-        const auto& stmt_data = *stmt_ptr;
-        (void)stmt_data;
-        assert(stmt_data.start_time == 1500000000000);
-        assert(stmt_data.end_time == 1500000000001);
-        assert(stmt_data.total_rows == 2);
+    if (auto* base_ptr = ptr.get()) {
+        const auto* payload = base_ptr->payload_as<StmtV2InsertData>();
+        assert(payload != nullptr);
+        (void)payload;
+
+        assert(base_ptr->start_time == 1500000000000);
+        assert(base_ptr->end_time == 1500000000001);
+        assert(base_ptr->total_rows == 2);
     } else {
-        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+        throw std::runtime_error("Unexpected null BaseInsertData pointer");
     }
 
     std::cout << "test_stmt_format_insert_data_single_table passed!" << std::endl;
@@ -122,10 +167,15 @@ void test_stmt_format_insert_data_single_table() {
 void test_stmt_format_insert_data_multiple_tables() {
     DataFormat format;
     format.format_type = "stmt";
-    format.stmt.version = "v2";
+
+    auto* sf = get_stmt_format_options(format);
+    assert(sf != nullptr);
+    sf->version = "v2";
 
     InsertDataConfig config;
-    config.tdengine.database = "test_db";
+    auto* tc = get_tdengine_config(config);
+    assert(tc != nullptr);
+    tc->database = "test_db";
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -151,20 +201,22 @@ void test_stmt_format_insert_data_multiple_tables() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(format);
-    FormatResult result = formatter->format(config, col_instances, tag_instances, block);
+    formatter->init(config, col_instances, tag_instances);
+    FormatResult result = formatter->format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
 
-    if (auto* stmt_ptr = dynamic_cast<StmtV2InsertData*>(ptr.get())) {
-        const auto& stmt_data = *stmt_ptr;
-        (void)stmt_data;
+    if (auto* base_ptr = ptr.get()) {
+        const auto* payload = base_ptr->payload_as<StmtV2InsertData>();
+        assert(payload != nullptr);
+        (void)payload;
 
-        assert(stmt_data.start_time == 1500000000000);
-        assert(stmt_data.end_time == 1500000000003);
-        assert(stmt_data.total_rows == 4);
+        assert(base_ptr->start_time == 1500000000000);
+        assert(base_ptr->end_time == 1500000000003);
+        assert(base_ptr->total_rows == 4);
     } else {
-        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+        throw std::runtime_error("Unexpected null BaseInsertData pointer");
     }
 
     std::cout << "test_stmt_format_insert_data_multiple_tables passed!" << std::endl;
@@ -173,10 +225,15 @@ void test_stmt_format_insert_data_multiple_tables() {
 void test_stmt_format_insert_data_empty_batch() {
     DataFormat format;
     format.format_type = "stmt";
-    format.stmt.version = "v2";
+
+    auto* sf = get_stmt_format_options(format);
+    assert(sf != nullptr);
+    sf->version = "v2";
 
     InsertDataConfig config;
-    config.tdengine.database = "test_db";
+    auto* tc = get_tdengine_config(config);
+    assert(tc != nullptr);
+    tc->database = "test_db";
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -209,10 +266,15 @@ void test_stmt_format_insert_data_empty_batch() {
 void test_stmt_format_insert_data_invalid_version() {
     DataFormat format;
     format.format_type = "stmt";
-    format.stmt.version = "v1";  // Unsupported version
+
+    auto* sf = get_stmt_format_options(format);
+    assert(sf != nullptr);
+    sf->version = "v1";  // Unsupported version
 
     InsertDataConfig config;
-    config.tdengine.database = "test_db";
+    auto* tc = get_tdengine_config(config);
+    assert(tc != nullptr);
+    tc->database = "test_db";
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -230,9 +292,10 @@ void test_stmt_format_insert_data_invalid_version() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     StmtInsertDataFormatter formatter(format);
+    formatter.init(config, col_instances, tag_instances);
 
     try {
-        formatter.format(config, col_instances, tag_instances, block);
+        formatter.format(block);
         assert(false && "Should throw exception for invalid version");
     } catch (const std::invalid_argument& e) {
         assert(std::string(e.what()) == "Unsupported stmt version: v1");
@@ -243,10 +306,15 @@ void test_stmt_format_insert_data_invalid_version() {
 void test_stmt_format_insert_data_with_empty_rows() {
     DataFormat format;
     format.format_type = "stmt";
-    format.stmt.version = "v2";
+
+    auto* sf = get_stmt_format_options(format);
+    assert(sf != nullptr);
+    sf->version = "v2";
 
     InsertDataConfig config;
-    config.tdengine.database = "test_db";
+    auto* tc = get_tdengine_config(config);
+    assert(tc != nullptr);
+    tc->database = "test_db";
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -275,23 +343,25 @@ void test_stmt_format_insert_data_with_empty_rows() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(format);
-    FormatResult result = formatter->format(config, col_instances, tag_instances, block);
+    formatter->init(config, col_instances, tag_instances);
+    FormatResult result = formatter->format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
 
-    if (auto* stmt_ptr = dynamic_cast<StmtV2InsertData*>(ptr.get())) {
-        const auto& stmt_data = *stmt_ptr;
-        (void)stmt_data;
+    if (auto* base_ptr = ptr.get()) {
+        const auto* payload = base_ptr->payload_as<StmtV2InsertData>();
+        assert(payload != nullptr);
+        (void)payload;
 
         // Verify the timing information excludes empty table
-        assert(stmt_data.start_time == 1500000000000);
-        assert(stmt_data.end_time == 1500000000002);
+        assert(base_ptr->start_time == 1500000000000);
+        assert(base_ptr->end_time == 1500000000002);
 
         // Verify total rows only counts non-empty tables
-        assert(stmt_data.total_rows == 3);  // 2 rows from table1 + 1 row from table3
+        assert(base_ptr->total_rows == 3);  // 2 rows from table1 + 1 row from table3
     } else {
-        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+        throw std::runtime_error("Unexpected null BaseInsertData pointer");
     }
 
     std::cout << "test_stmt_format_insert_data_with_empty_rows passed!" << std::endl;

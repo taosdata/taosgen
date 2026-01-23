@@ -51,7 +51,7 @@ private:
 
     std::string generate_column_or_tag(const ColumnConfigInstance& field) const {
         std::ostringstream oss;
-        oss << field.name() << " " << field.type();
+        oss << "`" << field.name() << "` " << field.type();
 
         const auto& config = field.config();
 

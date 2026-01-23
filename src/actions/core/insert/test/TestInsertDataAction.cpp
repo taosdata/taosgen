@@ -1,12 +1,18 @@
 #include "InsertDataAction.hpp"
+#include "SqlData.hpp"
 #include "TDengineRegistrar.hpp"
+#include "TableNameManager.hpp"
 #include <cassert>
 #include <memory>
 #include <thread>
 #include <chrono>
 #include <filesystem>
-#include "TableNameManager.hpp"
 
+
+TDengineConfig* get_tdengine_config(InsertDataConfig& config) {
+    set_plugin_config(config.extensions, "tdengine", TDengineConfig{});
+    return get_plugin_config_mut<TDengineConfig>(config.extensions, "tdengine");
+}
 
 InsertDataConfig create_test_config() {
     InsertDataConfig config;
@@ -45,12 +51,14 @@ InsertDataConfig create_test_config() {
 
     // Data format settings
     config.data_format.format_type = "stmt";
-    config.data_format.stmt.version = "v2";
 
     // Setup target
     config.timestamp_precision = "ms";
     config.target_type = "tdengine";
-    config.tdengine = TDengineConfig("taos+ws://localhost:6041/test_action");
+
+    auto* tc = get_tdengine_config(config);
+    *tc = TDengineConfig("taos+ws://localhost:6041/test_action");
+    tc->init();
     config.schema.name = "test_super_table";
 
     return config;
@@ -113,9 +121,9 @@ void test_data_pipeline() {
 
             auto* block = pool.convert_to_memory_block(std::move(batch));
 
-            pipeline.push_data(0, FormatResult{
-                std::make_unique<SqlInsertData>(block, col_instances, tag_instances, "INSERT INTO test_table VALUES (...)")
-            });
+            auto insert_ptr = BaseInsertData::make_with_payload(block, col_instances, tag_instances, SqlData{"INSERT INTO test_table VALUES (...)"});
+            pipeline.push_data(0, FormatResult(std::move(insert_ptr)));
+
             rows_generated++;
         }
         producer_done = true;
@@ -179,9 +187,9 @@ void test_data_pipeline_with_tags() {
             std::vector<ColumnType> tag_values = {int32_t(100)};
             block->tables[0].tags_ptr = pool.register_table_tags("table" + std::to_string(i), tag_values);
 
-            pipeline.push_data(0, FormatResult{
-                std::make_unique<SqlInsertData>(block, col_instances, tag_instances, "INSERT INTO ...")
-            });
+            auto insert_ptr = BaseInsertData::make_with_payload(block, col_instances, tag_instances, SqlData{"INSERT INTO ..."});
+            pipeline.push_data(0, FormatResult(std::move(insert_ptr)));
+
             rows_generated++;
         }
         producer_done = true;
@@ -317,10 +325,14 @@ void test_end_to_end_data_generation() {
         DataChannel{"websocket"}
     };
 
-    std::vector<DataFormat> format_types = {
-        DataFormat{"sql"},
-        DataFormat{"stmt", DataFormat::StmtConfig{"v2"}}
-    };
+    std::vector<DataFormat> format_types(2);
+    format_types[0].format_type = "sql";
+    format_types[1].format_type = "stmt";
+    set_format_opt(format_types[0], "sql", SqlFormatOptions{});
+    set_format_opt(format_types[1], "stmt", StmtFormatOptions{});
+    auto* sf = get_format_opt_mut<StmtFormatOptions>(format_types[1], "stmt");
+    assert(sf != nullptr);
+    sf->version = "v2";
 
     for (const auto& channel : channel_types) {
         for (const auto& format : format_types) {
@@ -338,7 +350,10 @@ void test_end_to_end_data_generation() {
             config.insert_threads = 1;
             config.schema.tbname.generator.count = 4;           // 4 tables total
             config.target_type = "tdengine";
-            config.tdengine.database = "test_action";
+
+            auto* tc = get_tdengine_config(config);
+            assert(tc != nullptr);
+            tc->database = "test_action";
             config.schema.name = "test_super_table";
 
             InsertDataAction action(global, config);
@@ -362,10 +377,14 @@ void test_end_to_end_data_generation_with_tags() {
         DataChannel{"websocket"}
     };
 
-    std::vector<DataFormat> format_types = {
-        DataFormat{"sql"},
-        DataFormat{"stmt", DataFormat::StmtConfig{"v2"}}
-    };
+    std::vector<DataFormat> format_types(2);
+    format_types[0].format_type = "sql";
+    format_types[1].format_type = "stmt";
+    set_format_opt(format_types[0], "sql", SqlFormatOptions{});
+    set_format_opt(format_types[1], "stmt", StmtFormatOptions{});
+    auto* sf = get_format_opt_mut<StmtFormatOptions>(format_types[1], "stmt");
+    assert(sf != nullptr);
+    sf->version = "v2";
 
     for (const auto& channel : channel_types) {
         for (const auto& format : format_types) {
@@ -391,7 +410,10 @@ void test_end_to_end_data_generation_with_tags() {
             config.insert_threads = 1;
             config.schema.tbname.generator.count = 4;           // 4 tables total
             config.target_type = "tdengine";
-            config.tdengine.database = "test_action";
+
+            auto* tc = get_tdengine_config(config);
+            assert(tc != nullptr);
+            tc->database = "test_action";
             config.schema.name = "test_super_table";
 
             InsertDataAction action(global, config);
@@ -412,8 +434,14 @@ void test_concurrent_data_generation() {
     config.insert_threads = 4;
     config.schema.tbname.generator.count = 8;             // 8 tables
     config.target_type = "tdengine";
-    config.tdengine.database = "test_action";
+
+    auto* tc = get_tdengine_config(config);
+    assert(tc != nullptr);
+    tc->database = "test_action";
     config.schema.name = "test_super_table";
+
+    config.data_format.format_type = "stmt";
+    set_format_opt(config.data_format, "stmt", StmtFormatOptions{});
 
     InsertDataAction action(global, config);
 
@@ -624,6 +652,7 @@ void test_cache_units_data_generator_failure() {
 }
 
 int main() {
+    register_tdengine_plugin_config_hooks();
     test_basic_initialization();
     test_table_name_generation();
     test_data_pipeline();

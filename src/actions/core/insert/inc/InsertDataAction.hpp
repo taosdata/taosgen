@@ -54,26 +54,4 @@ private:
         std::optional<ConnectorSource>& conn_source,
         GarbageCollector<FormatResult>& gc,
         Latch& startup_latch);
-
-    // Register InsertDataAction to ActionFactory
-    inline static bool registered_ = []() {
-        ActionFactory::instance().register_action(
-            "tdengine/insert",
-            [](const GlobalConfig& global, const ActionConfigVariant& config) {
-                return std::make_unique<InsertDataAction>(global, std::get<InsertDataConfig>(config));
-            });
-
-        ActionFactory::instance().register_action(
-            "mqtt/publish",
-            [](const GlobalConfig& global, const ActionConfigVariant& config) {
-                return std::make_unique<InsertDataAction>(global, std::get<InsertDataConfig>(config));
-            });
-
-        ActionFactory::instance().register_action(
-            "kafka/produce",
-            [](const GlobalConfig& global, const ActionConfigVariant& config) {
-                return std::make_unique<InsertDataAction>(global, std::get<InsertDataConfig>(config));
-            });
-        return true;
-    }();
 };

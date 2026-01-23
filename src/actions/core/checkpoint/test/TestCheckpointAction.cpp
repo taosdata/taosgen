@@ -9,11 +9,19 @@
 
 #include <nlohmann/json.hpp>
 
+TDengineConfig* get_tdengine_config(GlobalConfig& config) {
+    set_plugin_config(config.extensions, "tdengine", TDengineConfig{});
+    return get_plugin_config_mut<TDengineConfig>(config.extensions, "tdengine");
+}
+
 void test_checkpoint_recover() {
     std::cout << "\n--- Running test_checkpoint_recover ---" << std::endl;
     GlobalConfig global;
     global.yaml_cfg_dir = "./b";
-    global.tdengine.database = "test_db";
+
+    auto* tc = get_tdengine_config(global);
+    assert(tc != nullptr);
+    tc->database = "test_db";
     global.schema.name = "test_super_table_recover"; // Use a different name to avoid conflict
 
     std::string timestamp_precision = "ms";
@@ -25,7 +33,7 @@ void test_checkpoint_recover() {
     int64_t expected_rows = 100 - recovered_rows;
 
     // 1. Manually create a checkpoint file
-    std::string checkpoint_file = global.yaml_cfg_dir + "_" + global.tdengine.database + "_" + global.schema.name + "_checkpoints.json";
+    std::string checkpoint_file = global.yaml_cfg_dir + "_" + tc->database + "_" + global.schema.name + "_checkpoints.json";
     std::cout << "Creating dummy checkpoint file: " << checkpoint_file << std::endl;
     nlohmann::json json_data;
     json_data["table_name"] = "t1";
@@ -74,7 +82,10 @@ void test_checkpoint_interrupt() {
     std::cout << "\n--- Running test_checkpoint_interrupt ---" << std::endl;
     GlobalConfig global;
     global.yaml_cfg_dir = "./c";
-    global.tdengine.database = "test_db";
+
+    auto* tc = get_tdengine_config(global);
+    assert(tc != nullptr);
+    tc->database = "test_db";
     global.schema.name = "test_super_table_interrupt"; // Use a different name
 
     CheckpointActionConfig config;
@@ -97,7 +108,7 @@ void test_checkpoint_interrupt() {
     CheckpointAction::stop_all(true); // true for interrupt
 
     // Check that the file was created
-    std::string checkpoint_file = global.yaml_cfg_dir + "_" + global.tdengine.database + "_" + global.schema.name + "_checkpoints.json";
+    std::string checkpoint_file = global.yaml_cfg_dir + "_" + tc->database + "_" + global.schema.name + "_checkpoints.json";
 
     // Check that the file was NOT deleted
     std::cout << "Checking if checkpoint file still exists after interrupt..." << std::endl;

@@ -29,7 +29,7 @@ void test_format_create_super_table_with_columns_and_tags() {
 
     assert(std::holds_alternative<std::string>(result));
     assert(std::get<std::string>(result) ==
-        "CREATE TABLE IF NOT EXISTS `test_db`.`test_table` (ts TIMESTAMP, col1 INT, col2_1 BINARY(10), col2_2 BINARY(10)) TAGS (tag1 FLOAT, tag2 NCHAR(20));");
+        "CREATE TABLE IF NOT EXISTS `test_db`.`test_table` (ts TIMESTAMP, `col1` INT, `col2_1` BINARY(10), `col2_2` BINARY(10)) TAGS (`tag1` FLOAT, `tag2` NCHAR(20));");
     std::cout << "test_format_create_super_table_with_columns_and_tags passed!" << std::endl;
 }
 
@@ -55,7 +55,7 @@ void test_format_create_super_table_without_columns() {
 
     assert(std::holds_alternative<std::string>(result));
     assert(std::get<std::string>(result) ==
-        "CREATE TABLE IF NOT EXISTS `test_db`.`test_table` (ts TIMESTAMP) TAGS (tag1 FLOAT);");
+        "CREATE TABLE IF NOT EXISTS `test_db`.`test_table` (ts TIMESTAMP) TAGS (`tag1` FLOAT);");
     std::cout << "test_format_create_super_table_without_columns passed!" << std::endl;
 }
 
@@ -81,7 +81,7 @@ void test_format_create_super_table_without_tags() {
 
     assert(std::holds_alternative<std::string>(result));
     assert(std::get<std::string>(result) ==
-        "CREATE TABLE IF NOT EXISTS `test_db`.`test_table` (ts TIMESTAMP, col1 INT);");
+        "CREATE TABLE IF NOT EXISTS `test_db`.`test_table` (ts TIMESTAMP, `col1` INT);");
     std::cout << "test_format_create_super_table_without_tags passed!" << std::endl;
 }
 

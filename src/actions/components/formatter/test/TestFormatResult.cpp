@@ -72,15 +72,20 @@ void test_sql_insert_data() {
     MemoryPool pool(1, 1, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
-    SqlInsertData data(block, col_instances, tag_instances, "INSERT INTO test_table VALUES(1,2,3);");
+    SqlInsertData data("INSERT INTO test_table VALUES(1,2,3);");
 
     // Test base class members
-    assert(data.start_time == 1500000000000);
-    assert(data.end_time == 1500000000001);
-    assert(data.total_rows == 2);
+    auto base_data = BaseInsertData::make_with_payload(block, col_instances, tag_instances, std::move(data));
+    assert(base_data != nullptr);
+    assert(base_data->start_time == 1500000000000);
+    assert(base_data->end_time == 1500000000001);
+    assert(base_data->total_rows == 2);
 
-    // Test SqlData member
-    assert(data.data.str() == "INSERT INTO test_table VALUES(1,2,3);");
+    // Test SqlInsertData member
+    const auto* payload = base_data->payload_as<SqlInsertData>();
+    (void)payload;
+    assert(payload != nullptr);
+    assert(payload->str() == "INSERT INTO test_table VALUES(1,2,3);");
 
     std::cout << "test_sql_insert_data passed!" << std::endl;
 }
@@ -101,16 +106,22 @@ void test_stmt_v2_insert_data() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     // Create StmtV2InsertData
-    StmtV2InsertData data(block, col_instances, tag_instances);
+    StmtV2InsertData data(block);
 
     // Test base class members
-    assert(data.start_time == 1500000000000);
-    assert(data.end_time == 1500000000000);
-    assert(data.total_rows == 1);
+    auto base_data = BaseInsertData::make_with_payload(block, col_instances, tag_instances, std::move(data));
+    assert(base_data != nullptr);
+    assert(base_data->start_time == 1500000000000);
+    assert(base_data->end_time == 1500000000000);
+    assert(base_data->total_rows == 1);
+    assert(base_data->row_count() == 1);
+    assert(base_data->column_count() == 1);
 
     // Test StmtV2Data members
-    assert(data.row_count() == 1);
-    assert(data.column_count() == 1);
+    const auto* payload = base_data->payload_as<StmtV2InsertData>();
+    (void)payload;
+    assert(payload != nullptr);
+    assert(payload->block_ == block);
 
     std::cout << "test_stmt_v2_insert_data passed!" << std::endl;
 }
@@ -137,21 +148,24 @@ void test_format_result_variant() {
     MemoryPool pool(1, 1, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
-    auto payload = std::make_unique<SqlInsertData>(block, col_instances, tag_instances, "INSERT DATA");
-    FormatResult result2 = std::move(payload);
+    SqlInsertData data("INSERT DATA");
+    auto base_data = BaseInsertData::make_with_payload(block, col_instances, tag_instances, std::move(data));
+    assert(base_data != nullptr);
+    FormatResult result2 = std::move(base_data);
 
     assert(std::holds_alternative<InsertFormatResult>(result2));
     const auto& ptr = std::get<InsertFormatResult>(result2);
 
-    if (auto* sql_ptr = dynamic_cast<SqlInsertData*>(ptr.get())) {
-        const auto& sql_data = *sql_ptr;
-        (void)sql_data;
-        assert(sql_data.start_time == 1500000000000);
-        assert(sql_data.end_time == 1500000000001);
-        assert(sql_data.total_rows == 2);
-        assert(sql_data.data.str() == "INSERT DATA");
+    if (auto* base_ptr = ptr.get()) {
+        const auto* payload = base_ptr->payload_as<SqlInsertData>();
+        assert(payload != nullptr);
+        (void)payload;
+        assert(ptr->start_time == 1500000000000);
+        assert(ptr->end_time == 1500000000001);
+        assert(ptr->total_rows == 2);
+        assert(payload->str() == "INSERT DATA");
     } else {
-        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+        throw std::runtime_error("Unexpected null BaseInsertData pointer");
     }
 
     // Test variant type checking

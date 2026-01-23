@@ -1,9 +1,7 @@
 #pragma once
 
 #include "Step.hpp"
-#include "TDengineConfig.hpp"
-#include "MqttConfig.hpp"
-#include "KafkaConfig.hpp"
+#include "PluginExtensions.hpp"
 #include "SchemaConfig.hpp"
 #include <string>
 #include <vector>
@@ -16,10 +14,8 @@ struct Job {
 
     bool need_create = false;
     bool find_create = false;
-    TDengineConfig tdengine;
-    MqttConfig mqtt;
-    KafkaConfig kafka;
     SchemaConfig schema;
+    PluginExtensions extensions;
 
     Job() = default;
     Job(const std::string& key,

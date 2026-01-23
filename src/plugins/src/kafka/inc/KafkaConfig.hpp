@@ -1,4 +1,5 @@
 #pragma once
+#include "ISinkConfig.hpp"
 #include "ProcessUtils.hpp"
 #include "LogUtils.hpp"
 #include <string>
@@ -6,7 +7,8 @@
 #include <optional>
 #include <unordered_map>
 
-struct KafkaConfig {
+struct KafkaConfig : ISinkConfig {
+    bool enabled = false;
     std::string topic = "tsbench-topic";
     std::string bootstrap_servers = "localhost:9092";
     std::string host = "localhost";
@@ -48,6 +50,14 @@ struct KafkaConfig {
     std::string generate_client_id(size_t no = 0) const {
         return client_id + "-" + std::to_string(no);
     }
+
+    std::string get_sink_info() const override {
+        return "Kafka(" + bootstrap_servers + ")";
+    }
+
+    std::string get_sink_type() const override { return "Kafka"; }
+
+    bool is_enabled() const override { return enabled; }
 
     // --- Generic librdkafka Options ---
     // Allows specifying any librdkafka-supported optional parameters.

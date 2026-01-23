@@ -13,13 +13,13 @@ public:
     ~TDengineWriter() override;
 
     bool connect(std::optional<ConnectorSource>& conn_source) override;
-    bool prepare(const std::string& context) override;
+    bool prepare(std::unique_ptr<const ISinkContext> context) override;
     bool write(const BaseInsertData& data) override;
     void close() noexcept override;
 
 private:
-    template<typename T>
-    bool handle_insert(const T& data);
+    template<typename PayloadT>
+    bool handle_insert(const BaseInsertData& data);
     // size_t no_;
     std::unique_ptr<DatabaseConnector> connector_;
 

@@ -3,11 +3,20 @@
 #include <iostream>
 #include <cassert>
 
+MqttFormatOptions* get_mqtt_format_options(InsertDataConfig& config) {
+    return get_format_opt_mut<MqttFormatOptions>(config.data_format, "mqtt");
+}
+
 // Helper to create a base config for tests
 InsertDataConfig create_base_config() {
     InsertDataConfig config;
     config.data_format.format_type = "mqtt";
-    auto& mqtt_format = config.data_format.mqtt;
+
+    set_format_opt(config.data_format, "mqtt", MqttFormatOptions{});
+    auto* mf = get_mqtt_format_options(config);
+    assert(mf != nullptr);
+
+    auto& mqtt_format = *mf;
     mqtt_format.records_per_message = 1;
     mqtt_format.topic = "telemetry/{table}";
     mqtt_format.compression = "none";
@@ -19,7 +28,10 @@ InsertDataConfig create_base_config() {
 
 void test_mqtt_format_single_record_per_message() {
     InsertDataConfig config = create_base_config();
-    config.data_format.mqtt.records_per_message = 1;
+
+    auto* mf = get_mqtt_format_options(config);
+    assert(mf != nullptr);
+    mf->records_per_message = 1;
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -37,36 +49,37 @@ void test_mqtt_format_single_record_per_message() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     MqttInsertDataFormatter formatter(config.data_format);
-    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    FormatResult result = formatter.format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
+    auto* base_ptr = ptr.get();
 
-    auto* mqtt_ptr = dynamic_cast<MqttInsertData*>(ptr.get());
-    if (!mqtt_ptr) {
-        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    if (!base_ptr) {
+        throw std::runtime_error("Unexpected null BaseInsertData pointer");
     }
 
-    const auto& mqtt_data = *mqtt_ptr;
-    assert(mqtt_data.start_time == 1500000000000);
-    assert(mqtt_data.end_time == 1500000000001);
-    assert(mqtt_data.total_rows == 2);
-    assert(mqtt_data.data.size() == 2);
+    assert(base_ptr->start_time == 1500000000000);
+    assert(base_ptr->end_time == 1500000000001);
+    assert(base_ptr->total_rows == 2);
 
-    const auto& messages = mqtt_data.data;
-    assert(messages.size() == 2);
+    const auto* payload = base_ptr->payload_as<MqttInsertData>();
+    assert(payload != nullptr);
+    (void)payload;
+    assert(payload->size() == 2);
 
     // Message 1
-    assert(messages[0].first == "telemetry/table1");
-    nlohmann::json payload1 = nlohmann::json::parse(messages[0].second);
+    assert((*payload)[0].first == "telemetry/table1");
+    nlohmann::json payload1 = nlohmann::json::parse((*payload)[0].second);
     assert(payload1["ts"] == 1500000000000);
     assert(payload1["f1"] == 3.14f);
     assert(payload1["i1"] == 42);
     assert(payload1["table_name"] == "table1");
 
     // Message 2
-    assert(messages[1].first == "telemetry/table1");
-    nlohmann::json payload2 = nlohmann::json::parse(messages[1].second);
+    assert((*payload)[1].first == "telemetry/table1");
+    nlohmann::json payload2 = nlohmann::json::parse((*payload)[1].second);
     assert(payload2["ts"] == 1500000000001);
     assert(payload2["f1"] == 2.71f);
     assert(payload2["i1"] == 43);
@@ -77,7 +90,10 @@ void test_mqtt_format_single_record_per_message() {
 
 void test_mqtt_format_multiple_records_per_message() {
     InsertDataConfig config = create_base_config();
-    config.data_format.mqtt.records_per_message = 2;
+
+    auto* mf = get_mqtt_format_options(config);
+    assert(mf != nullptr);
+    mf->records_per_message = 2;
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -99,28 +115,29 @@ void test_mqtt_format_multiple_records_per_message() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     MqttInsertDataFormatter formatter(config.data_format);
-    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    FormatResult result = formatter.format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
+    auto* base_ptr = ptr.get();
 
-    auto* mqtt_ptr = dynamic_cast<MqttInsertData*>(ptr.get());
-    if (!mqtt_ptr) {
-        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    if (!base_ptr) {
+        throw std::runtime_error("Unexpected null BaseInsertData pointer");
     }
 
-    const auto& mqtt_data = *mqtt_ptr;
-    assert(mqtt_data.start_time == 1500000000000);
-    assert(mqtt_data.end_time == 1500000000002);
-    assert(mqtt_data.total_rows == 3);
-    assert(mqtt_data.data.size() == 2);
+    assert(base_ptr->start_time == 1500000000000);
+    assert(base_ptr->end_time == 1500000000002);
+    assert(base_ptr->total_rows == 3);
 
-    const auto& messages = mqtt_data.data;
-    assert(messages.size() == 2);
+    const auto* payload = base_ptr->payload_as<MqttInsertData>();
+    assert(payload != nullptr);
+    (void)payload;
+    assert(payload->size() == 2);
 
     // Message 1 (full batch)
-    assert(messages[0].first == "telemetry/table1");
-    nlohmann::json payload1 = nlohmann::json::parse(messages[0].second);
+    assert((*payload)[0].first == "telemetry/table1");
+    nlohmann::json payload1 = nlohmann::json::parse((*payload)[0].second);
     assert(payload1.is_array());
     assert(payload1.size() == 2);
     assert(payload1[0]["ts"] == 1500000000000);
@@ -131,8 +148,8 @@ void test_mqtt_format_multiple_records_per_message() {
     assert(payload1[1]["table_name"] == "table1");
 
     // Message 2 (partial batch)
-    assert(messages[1].first == "telemetry/table2");
-    nlohmann::json payload2 = nlohmann::json::parse(messages[1].second);
+    assert((*payload)[1].first == "telemetry/table2");
+    nlohmann::json payload2 = nlohmann::json::parse((*payload)[1].second);
     assert(payload2.is_array());
     assert(payload2.size() == 1);
     assert(payload2[0]["ts"] == 1500000000002);
@@ -156,7 +173,8 @@ void test_mqtt_format_empty_batch() {
     assert(block == nullptr);
 
     MqttInsertDataFormatter formatter(config.data_format);
-    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    FormatResult result = formatter.format(block);
     (void)result;
     assert(std::holds_alternative<std::string>(result));
     assert(std::get<std::string>(result).empty());
@@ -195,35 +213,38 @@ void test_mqtt_format_insert_data_with_empty_rows() {
 
 
     auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(config.data_format);
-    FormatResult result = formatter->format(config, col_instances, tag_instances, block);
+    formatter->init(config, col_instances, tag_instances);
+    FormatResult result = formatter->format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
+    auto* base_ptr = ptr.get();
 
-    auto* mqtt_ptr = dynamic_cast<MqttInsertData*>(ptr.get());
-    if (!mqtt_ptr) {
-        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    if (!base_ptr) {
+        throw std::runtime_error("Unexpected null BaseInsertData pointer");
     }
 
-    const auto& mqtt_data = *mqtt_ptr;
+    assert(base_ptr->start_time == 1500000000000);
+    assert(base_ptr->end_time == 1500000000002);
+    assert(base_ptr->total_rows == 3);
 
-    // Verify the timing information
-    (void)mqtt_data;
-    assert(mqtt_data.start_time == 1500000000000);
-    assert(mqtt_data.end_time == 1500000000002);
-
-    // Verify total rows
-    assert(mqtt_data.total_rows == 3);
-    assert(mqtt_data.data.size() == 3);
+    const auto* payload = base_ptr->payload_as<MqttInsertData>();
+    assert(payload != nullptr);
+    (void)payload;
+    assert(payload->size() == 3);
 
     std::cout << "test_mqtt_format_insert_data_with_empty_rows passed!" << std::endl;
 }
 
 void test_mqtt_format_with_compression() {
     auto config = create_base_config();
-    config.data_format.mqtt.records_per_message = 1;
-    config.data_format.mqtt.compression = "gzip";
-    config.data_format.mqtt.tbname_key = "";
+
+    auto* mf = get_mqtt_format_options(config);
+    assert(mf != nullptr);
+
+    mf->records_per_message = 1;
+    mf->compression = "gzip";
+    mf->tbname_key = "";
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -239,26 +260,31 @@ void test_mqtt_format_with_compression() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     MqttInsertDataFormatter formatter(config.data_format);
-    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    FormatResult result = formatter.format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
+    auto* base_ptr = ptr.get();
 
-    auto* mqtt_ptr = dynamic_cast<MqttInsertData*>(ptr.get());
-    if (!mqtt_ptr) {
-        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    if (!base_ptr) {
+        throw std::runtime_error("Unexpected null BaseInsertData pointer");
     }
 
-    const auto& mqtt_data = *mqtt_ptr;
-    const auto& messages = mqtt_data.data;
+    assert(base_ptr->start_time == 1500000000000);
+    assert(base_ptr->end_time == 1500000000000);
+    assert(base_ptr->total_rows == 1);
 
-    assert(messages.size() == 1);
+    const auto* payload = base_ptr->payload_as<MqttInsertData>();
+    assert(payload != nullptr);
+    (void)payload;
+    assert(payload->size() == 1);
 
     std::string uncompressed_payload = nlohmann::ordered_json{{"ts", 1500000000000}, {"f1", 3.14f}}.dump();
-    std::string decompressed_payload = Compressor::decompress(messages[0].second, CompressionType::GZIP);
+    std::string decompressed_payload = Compressor::decompress((*payload)[0].second, CompressionType::GZIP);
 
     assert(decompressed_payload == uncompressed_payload);
-    assert(messages[0].second != uncompressed_payload);
+    assert((*payload)[0].second != uncompressed_payload);
 
     std::cout << "test_mqtt_format_with_compression passed!" << std::endl;
 }
@@ -266,6 +292,7 @@ void test_mqtt_format_with_compression() {
 void test_mqtt_format_factory_creation() {
     DataFormat format;
     format.format_type = "mqtt";
+    set_format_opt(format, "mqtt", MqttFormatOptions{});
 
     auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(format);
     assert(formatter != nullptr);
@@ -279,8 +306,11 @@ void test_mqtt_format_factory_creation() {
 
 void test_mqtt_format_with_tags() {
     InsertDataConfig config = create_base_config();
-    config.data_format.mqtt.records_per_message = 1;
-    config.data_format.mqtt.topic = "telemetry/{region}/{table}";
+
+    auto* mf = get_mqtt_format_options(config);
+    assert(mf != nullptr);
+    mf->records_per_message = 1;
+    mf->topic = "telemetry/{region}/{table}";
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -303,31 +333,36 @@ void test_mqtt_format_with_tags() {
     block->tables[0].tags_ptr = pool.register_table_tags("table1", tag_values);
 
     MqttInsertDataFormatter formatter(config.data_format);
-    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    FormatResult result = formatter.format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
+    auto* base_ptr = ptr.get();
 
-    auto* mqtt_ptr = dynamic_cast<MqttInsertData*>(ptr.get());
-    if (!mqtt_ptr) {
-        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    if (!base_ptr) {
+        throw std::runtime_error("Unexpected null BaseInsertData pointer");
     }
 
-    const auto& mqtt_data = *mqtt_ptr;
-    const auto& messages = mqtt_data.data;
+    assert(base_ptr->start_time == 1500000000000);
+    assert(base_ptr->end_time == 1500000000000);
+    assert(base_ptr->total_rows == 1);
 
-    assert(messages.size() == 1);
+    const auto* payload = base_ptr->payload_as<MqttInsertData>();
+    assert(payload != nullptr);
+    (void)payload;
+    assert(payload->size() == 1);
 
     // Verify Topic
-    assert(messages[0].first == "telemetry/us-west/table1");
+    assert((*payload)[0].first == "telemetry/us-west/table1");
 
     // Verify Payload
-    nlohmann::json payload = nlohmann::json::parse(messages[0].second);
-    assert(payload["ts"] == 1500000000000);
-    assert(payload["f1"] == 3.14f);
-    assert(payload["region"] == "us-west");
-    assert(payload["sensor_id"] == 1001);
-    assert(payload["table_name"] == "table1");
+    nlohmann::json payload1 = nlohmann::json::parse((*payload)[0].second);
+    assert(payload1["ts"] == 1500000000000);
+    assert(payload1["f1"] == 3.14f);
+    assert(payload1["region"] == "us-west");
+    assert(payload1["sensor_id"] == 1001);
+    assert(payload1["table_name"] == "table1");
 
     std::cout << "test_mqtt_format_with_tags passed!" << std::endl;
 }

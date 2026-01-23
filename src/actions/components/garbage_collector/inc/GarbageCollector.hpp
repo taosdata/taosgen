@@ -8,8 +8,6 @@
 #include <stdexcept>
 #include "blockingconcurrentqueue.hpp"
 #include "MemoryPool.hpp"
-#include "StmtV2InsertData.hpp"
-
 
 template<typename>
 struct is_variant : std::false_type {};
