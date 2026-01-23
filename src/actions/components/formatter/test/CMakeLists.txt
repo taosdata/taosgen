@@ -28,26 +28,6 @@ target_link_libraries(TestSqlChildTableFormatter
 )
 add_test(NAME TestSqlChildTableFormatter COMMAND TestSqlChildTableFormatter)
 
-# test SqlInsertDataFormatter
-add_executable(TestSqlInsertDataFormatter
-  TestSqlInsertDataFormatter.cpp
-)
-target_link_libraries(TestSqlInsertDataFormatter
-  PRIVATE
-    components_formatter
-)
-add_test(NAME TestSqlInsertDataFormatter COMMAND TestSqlInsertDataFormatter)
-
-# test StmtInsertDataFormatter
-add_executable(TestStmtInsertDataFormatter
-  TestStmtInsertDataFormatter.cpp
-)
-target_link_libraries(TestStmtInsertDataFormatter
-  PRIVATE
-    components_formatter
-)
-add_test(NAME TestStmtInsertDataFormatter COMMAND TestStmtInsertDataFormatter)
-
 # test FormatResult
 add_executable(TestFormatResult
   TestFormatResult.cpp

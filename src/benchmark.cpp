@@ -24,6 +24,8 @@ int main(int argc, char* argv[]) {
         // 1. Create parameter context and initialize
         ParameterContext context;
 
+        register_plugin_hooks();
+
         // Initialize parameter context
         if (!context.init(argc, argv)) {
             return 0;

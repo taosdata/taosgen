@@ -33,14 +33,21 @@ void register_signal(int signum, SignalCallback cb, bool is_final) {
 }
 
 void setup() {
+#if defined(__unix__) || defined(__APPLE__)
+    std::lock_guard<std::mutex> lock(cb_mutex);
+    struct sigaction sa {};
+    sa.sa_handler = signal_handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+    for (const auto& kv : callbacks) {
+        ::sigaction(kv.first, &sa, nullptr);
+    }
+#else
     std::lock_guard<std::mutex> lock(cb_mutex);
     for (const auto& kv : callbacks) {
         std::signal(kv.first, signal_handler);
     }
-
-#if defined(__unix__) || defined(__APPLE__)
-    ::signal(SIGPIPE, SIG_IGN);
 #endif
 }
 
-}
+} // namespace SignalManager

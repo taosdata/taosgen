@@ -38,7 +38,7 @@ public:
         if (fail_publish || !connected) {
             return false;
         }
-        for (const auto& [topic, payload] : data.data) {
+        for (const auto& [topic, payload] : data) {
             published_topics.push_back(topic);
             published_payloads.push_back(payload);
         }
@@ -64,8 +64,8 @@ MqttConfig create_test_connector_config() {
 }
 
 // Creates a test configuration for the MQTT data format.
-DataFormat::MqttConfig create_test_format_config() {
-    DataFormat::MqttConfig format;
+MqttFormatOptions create_test_format_config() {
+    MqttFormatOptions format;
     format.topic = "factory/{factory_id}/device-{device_id}/data";
     format.qos = 1;
     format.retain = false;
@@ -75,11 +75,26 @@ DataFormat::MqttConfig create_test_format_config() {
     return format;
 }
 
+MqttConfig* get_mqtt_config(InsertDataConfig& config) {
+    return get_plugin_config_mut<MqttConfig>(config.extensions, "mqtt");
+}
+
+MqttFormatOptions* get_mqtt_format_options(InsertDataConfig& config) {
+    return get_format_opt_mut<MqttFormatOptions>(config.data_format, "mqtt");
+}
+
 InsertDataConfig create_test_insert_data_config() {
     InsertDataConfig config;
-    config.mqtt = create_test_connector_config();
+    set_plugin_config(config.extensions, "mqtt", MqttConfig{});
+    auto* mc = get_mqtt_config(config);
+    assert(mc != nullptr);
+
+    *mc = create_test_connector_config();
     config.data_format.format_type = "mqtt";
-    config.data_format.mqtt = create_test_format_config();
+    set_format_opt(config.data_format, "mqtt", MqttFormatOptions{});
+    auto* mf = get_mqtt_format_options(config);
+    assert(mf != nullptr);
+    *mf = create_test_format_config();
     return config;
 }
 
@@ -96,16 +111,25 @@ MqttInsertData create_test_mqtt_data(MemoryPool& pool,
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     auto formatter = MqttInsertDataFormatter(config.data_format);
-    auto result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    auto result = formatter.format(block);
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
+    auto* base_ptr = ptr.get();
 
-    auto* mqtt_ptr = dynamic_cast<MqttInsertData*>(ptr.get());
-    if (!mqtt_ptr) {
-        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+    if (!base_ptr) {
+        throw std::runtime_error("Unexpected null BaseInsertData pointer");
     }
 
-    return std::move(*mqtt_ptr);
+    assert(base_ptr->start_time == 1500000000000);
+    assert(base_ptr->end_time == 1500000000000);
+    assert(base_ptr->total_rows == 1);
+
+    const auto* payload = base_ptr->payload_as<MqttInsertData>();
+    assert(payload != nullptr);
+    assert(payload->size() == 1);
+
+    return *payload;
 }
 
 void test_connect_and_close() {
@@ -138,19 +162,15 @@ void test_connect_failure() {
     std::cout << "test_connect_failure passed." << std::endl;
 }
 
-void test_prepare() {
-    auto connector_config = create_test_connector_config();
-    auto format_config = create_test_format_config();
-
-    MqttClient client(connector_config, format_config);
-
-    assert(client.prepare("context"));
-    std::cout << "test_prepare passed." << std::endl;
-}
-
 void test_execute_and_publish() {
     InsertDataConfig config = create_test_insert_data_config();
-    MqttClient client(config.mqtt, config.data_format.mqtt);
+    auto* mc = get_mqtt_config(config);
+    assert(mc != nullptr);
+
+    auto* mf = get_mqtt_format_options(config);
+    assert(mf != nullptr);
+
+    MqttClient client(*mc, *mf);
     auto mock = std::make_unique<MockMqttClient>();
     auto* mock_ptr = mock.get();
     client.set_client(std::move(mock));
@@ -184,7 +204,13 @@ void test_execute_and_publish() {
 
 void test_execute_not_connected() {
     InsertDataConfig config = create_test_insert_data_config();
-    MqttClient client(config.mqtt, config.data_format.mqtt);
+    auto* mc = get_mqtt_config(config);
+    assert(mc != nullptr);
+
+    auto* mf = get_mqtt_format_options(config);
+    assert(mf != nullptr);
+
+    MqttClient client(*mc, *mf);
     client.set_client(std::make_unique<MockMqttClient>());
 
     // Prepare mock data
@@ -205,7 +231,13 @@ void test_execute_not_connected() {
 
 void test_publish_failure() {
     InsertDataConfig config = create_test_insert_data_config();
-    MqttClient client(config.mqtt, config.data_format.mqtt);
+    auto* mc = get_mqtt_config(config);
+    assert(mc != nullptr);
+
+    auto* mf = get_mqtt_format_options(config);
+    assert(mf != nullptr);
+
+    MqttClient client(*mc, *mf);
 
     auto mock = std::make_unique<MockMqttClient>();
     mock->fail_publish = true;
@@ -234,7 +266,6 @@ void test_publish_failure() {
 int main() {
     test_connect_and_close();
     test_connect_failure();
-    test_prepare();
     test_execute_and_publish();
     test_execute_not_connected();
     test_publish_failure();

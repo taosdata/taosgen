@@ -9,7 +9,6 @@ public:
     ~KafkaWriter() override;
 
     bool connect(std::optional<ConnectorSource>& conn_source) override;
-    bool prepare(const std::string& context) override;
     bool write(const BaseInsertData& data) override;
     void close() noexcept override;
 
@@ -17,8 +16,8 @@ public:
     KafkaClient* get_client();
 
 private:
-    template<typename T>
-    bool handle_insert(const T& data);
+    template<typename PayloadT>
+    bool handle_insert(const BaseInsertData& data);
 
     std::unique_ptr<KafkaClient> client_;
 

@@ -90,8 +90,9 @@ jobs:
       - name: Get latest TDengine version
         id: get_td_version
         run: |
-          version=$(curl -s https://api.github.com/repos/taosdata/TDengine/releases/latest | jq -r .name)
-          version=${version#v}
+          # version=$(curl -s https://api.github.com/repos/taosdata/TDengine/releases/latest | jq -r .name)
+          # version=${version#v}
+          version="3.3.8.4"
           echo "version=$version" >> $GITHUB_OUTPUT
 
       # - name: Cache TDengine
@@ -137,7 +138,6 @@ jobs:
             ls -al
 
           elif [ "${{ runner.os }}" = "macOS" ]; then
-            version="3.3.8.4"
             pkg="tdengine-tsdb-oss-${version}-macos-${arch}.pkg"
 
             # Clean up old packages
@@ -189,7 +189,6 @@ jobs:
             taos -V
 
           elif [ "${{ runner.os }}" = "macOS" ]; then
-            version="3.3.8.4"
             pkg="tdengine-tsdb-oss-${version}-macos-${arch}.pkg"
             pwd
             ls -al

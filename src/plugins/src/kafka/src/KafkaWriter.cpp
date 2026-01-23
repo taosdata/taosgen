@@ -5,7 +5,22 @@
 
 KafkaWriter::KafkaWriter(const InsertDataConfig& config, size_t no)
     : BaseWriter(config) {
-    client_ = std::make_unique<KafkaClient>(config.kafka, config.data_format.kafka, no);
+
+    const auto* kc = get_plugin_config<KafkaConfig>(config.extensions, "kafka");
+    if (kc == nullptr) {
+        throw std::runtime_error("Kafka configuration not found in insert extensions");
+    }
+
+    const auto* kf = get_format_opt<KafkaFormatOptions>(config.data_format, "kafka");
+    if (kf == nullptr) {
+        throw std::runtime_error("Kafka format options not found in DataFormat");
+    }
+
+    if (no == 0) {
+        LogUtils::info("Inserting data into: {}", kc->get_sink_info());
+    }
+
+    client_ = std::make_unique<KafkaClient>(*kc, *kf, no);
 }
 
 KafkaWriter::~KafkaWriter() {
@@ -27,13 +42,6 @@ bool KafkaWriter::connect(std::optional<ConnectorSource>& conn_source) {
     }
 }
 
-bool KafkaWriter::prepare(const std::string& context) {
-    if (!client_ || !client_->is_connected()) {
-        throw std::runtime_error("KafkaWriter is not connected");
-    }
-    return client_->prepare(context);
-}
-
 bool KafkaWriter::write(const BaseInsertData& data) {
     if (!client_ || !client_->is_connected()) {
         throw std::runtime_error("KafkaWriter is not connected");
@@ -47,7 +55,7 @@ bool KafkaWriter::write(const BaseInsertData& data) {
     try {
         if (data.type == KAFKA_TYPE_ID) {
             success = execute_with_retry([&] {
-                return handle_insert(static_cast<const KafkaInsertData&>(data));
+                return handle_insert<KafkaInsertData>(data);
             }, "kafka message insert");
         } else {
             throw std::runtime_error(
@@ -65,14 +73,19 @@ bool KafkaWriter::write(const BaseInsertData& data) {
     return success;
 }
 
-template<typename T>
-bool KafkaWriter::handle_insert(const T& data) {
+template<typename PayloadT>
+bool KafkaWriter::handle_insert(const BaseInsertData& data) {
     if (time_strategy_.is_literal_strategy()) {
         update_play_metrics(data);
     }
 
     TimeRecorder timer;
-    bool success = client_->execute(data);
+    const auto* payload = data.payload_as<PayloadT>();
+    if (!payload) {
+        throw std::runtime_error("KafkaWriter: missing payload for requested type");
+    }
+
+    bool success = client_->execute(*payload);
     write_metrics_.add_sample(timer.elapsed());
 
     return success;

@@ -25,16 +25,21 @@ void test_mqtt_insert_data_basic() {
     msg_batch.emplace_back("topic1", "payload1");
     msg_batch.emplace_back("topic2", "payload2");
 
-    MqttInsertData msg_data(block, col_instances, tag_instances, std::move(msg_batch));
-    assert(msg_data.type == typeid(MqttInsertData));
-    assert(msg_data.start_time == 1500000000000);
-    assert(msg_data.end_time == 1500000000001);
-    assert(msg_data.total_rows == 2);
-    assert(msg_data.data.size() == 2);
-    assert(msg_data.data[0].first == "topic1");
-    assert(msg_data.data[0].second == "payload1");
-    assert(msg_data.data[1].first == "topic2");
-    assert(msg_data.data[1].second == "payload2");
+    auto base_data = BaseInsertData::make_with_payload(block, col_instances, tag_instances, std::move(msg_batch));
+    assert(base_data != nullptr);
+    assert(base_data->type == typeid(MqttInsertData));
+    assert(base_data->start_time == 1500000000000);
+    assert(base_data->end_time == 1500000000001);
+    assert(base_data->total_rows == 2);
+
+    const auto* payload = base_data->payload_as<MqttInsertData>();
+    assert(payload != nullptr);
+    (void)payload;
+    assert(payload->size() == 2);
+    assert((*payload)[0].first == "topic1");
+    assert((*payload)[0].second == "payload1");
+    assert((*payload)[1].first == "topic2");
+    assert((*payload)[1].second == "payload2");
 
     std::cout << "test_mqtt_insert_data_basic passed!" << std::endl;
 }
@@ -56,14 +61,19 @@ void test_mqtt_insert_data_move_ctor() {
     MqttMessageBatch msg_batch;
     msg_batch.emplace_back("topic", "payload");
 
-    MqttInsertData original(block, col_instances, tag_instances, std::move(msg_batch));
-    assert(original.type == typeid(MqttInsertData));
+    auto original = BaseInsertData::make_with_payload(block, col_instances, tag_instances, std::move(msg_batch));
+    assert(original != nullptr);
+    assert(original->type == typeid(MqttInsertData));
 
-    MqttInsertData moved(std::move(original));
+    BaseInsertData moved(std::move(*original));
     assert(moved.type == typeid(MqttInsertData));
-    assert(moved.data.size() == 1);
-    assert(moved.data[0].first == "topic");
-    assert(moved.data[0].second == "payload");
+
+    const auto* payload = moved.payload_as<MqttInsertData>();
+    assert(payload != nullptr);
+    (void)payload;
+    assert(payload->size() == 1);
+    assert((*payload)[0].first == "topic");
+    assert((*payload)[0].second == "payload");
 
     std::cout << "test_mqtt_insert_data_move_ctor passed!" << std::endl;
 }
@@ -85,23 +95,25 @@ void test_format_result_with_mqtt_insert_data() {
     MqttMessageBatch msg_batch;
     msg_batch.emplace_back("topic", "payload");
 
-    auto payload = std::make_unique<MqttInsertData>(block, col_instances, tag_instances, std::move(msg_batch));
-    FormatResult result = std::move(payload);
+    auto base_data = BaseInsertData::make_with_payload(block, col_instances, tag_instances, std::move(msg_batch));
+    assert(base_data != nullptr);
+    assert(base_data->type == typeid(MqttInsertData));
+
+    FormatResult result = std::move(base_data);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
 
-    if (auto* mqtt_ptr = dynamic_cast<MqttInsertData*>(ptr.get())) {
-        const auto& mqtt_data = *mqtt_ptr;
-        (void)mqtt_data;
-
-        assert(mqtt_data.data.size() == 1);
-        assert(mqtt_data.data[0].first == "topic");
-        assert(mqtt_data.data[0].second == "payload");
+    if (auto* base_ptr = ptr.get()) {
+        const auto* payload = base_ptr->payload_as<MqttInsertData>();
+        assert(payload != nullptr);
+        (void)payload;
+        assert(payload->size() == 1);
+        assert((*payload)[0].first == "topic");
+        assert((*payload)[0].second == "payload");
     } else {
-        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+        throw std::runtime_error("Unexpected null BaseInsertData pointer");
     }
-
 
     std::cout << "test_format_result_with_mqtt_insert_data passed!" << std::endl;
 }

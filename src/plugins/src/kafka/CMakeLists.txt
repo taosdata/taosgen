@@ -1,5 +1,9 @@
+# Find dependent packages
+find_package(RdKafka REQUIRED)
+
 # Create library target
 add_library(plugin_kafka STATIC
+  src/KafkaRegistrar.cpp
   src/KafkaInsertDataFormatter.cpp
   src/KafkaClient.cpp
   src/KafkaWriter.cpp
@@ -14,7 +18,8 @@ target_include_directories(plugin_kafka
 # Link dependent libraries
 target_link_libraries(plugin_kafka
   PUBLIC
-    insert_writer
+    parameter
+    core_insert
     RdKafka::rdkafka++
 )
 

@@ -1,14 +1,31 @@
-#include <iostream>
-#include <cassert>
 #include "FormatterRegistrar.hpp"
 #include "SqlInsertDataFormatter.hpp"
+#include "PluginExtensions.hpp"
+#include <iostream>
+#include <cassert>
+
+void set_tdengine_database(InsertDataConfig& config, const std::string& db_name) {
+    set_plugin_config(config.extensions, "tdengine", TDengineConfig{});
+    auto* tc = get_plugin_config_mut<TDengineConfig>(config.extensions, "tdengine");
+    if (tc) {
+        tc->database = db_name;
+    }
+}
+
+SqlFormatOptions* get_sql_format_options(DataFormat& format) {
+    set_format_opt(format, "sql", SqlFormatOptions{});
+    return get_format_opt_mut<SqlFormatOptions>(format, "sql");
+}
 
 void test_format_insert_data_single_table() {
     DataFormat format;
     format.format_type = "sql";
+    auto* sf = get_sql_format_options(format);
+    (void)sf;
+    assert(sf != nullptr);
 
     InsertDataConfig config;
-    config.tdengine.database = "test_db";
+    set_tdengine_database(config, "test_db");
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -60,19 +77,22 @@ void test_format_insert_data_single_table() {
     }
 
     SqlInsertDataFormatter formatter(format);
-    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    FormatResult result = formatter.format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
 
-    if (auto* sql_ptr = dynamic_cast<SqlInsertData*>(ptr.get())) {
-        (void)sql_ptr;
-        assert(sql_ptr->data.str() ==
+    if (auto* base_ptr = ptr.get()) {
+        const auto* payload = base_ptr->payload_as<SqlInsertData>();
+        (void)payload;
+        assert(payload != nullptr);
+        assert(payload->str() ==
            "INSERT INTO `table1` VALUES "
            "(1500000000000,3.14,42,'value1')"
            "(1500000000001,2.71,43,'value2');");
     } else {
-        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+        throw std::runtime_error("Unexpected null BaseInsertData pointer");
     }
 
     std::cout << "test_format_insert_data_single_table passed!" << std::endl;
@@ -81,9 +101,12 @@ void test_format_insert_data_single_table() {
 void test_format_insert_data_multiple_tables() {
     DataFormat format;
     format.format_type = "sql";
+    auto* sf = get_sql_format_options(format);
+    (void)sf;
+    assert(sf != nullptr);
 
     InsertDataConfig config;
-    config.tdengine.database = "test_db";
+    set_tdengine_database(config, "test_db");
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -110,14 +133,17 @@ void test_format_insert_data_multiple_tables() {
     (void)block;
 
     auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(format);
-    FormatResult result = formatter->format(config, col_instances, tag_instances, block);
+    formatter->init(config, col_instances, tag_instances);
+    FormatResult result = formatter->format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
 
-    if (auto* sql_ptr = dynamic_cast<SqlInsertData*>(ptr.get())) {
-        (void)sql_ptr;
-        assert(sql_ptr->data.str() ==
+    if (auto* base_ptr = ptr.get()) {
+        const auto* payload = base_ptr->payload_as<SqlInsertData>();
+        (void)payload;
+        assert(payload != nullptr);
+        assert(payload->str() ==
            "INSERT INTO `table1` VALUES "
            "(1500000000000,3.14,42)"
            "(1500000000001,2.71,43) "
@@ -125,7 +151,7 @@ void test_format_insert_data_multiple_tables() {
            "(1500000000002,1.23,44)"
            "(1500000000003,4.56,45);");
     } else {
-        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+        throw std::runtime_error("Unexpected null BaseInsertData pointer");
     }
     std::cout << "test_format_insert_data_multiple_tables passed!" << std::endl;
 }
@@ -133,9 +159,12 @@ void test_format_insert_data_multiple_tables() {
 void test_format_insert_data_empty_rows() {
     DataFormat format;
     format.format_type = "sql";
+    auto* sf = get_sql_format_options(format);
+    (void)sf;
+    assert(sf != nullptr);
 
     InsertDataConfig config;
-    config.tdengine.database = "test_db";
+    set_tdengine_database(config, "test_db");
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -149,7 +178,8 @@ void test_format_insert_data_empty_rows() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     SqlInsertDataFormatter formatter(format);
-    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    FormatResult result = formatter.format(block);
 
     assert(std::holds_alternative<std::string>(result));
     assert(std::get<std::string>(result) == "");
@@ -159,9 +189,12 @@ void test_format_insert_data_empty_rows() {
 void test_format_insert_data_different_types() {
     DataFormat format;
     format.format_type = "sql";
+    auto* sf = get_sql_format_options(format);
+    (void)sf;
+    assert(sf != nullptr);
 
     InsertDataConfig config;
-    config.tdengine.database = "test_db";
+    set_tdengine_database(config, "test_db");
 
     ColumnConfigInstanceVector col_instances;
     ColumnConfigInstanceVector tag_instances;
@@ -180,18 +213,21 @@ void test_format_insert_data_different_types() {
     auto* block = pool.convert_to_memory_block(std::move(batch));
 
     SqlInsertDataFormatter formatter(format);
-    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    FormatResult result = formatter.format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
 
-    if (auto* sql_ptr = dynamic_cast<SqlInsertData*>(ptr.get())) {
-        (void)sql_ptr;
-        assert(sql_ptr->data.str() ==
+    if (auto* base_ptr = ptr.get()) {
+        const auto* payload = base_ptr->payload_as<SqlInsertData>();
+        (void)payload;
+        assert(payload != nullptr);
+        assert(payload->str() ==
            "INSERT INTO `table1` VALUES "
            "(1500000000000,3.14,true,'测试','{\"key\":\"value\"}');");
     } else {
-        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+        throw std::runtime_error("Unexpected null BaseInsertData pointer");
     }
 
     std::cout << "test_format_insert_data_different_types passed!" << std::endl;
@@ -200,10 +236,13 @@ void test_format_insert_data_different_types() {
 void test_format_insert_data_auto_create_table() {
     DataFormat format;
     format.format_type = "sql";
-    format.sql.auto_create_table = true;
+
+    auto* sf = get_sql_format_options(format);
+    assert(sf != nullptr);
+    sf->auto_create_table = true;
 
     InsertDataConfig config;
-    config.tdengine.database = "test_db";
+    set_tdengine_database(config, "test_db");
     config.schema.name = "meters";
 
     ColumnConfigInstanceVector col_instances;
@@ -231,20 +270,25 @@ void test_format_insert_data_auto_create_table() {
     block->tables[0].tags_ptr = pool.register_table_tags("d1001", tag_values);
 
     SqlInsertDataFormatter formatter(format);
-    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    FormatResult result = formatter.format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
 
-    if (auto* sql_ptr = dynamic_cast<SqlInsertData*>(ptr.get())) {
-        std::string sql = sql_ptr->data.str();
+    if (auto* base_ptr = ptr.get()) {
+        const auto* payload = base_ptr->payload_as<SqlInsertData>();
+        assert(payload != nullptr);
+
+        std::string sql = payload->str();
         std::string expected_prefix = "INSERT INTO `d1001` USING `meters` TAGS (1,'北京') VALUES ";
         std::string expected_values = "(1600000000000,10.5,220)(1600000001000,11.2,221);";
-
+        (void)expected_prefix;
+        (void)expected_values;
         assert(sql.find(expected_prefix) != std::string::npos);
         assert(sql.find(expected_values) != std::string::npos);
     } else {
-        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+        throw std::runtime_error("Unexpected null BaseInsertData pointer");
     }
 
     std::cout << "test_format_insert_data_auto_create_table passed!" << std::endl;
@@ -253,10 +297,13 @@ void test_format_insert_data_auto_create_table() {
 void test_format_insert_data_multiple_tables_with_tags() {
     DataFormat format;
     format.format_type = "sql";
-    format.sql.auto_create_table = true;
+
+    auto* sf = get_sql_format_options(format);
+    assert(sf != nullptr);
+    sf->auto_create_table = true;
 
     InsertDataConfig config;
-    config.tdengine.database = "test_db";
+    set_tdengine_database(config, "test_db");
     config.schema.name = "sensors";
 
     ColumnConfigInstanceVector col_instances;
@@ -292,22 +339,28 @@ void test_format_insert_data_multiple_tables_with_tags() {
     block->tables[1].tags_ptr = pool.register_table_tags("t2", tags2);
 
     SqlInsertDataFormatter formatter(format);
-    FormatResult result = formatter.format(config, col_instances, tag_instances, block);
+    formatter.init(config, col_instances, tag_instances);
+    FormatResult result = formatter.format(block);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
 
-    if (auto* sql_ptr = dynamic_cast<SqlInsertData*>(ptr.get())) {
-        std::string sql = sql_ptr->data.str();
+    if (auto* base_ptr = ptr.get()) {
+        const auto* payload = base_ptr->payload_as<SqlInsertData>();
+        assert(payload != nullptr);
+
+        std::string sql = payload->str();
         std::string part1 = "`t1` USING `sensors` TAGS (101) VALUES (1600000000000,36.5)";
         std::string part2 = "`t2` USING `sensors` TAGS (102) VALUES (1600000000000,37.2)";
-
+        (void)part1;
+        (void)part2;
+        (void)sql;
         assert(sql.find("INSERT INTO") == 0);
         assert(sql.find(part1) != std::string::npos);
         assert(sql.find(part2) != std::string::npos);
         assert(sql.back() == ';');
     } else {
-        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+        throw std::runtime_error("Unexpected null BaseInsertData pointer");
     }
 
     std::cout << "test_format_insert_data_multiple_tables_with_tags passed!" << std::endl;

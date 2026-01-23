@@ -1,14 +1,25 @@
 #include "TDengineWriter.hpp"
 #include "ConnectorFactory.hpp"
 #include "TimeRecorder.hpp"
+#include "StmtContext.hpp"
 #include <stdexcept>
 #include <thread>
 #include <iostream>
 
 TDengineWriter::TDengineWriter(const InsertDataConfig& config,
-                               size_t /*no*/,
+                               size_t no,
                                std::shared_ptr<ActionRegisterInfo> action_info)
-    : BaseWriter(config, action_info) {}
+    : BaseWriter(config, action_info) {
+
+    const auto* tc = get_plugin_config<TDengineConfig>(config_.extensions, "tdengine");
+    if (tc == nullptr) {
+        throw std::runtime_error("TDengine configuration not found in insert extensions");
+    }
+
+    if (no == 0) {
+        LogUtils::info("Inserting data into: {}", tc->get_sink_info());
+    }
+}
 
 TDengineWriter::~TDengineWriter() {
     close();
@@ -25,9 +36,12 @@ bool TDengineWriter::connect(std::optional<ConnectorSource>& conn_source) {
             connector_ = conn_source->get_connector();
             return connector_->is_connected();
         } else {
-            connector_ = ConnectorFactory::create(
-                config_.tdengine
-            );
+            const auto* tc = get_plugin_config<TDengineConfig>(config_.extensions, "tdengine");
+            if (tc == nullptr) {
+                throw std::runtime_error("TDengine configuration not found in insert extensions");
+            }
+
+            connector_ = ConnectorFactory::create(*tc);
             return connector_->connect();
         }
     } catch (const std::exception& e) {
@@ -37,11 +51,14 @@ bool TDengineWriter::connect(std::optional<ConnectorSource>& conn_source) {
     }
 }
 
-bool TDengineWriter::prepare(const std::string& context) {
+bool TDengineWriter::prepare(std::unique_ptr<const ISinkContext> context) {
     if (!connector_) {
         throw std::runtime_error("TDengineWriter is not connected");
     }
-    return connector_->prepare(context);
+    if (const auto* stmt = dynamic_cast<const StmtContext*>(context.get())) {
+        return connector_->prepare(stmt->sql);
+    }
+    return true;
 }
 
 bool TDengineWriter::write(const BaseInsertData& data) {
@@ -57,11 +74,11 @@ bool TDengineWriter::write(const BaseInsertData& data) {
     try {
         if (data.type == SQL_TYPE_ID) {
             success = execute_with_retry([&] {
-                return handle_insert(static_cast<const SqlInsertData&>(data));
+                return handle_insert<SqlInsertData>(data);
             }, "sql insert");
         } else if (data.type == STMTV2_TYPE_ID) {
             success = execute_with_retry([&] {
-                return handle_insert(static_cast<const StmtV2InsertData&>(data));
+                return handle_insert<StmtV2InsertData>(data);
             }, "stmt v2 insert");
         } else {
             throw std::runtime_error(
@@ -83,14 +100,19 @@ bool TDengineWriter::write(const BaseInsertData& data) {
 }
 
 
-template<typename T>
-bool TDengineWriter::handle_insert(const T& data) {
+template<typename PayloadT>
+bool TDengineWriter::handle_insert(const BaseInsertData& data) {
     if (time_strategy_.is_literal_strategy()) {
         update_play_metrics(data);
     }
 
     TimeRecorder timer;
-    bool success = connector_->execute(data);
+    const auto* payload = data.payload_as<PayloadT>();
+    if (!payload) {
+        throw std::runtime_error("TDengineWriter: missing payload for requested type");
+    }
+
+    bool success = connector_->execute(*payload);
     write_metrics_.add_sample(timer.elapsed());
 
     return success;

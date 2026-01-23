@@ -41,23 +41,39 @@ public:
             return false;
         }
 
-        total_rows_produced += data.total_rows;
+        total_rows_produced += data.size();
         return true;
     }
 };
+
+KafkaConfig* get_kafka_config(InsertDataConfig& config) {
+    return get_plugin_config_mut<KafkaConfig>(config.extensions, "kafka");
+}
+
+KafkaFormatOptions* get_kafka_format_options(InsertDataConfig& config) {
+    return get_format_opt_mut<KafkaFormatOptions>(config.data_format, "kafka");
+}
 
 // Creates a test configuration for the Kafka writer.
 InsertDataConfig create_test_config() {
     InsertDataConfig config;
 
     // Connector Config
-    auto& conn_conf = config.kafka;
+    set_plugin_config(config.extensions, "kafka", KafkaConfig{});
+    auto* kc = get_kafka_config(config);
+    assert(kc != nullptr);
+
+    auto& conn_conf = *kc;
     conn_conf.bootstrap_servers = "localhost:9092";
     conn_conf.topic = "test_topic";
     conn_conf.client_id = "test_client";
 
     // Format Config
-    auto& format_conf = config.data_format.kafka;
+    set_format_opt(config.data_format, "kafka", KafkaFormatOptions{});
+    auto* kf = get_kafka_format_options(config);
+    assert(kf != nullptr);
+
+    auto& format_conf = *kf;
     format_conf.key_pattern = "{device_id}";
     format_conf.key_serializer = "string-utf8";
     format_conf.value_serializer = "json";
@@ -84,6 +100,10 @@ ColumnConfigInstanceVector create_col_instances() {
 void test_create_kafka_writer() {
     InsertDataConfig config;
     config.target_type = "kafka";
+    set_plugin_config(config.extensions, "kafka", KafkaConfig{});
+
+    config.data_format.format_type = "kafka";
+    set_format_opt(config.data_format, "kafka", KafkaFormatOptions{});
 
     auto writer = WriterFactory::create_writer(config);
     assert(writer != nullptr);
@@ -109,7 +129,13 @@ void test_connection() {
     // Replace with mock
     auto mock = std::make_unique<MockKafkaClient>();
     auto* mock_ptr = mock.get();
-    auto kafka_client = std::make_unique<KafkaClient>(config.kafka, config.data_format.kafka);
+    auto* kc = get_kafka_config(config);
+    assert(kc != nullptr);
+
+    auto* kf = get_kafka_format_options(config);
+    assert(kf != nullptr);
+
+    auto kafka_client = std::make_unique<KafkaClient>(*kc, *kf);
     kafka_client->set_client(std::move(mock));
     writer.set_client(std::move(kafka_client));
 
@@ -137,7 +163,13 @@ void test_connection_failure() {
     auto mock = std::make_unique<MockKafkaClient>();
     mock->fail_connect = true;
     auto* mock_ptr = mock.get();
-    auto kafka_client = std::make_unique<KafkaClient>(config.kafka, config.data_format.kafka);
+    auto* kc = get_kafka_config(config);
+    assert(kc != nullptr);
+
+    auto* kf = get_kafka_format_options(config);
+    assert(kf != nullptr);
+
+    auto kafka_client = std::make_unique<KafkaClient>(*kc, *kf);
     kafka_client->set_client(std::move(mock));
     writer.set_client(std::move(kafka_client));
 
@@ -150,31 +182,6 @@ void test_connection_failure() {
     std::cout << "test_connection_failure passed." << std::endl;
 }
 
-void test_prepare() {
-    auto config = create_test_config();
-    KafkaWriter writer(config);
-
-    // Replace with mock
-    auto kafka_client = std::make_unique<KafkaClient>(config.kafka, config.data_format.kafka);
-    kafka_client->set_client(std::make_unique<MockKafkaClient>());
-    writer.set_client(std::move(kafka_client));
-
-    // prepare should throw when not connected
-    try {
-        writer.prepare("context");
-        assert(false);
-    } catch (const std::runtime_error& e) {
-        assert(std::string(e.what()) == "KafkaWriter is not connected");
-    }
-
-    // After connecting, should be available
-    std::optional<ConnectorSource> conn_src;
-    assert(writer.connect(conn_src));
-    assert(writer.prepare("context"));
-
-    std::cout << "test_prepare passed." << std::endl;
-}
-
 void test_write_operations() {
     auto config = create_test_config();
     auto col_instances = create_col_instances();
@@ -184,7 +191,13 @@ void test_write_operations() {
     // Replace with mock
     auto mock = std::make_unique<MockKafkaClient>();
     auto* mock_ptr = mock.get();
-    auto kafka_client = std::make_unique<KafkaClient>(config.kafka, config.data_format.kafka);
+    auto* kc = get_kafka_config(config);
+    assert(kc != nullptr);
+
+    auto* kf = get_kafka_format_options(config);
+    assert(kf != nullptr);
+
+    auto kafka_client = std::make_unique<KafkaClient>(*kc, *kf);
     kafka_client->set_client(std::move(mock));
     writer.set_client(std::move(kafka_client));
 
@@ -206,9 +219,11 @@ void test_write_operations() {
 
         KafkaMessageBatch msg_batch;
         msg_batch.emplace_back("d01", R"({"device_id":"d01","factory_id":"f01"})");
-        KafkaInsertData msg(block, col_instances, tag_instances, std::move(msg_batch));
 
-        writer.write(msg);
+        auto base_data = BaseInsertData::make_with_payload(block, col_instances, tag_instances, std::move(msg_batch));
+        assert(base_data != nullptr);
+
+        writer.write(*base_data);
         (void)mock_ptr;
         assert(mock_ptr->produce_count == 1);
         assert(mock_ptr->total_rows_produced == 1);
@@ -248,7 +263,13 @@ void test_write_with_retry() {
     auto mock = std::make_unique<MockKafkaClient>();
     mock->fail_produce_times = 1; // Fail once
     auto* mock_ptr = mock.get();
-    auto kafka_client = std::make_unique<KafkaClient>(config.kafka, config.data_format.kafka);
+    auto* kc = get_kafka_config(config);
+    assert(kc != nullptr);
+
+    auto* kf = get_kafka_format_options(config);
+    assert(kf != nullptr);
+
+    auto kafka_client = std::make_unique<KafkaClient>(*kc, *kf);
     kafka_client->set_client(std::move(mock));
     writer.set_client(std::move(kafka_client));
 
@@ -268,9 +289,11 @@ void test_write_with_retry() {
 
     KafkaMessageBatch msg_batch;
     msg_batch.emplace_back("d01", R"({"device_id":"d01","factory_id":"f01"})");
-    KafkaInsertData msg(block, col_instances, tag_instances, std::move(msg_batch));
 
-    assert(writer.write(msg));
+    auto base_data = BaseInsertData::make_with_payload(block, col_instances, tag_instances, std::move(msg_batch));
+    assert(base_data != nullptr);
+
+    assert(writer.write(*base_data));
     assert(mock_ptr->produce_count == 2);           // Called twice: 1 fail + 1 success
     assert(mock_ptr->total_rows_produced == 1);     // Only succeeded once
 
@@ -287,7 +310,13 @@ void test_write_without_connection() {
     KafkaWriter writer(config);
 
     // Replace with mock
-    auto kafka_client = std::make_unique<KafkaClient>(config.kafka, config.data_format.kafka);
+    auto* kc = get_kafka_config(config);
+    assert(kc != nullptr);
+
+    auto* kf = get_kafka_format_options(config);
+    assert(kf != nullptr);
+
+    auto kafka_client = std::make_unique<KafkaClient>(*kc, *kf);
     kafka_client->set_client(std::make_unique<MockKafkaClient>());
     writer.set_client(std::move(kafka_client));
 
@@ -300,10 +329,12 @@ void test_write_without_connection() {
 
     MemoryPool pool(1, 1, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
-    KafkaInsertData data(block, col_instances, tag_instances, {});
+
+    auto base_data = BaseInsertData::make_with_payload<KafkaInsertData>(block, col_instances, tag_instances, {});
+    assert(base_data != nullptr);
 
     try {
-        writer.write(data);
+        writer.write(*base_data);
         assert(false);
     } catch (const std::runtime_error& e) {
         assert(std::string(e.what()) == "KafkaWriter is not connected");
@@ -317,7 +348,6 @@ int main() {
     test_constructor();
     test_connection();
     test_connection_failure();
-    test_prepare();
     test_write_operations();
     test_write_with_retry();
     test_write_without_connection();

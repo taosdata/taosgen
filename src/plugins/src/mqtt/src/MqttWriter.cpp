@@ -7,7 +7,22 @@
 
 MqttWriter::MqttWriter(const InsertDataConfig& config, size_t no)
     : BaseWriter(config) {
-    client_ = std::make_unique<MqttClient>(config.mqtt, config.data_format.mqtt, no);
+
+    const auto* mc = get_plugin_config<MqttConfig>(config.extensions, "mqtt");
+    if (mc == nullptr) {
+        throw std::runtime_error("MQTT configuration not found in insert extensions");
+    }
+
+    const auto* mf = get_format_opt<MqttFormatOptions>(config.data_format, "mqtt");
+    if (mf == nullptr) {
+        throw std::runtime_error("MQTT format options not found in DataFormat");
+    }
+
+    if (no == 0) {
+        LogUtils::info("Inserting data into: {}", mc->get_sink_info());
+    }
+
+    client_ = std::make_unique<MqttClient>(*mc, *mf, no);
 }
 
 MqttWriter::~MqttWriter() {
@@ -29,13 +44,6 @@ bool MqttWriter::connect(std::optional<ConnectorSource>& conn_source) {
     }
 }
 
-bool MqttWriter::prepare(const std::string& context) {
-    if (!client_ || !client_->is_connected()) {
-        throw std::runtime_error("MqttWriter is not connected");
-    }
-    return client_->prepare(context);
-}
-
 bool MqttWriter::write(const BaseInsertData& data) {
     if (!client_ || !client_->is_connected()) {
         throw std::runtime_error("MqttWriter is not connected");
@@ -49,7 +57,7 @@ bool MqttWriter::write(const BaseInsertData& data) {
     try {
         if (data.type == MQTT_TYPE_ID) {
             success = execute_with_retry([&] {
-                return handle_insert(static_cast<const MqttInsertData&>(data));
+                return handle_insert<MqttInsertData>(data);
             }, "mqtt message insert");
         } else {
             throw std::runtime_error(
@@ -70,14 +78,19 @@ bool MqttWriter::write(const BaseInsertData& data) {
     return success;
 }
 
-template<typename T>
-bool MqttWriter::handle_insert(const T& data) {
+template<typename PayloadT>
+bool MqttWriter::handle_insert(const BaseInsertData& data) {
     if (time_strategy_.is_literal_strategy()) {
         update_play_metrics(data);
     }
 
     TimeRecorder timer;
-    bool success = client_->execute(data);
+    const auto* payload = data.payload_as<PayloadT>();
+    if (!payload) {
+        throw std::runtime_error("MqttWriter: missing payload for requested type");
+    }
+
+    bool success = client_->execute(*payload);
     write_metrics_.add_sample(timer.elapsed());
 
     return success;

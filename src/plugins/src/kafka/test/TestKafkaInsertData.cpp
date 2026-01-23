@@ -23,16 +23,21 @@ void test_kafka_insert_data_basic() {
     msg_batch.emplace_back("key1", "value1");
     msg_batch.emplace_back("key2", "value2");
 
-    KafkaInsertData kafka_data(block, col_instances, tag_instances, std::move(msg_batch));
-    assert(kafka_data.type == typeid(KafkaInsertData));
-    assert(kafka_data.start_time == 1500000000000);
-    assert(kafka_data.end_time == 1500000000000);
-    assert(kafka_data.total_rows == 1);
-    assert(kafka_data.data.size() == 2);
-    assert(kafka_data.data[0].first == "key1");
-    assert(kafka_data.data[0].second == "value1");
-    assert(kafka_data.data[1].first == "key2");
-    assert(kafka_data.data[1].second == "value2");
+    auto base_data = BaseInsertData::make_with_payload(block, col_instances, tag_instances, std::move(msg_batch));
+    assert(base_data != nullptr);
+    assert(base_data->type == typeid(KafkaInsertData));
+    assert(base_data->start_time == 1500000000000);
+    assert(base_data->end_time == 1500000000000);
+    assert(base_data->total_rows == 1);
+
+    const auto* payload = base_data->payload_as<KafkaInsertData>();
+    assert(payload != nullptr);
+    (void)payload;
+    assert(payload->size() == 2);
+    assert((*payload)[0].first == "key1");
+    assert((*payload)[0].second == "value1");
+    assert((*payload)[1].first == "key2");
+    assert((*payload)[1].second == "value2");
 
     std::cout << "test_kafka_insert_data_basic passed!" << std::endl;
 }
@@ -54,14 +59,19 @@ void test_kafka_insert_data_move_ctor() {
     KafkaMessageBatch msg_batch;
     msg_batch.emplace_back("key", "value");
 
-    KafkaInsertData original(block, col_instances, tag_instances, std::move(msg_batch));
-    assert(original.type == typeid(KafkaInsertData));
+    auto original = BaseInsertData::make_with_payload(block, col_instances, tag_instances, std::move(msg_batch));
+    assert(original != nullptr);
+    assert(original->type == typeid(KafkaInsertData));
 
-    KafkaInsertData moved(std::move(original));
+    BaseInsertData moved(std::move(*original));
     assert(moved.type == typeid(KafkaInsertData));
-    assert(moved.data.size() == 1);
-    assert(moved.data[0].first == "key");
-    assert(moved.data[0].second == "value");
+
+    const auto* payload = moved.payload_as<KafkaInsertData>();
+    assert(payload != nullptr);
+    (void)payload;
+    assert(payload->size() == 1);
+    assert((*payload)[0].first == "key");
+    assert((*payload)[0].second == "value");
 
     std::cout << "test_kafka_insert_data_move_ctor passed!" << std::endl;
 }
@@ -83,21 +93,24 @@ void test_format_result_with_kafka_insert_data() {
     KafkaMessageBatch msg_batch;
     msg_batch.emplace_back("key", "value");
 
-    auto payload = std::make_unique<KafkaInsertData>(block, col_instances, tag_instances, std::move(msg_batch));
-    FormatResult result = std::move(payload);
+    auto base_data = BaseInsertData::make_with_payload(block, col_instances, tag_instances, std::move(msg_batch));
+    assert(base_data != nullptr);
+    assert(base_data->type == typeid(KafkaInsertData));
+
+    FormatResult result = std::move(base_data);
 
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
 
-    if (auto* kafka_ptr = dynamic_cast<KafkaInsertData*>(ptr.get())) {
-        const auto& kafka_data = *kafka_ptr;
-        (void)kafka_data;
-
-        assert(kafka_data.data.size() == 1);
-        assert(kafka_data.data[0].first == "key");
-        assert(kafka_data.data[0].second == "value");
+    if (auto* base_ptr = ptr.get()) {
+        const auto* payload = base_ptr->payload_as<KafkaInsertData>();
+        assert(payload != nullptr);
+        (void)payload;
+        assert(payload->size() == 1);
+        assert((*payload)[0].first == "key");
+        assert((*payload)[0].second == "value");
     } else {
-        throw std::runtime_error("Unexpected derived type in BaseInsertData");
+        throw std::runtime_error("Unexpected null BaseInsertData pointer");
     }
 
     std::cout << "test_format_result_with_kafka_insert_data passed!" << std::endl;

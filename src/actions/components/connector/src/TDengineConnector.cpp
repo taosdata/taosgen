@@ -225,7 +225,7 @@ bool TDengineConnector::execute(const std::string& sql) {
 }
 
 bool TDengineConnector::execute(const SqlInsertData& data) {
-    return execute(data.data.str());
+    return execute(data.str());
 }
 
 bool TDengineConnector::execute(const StmtV2InsertData& data) {
@@ -239,7 +239,7 @@ bool TDengineConnector::execute(const StmtV2InsertData& data) {
     // Bind data
     int code = taos_stmt2_bind_param_(
         stmt_,
-        const_cast<TAOS_STMT2_BINDV*>(data.bindv_ptr()),
+        const_cast<TAOS_STMT2_BINDV*>(&(data.block_->bindv_)),
         -1
     );
     if (code != 0) {

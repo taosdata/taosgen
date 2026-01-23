@@ -1,6 +1,7 @@
 #pragma once
 
 #include "MqttConfig.hpp"
+#include "MqttFormatOptions.hpp"
 #include "MqttInsertData.hpp"
 
 #include <mqtt/async_client.h>
@@ -8,6 +9,7 @@
 #include <memory>
 #include <vector>
 #include <functional>
+#include <atomic>
 
 // Forward declaration
 namespace mqtt {
@@ -26,32 +28,34 @@ public:
     virtual bool connect() = 0;
     virtual bool is_connected() const = 0;
     virtual void disconnect() = 0;
-    virtual bool publish(const MqttInsertData& data) = 0;
+    virtual bool publish(const MqttMessageBatch& msgs) = 0;
     virtual void close() = 0;
 };
 
 // MQTT client implementation wrapper
 class PahoMqttClient : public IMqttClient {
 public:
-    PahoMqttClient(const MqttConfig& config, const DataFormat::MqttConfig& format, size_t no = 0);
+    PahoMqttClient(const MqttConfig& config, const MqttFormatOptions& format, size_t no = 0);
 
     ~PahoMqttClient();
 
     bool connect() override;
     bool is_connected() const override;
     void disconnect() override;
-    bool publish(const MqttInsertData& data) override;
+    bool publish(const MqttMessageBatch& msgs) override;
     void close() override;
 
 private:
     const MqttConfig& config_;
-    const DataFormat::MqttConfig& format_;
+    const MqttFormatOptions& format_;
     size_t no_;
     std::unique_ptr<mqtt::async_client> client_;
     std::thread token_wait_thread_;
     mqtt::properties default_props_;
     mqtt::thread_queue<mqtt::delivery_token_ptr> token_queue_;
+    bool is_connected_ = false;
     std::atomic<bool> closed_{false};
+    std::atomic<bool> sigpipe_seen_{false};
 
     void token_wait_func() {
         while (true) {
@@ -61,18 +65,19 @@ private:
             token->wait();
         }
     }
+
+    void flush(std::chrono::seconds timeout);
 };
 
 class MqttClient {
 public:
-    MqttClient(const MqttConfig& config, const DataFormat::MqttConfig& format, size_t no = 0);
+    MqttClient(const MqttConfig& config, const MqttFormatOptions& format, size_t no = 0);
     ~MqttClient();
 
     // Connect to MQTT broker
     bool connect();
     bool is_connected() const;
     void close();
-    bool prepare(const std::string& context);
     bool execute(const MqttInsertData& data);
 
     void set_client(std::unique_ptr<IMqttClient> client) {

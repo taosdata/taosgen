@@ -1,5 +1,9 @@
+# Find dependent packages
+find_package(PahoMqttCpp REQUIRED)
+
 # Create library target
 add_library(plugin_mqtt STATIC
+  src/MqttRegistrar.cpp
   src/MqttInsertDataFormatter.cpp
   src/MqttClient.cpp
   src/MqttWriter.cpp
@@ -14,7 +18,8 @@ target_include_directories(plugin_mqtt
 # Link dependent libraries
 target_link_libraries(plugin_mqtt
   PUBLIC
-    insert_writer
+    parameter
+    core_insert
     PahoMqttCpp::paho-mqttpp3-static
 )
 

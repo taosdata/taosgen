@@ -230,7 +230,6 @@ Project source code layout (directories only):
         └── src
 ```
 
-// ...existing code...
 ### 10.1 Performance Benchmarks
 
 - Test environment: Client and server identical

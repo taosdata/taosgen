@@ -13,6 +13,11 @@ public:
                         std::shared_ptr<ActionRegisterInfo> action_info = nullptr);
     virtual ~BaseWriter() = default;
 
+    bool prepare(std::unique_ptr<const ISinkContext> context) override {
+        (void)context;
+        return true;
+    }
+
     // Public method implementations
     std::string get_timestamp_precision() const override { return timestamp_precision_; }
     const ActionMetrics& get_play_metrics() const override { return play_metrics_; }
