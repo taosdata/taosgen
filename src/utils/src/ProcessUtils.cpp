@@ -12,7 +12,6 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <Windows.h>
-#include <vector>
 #endif
 
 #if defined(__APPLE__)
@@ -237,50 +236,69 @@ double get_system_free_memory_gb() {
 
 std::string get_exe_directory() {
 #if defined(_WIN32) || defined(_WIN64)
-    std::vector<char> buffer(MAX_PATH, '\0');
-    DWORD len = GetModuleFileNameA(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
-    if (len == 0) {
-        return "./";
-    }
+    std::vector<wchar_t> wbuf(1024);
+    DWORD len = 0;
+    while (true) {
+        len = GetModuleFileNameW(nullptr, wbuf.data(), static_cast<DWORD>(wbuf.size()));
+        if (len == 0) {
+            return "";
+        }
+        if (len < wbuf.size()) {
+            break;
+        }
 
-    std::string path(buffer.data(), len);
-    size_t pos = path.find_last_of("\\/");
+        wbuf.resize(wbuf.size() * 2);
+        if (wbuf.size() > (1 << 20)) {
+            return "";
+        }
+    }
+    std::wstring wpath(wbuf.data(), len);
+    size_t pos = wpath.find_last_of(L"\\/");
+    std::wstring wdir = (pos != std::wstring::npos) ? wpath.substr(0, pos + 1) : std::wstring(L".\\");
+
+    int need = WideCharToMultiByte(CP_UTF8, 0, wdir.c_str(), static_cast<int>(wdir.size()), nullptr, 0, nullptr, nullptr);
+    if (need <= 0) return "";
+    std::string dir(need, '\0');
+    WideCharToMultiByte(CP_UTF8, 0, wdir.c_str(), static_cast<int>(wdir.size()), dir.data(), need, nullptr, nullptr);
+    return dir;
+#elif defined(__APPLE__)
+    uint32_t size = PATH_MAX;
+    std::vector<char> buf(size);
+    if (_NSGetExecutablePath(buf.data(), &size) != 0) {
+        buf.resize(size);
+        if (_NSGetExecutablePath(buf.data(), &size) != 0) {
+            return "";
+        }
+    }
+    std::string path(buf.data());
+    size_t pos = path.find_last_of('/');
     if (pos != std::string::npos) {
         path.erase(pos + 1);
     } else {
-        path.push_back('\\');
+        path.push_back('/');
     }
     return path;
-#elif defined(__APPLE__)
-    char buf[PATH_MAX];
-    uint32_t size = sizeof(buf);
-    if (_NSGetExecutablePath(buf, &size) == 0) {
-        std::string path(buf);
-        size_t pos = path.find_last_of('/');
-        if (pos != std::string::npos) {
-            path.erase(pos + 1);
-        } else {
-            path.push_back('/');
-        }
-        return path;
-    } else {
-        return "./";
-    }
 #else
-    char result[PATH_MAX];
-    ssize_t count = readlink("/proc/self/exe", result, sizeof(result) - 1);
-    if (count != -1) {
-        result[count] = '\0';
-        std::string path(result);
-        size_t pos = path.find_last_of('/');
-        if (pos != std::string::npos) {
-            path.erase(pos + 1);
-        } else {
-            path.push_back('/');
+    std::vector<char> buf(PATH_MAX);
+    while (true) {
+        ssize_t count = readlink("/proc/self/exe", buf.data(), buf.size());
+        if (count == -1) {
+            return "";
         }
-        return path;
-    } else {
-        return "./";
+        if (static_cast<size_t>(count) < buf.size()) {
+            std::string path(buf.data(), buf.data() + count);
+            size_t pos = path.find_last_of('/');
+            if (pos != std::string::npos) {
+                path.erase(pos + 1);
+            } else {
+                path.push_back('/');
+            }
+            return path;
+        }
+        buf.resize(buf.size() * 2);
+        if (buf.size() > (1 << 20)) {
+            return "";
+        }
     }
 #endif
 }

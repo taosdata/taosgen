@@ -155,11 +155,13 @@ static void try_construct_connector_expect_loaded(const char* case_name) {
         std::cerr << "[" << case_name << "] FAIL: unexpected exception." << std::endl;
         assert(false && "Unexpected exception");
     }
+    (void)ok;
     assert(ok && "Connector did not reach expected failure mode");
 }
 
 static void test_prefer_program_dir_lib() {
     bool ensured = ensure_program_lib_present();
+    (void)ensured;
     assert(ensured && "Program lib must be ensured for prefer test");
 
     assert(std::filesystem::exists(program_lib_path()));

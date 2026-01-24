@@ -24,18 +24,11 @@ namespace {
     DYNLIB_HANDLE load_taos_library_once() {
         std::call_once(g_taos_lib_once, [] {
             const char* libname = taos_lib_filename();
-
             std::string exe_dir = ProcessUtils::get_exe_directory();
-        #if defined(_WIN32)
-            const char sep = '\\';
-        #else
-            const char sep = '/';
-        #endif
-            std::string full_path = exe_dir;
-            if (!full_path.empty() && full_path.back() != sep) full_path.push_back(sep);
-            full_path += "lib";
-            full_path.push_back(sep);
-            full_path += libname;
+            std::filesystem::path p(exe_dir);
+            p /= "lib";
+            p /= libname;
+            std::string full_path = p.string();
 
             g_taos_lib_handle = DYNLIB_LOAD(full_path.c_str());
             if (!g_taos_lib_handle) {
@@ -120,7 +113,7 @@ void TDengineConnector::init_driver() {
         std::lock_guard<std::mutex> lock(driver_init_mutex_);
         auto& flag = driver_init_flags[driver_type_];
 
-        std::call_once(flag, [this, &load_symbols]() {
+        std::call_once(flag, [this]() {
             LogUtils::info("Setting TDengine driver to {} for {}", driver_type_, display_name_);
             int32_t code = taos_options_(TSDB_OPTION_DRIVER, driver_type_.c_str());
             if (code != 0) {
@@ -131,17 +124,13 @@ void TDengineConnector::init_driver() {
                     << std::hex << code;
                 throw std::runtime_error(oss.str());
             }
-            load_symbols();
         });
     }
 }
 
 TDengineConnector::~TDengineConnector() {
     close();
-    if (taos_lib_handle_) {
-        // DYNLIB_CLOSE(taos_lib_handle_);
-        taos_lib_handle_ = nullptr;
-    }
+    taos_lib_handle_ = nullptr;
 }
 
 bool TDengineConnector::connect() {
