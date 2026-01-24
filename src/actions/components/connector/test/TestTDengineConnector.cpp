@@ -133,30 +133,27 @@ static void try_construct_connector_expect_loaded(const char* case_name) {
     cfg.password.clear();
     cfg.database.clear();
 
-    const std::string invalid_driver = "invalid_driver_for_test";
+    const std::string driver = "native";
     bool ok = false;
     try {
-        TDengineConnector conn(cfg, invalid_driver, "TDengine");
-        std::cerr << "[" << case_name << "] Unexpected success: no exception thrown\n";
-        assert(false && "Expected 'Failed to set driver to ...' exception");
+        TDengineConnector conn(cfg, driver, "TDengine");
+        std::cout << "[" << case_name << "] OK: library loaded and driver set: " << driver << std::endl;
+        ok = true;
     } catch (const std::runtime_error& e) {
         const std::string msg = e.what();
-        if (msg.find("Failed to set driver to") != std::string::npos) {
-            std::cout << "[" << case_name << "] OK: library loaded, got expected driver error: " << msg << std::endl;
-            ok = true;
-        } else if (msg.find("Failed to load libtaos shared library") != std::string::npos) {
+        if (msg.find("Failed to load libtaos shared library") != std::string::npos) {
             std::cerr << "[" << case_name << "] FAIL: library load failed: " << msg << std::endl;
-            assert(false && "Should not fail at library loading");
+            assert(false && "Failed to load libtaos shared library");
         } else {
-            std::cerr << "[" << case_name << "] FAIL: unexpected error after load: " << msg << std::endl;
-            assert(false && "Unexpected error message");
+            std::cerr << "[" << case_name << "] FAIL: unexpected runtime error: " << msg << std::endl;
+            assert(false && "Unexpected runtime error during connector init");
         }
     } catch (...) {
         std::cerr << "[" << case_name << "] FAIL: unexpected exception." << std::endl;
         assert(false && "Unexpected exception");
     }
     (void)ok;
-    assert(ok && "Connector did not reach expected failure mode");
+    assert(ok && "Connector should initialize without exception for native driver");
 }
 
 static void test_prefer_program_dir_lib() {

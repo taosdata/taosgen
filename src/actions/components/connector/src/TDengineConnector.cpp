@@ -31,9 +31,14 @@ namespace {
             std::string full_path = p.string();
 
             g_taos_lib_handle = DYNLIB_LOAD(full_path.c_str());
-            if (!g_taos_lib_handle) {
-                LogUtils::info("Libtaos not found in program directory, trying system path...");
+            if (g_taos_lib_handle) {
+                LogUtils::info("Loaded libtaos from program directory: {}", full_path);
+            } else {
+                LogUtils::info("libtaos not found in program directory, trying system path...");
                 g_taos_lib_handle = DYNLIB_LOAD(libname);
+                if (g_taos_lib_handle) {
+                    LogUtils::info("Loaded libtaos from system path: {}", libname);
+                }
             }
 
             if (!g_taos_lib_handle) {
