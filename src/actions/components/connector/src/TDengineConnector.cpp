@@ -80,7 +80,7 @@ TDengineConnector::TDengineConnector(const TDengineConfig& conn_info,
 }
 
 void TDengineConnector::init_driver() {
-    LogUtils::info("Initializing TDengine driver: {}", driver_type_);
+    LogUtils::debug("Initializing TDengine driver: {}", driver_type_);
 
     taos_lib_handle_ = load_taos_library_once();
     if (!taos_lib_handle_) {

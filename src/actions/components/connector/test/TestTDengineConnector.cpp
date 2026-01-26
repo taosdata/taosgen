@@ -4,6 +4,13 @@
 #include <filesystem>
 #include <stdexcept>
 #include <cassert>
+#include <cstdlib>
+#include <string>
+
+#if !defined(_WIN32)
+#include <cstdio>
+#include <sys/wait.h>
+#endif
 
 #if defined(_WIN32)
 static constexpr const char* kLibName = "taos.dll";
@@ -33,7 +40,21 @@ static std::string program_lib_path() {
 
 #if !defined(_WIN32)
 static std::filesystem::path find_system_lib_candidate() {
-    const char* candidates[] = { "/usr/local/lib", "/usr/lib" };
+#if defined(__APPLE__)
+    const char* candidates[] = {
+        "/opt/homebrew/lib",
+        "/usr/local/lib",
+        "/usr/lib"
+    };
+#else
+    const char* candidates[] = {
+        "/usr/local/lib",
+        "/usr/lib",
+        "/lib",
+        "/lib/x86_64-linux-gnu",
+        "/usr/lib/x86_64-linux-gnu"
+    };
+#endif
     for (auto* base : candidates) {
         std::filesystem::path p = std::filesystem::path(base) / kLibName;
         if (std::filesystem::exists(p)) return p;
@@ -73,7 +94,7 @@ static bool ensure_program_lib_present() {
 #else
     auto sys_lib = find_system_lib_candidate();
     if (sys_lib.empty()) {
-        std::cerr << "[setup] System lib not found in /usr/local/lib or /usr/lib\n";
+        std::cerr << "[setup] System lib not found in candidates\n";
         assert(false && "System lib not found; cannot set up prefer path");
         return false;
     }
@@ -156,7 +177,7 @@ static void try_construct_connector_expect_loaded(const char* case_name) {
     assert(ok && "Connector should initialize without exception for native driver");
 }
 
-static void test_prefer_program_dir_lib() {
+static void test_prefer_program_dir_lib_child() {
     bool ensured = ensure_program_lib_present();
     (void)ensured;
     assert(ensured && "Program lib must be ensured for prefer test");
@@ -165,10 +186,13 @@ static void test_prefer_program_dir_lib() {
     assert(std::filesystem::path(program_lib_path()).filename().string() == kLibName);
 
     std::cout << "[prefer] Trying to load from: " << program_lib_path() << std::endl;
+
     try_construct_connector_expect_loaded("prefer");
+
+    std::cout << "[prefer] expected source: program directory\n";
 }
 
-static void test_fallback_system_path() {
+static void test_fallback_system_path_child() {
 #if defined(_WIN32)
     std::cerr << "[fallback] Not supported on Windows in this test\n";
     assert(false && "Fallback test not supported on Windows");
@@ -203,6 +227,8 @@ static void test_fallback_system_path() {
 
     try_construct_connector_expect_loaded("fallback");
 
+    std::cout << "[fallback] expected source: system path\n";
+
     if (temporarily_moved) {
         std::error_code ec2;
         std::filesystem::rename(backup, prog_lib, ec2);
@@ -217,11 +243,64 @@ static void test_fallback_system_path() {
 #endif
 }
 
-int main() {
+#if !defined(_WIN32)
+static int run_mode_and_capture(const char* exe_path, const char* mode, std::string& out) {
+    std::string cmd = std::string(exe_path) + " --mode=" + mode + " 2>&1";
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if (!pipe) return -1;
+    char buf[4096];
+    while (fgets(buf, sizeof(buf), pipe)) {
+        out.append(buf);
+    }
+    int status = pclose(pipe);
+    int rc = (WIFEXITED(status) ? WEXITSTATUS(status) : -1);
+    return rc;
+}
+#endif
+
+int main(int argc, char** argv) {
     std::cout << "Running TDengineConnector library loading tests..." << std::endl;
 
-    test_prefer_program_dir_lib();
-    test_fallback_system_path();
+    if (argc > 1) {
+        const std::string arg = argv[1];
+        if (arg == std::string("--mode=prefer")) {
+            test_prefer_program_dir_lib_child();
+            std::cout << "TDengineConnector prefer test completed." << std::endl;
+            return 0;
+        }
+        if (arg == std::string("--mode=fallback")) {
+            test_fallback_system_path_child();
+            std::cout << "TDengineConnector fallback test completed." << std::endl;
+            return 0;
+        }
+    }
+
+#if !defined(_WIN32)
+    {
+        std::string out;
+        int rc = run_mode_and_capture(argv[0], "prefer", out);
+        std::cout << "[parent] prefer output:\n" << out << std::endl;
+        (void)rc;
+        assert(rc == 0 && "prefer subprocess failed");
+        assert(out.find("Loaded libtaos from program directory:") != std::string::npos &&
+               "prefer should load libtaos from program directory");
+        assert(out.find("Setting TDengine driver to native") != std::string::npos);
+    }
+
+    {
+        std::string out;
+        int rc = run_mode_and_capture(argv[0], "fallback", out);
+        std::cout << "[parent] fallback output:\n" << out << std::endl;
+        (void)rc;
+        assert(rc == 0 && "fallback subprocess failed");
+        assert(out.find("libtaos not found in program directory, trying system path") != std::string::npos ||
+               out.find("[fallback] Program lib absent, testing system path fallback") != std::string::npos);
+        assert(out.find("Loaded libtaos from system path:") != std::string::npos);
+        assert(out.find("Setting TDengine driver to native") != std::string::npos);
+    }
+#else
+    test_prefer_program_dir_lib_child();
+#endif
 
     cleanup_program_lib_if_created();
 
