@@ -36,6 +36,20 @@ namespace {
             } else {
                 LogUtils::info("libtaos not found in program directory, trying system path...");
                 g_taos_lib_handle = DYNLIB_LOAD(libname);
+#if defined(__APPLE__)
+                if (!g_taos_lib_handle) {
+                    const char* dirs[] = { "/opt/homebrew/lib", "/usr/local/lib", "/usr/lib" };
+                    for (auto* d : dirs) {
+                        std::filesystem::path cand = std::filesystem::path(d) / libname;
+                        if (std::filesystem::exists(cand)) {
+                            g_taos_lib_handle = DYNLIB_LOAD(cand.string().c_str());
+                            if (g_taos_lib_handle) {
+                                break;
+                            }
+                        }
+                    }
+                }
+#endif
                 if (g_taos_lib_handle) {
                     LogUtils::info("Loaded libtaos from system path: {}", libname);
                 }

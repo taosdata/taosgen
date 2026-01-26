@@ -117,7 +117,7 @@ static bool ensure_program_lib_present() {
 
 static void cleanup_program_lib_if_created() {
 #if !defined(_WIN32)
-    if (!g_prog_lib_created_by_test) return;
+    // if (!g_prog_lib_created_by_test) return;
     const std::string full = program_lib_path();
     const std::string dir = program_lib_dir();
 
