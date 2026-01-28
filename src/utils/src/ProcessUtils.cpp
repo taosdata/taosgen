@@ -8,9 +8,15 @@
 #include <vector>
 #include <thread>
 #include <unistd.h>
+#include <limits.h>
 
-#ifdef __APPLE__
+#if defined(_WIN32) || defined(_WIN64)
+#include <Windows.h>
+#endif
+
+#if defined(__APPLE__)
 #include <mach/mach.h>
+#include <mach-o/dyld.h>
 #endif
 
 namespace ProcessUtils {
@@ -225,6 +231,75 @@ double get_system_free_memory_gb() {
 
 #else
     return -1.0; // Not implemented for this platform
+#endif
+}
+
+std::string get_exe_directory() {
+#if defined(_WIN32) || defined(_WIN64)
+    std::vector<wchar_t> wbuf(1024);
+    DWORD len = 0;
+    while (true) {
+        len = GetModuleFileNameW(nullptr, wbuf.data(), static_cast<DWORD>(wbuf.size()));
+        if (len == 0) {
+            return "";
+        }
+        if (len < wbuf.size()) {
+            break;
+        }
+
+        wbuf.resize(wbuf.size() * 2);
+        if (wbuf.size() > (1 << 20)) {
+            return "";
+        }
+    }
+    std::wstring wpath(wbuf.data(), len);
+    size_t pos = wpath.find_last_of(L"\\/");
+    std::wstring wdir = (pos != std::wstring::npos) ? wpath.substr(0, pos + 1) : std::wstring(L".\\");
+
+    int need = WideCharToMultiByte(CP_UTF8, 0, wdir.c_str(), static_cast<int>(wdir.size()), nullptr, 0, nullptr, nullptr);
+    if (need <= 0) return "";
+    std::string dir(need, '\0');
+    WideCharToMultiByte(CP_UTF8, 0, wdir.c_str(), static_cast<int>(wdir.size()), dir.data(), need, nullptr, nullptr);
+    return dir;
+#elif defined(__APPLE__)
+    uint32_t size = PATH_MAX;
+    std::vector<char> buf(size);
+    if (_NSGetExecutablePath(buf.data(), &size) != 0) {
+        buf.resize(size);
+        if (_NSGetExecutablePath(buf.data(), &size) != 0) {
+            return "";
+        }
+    }
+    std::string path(buf.data());
+    size_t pos = path.find_last_of('/');
+    if (pos != std::string::npos) {
+        path.erase(pos + 1);
+    } else {
+        path.push_back('/');
+    }
+    return path;
+#else
+    std::vector<char> buf(PATH_MAX);
+    while (true) {
+        ssize_t count = readlink("/proc/self/exe", buf.data(), buf.size());
+        if (count == -1) {
+            return "";
+        }
+        if (static_cast<size_t>(count) < buf.size()) {
+            std::string path(buf.data(), buf.data() + count);
+            size_t pos = path.find_last_of('/');
+            if (pos != std::string::npos) {
+                path.erase(pos + 1);
+            } else {
+                path.push_back('/');
+            }
+            return path;
+        }
+        buf.resize(buf.size() * 2);
+        if (buf.size() > (1 << 20)) {
+            return "";
+        }
+    }
 #endif
 }
 

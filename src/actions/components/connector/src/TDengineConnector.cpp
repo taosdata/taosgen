@@ -1,8 +1,85 @@
 #include "TDengineConnector.hpp"
 #include "LogUtils.hpp"
+#include "ProcessUtils.hpp"
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
+#include <filesystem>
+
+namespace {
+    std::once_flag g_taos_lib_once;
+    DYNLIB_HANDLE g_taos_lib_handle = nullptr;
+    std::string g_taos_lib_error;
+
+    const char* taos_lib_filename() {
+    #if defined(_WIN32)
+        return "taos.dll";
+    #elif defined(__APPLE__)
+        return "libtaos.dylib";
+    #else
+        return "libtaos.so";
+    #endif
+    }
+
+    DYNLIB_HANDLE load_taos_library_once() {
+        std::call_once(g_taos_lib_once, [] {
+            const char* libname = taos_lib_filename();
+            std::string exe_dir = ProcessUtils::get_exe_directory();
+            std::filesystem::path p(exe_dir);
+            p /= "lib";
+            p /= libname;
+            std::string full_path = p.string();
+
+            g_taos_lib_handle = DYNLIB_LOAD(full_path.c_str());
+            if (g_taos_lib_handle) {
+                LogUtils::info("Loaded libtaos from program directory: {}", full_path);
+            } else {
+                LogUtils::info("libtaos not found in program directory, trying system path...");
+                g_taos_lib_handle = DYNLIB_LOAD(libname);
+#if defined(__APPLE__)
+                if (!g_taos_lib_handle) {
+                    const char* dirs[] = { "/opt/homebrew/lib", "/usr/local/lib", "/usr/lib" };
+                    for (auto* d : dirs) {
+                        std::filesystem::path cand = std::filesystem::path(d) / libname;
+                        if (std::filesystem::exists(cand)) {
+                            g_taos_lib_handle = DYNLIB_LOAD(cand.string().c_str());
+                            if (g_taos_lib_handle) {
+                                break;
+                            }
+                        }
+                    }
+                }
+#endif
+                if (g_taos_lib_handle) {
+                    LogUtils::info("Loaded libtaos from system path: {}", libname);
+                }
+            }
+
+            if (!g_taos_lib_handle) {
+            #if defined(_WIN32)
+                DWORD err_code = GetLastError();
+                if (err_code != 0) {
+                    LPVOID msg_buf = nullptr;
+                    DWORD flags = FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS;
+                    DWORD lang = MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT);
+                    if (FormatMessageA(flags, nullptr, err_code, lang, (LPSTR)&msg_buf, 0, nullptr) && msg_buf) {
+                        g_taos_lib_error = static_cast<char*>(msg_buf);
+                        LocalFree(msg_buf);
+                        auto endpos = g_taos_lib_error.find_last_not_of(" \t\r\n");
+                        if (std::string::npos != endpos) g_taos_lib_error.erase(endpos + 1);
+                    } else {
+                        g_taos_lib_error = "unknown error";
+                    }
+                }
+            #else
+                const char* error = dlerror();
+                g_taos_lib_error = error ? error : "unknown error";
+            #endif
+            }
+        });
+        return g_taos_lib_handle;
+    }
+} // namespace
 
 std::mutex TDengineConnector::driver_init_mutex_;
 std::map<std::string, std::once_flag> TDengineConnector::driver_init_flags;
@@ -17,98 +94,66 @@ TDengineConnector::TDengineConnector(const TDengineConfig& conn_info,
 }
 
 void TDengineConnector::init_driver() {
-#if defined(_WIN32)
-    taos_lib_handle_ = DYNLIB_LOAD("taos.dll");
-#elif defined(__APPLE__)
-    taos_lib_handle_ = DYNLIB_LOAD("libtaos.dylib");
-#else
-    taos_lib_handle_ = DYNLIB_LOAD("libtaos.so");
-#endif
+    LogUtils::debug("Initializing TDengine driver: {}", driver_type_);
 
+    taos_lib_handle_ = load_taos_library_once();
     if (!taos_lib_handle_) {
-        std::string error_msg = "unknown error";
-#if defined(_WIN32)
-        DWORD err_code = GetLastError();
-        if (err_code != 0) {
-            LPVOID msg_buf = nullptr;
-            DWORD flags = FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS;
-            DWORD lang = MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT);
-            if (FormatMessageA(flags, nullptr, err_code, lang, (LPSTR)&msg_buf, 0, nullptr) && msg_buf) {
-                error_msg = static_cast<char*>(msg_buf);
-                LocalFree(msg_buf);
-                // Trim trailing whitespace (like \r\n) from the error message
-                auto endpos = error_msg.find_last_not_of(" \t\r\n");
-                if (std::string::npos != endpos) {
-                    error_msg.erase(endpos + 1);
-                }
-            }
-        }
-#else
-        const char* error = dlerror();
-        if (error) {
-            error_msg = error;
-        }
-#endif
-        throw std::runtime_error(std::string("Failed to load libtaos shared library: ") + error_msg);
+        throw std::runtime_error(std::string("Failed to load libtaos shared library: ") + g_taos_lib_error);
     }
 
-    // Load API
-    taos_options_ = reinterpret_cast<taos_options_func>(DYNLIB_SYM(taos_lib_handle_, "taos_options"));
-    taos_errstr_ = reinterpret_cast<taos_errstr_func>(DYNLIB_SYM(taos_lib_handle_, "taos_errstr"));
-    taos_errno_ = reinterpret_cast<taos_errno_func>(DYNLIB_SYM(taos_lib_handle_, "taos_errno"));
-    taos_connect_ = reinterpret_cast<taos_connect_func>(DYNLIB_SYM(taos_lib_handle_, "taos_connect"));
-    taos_query_ = reinterpret_cast<taos_query_func>(DYNLIB_SYM(taos_lib_handle_, "taos_query"));
-    taos_free_result_ = reinterpret_cast<taos_free_result_func>(DYNLIB_SYM(taos_lib_handle_, "taos_free_result"));
-    taos_select_db_ = reinterpret_cast<taos_select_db_func>(DYNLIB_SYM(taos_lib_handle_, "taos_select_db"));
-    taos_close_ = reinterpret_cast<taos_close_func>(DYNLIB_SYM(taos_lib_handle_, "taos_close"));
+    auto load_symbols = [this]() {
+        taos_options_     = reinterpret_cast<taos_options_func>(DYNLIB_SYM(taos_lib_handle_, "taos_options"));
+        taos_errstr_      = reinterpret_cast<taos_errstr_func>(DYNLIB_SYM(taos_lib_handle_, "taos_errstr"));
+        taos_errno_       = reinterpret_cast<taos_errno_func>(DYNLIB_SYM(taos_lib_handle_, "taos_errno"));
+        taos_connect_     = reinterpret_cast<taos_connect_func>(DYNLIB_SYM(taos_lib_handle_, "taos_connect"));
+        taos_query_       = reinterpret_cast<taos_query_func>(DYNLIB_SYM(taos_lib_handle_, "taos_query"));
+        taos_free_result_ = reinterpret_cast<taos_free_result_func>(DYNLIB_SYM(taos_lib_handle_, "taos_free_result"));
+        taos_select_db_   = reinterpret_cast<taos_select_db_func>(DYNLIB_SYM(taos_lib_handle_, "taos_select_db"));
+        taos_close_       = reinterpret_cast<taos_close_func>(DYNLIB_SYM(taos_lib_handle_, "taos_close"));
 
-    taos_stmt2_init_ = reinterpret_cast<taos_stmt2_init_func>(DYNLIB_SYM(taos_lib_handle_, "taos_stmt2_init"));
-    taos_stmt2_prepare_ = reinterpret_cast<taos_stmt2_prepare_func>(DYNLIB_SYM(taos_lib_handle_, "taos_stmt2_prepare"));
-    taos_stmt2_bind_param_ = reinterpret_cast<taos_stmt2_bind_param_func>(DYNLIB_SYM(taos_lib_handle_, "taos_stmt2_bind_param"));
-    taos_stmt2_exec_ = reinterpret_cast<taos_stmt2_exec_func>(DYNLIB_SYM(taos_lib_handle_, "taos_stmt2_exec"));
-    taos_stmt2_close_ = reinterpret_cast<taos_stmt2_close_func>(DYNLIB_SYM(taos_lib_handle_, "taos_stmt2_close"));
-    taos_stmt2_error_ = reinterpret_cast<taos_stmt2_error_func>(DYNLIB_SYM(taos_lib_handle_, "taos_stmt2_error"));
+        taos_stmt2_init_      = reinterpret_cast<taos_stmt2_init_func>(DYNLIB_SYM(taos_lib_handle_, "taos_stmt2_init"));
+        taos_stmt2_prepare_   = reinterpret_cast<taos_stmt2_prepare_func>(DYNLIB_SYM(taos_lib_handle_, "taos_stmt2_prepare"));
+        taos_stmt2_bind_param_= reinterpret_cast<taos_stmt2_bind_param_func>(DYNLIB_SYM(taos_lib_handle_, "taos_stmt2_bind_param"));
+        taos_stmt2_exec_      = reinterpret_cast<taos_stmt2_exec_func>(DYNLIB_SYM(taos_lib_handle_, "taos_stmt2_exec"));
+        taos_stmt2_close_     = reinterpret_cast<taos_stmt2_close_func>(DYNLIB_SYM(taos_lib_handle_, "taos_stmt2_close"));
+        taos_stmt2_error_     = reinterpret_cast<taos_stmt2_error_func>(DYNLIB_SYM(taos_lib_handle_, "taos_stmt2_error"));
 
-    // Check if the loading was successful
-    if (!taos_options_ || !taos_errstr_ || !taos_errno_ || !taos_connect_ ||
-        !taos_query_ || !taos_free_result_ || !taos_select_db_ || !taos_close_ ||
-        !taos_stmt2_init_ || !taos_stmt2_prepare_ || !taos_stmt2_bind_param_ ||
-        !taos_stmt2_exec_ || !taos_stmt2_close_ || !taos_stmt2_error_)
+        if (!taos_options_ || !taos_errstr_ || !taos_errno_ || !taos_connect_ ||
+            !taos_query_   || !taos_free_result_ || !taos_select_db_ || !taos_close_ ||
+            !taos_stmt2_init_ || !taos_stmt2_prepare_ || !taos_stmt2_bind_param_ ||
+            !taos_stmt2_exec_ || !taos_stmt2_close_ || !taos_stmt2_error_) {
+            throw std::runtime_error("Failed to load all required taos API symbols");
+        }
+    };
+
+    load_symbols();
+
     {
-        DYNLIB_CLOSE(taos_lib_handle_);
-        taos_lib_handle_ = nullptr;
-        throw std::runtime_error("Failed to load all required taos API symbols");
+        std::lock_guard<std::mutex> lock(driver_init_mutex_);
+        auto& flag = driver_init_flags[driver_type_];
+
+        std::call_once(flag, [this]() {
+            LogUtils::info("Setting TDengine driver to {} for {}", driver_type_, display_name_);
+            int32_t code = taos_options_(TSDB_OPTION_DRIVER, driver_type_.c_str());
+            if (code != 0) {
+                std::ostringstream oss;
+                oss << "Failed to set driver to " << display_name_ << ": "
+                    << taos_errstr_(nullptr) << " [0x"
+                    << std::hex << taos_errno_(nullptr) << "], code: 0x"
+                    << std::hex << code;
+                throw std::runtime_error(oss.str());
+            }
+        });
     }
-
-
-    std::lock_guard<std::mutex> lock(driver_init_mutex_);
-    auto& flag = driver_init_flags[driver_type_];
-
-    std::call_once(flag, [this]() {
-        // Setting driver
-        int32_t code = taos_options_(TSDB_OPTION_DRIVER, driver_type_.c_str());
-        if (code != 0) {
-            std::ostringstream oss;
-            oss << "Failed to set driver to " << display_name_ << ": "
-                << taos_errstr_(nullptr) << " [0x"
-                << std::hex << taos_errno_(nullptr) << "], code: 0x"
-                << std::hex << code;
-            throw std::runtime_error(oss.str());
-        }
-    });
 }
 
 TDengineConnector::~TDengineConnector() {
     close();
-    if (taos_lib_handle_) {
-        DYNLIB_CLOSE(taos_lib_handle_);
-        taos_lib_handle_ = nullptr;
-    }
+    taos_lib_handle_ = nullptr;
 }
 
 bool TDengineConnector::connect() {
     if (is_connected_) return true;
-    init_driver();
 
     conn_ = taos_connect_(
         conn_info_.host.c_str(),
