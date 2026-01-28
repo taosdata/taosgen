@@ -1,2 +1,2 @@
 #pragma once
-inline constexpr const char* TAOSGEN_VERSION = "0.8.2";
+inline constexpr const char* TAOSGEN_VERSION = "0.8.3";
