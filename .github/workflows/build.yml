@@ -337,13 +337,45 @@ jobs:
           set -euo pipefail
           BASE_DIR="$(pwd)"
           BUILD_DIR="${BASE_DIR}/build"
-          lcov --capture --directory "${BUILD_DIR}" --base-directory "${BASE_DIR}" \
-               --output-file "${BASE_DIR}/coverage.info" --rc branch_coverage=1 --no-external
-          lcov --extract "${BASE_DIR}/coverage.info" "${BASE_DIR}/src/**" \
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            GCOV_TOOL="$(xcrun -f llvm-cov) gcov"
+          else
+            GCOV_TOOL="gcov"
+          fi
+          lcov --gcov-tool "${GCOV_TOOL}" --capture \
+               --directory "${BUILD_DIR}" \
+               --base-directory "${BASE_DIR}" \
+               --output-file "${BASE_DIR}/coverage.info" \
+               --rc branch_coverage=1 \
+               --no-external
+          lcov --gcov-tool "${GCOV_TOOL}" --extract "${BASE_DIR}/coverage.info" \
+               "${BASE_DIR}/src/**" \
                --output-file "${BASE_DIR}/src_coverage.info"
-          lcov --remove "${BASE_DIR}/src_coverage.info" "*/test/*" \
+          lcov --gcov-tool "${GCOV_TOOL}" --remove "${BASE_DIR}/src_coverage.info" \
+               "*/test/*" \
                --output-file "${BASE_DIR}/coverage_upload.info"
-          lcov --list "${BASE_DIR}/coverage_upload.info"
+          lcov --gcov-tool "${GCOV_TOOL}" --list "${BASE_DIR}/coverage_upload.info"
+
+      - name: Ensure HOME for Codecov (Linux only)
+        if: inputs.build_type == 'Debug' && runner.os == 'Linux'
+        run: |
+          if [ -z "${HOME:-}" ]; then
+            CANDIDATE="$(dirname "$(dirname "${GITHUB_WORKSPACE}")")"
+            if [ -d "$CANDIDATE" ] && [ -w "$CANDIDATE" ]; then
+              echo "HOME=$CANDIDATE" >> "$GITHUB_ENV"
+            elif [ -d "/tmp" ] && [ -w "/tmp" ]; then
+              mkdir -p /tmp/actions-home
+              echo "HOME=/tmp/actions-home" >> "$GITHUB_ENV"
+            else
+              echo "HOME=${GITHUB_WORKSPACE}" >> "$GITHUB_ENV"
+            fi
+          fi
+          echo "HOME=${HOME:-unset}"
+
+      - name: Preconfigure git safe.directory
+        if: inputs.build_type == 'Debug'
+        run: |
+          git config --global --add safe.directory "${{ github.workspace }}" || true
 
       - name: Upload coverage to Codecov
         if: inputs.build_type == 'Debug'
