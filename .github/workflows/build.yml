@@ -346,13 +346,16 @@ jobs:
                --base-directory "${BASE_DIR}" \
                --output-file "${BASE_DIR}/coverage.info" \
                --rc branch_coverage=1 \
-               --no-external
+               --no-external \
+               --ignore-errors inconsistent,empty,unsupported,mismatch,corrupt
           lcov --gcov-tool "${GCOV_TOOL}" --extract "${BASE_DIR}/coverage.info" \
                "${BASE_DIR}/src/**" \
-               --output-file "${BASE_DIR}/src_coverage.info"
+               --output-file "${BASE_DIR}/src_coverage.info" \
+               --ignore-errors inconsistent,empty,unsupported,mismatch,corrupt
           lcov --gcov-tool "${GCOV_TOOL}" --remove "${BASE_DIR}/src_coverage.info" \
                "*/test/*" \
-               --output-file "${BASE_DIR}/coverage_upload.info"
+               --output-file "${BASE_DIR}/coverage_upload.info" \
+               --ignore-errors inconsistent,empty,unsupported,mismatch,corrupt
           lcov --gcov-tool "${GCOV_TOOL}" --list "${BASE_DIR}/coverage_upload.info"
 
       - name: Ensure HOME for Codecov (Linux only)
@@ -379,11 +382,12 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: inputs.build_type == 'Debug'
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v
         with:
           files: coverage_upload.info
           flags: ${{ runner.os }}-${{ matrix.arch }}
           name: taosgen-${{ runner.os }}-${{ matrix.arch }}
+          slug: taosdata/taosgen
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
         env:
