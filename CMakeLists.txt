@@ -58,10 +58,10 @@ endif()
 message(STATUS "Sys Info: ${TSGEN_BUILD_TARGET_OSTYPE}-${TSGEN_BUILD_TARGET_CPUTYPE} ${TSGEN_BUILD_DATE}")
 
 # Code coverage
-if(TSGEN_LINUX)
-  if(TSGEN_ENABLE_COVERAGE)
+if(TSGEN_ENABLE_COVERAGE)
+  message(STATUS "Enable code coverage")
+  if(TSGEN_LINUX)
     # GCC/gcov
-    message(STATUS "Enable code coverage")
     set(COVERAGE_COMPILE_FLAGS "-fprofile-arcs -ftest-coverage -fprofile-update=atomic")
     set(COVERAGE_LINK_FLAGS "--coverage -lgcov")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COVERAGE_COMPILE_FLAGS} ${COVERAGE_LINK_FLAGS}")

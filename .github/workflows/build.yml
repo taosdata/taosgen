@@ -386,8 +386,9 @@ jobs:
           flags: ${{ runner.os }}-${{ matrix.arch }}
           name: taosgen-${{ runner.os }}-${{ matrix.arch }}
           fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
         env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          HOME: ${{ env.HOME }}
 
       - name: Prepare release artifact
         if: ${{ inputs.build_type == 'Release' && inputs.package_release == true }}
