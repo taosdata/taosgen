@@ -288,12 +288,7 @@ jobs:
             sudo apt-get install -y lcov
           elif [ "${{ runner.os }}" = "macOS" ]; then
             brew install lcov || true
-            brew install lcov || true
-            cat > ./llvm-gcov.sh <<'EOF'
-            #!/usr/bin/env bash
-            set -euo pipefail
-            exec "$(xcrun -f llvm-cov)" gcov "$@"
-            EOF
+            printf '#!/usr/bin/env bash\nset -euo pipefail\nexec "$(xcrun -f llvm-cov)" gcov "$@"\n' > ./llvm-gcov.sh
             chmod +x ./llvm-gcov.sh
             echo "GCOV=$PWD/llvm-gcov.sh" >> $GITHUB_ENV
           fi
