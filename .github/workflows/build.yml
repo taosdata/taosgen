@@ -286,11 +286,13 @@ jobs:
           if [ "${{ runner.os }}" = "Linux" ]; then
             sudo apt-get update
             sudo apt-get install -y lcov
+            echo "LCOV_IGNORE_ERRORS=empty,mismatch" >> "$GITHUB_ENV"
           elif [ "${{ runner.os }}" = "macOS" ]; then
             brew install lcov || true
             printf '#!/usr/bin/env bash\nset -euo pipefail\nexec "$(xcrun -f llvm-cov)" gcov "$@"\n' > ./llvm-gcov.sh
             chmod +x ./llvm-gcov.sh
             echo "GCOV=$PWD/llvm-gcov.sh" >> $GITHUB_ENV
+            echo "LCOV_IGNORE_ERRORS=format,inconsistent,empty,unsupported,mismatch,corrupt" >> "$GITHUB_ENV"
           fi
 
       - name: Configure CMake
@@ -340,23 +342,27 @@ jobs:
           BASE_DIR="$(pwd)"
           BUILD_DIR="${BASE_DIR}/build"
           GCOV_TOOL="${GCOV:-gcov}"
+          IGNORE_ERRS="${LCOV_IGNORE_ERRORS:-empty,mismatch}"
           echo "Using gcov tool: ${GCOV_TOOL}"
+          echo "lcov ignore-errors: ${IGNORE_ERRS}"
           lcov --gcov-tool "${GCOV_TOOL}" --capture \
                --directory "${BUILD_DIR}" \
                --base-directory "${BASE_DIR}" \
                --output-file "${BASE_DIR}/coverage.info" \
                --rc branch_coverage=1 \
                --no-external \
-               --ignore-errors inconsistent,empty,unsupported,mismatch,corrupt
+               --ignore-errors "${IGNORE_ERRS}"
           lcov --gcov-tool "${GCOV_TOOL}" --extract "${BASE_DIR}/coverage.info" \
                "${BASE_DIR}/src/**" \
                --output-file "${BASE_DIR}/src_coverage.info" \
-               --ignore-errors inconsistent,empty,unsupported,mismatch,corrupt
+               --ignore-errors "${IGNORE_ERRS}"
           lcov --gcov-tool "${GCOV_TOOL}" --remove "${BASE_DIR}/src_coverage.info" \
                "*/test/*" \
                --output-file "${BASE_DIR}/coverage_upload.info" \
-               --ignore-errors inconsistent,empty,unsupported,mismatch,corrupt
-          lcov --gcov-tool "${GCOV_TOOL}" --list "${BASE_DIR}/coverage_upload.info"
+               --ignore-errors "${IGNORE_ERRS}"
+          lcov --gcov-tool "${GCOV_TOOL}" --list "${BASE_DIR}/coverage_upload.info" \
+               --rc derive_function_end_line=0 \
+               --ignore-errors "${IGNORE_ERRS}"
 
       - name: Ensure HOME for Codecov (Linux only)
         if: inputs.build_type == 'Debug' && runner.os == 'Linux'
