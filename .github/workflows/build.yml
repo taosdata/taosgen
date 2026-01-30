@@ -288,7 +288,14 @@ jobs:
             sudo apt-get install -y lcov
           elif [ "${{ runner.os }}" = "macOS" ]; then
             brew install lcov || true
-            echo "GCOV=llvm-cov" >> $GITHUB_ENV
+            brew install lcov || true
+            cat > ./llvm-gcov.sh <<'EOF'
+            #!/usr/bin/env bash
+            set -euo pipefail
+            exec "$(xcrun -f llvm-cov)" gcov "$@"
+            EOF
+            chmod +x ./llvm-gcov.sh
+            echo "GCOV=$PWD/llvm-gcov.sh" >> $GITHUB_ENV
           fi
 
       - name: Configure CMake
@@ -337,11 +344,8 @@ jobs:
           set -euo pipefail
           BASE_DIR="$(pwd)"
           BUILD_DIR="${BASE_DIR}/build"
-          if [ "${{ runner.os }}" = "macOS" ]; then
-            GCOV_TOOL="$(xcrun -f llvm-cov)"
-          else
-            GCOV_TOOL="gcov"
-          fi
+          GCOV_TOOL="${GCOV:-gcov}"
+          echo "Using gcov tool: ${GCOV_TOOL}"
           lcov --gcov-tool "${GCOV_TOOL}" --capture \
                --directory "${BUILD_DIR}" \
                --base-directory "${BASE_DIR}" \
