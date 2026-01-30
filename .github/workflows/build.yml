@@ -338,7 +338,7 @@ jobs:
           BASE_DIR="$(pwd)"
           BUILD_DIR="${BASE_DIR}/build"
           if [ "${{ runner.os }}" = "macOS" ]; then
-            GCOV_TOOL="$(xcrun -f llvm-cov) gcov"
+            GCOV_TOOL="$(xcrun -f llvm-cov)"
           else
             GCOV_TOOL="gcov"
           fi
@@ -362,13 +362,14 @@ jobs:
           if [ -z "${HOME:-}" ]; then
             CANDIDATE="$(dirname "$(dirname "${GITHUB_WORKSPACE}")")"
             if [ -d "$CANDIDATE" ] && [ -w "$CANDIDATE" ]; then
-              echo "HOME=$CANDIDATE" >> "$GITHUB_ENV"
+              export HOME="$CANDIDATE"
             elif [ -d "/tmp" ] && [ -w "/tmp" ]; then
               mkdir -p /tmp/actions-home
-              echo "HOME=/tmp/actions-home" >> "$GITHUB_ENV"
+              export HOME="/tmp/actions-home"
             else
-              echo "HOME=${GITHUB_WORKSPACE}" >> "$GITHUB_ENV"
+              export HOME="${GITHUB_WORKSPACE}"
             fi
+            echo "HOME=${HOME}" >> "$GITHUB_ENV"
           fi
           echo "HOME=${HOME:-unset}"
 
