@@ -286,7 +286,7 @@ jobs:
           if [ "${{ runner.os }}" = "Linux" ]; then
             sudo apt-get update
             sudo apt-get install -y lcov
-            echo "LCOV_IGNORE_ERRORS=empty,mismatch" >> "$GITHUB_ENV"
+            echo "LCOV_IGNORE_ERRORS=mismatch" >> "$GITHUB_ENV"
           elif [ "${{ runner.os }}" = "macOS" ]; then
             brew install lcov || true
             printf '#!/usr/bin/env bash\nset -euo pipefail\nexec "$(xcrun -f llvm-cov)" gcov "$@"\n' > ./llvm-gcov.sh
