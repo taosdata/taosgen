@@ -293,7 +293,7 @@ jobs:
             printf '#!/usr/bin/env bash\nset -euo pipefail\nexec "$(xcrun -f llvm-cov)" gcov "$@"\n' > ./llvm-gcov.sh
             chmod +x ./llvm-gcov.sh
             echo "GCOV=$PWD/llvm-gcov.sh" >> $GITHUB_ENV
-            echo "LCOV_IGNORE_ERRORS=format,inconsistent,empty,unsupported,mismatch,corrupt" >> "$GITHUB_ENV"
+            echo "LCOV_IGNORE_ERRORS=format,inconsistent,empty,unsupported,mismatch,corrupt,range" >> "$GITHUB_ENV"
           fi
 
       - name: Configure CMake
@@ -343,32 +343,45 @@ jobs:
           BASE_DIR="$(pwd)"
           BUILD_DIR="${BASE_DIR}/build"
           GCOV_TOOL="${GCOV:-gcov}"
+
+          # Build ignore-errors as repeated flags
           IGNORE_ERRS="${LCOV_IGNORE_ERRORS-}"
-          if [ -n "${IGNORE_ERRS}" ]; then
-            IGNORE_OPT="--ignore-errors ${IGNORE_ERRS}"
-          else
-            IGNORE_OPT=""
-          fi
+          IFS=',' read -r -a IGNORE_LIST <<< "${IGNORE_ERRS}"
+          IGNORE_ARGS=()
+          for e in "${IGNORE_LIST[@]}"; do
+            [ -n "${e:-}" ] && IGNORE_ARGS+=(--ignore-errors "$e")
+          done
+
           echo "Using gcov tool: ${GCOV_TOOL}"
           echo "lcov ignore-errors: ${IGNORE_ERRS}"
-          lcov --gcov-tool "${GCOV_TOOL}" --capture \
+
+          # capture
+          lcov "${IGNORE_ARGS[@]}" --gcov-tool "${GCOV_TOOL}" --capture \
                --directory "${BUILD_DIR}" \
                --base-directory "${BASE_DIR}" \
                --output-file "${BASE_DIR}/coverage.info" \
                --rc branch_coverage=1 \
-               --no-external \
-               ${IGNORE_OPT}
-          lcov --gcov-tool "${GCOV_TOOL}" --extract "${BASE_DIR}/coverage.info" \
-               "${BASE_DIR}/src/**" \
-               --output-file "${BASE_DIR}/src_coverage.info" \
-               ${IGNORE_OPT}
-          lcov --gcov-tool "${GCOV_TOOL}" --remove "${BASE_DIR}/src_coverage.info" \
-               "*/test/*" \
-               --output-file "${BASE_DIR}/coverage_upload.info" \
-               ${IGNORE_OPT}
-          lcov --gcov-tool "${GCOV_TOOL}" --list "${BASE_DIR}/coverage_upload.info" \
                --rc derive_function_end_line=0 \
-               ${IGNORE_OPT} || true
+               --no-external
+
+          # extract
+          lcov "${IGNORE_ARGS[@]}" --gcov-tool "${GCOV_TOOL}" \
+               --rc derive_function_end_line=0 --rc check_data_consistency=0 \
+               --extract "${BASE_DIR}/coverage.info" \
+               "${BASE_DIR}/src/**" \
+               --output-file "${BASE_DIR}/src_coverage.info"
+
+          # remove
+          lcov "${IGNORE_ARGS[@]}" --gcov-tool "${GCOV_TOOL}" \
+               --rc derive_function_end_line=0 --rc check_data_consistency=0 \
+               --remove "${BASE_DIR}/src_coverage.info" \
+               "*/test/*" \
+               --output-file "${BASE_DIR}/coverage_upload.info"
+
+          # list
+          lcov "${IGNORE_ARGS[@]}" --gcov-tool "${GCOV_TOOL}" \
+               --rc derive_function_end_line=0 --rc check_data_consistency=0 \
+               --list "${BASE_DIR}/coverage_upload.info" || true
 
       - name: Ensure HOME for Codecov
         if: inputs.build_type == 'Debug'
