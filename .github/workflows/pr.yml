@@ -19,8 +19,8 @@ jobs:
       build_type: Debug
     secrets: inherit
 
-  # release:
-  #   uses: ./.github/workflows/build.yml
-  #   with:
-  #     build_type: Release
-  #     package_release: false
+  release:
+    uses: ./.github/workflows/build.yml
+    with:
+      build_type: Release
+      package_release: false
