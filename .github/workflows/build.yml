@@ -205,6 +205,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          clean: true
 
       - name: Install CMake (Linux)
         if: runner.os == 'Linux'
@@ -280,12 +281,30 @@ jobs:
             --settings=arch=${{ matrix.conan_arch }} \
             --settings=compiler.cppstd=17
 
+      - name: Install coverage tools
+        if: inputs.build_type == 'Debug'
+        run: |
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            sudo apt-get update
+            sudo apt-get install -y lcov
+            echo "LCOV_IGNORE_ERRORS=" >> "$GITHUB_ENV"
+          elif [ "${{ runner.os }}" = "macOS" ]; then
+            brew install lcov || true
+            printf '#!/usr/bin/env bash\nset -euo pipefail\nexec "$(xcrun -f llvm-cov)" gcov "$@"\n' > ./llvm-gcov.sh
+            chmod +x ./llvm-gcov.sh
+            echo "GCOV=$PWD/llvm-gcov.sh" >> $GITHUB_ENV
+            echo "LCOV_IGNORE_ERRORS=format,inconsistent,empty,unsupported,mismatch,corrupt,range" >> "$GITHUB_ENV"
+          fi
+
       - name: Configure CMake
         working-directory: build
         run: |
           CMAKE_ARGS="-DCMAKE_BUILD_TYPE=${{ inputs.build_type }} -DCMAKE_INSTALL_PREFIX=./install -DCMAKE_PREFIX_PATH=./conan"
           if [ "${{ runner.os }}" = "macOS" ]; then
             CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_OSX_SYSROOT=$(xcrun --show-sdk-path) -DCMAKE_TOOLCHAIN_FILE=./conan/conan_toolchain.cmake"
+          fi
+          if [ "${{ inputs.build_type }}" = "Debug" ]; then
+            CMAKE_ARGS="$CMAKE_ARGS -DTSGEN_ENABLE_COVERAGE=ON -DTSGEN_BUNDLE_MIMALLOC=OFF"
           fi
           cmake .. $CMAKE_ARGS
 
@@ -315,6 +334,104 @@ jobs:
             export DYLD_LIBRARY_PATH=/usr/local/lib:$DYLD_LIBRARY_PATH
           fi
           ctest --output-on-failure --verbose
+
+      - name: Collect coverage
+        if: inputs.build_type == 'Debug'
+        working-directory: .
+        run: |
+          set -euo pipefail
+          BASE_DIR="$(pwd)"
+          BUILD_DIR="${BASE_DIR}/build"
+          GCOV_TOOL="${GCOV:-gcov}"
+
+          # Build ignore-errors as repeated flags
+          IGNORE_ERRS="${LCOV_IGNORE_ERRORS-}"
+          IFS=',' read -r -a IGNORE_LIST <<< "${IGNORE_ERRS}"
+          IGNORE_ARGS=()
+          for e in "${IGNORE_LIST[@]}"; do
+            [ -n "${e:-}" ] && IGNORE_ARGS+=(--ignore-errors "$e")
+          done
+
+          echo "Using gcov tool: ${GCOV_TOOL}"
+          echo "lcov ignore-errors: ${IGNORE_ERRS}"
+
+          # capture
+          lcov "${IGNORE_ARGS[@]}" --gcov-tool "${GCOV_TOOL}" --capture \
+               --directory "${BUILD_DIR}" \
+               --base-directory "${BASE_DIR}" \
+               --output-file "${BASE_DIR}/coverage.info" \
+               --rc branch_coverage=1 \
+               --rc derive_function_end_line=0 \
+               --no-external
+
+          # extract
+          lcov "${IGNORE_ARGS[@]}" --gcov-tool "${GCOV_TOOL}" \
+               --rc derive_function_end_line=0 --rc check_data_consistency=0 \
+               --extract "${BASE_DIR}/coverage.info" \
+               "${BASE_DIR}/src/**" \
+               --output-file "${BASE_DIR}/src_coverage.info"
+
+          # remove
+          lcov "${IGNORE_ARGS[@]}" --gcov-tool "${GCOV_TOOL}" \
+               --rc derive_function_end_line=0 --rc check_data_consistency=0 \
+               --remove "${BASE_DIR}/src_coverage.info" \
+               "*/test/*" \
+               --output-file "${BASE_DIR}/coverage_upload.info"
+
+          # list
+          lcov "${IGNORE_ARGS[@]}" --gcov-tool "${GCOV_TOOL}" \
+               --rc derive_function_end_line=0 --rc check_data_consistency=0 \
+               --list "${BASE_DIR}/coverage_upload.info" || true
+
+      - name: Ensure HOME for Codecov
+        if: inputs.build_type == 'Debug'
+        run: |
+          set -euo pipefail
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            if [ -z "${HOME:-}" ]; then
+              CANDIDATE="$(dirname "$(dirname "${GITHUB_WORKSPACE}")")"
+              if [ -d "$CANDIDATE" ] && [ -w "$CANDIDATE" ]; then
+                HOME="$CANDIDATE"
+              elif [ -d "/tmp" ] && [ -w "/tmp" ]; then
+                mkdir -p /tmp/actions-home
+                HOME="/tmp/actions-home"
+              else
+                HOME="${GITHUB_WORKSPACE}"
+              fi
+            fi
+            echo "HOME=${HOME}" >> "$GITHUB_ENV"
+            echo "HOME resolved (Linux): ${HOME}"
+          elif [ "${{ runner.os }}" = "macOS" ]; then
+            if [ -z "${HOME:-}" ] || [ ! -d "$HOME" ] || [ ! -w "$HOME" ]; then
+              mkdir -p "${GITHUB_WORKSPACE}/.home"
+              HOME="${GITHUB_WORKSPACE}/.home"
+              echo "HOME=${HOME}" >> "$GITHUB_ENV"
+              echo "HOME set (macOS) to ${HOME}"
+            else
+              echo "HOME=${HOME}" >> "$GITHUB_ENV"
+              echo "HOME kept (macOS) as ${HOME}"
+            fi
+          fi
+
+      - name: Preconfigure git safe.directory
+        if: inputs.build_type == 'Debug'
+        run: |
+          git config --global --add safe.directory "${{ github.workspace }}" || true
+
+      - name: Upload coverage to Codecov
+        if: inputs.build_type == 'Debug'
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage_upload.info
+          flags: ${{ runner.os }}-${{ matrix.arch }}
+          name: taosgen-${{ runner.os }}-${{ matrix.arch }}
+          slug: taosdata/taosgen
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+          skip_validation: true
+          disable_safe_directory: true
+        env:
+          HOME: ${{ env.HOME }}
 
       - name: Prepare release artifact
         if: ${{ inputs.build_type == 'Release' && inputs.package_release == true }}

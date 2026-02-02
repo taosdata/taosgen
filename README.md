@@ -1,6 +1,8 @@
 <!-- omit in toc -->
 # taosgen
 
+[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/taosdata/taosgen/build.yml)](https://github.com/taosdata/taosgen/actions/workflows/build.yml)
+[![codecov](https://codecov.io/gh/taosdata/taosgen/branch/main/graph/badge.svg)](https://app.codecov.io/github/taosdata/taosgen)
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/taosdata/taosgen)
 ![GitHub License](https://img.shields.io/github/license/taosdata/taosgen)
 ![GitHub Tag](https://img.shields.io/github/v/tag/taosdata/taosgen?label=latest)
@@ -77,7 +79,7 @@ Test cases are located in the test directories of each submodule.
 
 ## 6. CI/CD
 - [Build Workflow](https://github.com/taosdata/tsgen/actions/workflows/build.yml)
-- [Code Coverage] -TODO
+- [Code Coverage](https://app.codecov.io/github/taosdata/taosgen)
 
 ## 7. Submitting Issues
 We welcome [GitHub Issues](https://github.com/taosdata/taosgen/issues/new?template=Blank+issue). Please provide the following information to help us diagnose and resolve issues efficiently:
