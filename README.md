@@ -77,7 +77,7 @@ Test cases are located in the test directories of each submodule.
 
 ## 6. CI/CD
 - [Build Workflow](https://github.com/taosdata/tsgen/actions/workflows/build.yml)
-- [Code Coverage] -TODO
+- [Code Coverage](https://app.codecov.io/github/taosdata/taosgen)
 
 ## 7. Submitting Issues
 We welcome [GitHub Issues](https://github.com/taosdata/taosgen/issues/new?template=Blank+issue). Please provide the following information to help us diagnose and resolve issues efficiently:

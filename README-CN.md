@@ -77,7 +77,7 @@ cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_SYSROOT=$(xcrun --show-sdk-path)
 
 ## 6. CI/CD
 - [Build Workflow](https://github.com/taosdata/tsgen/actions/workflows/build.yml)
-- [Code Coverage] -TODO
+- [Code Coverage](https://app.codecov.io/github/taosdata/taosgen)
 
 ## 7. 提交 Issue
 我们欢迎提交 [GitHub Issue](https://github.com/taosdata/taosgen/issues/new?template=Blank+issue) 。提交时，请提供以下信息以帮助我们更高效地诊断和解决问题：
