@@ -1,6 +1,8 @@
 <!-- omit in toc -->
 # taosgen
 
+[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/taosdata/taosgen/build.yml)](https://github.com/taosdata/taosgen/actions/workflows/build.yml)
+[![codecov](https://codecov.io/gh/taosdata/taosgen/branch/main/graph/badge.svg)](https://app.codecov.io/github/taosdata/taosgen)
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/taosdata/taosgen)
 ![GitHub License](https://img.shields.io/github/license/taosdata/taosgen)
 ![GitHub Tag](https://img.shields.io/github/v/tag/taosdata/taosgen?label=latest)
