@@ -435,6 +435,57 @@ expr: "2*sinusoid(period=10,min=0,max=10)+3"
     assert(col.formula == "2*sinusoid(period=10,min=0,max=10)+3");
 }
 
+void test_ColumnConfig_strip_backticks_plain() {
+    std::string yaml = R"(
+name: "`id`"
+type: int
+)";
+    YAML::Node node = YAML::Load(yaml);
+    ColumnConfig col = node.as<ColumnConfig>();
+    assert(col.name == "id");
+    assert(col.type == "int");
+
+    yaml = R"(
+name: "``"
+type: int
+)";
+    node = YAML::Load(yaml);
+    col = node.as<ColumnConfig>();
+    assert(col.name == "");
+    assert(col.type == "int");
+}
+
+void test_ColumnConfig_strip_backticks_unmatched() {
+    std::string yaml = R"(
+name: "`leading"
+type: binary(20)
+)";
+    YAML::Node node = YAML::Load(yaml);
+    ColumnConfig col = node.as<ColumnConfig>();
+    assert(col.name == "`leading");
+    assert(col.type == "binary(20)");
+
+    yaml = R"(
+name: "trailing`"
+type: binary(20)
+)";
+    node = YAML::Load(yaml);
+    col = node.as<ColumnConfig>();
+    assert(col.name == "trailing`");
+    assert(col.type == "binary(20)");
+}
+
+void test_ColumnConfig_strip_backticks_none() {
+    std::string yaml = R"(
+name: value_no_bt
+type: double
+)";
+    YAML::Node node = YAML::Load(yaml);
+    ColumnConfig col = node.as<ColumnConfig>();
+    assert(col.name == "value_no_bt");
+    assert(col.type == "double");
+}
+
 void test_TableNameConfig_generator() {
     std::string yaml = R"(
 prefix: tb
@@ -1112,6 +1163,10 @@ int main() {
     test_ColumnConfig_random();
     test_ColumnConfig_order();
     test_ColumnConfig_expression();
+    test_ColumnConfig_strip_backticks_plain();
+    test_ColumnConfig_strip_backticks_unmatched();
+    test_ColumnConfig_strip_backticks_none();
+
     test_TableNameConfig_generator();
     test_TableNameConfig_csv();
     test_TagsConfig_generator();
