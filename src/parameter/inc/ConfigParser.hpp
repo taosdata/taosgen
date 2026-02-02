@@ -38,6 +38,13 @@ namespace YAML {
         }
     }
 
+    inline std::string strip_backticks_if_wrapped(const std::string& s) {
+        if (s.size() >= 2 && s.front() == '`' && s.back() == '`') {
+            return s.substr(1, s.size() - 2);
+        }
+        return s;
+    }
+
     template<>
     struct convert<FromCSVConfig> {
         static bool decode(const Node& node, FromCSVConfig& rhs) {
@@ -459,7 +466,7 @@ namespace YAML {
                 throw std::runtime_error("Missing required field 'type' for column or tag.");
             }
 
-            rhs.name = node["name"].as<std::string>();
+            rhs.name = strip_backticks_if_wrapped(node["name"].as<std::string>());
             rhs.type = node["type"].as<std::string>();
             rhs.parse_type();
 
