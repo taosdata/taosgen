@@ -444,6 +444,15 @@ type: int
     ColumnConfig col = node.as<ColumnConfig>();
     assert(col.name == "id");
     assert(col.type == "int");
+
+    yaml = R"(
+name: "``"
+type: int
+)";
+    node = YAML::Load(yaml);
+    col = node.as<ColumnConfig>();
+    assert(col.name == "");
+    assert(col.type == "int");
 }
 
 void test_ColumnConfig_strip_backticks_unmatched() {
@@ -454,6 +463,15 @@ type: binary(20)
     YAML::Node node = YAML::Load(yaml);
     ColumnConfig col = node.as<ColumnConfig>();
     assert(col.name == "`leading");
+    assert(col.type == "binary(20)");
+
+    yaml = R"(
+name: "trailing`"
+type: binary(20)
+)";
+    node = YAML::Load(yaml);
+    col = node.as<ColumnConfig>();
+    assert(col.name == "trailing`");
     assert(col.type == "binary(20)");
 }
 
