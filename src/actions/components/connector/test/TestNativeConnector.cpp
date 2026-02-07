@@ -33,6 +33,14 @@ void test_native_connector_create_database() {
     }
     std::cout << "SQL executed successfully: " << sql << std::endl;
 
+    sql = "DROP DATABASE IF EXISTS `test_connector`";
+    if (!connector->execute(sql)) {
+        std::cerr << "Failed to execute SQL: " << sql << std::endl;
+        connector->close();
+        return;
+    }
+    std::cout << "SQL executed successfully: " << sql << std::endl;
+
     // Close connection
     connector->close();
     std::cout << "Connection closed successfully." << std::endl;
