@@ -1,7 +1,7 @@
 tdengine:
   dsn: taos+ws://root:taosdata@127.0.0.1:6041/tsbench
   drop_if_exists: true
-  props: precision 'us' vgroups 4
+  props: precision 'us' vgroups 1
 
 schema:
   name: meters

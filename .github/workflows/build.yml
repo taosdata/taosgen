@@ -257,9 +257,12 @@ jobs:
       - name: Setup Conan (macOS)
         if: runner.os == 'macOS'
         run: |
+          python3 -m venv $HOME/.conan-venv
+          source $HOME/.conan-venv/bin/activate
           python3 -m pip install "conan==2.20.1"
           conan --version
           conan profile detect --force
+          echo "PATH=$HOME/.conan-venv/bin:$PATH" >> $GITHUB_ENV
 
       - name: Cache Conan packages
         uses: actions/cache@v4
