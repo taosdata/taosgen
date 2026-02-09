@@ -48,12 +48,12 @@ target_link_libraries(TestMqttClient
 )
 add_test(NAME TestMqttClient COMMAND TestMqttClient)
 
-# Test MqttWriter
-add_executable(TestMqttWriter
-  TestMqttWriter.cpp
+# Test MqttSinkPlugin
+add_executable(TestMqttSinkPlugin
+  TestMqttSinkPlugin.cpp
 )
-target_link_libraries(TestMqttWriter
+target_link_libraries(TestMqttSinkPlugin
   PRIVATE
     plugin_mqtt
 )
-add_test(NAME TestMqttWriter COMMAND TestMqttWriter)
+add_test(NAME TestMqttSinkPlugin COMMAND TestMqttSinkPlugin)

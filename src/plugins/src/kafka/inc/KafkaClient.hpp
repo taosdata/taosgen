@@ -42,7 +42,6 @@ private:
 };
 
 
-// Main KafkaClient class that will be used by KafkaWriter
 class KafkaClient {
 public:
     KafkaClient(const KafkaConfig& config, const KafkaFormatOptions& format, size_t no = 0);

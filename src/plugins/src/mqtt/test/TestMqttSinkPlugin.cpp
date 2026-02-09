@@ -1,4 +1,4 @@
-#include "MqttWriter.hpp"
+#include "MqttSinkPlugin.hpp"
 #include "MqttInsertData.hpp"
 #include "MqttClient.hpp"
 
@@ -77,6 +77,7 @@ InsertDataConfig create_test_config() {
     set_format_opt(config.data_format, "mqtt", MqttFormatOptions{});
     auto* mf = get_mqtt_format_options(config);
     assert(mf != nullptr);
+
     auto& format_conf = *mf;
     format_conf.topic = "factory/{factory_id}/device-{device_id}/data";
     format_conf.qos = 1;
@@ -100,7 +101,7 @@ ColumnConfigInstanceVector create_col_instances() {
     return col_instances;
 }
 
-void test_create_mqtt_writer() {
+void test_create_mqtt_sink() {
     InsertDataConfig config;
     config.target_type = "mqtt";
     set_plugin_config(config.extensions, "mqtt", MqttConfig{});
@@ -108,26 +109,54 @@ void test_create_mqtt_writer() {
     config.data_format.format_type = "mqtt";
     set_format_opt(config.data_format, "mqtt", MqttFormatOptions{});
 
-    auto writer = WriterFactory::create_writer(config);
-    assert(writer != nullptr);
+    auto col_instances = create_col_instances();
+    auto tag_instances = ColumnConfigInstanceVector{};
+
+    auto plugin = SinkPluginFactory::create_sink_plugin(config, col_instances, tag_instances);
+    assert(plugin != nullptr);
 
     // Verify the created type
-    auto* mqtt_writer = dynamic_cast<MqttWriter*>(writer.get());
-    assert(mqtt_writer != nullptr);
-    (void)mqtt_writer;
+    auto* mqtt_sink = dynamic_cast<MqttSinkPlugin*>(plugin.get());
+    assert(mqtt_sink != nullptr);
+    (void)mqtt_sink;
 
-    std::cout << "test_create_mqtt_writer passed." << std::endl;
+    std::cout << "test_create_mqtt_sink passed." << std::endl;
 }
 
 void test_constructor() {
     auto config = create_test_config();
-    MqttWriter writer(config);
-    std::cout << "test_constructor passed." << std::endl;
+    auto col_instances = create_col_instances();
+    auto tag_instances = ColumnConfigInstanceVector{};
+
+    try {
+        MqttSinkPlugin plugin(config, col_instances, tag_instances, 0);
+        std::cout << "test_constructor passed." << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "test_constructor failed: " << e.what() << std::endl;
+        assert(false);
+    }
+}
+
+void test_is_connected() {
+    auto config = create_test_config();
+    auto col_instances = create_col_instances();
+    auto tag_instances = ColumnConfigInstanceVector{};
+
+    MqttSinkPlugin plugin(config, col_instances, tag_instances, 0);
+
+    bool connected = plugin.is_connected();
+    (void)connected;
+    assert(!connected);
+
+    std::cout << "test_is_connected passed." << std::endl;
 }
 
 void test_connection() {
     auto config = create_test_config();
-    MqttWriter writer(config);
+    auto col_instances = create_col_instances();
+    auto tag_instances = ColumnConfigInstanceVector{};
+
+    MqttSinkPlugin plugin(config, col_instances, tag_instances, 0);
 
     // Replace with mock
     auto mock = std::make_unique<MockMqttClient>();
@@ -140,27 +169,28 @@ void test_connection() {
 
     auto mqtt_client = std::make_unique<MqttClient>(*mc, *mf);
     mqtt_client->set_client(std::move(mock));
-    writer.set_client(std::move(mqtt_client));
+    plugin.set_client(std::move(mqtt_client));
 
-    std::optional<ConnectorSource> conn_src;
-    assert(writer.connect(conn_src));
+    assert(plugin.connect());
     assert(mock_ptr->is_connected());
     (void)mock_ptr;
-    (void)conn_src;
 
     // Connect again if already connected
-    assert(writer.connect(conn_src));
+    assert(plugin.connect());
     assert(mock_ptr->is_connected());
 
     // Disconnect
-    writer.close();
+    plugin.close();
 
     std::cout << "test_connection passed." << std::endl;
 }
 
 void test_connection_failure() {
     auto config = create_test_config();
-    MqttWriter writer(config);
+    auto col_instances = create_col_instances();
+    auto tag_instances = ColumnConfigInstanceVector{};
+
+    MqttSinkPlugin plugin(config, col_instances, tag_instances, 0);
 
     // Replace with mock
     auto mock = std::make_unique<MockMqttClient>();
@@ -174,22 +204,83 @@ void test_connection_failure() {
 
     auto mqtt_client = std::make_unique<MqttClient>(*mc, *mf);
     mqtt_client->set_client(std::move(mock));
-    writer.set_client(std::move(mqtt_client));
+    plugin.set_client(std::move(mqtt_client));
 
-    std::optional<ConnectorSource> conn_src;
-    assert(!writer.connect(conn_src));
+    assert(!plugin.connect());
     assert(!mock_ptr->is_connected());
     (void)mock_ptr;
-    (void)conn_src;
 
     std::cout << "test_connection_failure passed." << std::endl;
+}
+
+void test_format_basic() {
+    auto config = create_test_config();
+    auto col_instances = create_col_instances();
+    auto tag_instances = ColumnConfigInstanceVector{};
+
+    MqttSinkPlugin plugin(config, col_instances, tag_instances, 0);
+
+    // Create test data
+    MultiBatch batch;
+    std::vector<RowData> rows;
+    rows.push_back({1500000000000, {std::string("f01"), std::string("d01")}});
+    rows.push_back({1500000000001, {std::string("f02"), std::string("d02")}});
+    batch.table_batches.emplace_back("tb1", std::move(rows));
+    batch.update_metadata();
+
+    MemoryPool pool(1, 1, 2, col_instances, tag_instances);
+    auto* block = pool.convert_to_memory_block(std::move(batch));
+
+    FormatResult result = plugin.format(block, false);
+
+    assert(std::holds_alternative<InsertFormatResult>(result));
+    const auto& ptr = std::get<InsertFormatResult>(result);
+    (void)ptr;
+    assert(ptr != nullptr);
+    assert(ptr->total_rows == 2);
+    assert(ptr->start_time == 1500000000000);
+    assert(ptr->end_time == 1500000000001);
+
+    std::cout << "test_format_basic passed." << std::endl;
+}
+
+void test_format_with_payload() {
+    auto config = create_test_config();
+    auto col_instances = create_col_instances();
+    auto tag_instances = ColumnConfigInstanceVector{};
+
+    MqttSinkPlugin plugin(config, col_instances, tag_instances, 0);
+
+    MultiBatch batch;
+    std::vector<RowData> rows;
+    rows.push_back({1500000000000, {std::string("f01"), std::string("d01")}});
+    batch.table_batches.emplace_back("tb1", std::move(rows));
+    batch.update_metadata();
+
+    MemoryPool pool(1, 1, 1, col_instances, tag_instances);
+    auto* block = pool.convert_to_memory_block(std::move(batch));
+
+    FormatResult result = plugin.format(block, false);
+
+    assert(std::holds_alternative<InsertFormatResult>(result));
+    const auto& ptr = std::get<InsertFormatResult>(result);
+    auto* base_ptr = ptr.get();
+    assert(base_ptr != nullptr);
+
+    const auto* payload = base_ptr->payload_as<MqttInsertData>();
+    (void)payload;
+    assert(payload != nullptr);
+    assert(payload->size() == 1);
+
+    std::cout << "test_format_with_payload passed." << std::endl;
 }
 
 void test_write_operations() {
     auto config = create_test_config();
     auto col_instances = create_col_instances();
     auto tag_instances = ColumnConfigInstanceVector{};
-    MqttWriter writer(config);
+
+    MqttSinkPlugin plugin(config, col_instances, tag_instances, 0);
 
     // Replace with mock
     auto mock = std::make_unique<MockMqttClient>();
@@ -201,10 +292,9 @@ void test_write_operations() {
 
     auto mqtt_client = std::make_unique<MqttClient>(*mc, *mf);
     mqtt_client->set_client(std::move(mock));
-    writer.set_client(std::move(mqtt_client));
+    plugin.set_client(std::move(mqtt_client));
 
-    std::optional<ConnectorSource> conn_src;
-    auto connected = writer.connect(conn_src);
+    auto connected = plugin.connect();
     (void)connected;
     assert(connected);
 
@@ -226,7 +316,7 @@ void test_write_operations() {
         auto base_data = BaseInsertData::make_with_payload(block, col_instances, tag_instances, std::move(msg_batch));
         assert(base_data != nullptr);
 
-        writer.write(*base_data);
+        plugin.write(*base_data);
         (void)mock_ptr;
         assert(mock_ptr->publish_count == 1);
         assert(mock_ptr->total_rows_published == 1);
@@ -245,7 +335,7 @@ void test_write_operations() {
         BaseInsertData invalid_data(typeid(void), block, col_instances, tag_instances);
 
         try {
-            writer.write(invalid_data);
+            plugin.write(invalid_data);
             assert(false);
         } catch (const std::runtime_error& e) {
             assert(std::string(e.what()).find("Unsupported data type") != std::string::npos);
@@ -260,7 +350,8 @@ void test_write_with_retry() {
     config.failure_handling.max_retries = 1;
     auto col_instances = create_col_instances();
     auto tag_instances = ColumnConfigInstanceVector{};
-    MqttWriter writer(config);
+
+    MqttSinkPlugin plugin(config, col_instances, tag_instances, 0);
 
     // Replace with mock
     auto mock = std::make_unique<MockMqttClient>();
@@ -274,10 +365,9 @@ void test_write_with_retry() {
 
     auto mqtt_client = std::make_unique<MqttClient>(*mc, *mf);
     mqtt_client->set_client(std::move(mock));
-    writer.set_client(std::move(mqtt_client));
+    plugin.set_client(std::move(mqtt_client));
 
-    std::optional<ConnectorSource> conn_src;
-    auto connected = writer.connect(conn_src);
+    auto connected = plugin.connect();
     (void)connected;
     assert(connected);
 
@@ -296,12 +386,11 @@ void test_write_with_retry() {
     auto base_data = BaseInsertData::make_with_payload(block, col_instances, tag_instances, std::move(msg_batch));
     assert(base_data != nullptr);
 
-    assert(writer.write(*base_data));
+    assert(plugin.write(*base_data));
     assert(mock_ptr->publish_count == 2);           // Called twice: 1 fail + 1 success
     assert(mock_ptr->total_rows_published == 1);    // Only succeeded once
 
     (void)mock_ptr;
-    (void)conn_src;
 
     std::cout << "test_write_with_retry passed." << std::endl;
 }
@@ -310,7 +399,8 @@ void test_write_without_connection() {
     auto config = create_test_config();
     auto col_instances = create_col_instances();
     auto tag_instances = ColumnConfigInstanceVector{};
-    MqttWriter writer(config);
+
+    MqttSinkPlugin plugin(config, col_instances, tag_instances, 0);
 
     // Replace with mock
     auto* mc = get_mqtt_config(config);
@@ -320,7 +410,7 @@ void test_write_without_connection() {
 
     auto mqtt_client = std::make_unique<MqttClient>(*mc, *mf);
     mqtt_client->set_client(std::make_unique<MockMqttClient>());
-    writer.set_client(std::move(mqtt_client));
+    plugin.set_client(std::move(mqtt_client));
 
     MultiBatch batch;
     std::vector<RowData> rows;
@@ -336,23 +426,26 @@ void test_write_without_connection() {
     assert(base_data != nullptr);
 
     try {
-        writer.write(*base_data);
+        plugin.write(*base_data);
         assert(false);
     } catch (const std::runtime_error& e) {
-        assert(std::string(e.what()) == "MqttWriter is not connected");
+        assert(std::string(e.what()) == "MqttSinkPlugin is not connected");
     }
 
     std::cout << "test_write_without_connection passed." << std::endl;
 }
 
 int main() {
-    test_create_mqtt_writer();
+    test_create_mqtt_sink();
     test_constructor();
+    test_is_connected();
     test_connection();
     test_connection_failure();
+    test_format_basic();
+    test_format_with_payload();
     test_write_operations();
     test_write_with_retry();
     test_write_without_connection();
-    std::cout << "All MqttWriter tests passed." << std::endl;
+    std::cout << "All MqttSinkPlugin tests passed." << std::endl;
     return 0;
 }

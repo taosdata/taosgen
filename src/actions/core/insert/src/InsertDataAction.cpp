@@ -4,8 +4,8 @@
 #include "FormatterFactory.hpp"
 #include "TableNameManager.hpp"
 #include "TableDataManager.hpp"
-#include "WriterFactory.hpp"
-#include "BaseWriter.hpp"
+#include "SinkPluginFactory.hpp"
+#include "BaseSinkPlugin.hpp"
 #include "TimeRecorder.hpp"
 #include "ProcessUtils.hpp"
 #include <sched.h>
@@ -149,8 +149,8 @@ void InsertDataAction::execute() {
         std::vector<std::thread> consumer_threads;
         consumer_threads.reserve(consumer_thread_count);
 
-        std::vector<std::unique_ptr<IWriter>> writers;
-        writers.reserve(consumer_thread_count);
+        std::vector<std::unique_ptr<ISinkPlugin>> sink_plugins;
+        sink_plugins.reserve(consumer_thread_count);
 
         const size_t group_size = 10;
         GarbageCollector<FormatResult> gc((consumer_thread_count + group_size - 1) / group_size);
@@ -167,10 +167,10 @@ void InsertDataAction::execute() {
             LogUtils::info("Checkpointing is enabled. CheckpointAction initialized");
         }
 
-        // Create all writer instances
+        // Create all sink plugin instances
         for (size_t i = 0; i < consumer_thread_count; i++) {
-            LogUtils::debug("Creating writer instance for consumer thread #{}", i);
-            writers.push_back(WriterFactory::create_writer(config_, i, action_info));
+            LogUtils::debug("Creating sink plugin instance for consumer thread #{}", i);
+            sink_plugins.push_back(SinkPluginFactory::create_sink_plugin(config_, col_instances_, tag_instances_, i, action_info));
         }
 
         auto consumer_running = std::make_unique<std::atomic<bool>[]>(consumer_thread_count);
@@ -196,7 +196,7 @@ void InsertDataAction::execute() {
             auto data_manager = std::make_shared<TableDataManager>(*pool, config_, col_instances_, tag_instances_);
             data_managers.push_back(data_manager);
 
-            producer_threads.emplace_back([this, i, &split_names, &pipeline, data_manager, &active_producers, &producer_finished] {
+            producer_threads.emplace_back([this, i, &split_names, &pipeline, data_manager, &active_producers, &producer_finished, &sink_plugins] {
                 try {
                     if (config_.thread_affinity) {
                         set_thread_affinity(i, false, "Producer");
@@ -204,7 +204,7 @@ void InsertDataAction::execute() {
                     if (config_.thread_realtime) {
                         set_realtime_priority();
                     }
-                    producer_thread_function(i, split_names[i], pipeline, data_manager);
+                    producer_thread_function(i, split_names[i], pipeline, data_manager, sink_plugins[0].get());
                     producer_finished[i].store(true);
                 } catch (const std::exception& e) {
                     throw std::runtime_error("Producer thread " + std::to_string(i) + " failed: " + e.what());
@@ -238,15 +238,14 @@ void InsertDataAction::execute() {
         }
 
         for (size_t i = 0; i < consumer_thread_count; i++) {
-
-            consumer_threads.emplace_back([this, i, &pipeline, &consumer_running, &writers, &conn_source, &gc, &startup_latch] {
+            consumer_threads.emplace_back([this, i, &pipeline, &consumer_running, &sink_plugins, &conn_source, &gc, &startup_latch] {
                 if (config_.thread_affinity) {
                     set_thread_affinity(i, true, "Consumer");
                 }
                 if (config_.thread_realtime) {
                     set_realtime_priority();
                 }
-                consumer_thread_function(i, pipeline, consumer_running[i], writers[i].get(), conn_source, gc, startup_latch);
+                consumer_thread_function(i, pipeline, consumer_running[i], sink_plugins[i].get(), conn_source, gc, startup_latch);
             });
         }
 
@@ -364,24 +363,24 @@ void InsertDataAction::execute() {
         }
 
         if (global_.verbose) {
-            print_writer_times(writers);
+            print_sink_plugin_times(sink_plugins);
         }
 
-        // Obtain the minimum value of the start_write_time() for all writers
+        // Obtain the minimum value of the start_write_time() for all sink plugins
         auto min_start_write_time = std::chrono::steady_clock::time_point::max();
-        for (const auto& writer : writers) {
-            auto t = writer->start_write_time();
+        for (const auto& plugin : sink_plugins) {
+            auto t = plugin->start_write_time();
             if (t < min_start_write_time) {
                 min_start_write_time = t;
             }
         }
 
-        // Obtain the maximum value of the end_write_time() for all writers
+        // Obtain the maximum value of the end_write_time() for all sink plugins
         std::vector<std::chrono::steady_clock::time_point> end_write_times;
-        end_write_times.reserve(writers.size());
+        end_write_times.reserve(sink_plugins.size());
         auto max_end_write_time = std::chrono::steady_clock::time_point::min();
-        for (const auto& writer : writers) {
-            auto t = writer->end_write_time();
+        for (const auto& plugin : sink_plugins) {
+            auto t = plugin->end_write_time();
             end_write_times.push_back(t);
             if (t > max_end_write_time) {
                 max_end_write_time = t;
@@ -415,9 +414,9 @@ void InsertDataAction::execute() {
         ActionMetrics global_play_metrics;
         ActionMetrics global_write_metrics;
 
-        for (const auto& writer : writers) {
-            global_play_metrics.merge_from(writer->get_play_metrics());
-            global_write_metrics.merge_from(writer->get_write_metrics());
+        for (const auto& plugin : sink_plugins) {
+            global_play_metrics.merge_from(plugin->get_play_metrics());
+            global_write_metrics.merge_from(plugin->get_write_metrics());
         }
 
         global_play_metrics.calculate();
@@ -447,8 +446,8 @@ void InsertDataAction::execute() {
         LogUtils::info("");
 
         // Clean up resources
-        for (auto& writer : writers) {
-            writer->close();
+        for (auto& plugin : sink_plugins) {
+            plugin->close();
         }
 
         if (action_info && action_info->action) {
@@ -513,7 +512,8 @@ void InsertDataAction::producer_thread_function(
     size_t producer_id,
     const std::vector<std::string>& assigned_tables,
     DataPipeline<FormatResult>& pipeline,
-    std::shared_ptr<TableDataManager> data_manager)
+    std::shared_ptr<TableDataManager> data_manager,
+    ISinkPlugin* plugin)
 {
     if (assigned_tables.empty()) {
         LogUtils::info("Producer thread {} has no assigned tables", producer_id);
@@ -527,10 +527,6 @@ void InsertDataAction::producer_thread_function(
         return;
     }
 
-    // Create formatter
-    auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(config_.data_format);
-    formatter->init(config_, col_instances_, tag_instances_);
-
     // Data generation loop
     while (!stop_execution_.load()) {
         auto batch = data_manager->next_multi_batch();
@@ -542,7 +538,7 @@ void InsertDataAction::producer_thread_function(
         // size_t total_rows = batch->total_rows;
 
         // Format data
-        FormatResult formatted_result = formatter->format(std::move(batch.value()), is_checkpoint_recover_);
+        FormatResult formatted_result = plugin->format(batch.value(), is_checkpoint_recover_);
 
         // Push data to pipeline
         try {
@@ -562,7 +558,7 @@ void InsertDataAction::consumer_thread_function(
     size_t consumer_id,
     DataPipeline<FormatResult>& pipeline,
     std::atomic<bool>& running,
-    IWriter* writer,
+    ISinkPlugin* plugin,
     std::optional<ConnectorSource>& conn_source,
     GarbageCollector<FormatResult>& gc,
     Latch& startup_latch)
@@ -577,19 +573,14 @@ void InsertDataAction::consumer_thread_function(
         startup_latch.interrupt();
     };
 
-    // Connect to writer
-    if (!writer->connect(conn_source)) {
-        handle_startup_error("Failed to connect writer for consumer {}", consumer_id);
+    // Connect to sink target
+    if (!plugin->connect_with_source(conn_source)) {
+        handle_startup_error("Failed to connect sink plugin for consumer {}", consumer_id);
         return;
     }
 
-    {
-        auto formatter = FormatterFactory::create_formatter<InsertDataConfig>(config_.data_format);
-        auto ctx = formatter->init(config_, col_instances_, tag_instances_);
-
-        if (!writer->prepare(std::move(ctx))) {
-            handle_startup_error("Failed to prepare writer for thread {}", consumer_id);
-        }
+    if (!plugin->prepare()) {
+        handle_startup_error("Failed to prepare sink plugin for thread {}", consumer_id);
     }
 
     startup_latch.count_down();
@@ -602,11 +593,11 @@ void InsertDataAction::consumer_thread_function(
         switch (result.status) {
         case DataPipeline<FormatResult>::Status::Success:
             try {
-                // Use writer to execute write
+                // Use sink plugin to execute write
                 std::visit([&](const auto& formatted_result) {
                     using T = std::decay_t<decltype(formatted_result)>;
                     if constexpr (std::is_same_v<T, InsertFormatResult>) {
-                        auto success = writer->write(*formatted_result);
+                        auto success = plugin->write(*formatted_result);
                         if (!success) {
                             failed_count++;
                         }
@@ -676,7 +667,7 @@ ColumnConfigInstanceVector InsertDataAction::create_tag_instances() const {
     }
 }
 
-void InsertDataAction::print_writer_times(const std::vector<std::unique_ptr<IWriter>>& writers) {
+void InsertDataAction::print_sink_plugin_times(const std::vector<std::unique_ptr<ISinkPlugin>>& plugins) {
     auto format_time = [](const std::chrono::system_clock::time_point& tp) -> std::string {
         auto t = std::chrono::system_clock::to_time_t(tp);
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(tp.time_since_epoch()) % 1000;
@@ -692,15 +683,15 @@ void InsertDataAction::print_writer_times(const std::vector<std::unique_ptr<IWri
         return oss.str();
     };
 
-    for (size_t i = 0; i < writers.size(); ++i) {
-        auto start = writers[i]->start_write_time();
-        auto end = writers[i]->end_write_time();
+    for (size_t i = 0; i < plugins.size(); ++i) {
+        auto start = plugins[i]->start_write_time();
+        auto end = plugins[i]->end_write_time();
 
         auto start_sys = std::chrono::system_clock::now() + std::chrono::duration_cast<std::chrono::system_clock::duration>(start - std::chrono::steady_clock::now());
         auto end_sys = std::chrono::system_clock::now() + std::chrono::duration_cast<std::chrono::system_clock::duration>(end - std::chrono::steady_clock::now());
 
         LogUtils::debug(
-            "Writer {} start_write_time: {}, end_write_time: {}",
+            "SinkPlugin {} start_write_time: {}, end_write_time: {}",
             i,
             format_time(start_sys),
             format_time(end_sys)

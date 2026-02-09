@@ -9,7 +9,7 @@
 #include "TableDataManager.hpp"
 #include "DataPipeline.hpp"
 #include "FormatResult.hpp"
-#include "IWriter.hpp"
+#include "ISinkPlugin.hpp"
 #include "GarbageCollector.hpp"
 #include <iostream>
 
@@ -38,19 +38,20 @@ private:
 
     ColumnConfigInstanceVector create_column_instances() const;
     ColumnConfigInstanceVector create_tag_instances() const;
-    void print_writer_times(const std::vector<std::unique_ptr<IWriter>>& writers);
+    void print_sink_plugin_times(const std::vector<std::unique_ptr<ISinkPlugin>>& plugins);
 
     void producer_thread_function(
         size_t producer_id,
         const std::vector<std::string>& assigned_tables,
         DataPipeline<FormatResult>& pipeline,
-        std::shared_ptr<TableDataManager> data_manager);
+        std::shared_ptr<TableDataManager> data_manager,
+        ISinkPlugin* plugin);
 
     void consumer_thread_function(
         size_t consumer_id,
         DataPipeline<FormatResult>& pipeline,
         std::atomic<bool>& running,
-        IWriter* writer,
+        ISinkPlugin* plugin,
         std::optional<ConnectorSource>& conn_source,
         GarbageCollector<FormatResult>& gc,
         Latch& startup_latch);

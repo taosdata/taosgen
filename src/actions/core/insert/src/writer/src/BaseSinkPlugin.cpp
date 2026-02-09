@@ -1,10 +1,15 @@
-#include "BaseWriter.hpp"
+#include "BaseSinkPlugin.hpp"
 #include <stdexcept>
 #include <chrono>
 #include <iostream>
 
-BaseWriter::BaseWriter(const InsertDataConfig& config, std::shared_ptr<ActionRegisterInfo> action_info)
+BaseSinkPlugin::BaseSinkPlugin(const InsertDataConfig& config,
+                               const ColumnConfigInstanceVector& col_instances,
+                               const ColumnConfigInstanceVector& tag_instances,
+                               std::shared_ptr<ActionRegisterInfo> action_info)
     : config_(config),
+      col_instances_(col_instances),
+      tag_instances_(tag_instances),
       timestamp_precision_(config.timestamp_precision),
       time_strategy_(config.time_interval, config.timestamp_precision),
       start_write_time_(std::chrono::steady_clock::now()),
@@ -21,7 +26,7 @@ BaseWriter::BaseWriter(const InsertDataConfig& config, std::shared_ptr<ActionReg
     }
 }
 
-void BaseWriter::apply_time_interval_strategy(int64_t current_start, int64_t current_end) {
+void BaseSinkPlugin::apply_time_interval_strategy(int64_t current_start, int64_t current_end) {
     time_strategy_.apply_wait_strategy(
         current_start, current_end,
         last_start_time_, last_end_time_,
@@ -33,18 +38,18 @@ void BaseWriter::apply_time_interval_strategy(int64_t current_start, int64_t cur
     }
 }
 
-std::string BaseWriter::get_format_description() const {
+std::string BaseSinkPlugin::get_format_description() const {
     return config_.data_format.format_type;
 }
 
-void BaseWriter::update_write_state(const BaseInsertData& data, bool /* success */ ) {
+void BaseSinkPlugin::update_write_state(const BaseInsertData& data, bool /* success */ ) {
     end_write_time_ = std::chrono::steady_clock::now();
     last_start_time_ = data.start_time;
     last_end_time_ = data.end_time;
     first_write_ = false;
 }
 
-void BaseWriter::notify(const BaseInsertData& data, bool success) {
+void BaseSinkPlugin::notify(const BaseInsertData& data, bool success) {
     if (action_info_ && action_info_->action && success) {
         std::shared_ptr<ActionBase>& ptr = action_info_->action.value();
         if (ptr) {
@@ -55,7 +60,7 @@ void BaseWriter::notify(const BaseInsertData& data, bool success) {
     }
 }
 
-void BaseWriter::update_play_metrics(const BaseInsertData& data) {
+void BaseSinkPlugin::update_play_metrics(const BaseInsertData& data) {
     if (time_strategy_.is_literal_strategy()) {
         double now = TimestampUtils::convert_to_timestamp("us");
         double start_time = TimestampUtils::convert_timestamp_precision_double(data.start_time, timestamp_precision_, "us");

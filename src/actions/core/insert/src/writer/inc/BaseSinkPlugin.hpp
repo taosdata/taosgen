@@ -1,21 +1,27 @@
 #pragma once
-#include "IWriter.hpp"
+#include "ISinkPlugin.hpp"
+#include "ISinkContext.hpp"
 #include "TimeIntervalStrategy.hpp"
 #include "TimeRecorder.hpp"
 #include "LogUtils.hpp"
-#include <functional>
 #include "CheckpointAction.hpp"
 #include "ActionRegisterInfo.hpp"
+#include <functional>
 
-class BaseWriter : public IWriter {
+class BaseSinkPlugin : public ISinkPlugin {
 public:
-    explicit BaseWriter(const InsertDataConfig& config,
-                        std::shared_ptr<ActionRegisterInfo> action_info = nullptr);
-    virtual ~BaseWriter() = default;
-
-    bool prepare(std::unique_ptr<const ISinkContext> context) override {
-        (void)context;
+    explicit BaseSinkPlugin(const InsertDataConfig& config,
+                            const ColumnConfigInstanceVector& col_instances,
+                            const ColumnConfigInstanceVector& tag_instances,
+                            std::shared_ptr<ActionRegisterInfo> action_info = nullptr);
+    virtual ~BaseSinkPlugin() = default;
+    bool prepare() override {
         return true;
+    }
+
+    bool connect_with_source(std::optional<ConnectorSource>& conn_source) override {
+        (void)conn_source;
+        return connect();
     }
 
     // Public method implementations
@@ -32,6 +38,9 @@ public:
 protected:
     // Public member variables
     const InsertDataConfig& config_;
+    const ColumnConfigInstanceVector& col_instances_;
+    const ColumnConfigInstanceVector& tag_instances_;
+    std::unique_ptr<const ISinkContext> context_;
     std::string timestamp_precision_;
     TimeIntervalStrategy time_strategy_;
     std::chrono::steady_clock::time_point start_write_time_;

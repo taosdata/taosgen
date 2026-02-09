@@ -3,7 +3,7 @@ add_library(plugin_tdengine STATIC
   src/TDengineRegistrar.cpp
   src/SqlInsertDataFormatter.cpp
   src/StmtInsertDataFormatter.cpp
-  src/TDengineWriter.cpp
+  src/TDengineSinkPlugin.cpp
 )
 
 # Set include directories

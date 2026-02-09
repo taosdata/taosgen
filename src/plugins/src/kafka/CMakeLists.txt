@@ -6,7 +6,7 @@ add_library(plugin_kafka STATIC
   src/KafkaRegistrar.cpp
   src/KafkaInsertDataFormatter.cpp
   src/KafkaClient.cpp
-  src/KafkaWriter.cpp
+  src/KafkaSinkPlugin.cpp
 )
 
 # Set include directories
