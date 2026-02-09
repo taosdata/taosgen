@@ -178,6 +178,6 @@ endif()
 
 # Add main program and test directories
 add_subdirectory(src)
-# if(TSGEN_ENABLE_TEST)
-#   add_subdirectory(test)
-# endif()
+if(TSGEN_ENABLE_TEST)
+  add_subdirectory(test)
+endif()
