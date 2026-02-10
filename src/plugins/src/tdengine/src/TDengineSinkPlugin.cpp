@@ -73,9 +73,10 @@ void TDengineSinkPlugin::close() noexcept {
     if (connector_) {
         try {
             connector_->close();
-        } catch (...) {
-            // Ignore exception on close
+        } catch (const std::exception& e) {
+            LogUtils::error("Exception during TDengineSinkPlugin close: {}", e.what());
         }
+        connector_.reset();
     }
 }
 

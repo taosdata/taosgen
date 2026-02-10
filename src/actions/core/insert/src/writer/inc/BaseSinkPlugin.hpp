@@ -25,9 +25,9 @@ public:
     }
 
     // Public method implementations
-    std::string get_timestamp_precision() const override { return timestamp_precision_; }
-    const ActionMetrics& get_play_metrics() const override { return play_metrics_; }
-    const ActionMetrics& get_write_metrics() const override { return write_metrics_; }
+    std::string get_timestamp_precision() const noexcept override { return timestamp_precision_; }
+    const ActionMetrics& get_play_metrics() const noexcept override { return play_metrics_; }
+    const ActionMetrics& get_write_metrics() const noexcept override { return write_metrics_; }
     std::chrono::steady_clock::time_point start_write_time() const noexcept override {
         return start_write_time_;
     }

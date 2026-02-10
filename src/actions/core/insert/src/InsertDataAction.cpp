@@ -513,7 +513,7 @@ void InsertDataAction::producer_thread_function(
     const std::vector<std::string>& assigned_tables,
     DataPipeline<FormatResult>& pipeline,
     std::shared_ptr<TableDataManager> data_manager,
-    ISinkPlugin* plugin)
+    const ISinkPlugin* plugin)
 {
     if (assigned_tables.empty()) {
         LogUtils::info("Producer thread {} has no assigned tables", producer_id);

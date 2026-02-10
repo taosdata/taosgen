@@ -45,7 +45,7 @@ private:
         const std::vector<std::string>& assigned_tables,
         DataPipeline<FormatResult>& pipeline,
         std::shared_ptr<TableDataManager> data_manager,
-        ISinkPlugin* plugin);
+        const ISinkPlugin* plugin);
 
     void consumer_thread_function(
         size_t consumer_id,

@@ -33,11 +33,11 @@ public:
     virtual bool write(const BaseInsertData& data) = 0;
 
     // Get timestamp precision
-    virtual std::string get_timestamp_precision() const = 0;
+    virtual std::string get_timestamp_precision() const noexcept = 0;
 
     // Metrics interface
-    virtual const ActionMetrics& get_play_metrics() const = 0;
-    virtual const ActionMetrics& get_write_metrics() const = 0;
-    virtual std::chrono::steady_clock::time_point start_write_time() const = 0;
-    virtual std::chrono::steady_clock::time_point end_write_time() const = 0;
+    virtual const ActionMetrics& get_play_metrics() const noexcept = 0;
+    virtual const ActionMetrics& get_write_metrics() const noexcept = 0;
+    virtual std::chrono::steady_clock::time_point start_write_time() const noexcept = 0;
+    virtual std::chrono::steady_clock::time_point end_write_time() const noexcept = 0;
 };

@@ -229,7 +229,8 @@ void test_prepare() {
 
     // Connect and test prepare
     {
-        auto connected = plugin.connect();
+        std::optional<ConnectorSource> conn_src;
+        auto connected = plugin.connect_with_source(conn_src);
         (void)connected;
         assert(connected);
 

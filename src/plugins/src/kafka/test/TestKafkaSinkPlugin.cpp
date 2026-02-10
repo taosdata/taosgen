@@ -293,7 +293,12 @@ void test_write_operations() {
     kafka_client->set_client(std::move(mock));
     plugin.set_client(std::move(kafka_client));
 
-    auto connected = plugin.connect();
+    auto prepared = plugin.prepare();
+    (void)prepared;
+    assert(prepared);
+
+    std::optional<ConnectorSource> conn_src = std::nullopt;
+    auto connected = plugin.connect_with_source(conn_src);
     (void)connected;
     assert(connected);
 
