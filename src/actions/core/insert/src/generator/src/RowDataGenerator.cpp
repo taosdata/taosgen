@@ -153,10 +153,13 @@ void RowDataGenerator::init_csv_reader() {
     );
 
     if (!table_data_ptr) {
-        throw std::runtime_error("Table '" + table_name_ + "' not found in CSV file");
+        throw std::runtime_error("Table '" + table_name_ + "' not found in CSV file '" + csv_config.file_path + "'");
     }
 
     const auto& table_data = *table_data_ptr;
+    if (table_data.rows.empty()) {
+        throw std::runtime_error("No data found for table '" + table_name_ + "' in CSV file '" + csv_config.file_path + "'");
+    }
 
     if (using_default_table) {
         // Use shared cache for default_table
