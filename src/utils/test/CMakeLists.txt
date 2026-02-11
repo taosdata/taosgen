@@ -57,3 +57,23 @@ target_link_libraries(TestLatch
     utils
 )
 add_test(NAME TestLatch COMMAND TestLatch)
+
+# Test ScopedEnvVar
+add_executable(TestScopedEnvVar
+  TestScopedEnvVar.cpp
+)
+target_link_libraries(TestScopedEnvVar
+  PRIVATE
+    utils
+)
+add_test(NAME TestScopedEnvVar COMMAND TestScopedEnvVar)
+
+# Test ConcurrentQueue
+add_executable(TestConcurrentQueue
+  TestConcurrentQueue.cpp
+)
+target_link_libraries(TestConcurrentQueue
+  PRIVATE
+    utils
+)
+add_test(NAME TestConcurrentQueue COMMAND TestConcurrentQueue)

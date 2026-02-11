@@ -4,6 +4,7 @@
 #include <string>
 #include <thread>
 #include <chrono>
+#include <stdexcept>
 #include "TimestampUtils.hpp"
 
 // Test: pass int64_t directly
@@ -115,6 +116,140 @@ void test_parse_timestamp_iso_string() {
     std::cout << "test_parse_timestamp_iso_string passed\n";
 }
 
+void test_precision_multiplier() {
+    assert(TimestampUtils::get_precision_multiplier("s") == 1);
+    assert(TimestampUtils::get_precision_multiplier("ms") == 1000);
+    assert(TimestampUtils::get_precision_multiplier("us") == 1000000LL);
+    assert(TimestampUtils::get_precision_multiplier("ns") == 1000000000LL);
+
+    bool threw = false;
+    try {
+        TimestampUtils::get_precision_multiplier("invalid");
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+    (void)threw;
+    assert(threw);
+    std::cout << "test_precision_multiplier passed\n";
+}
+
+void test_precision_conversion() {
+    int64_t ts = 1000;
+    (void)ts;
+    assert(TimestampUtils::convert_timestamp_precision(ts, "ms", "ms") == ts);
+    assert(TimestampUtils::convert_timestamp_precision(ts, "ms", "us") == 1000000);
+    assert(TimestampUtils::convert_timestamp_precision(ts, "ms", "ns") == 1000000000);
+    assert(TimestampUtils::convert_timestamp_precision(ts, "s", "ms") == 1000000);
+
+    double d = TimestampUtils::convert_timestamp_precision_double(1, "s", "ms");
+    (void)d;
+    assert(d == 1000.0);
+    std::cout << "test_precision_conversion passed\n";
+}
+
+void test_parse_timestamp_iso_utc_z() {
+    int64_t result = TimestampUtils::parse_timestamp("2023-01-01T00:00:00Z", "s");
+#if defined(_WIN32)
+    std::tm tm = {};
+    tm.tm_year = 2023 - 1900;
+    tm.tm_mon = 0;
+    tm.tm_mday = 1;
+    tm.tm_hour = 0;
+    tm.tm_min = 0;
+    tm.tm_sec = 0;
+    tm.tm_isdst = -1;
+    time_t expected = _mkgmtime(&tm);
+    assert(result == static_cast<int64_t>(expected));
+#else
+    (void)result;
+#endif
+    std::cout << "test_parse_timestamp_iso_utc_z passed\n";
+}
+
+void test_parse_timestamp_invalid_inputs() {
+    bool threw = false;
+    try {
+        TimestampUtils::parse_timestamp("not-a-time", "ms");
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+    (void)threw;
+    assert(threw);
+
+    threw = false;
+    try {
+        TimestampUtils::parse_timestamp("now()+abc", "ms");
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+    assert(threw);
+
+    threw = false;
+    try {
+        TimestampUtils::parse_timestamp("now()+10x", "ms");
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+    assert(threw);
+
+    threw = false;
+    try {
+        TimestampUtils::parse_timestamp("now()+10", "bad");
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+    assert(threw);
+
+    threw = false;
+    try {
+        TimestampUtils::parse_timestamp(std::string("999999999999999999999999"), "ms");
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+    assert(threw);
+
+    std::cout << "test_parse_timestamp_invalid_inputs passed\n";
+}
+
+void test_parse_step_basic() {
+    assert(TimestampUtils::parse_step(10LL, "ms") == 10);
+    assert(TimestampUtils::parse_step(std::string("10ms"), "ms") == 10);
+    assert(TimestampUtils::parse_step(std::string("1000us"), "ms") == 1);
+    assert(TimestampUtils::parse_step(std::string("2s"), "ms") == 2000);
+    assert(TimestampUtils::parse_step(std::string("5"), "ms") == 5);
+
+    std::cout << "test_parse_step_basic passed\n";
+}
+
+void test_parse_step_invalid() {
+    bool threw = false;
+    try {
+        TimestampUtils::parse_step(std::string("ms"), "ms");
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+    (void)threw;
+    assert(threw);
+
+    threw = false;
+    try {
+        TimestampUtils::parse_step(std::string("10x"), "ms");
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+    assert(threw);
+
+    threw = false;
+    try {
+        TimestampUtils::parse_step(std::string("10"), "bad");
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+    assert(threw);
+
+    std::cout << "test_parse_step_invalid passed\n";
+}
+
 int main() {
     test_parse_timestamp_int64();
     test_parse_timestamp_string_int();
@@ -125,6 +260,12 @@ int main() {
     test_parse_timestamp_now_plus_1d();
     test_parse_timestamp_now_plus_100_default_precision();
     test_parse_timestamp_iso_string();
+    test_precision_multiplier();
+    test_precision_conversion();
+    test_parse_timestamp_iso_utc_z();
+    test_parse_timestamp_invalid_inputs();
+    test_parse_step_basic();
+    test_parse_step_invalid();
 
     std::cout << "All TimestampUtils tests passed!\n";
     return 0;

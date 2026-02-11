@@ -80,8 +80,7 @@ public:
     // Reset all caches
     static void reset() {
         auto& inst = instance();
-        std::lock_guard<std::mutex> lock(inst.mutex_);
-        std::lock_guard<std::mutex> lock_shared(inst.shared_rows_mutex_);
+        std::scoped_lock lock(inst.mutex_, inst.shared_rows_mutex_);
         inst.file_caches_.clear();
         inst.shared_rows_cache_.clear();
     }

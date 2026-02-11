@@ -168,6 +168,7 @@ void RowDataGenerator::init_csv_reader() {
         );
     } else {
         // Convert to RowData for specific table
+        csv_rows_.reserve(table_data.rows.size());
         for (size_t i = 0; i < table_data.rows.size(); i++) {
             RowData row;
             row.timestamp = TimestampUtils::convert_timestamp_precision(table_data.timestamps[i], csv_precision_, target_precision_);

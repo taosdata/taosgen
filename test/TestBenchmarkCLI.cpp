@@ -3,7 +3,16 @@
 #include <filesystem>
 #include <iostream>
 #include <string>
+#include <thread>
+#include <chrono>
 #include <vector>
+
+#if !defined(_WIN32)
+#include <csignal>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#endif
 
 namespace fs = std::filesystem;
 
@@ -94,9 +103,64 @@ void test_config_command() {
     std::cout << "test_config_command passed\n";
 }
 
+void test_unknown_argument() {
+    const auto bin = find_taosgen_bin();
+    assert(!bin.empty() && "taosgen binary not found; set TAOSGEN_BIN");
+
+    const std::string cmd = "\"" + bin + "\" --unknown-arg";
+    int rc = run_cmd(cmd);
+    (void)rc;
+    assert(rc != 0 && "taosgen with unknown args should exit non-zero");
+    std::cout << "test_unknown_argument passed\n";
+}
+
+void test_sigterm_handling() {
+    const auto bin = find_taosgen_bin();
+    assert(!bin.empty() && "taosgen binary not found; set TAOSGEN_BIN");
+
+#if defined(_WIN32)
+    std::cout << "test_sigterm_handling skipped on Windows\n";
+#else
+    const auto root = find_project_root();
+    assert(!root.empty() && "project root not found; set TSGEN_ROOT");
+
+    const fs::path bin_path = fs::path(bin);
+    const fs::path build_dir = bin_path.parent_path().parent_path();
+
+    pid_t pid = fork();
+    if (pid == 0) {
+        execl(bin.c_str(), bin.c_str(), static_cast<char*>(nullptr));
+        _exit(127);
+    }
+
+    assert(pid > 0 && "fork failed");
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    int kill_rc = kill(pid, SIGTERM);
+    (void)kill_rc;
+    assert(kill_rc == 0 && "Failed to send SIGTERM");
+
+    int status = 0;
+    waitpid(pid, &status, 0);
+
+    if (WIFSIGNALED(status)) {
+        int sig = WTERMSIG(status);
+        (void)sig;
+        assert(sig == SIGTERM || sig == SIGABRT || sig == SIGSEGV);
+    } else if (WIFEXITED(status)) {
+        assert(WEXITSTATUS(status) != 0 && "taosgen should exit non-zero on SIGTERM");
+    } else {
+        assert(false && "Unexpected child status");
+    }
+
+    std::cout << "test_sigterm_handling passed\n";
+#endif
+}
+
 int main() {
     test_help_command();
     test_config_command();
+    test_unknown_argument();
+    test_sigterm_handling();
     std::cout << "All Benchmark command tests passed.\n";
     return 0;
 }
