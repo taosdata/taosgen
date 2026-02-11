@@ -28,12 +28,12 @@ target_link_libraries(TestStmtInsertDataFormatter
 )
 add_test(NAME TestStmtInsertDataFormatter COMMAND TestStmtInsertDataFormatter)
 
-# Test TDengineWriter
-add_executable(TestTDengineWriter
-  TestTDengineWriter.cpp
+# Test TDengineSinkPlugin
+add_executable(TestTDengineSinkPlugin
+  TestTDengineSinkPlugin.cpp
 )
-target_link_libraries(TestTDengineWriter
+target_link_libraries(TestTDengineSinkPlugin
   PRIVATE
     plugin_tdengine
 )
-add_test(NAME TestTDengineWriter COMMAND TestTDengineWriter)
+add_test(NAME TestTDengineSinkPlugin COMMAND TestTDengineSinkPlugin)

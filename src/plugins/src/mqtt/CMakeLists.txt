@@ -6,7 +6,7 @@ add_library(plugin_mqtt STATIC
   src/MqttRegistrar.cpp
   src/MqttInsertDataFormatter.cpp
   src/MqttClient.cpp
-  src/MqttWriter.cpp
+  src/MqttSinkPlugin.cpp
 )
 
 # Set include directories

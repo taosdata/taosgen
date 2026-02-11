@@ -1,7 +1,7 @@
 # Create library target
 add_library(insert_writer STATIC
   src/TimeIntervalStrategy.cpp
-  src/BaseWriter.cpp
+  src/BaseSinkPlugin.cpp
 )
 
 # Set include directories

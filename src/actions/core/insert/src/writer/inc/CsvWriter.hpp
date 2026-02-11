@@ -1,10 +1,10 @@
 #pragma once
-#include "IWriter.hpp"
+#include "ISinkPlugin.hpp"
 #include "TimeIntervalStrategy.hpp"
 #include <fstream>
 #include <filesystem>
 
-class FileSystemWriter : public IWriter {
+class FileSystemWriter : public ISinkPlugin {
 public:
     FileSystemWriter(const InsertDataConfig::Target& target);
     ~FileSystemWriter();

@@ -1,4 +1,4 @@
-#include "WriterFactory.hpp"
+#include "SinkPluginFactory.hpp"
 #include "InsertDataConfig.hpp"
 #include "ColumnConfigInstance.hpp"
 
@@ -19,11 +19,18 @@ void test_create_unsupported_writer() {
     std::string unsupported_type = "non_existent_db";
     auto config = create_test_config(unsupported_type);
 
+    ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
+
     try {
-        auto writer = WriterFactory::create_writer(config);
-        assert(false); // Should not reach here
+        auto sink = SinkPluginFactory::create_sink_plugin(
+            config,
+            col_instances,
+            tag_instances
+        );
+        assert(false && "Should throw for unsupported type");
     } catch (const std::invalid_argument& e) {
-        std::string expected_msg = "Unsupported target type: " + unsupported_type;
+        std::string expected_msg = "Unsupported sink plugin type: " + unsupported_type;
         assert(std::string(e.what()) == expected_msg);
     }
 
@@ -33,11 +40,18 @@ void test_create_unsupported_writer() {
 void test_create_csv_writer_throws() {
     auto config = create_test_config("csv");
 
+    ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
+
     try {
-        auto writer = WriterFactory::create_writer(config);
-        assert(false); // Should not reach here
+        auto sink = SinkPluginFactory::create_sink_plugin(
+            config,
+            col_instances,
+            tag_instances
+        );
+        assert(false && "Should throw for csv type");
     } catch (const std::invalid_argument& e) {
-        assert(std::string(e.what()) == "Unsupported target type: csv");
+        assert(std::string(e.what()) == "Unsupported sink plugin type: csv");
     }
 
     std::cout << "test_create_csv_writer_throws passed." << std::endl;
@@ -47,6 +61,6 @@ int main() {
     test_create_unsupported_writer();
     test_create_csv_writer_throws();
 
-    std::cout << "All WriterFactory tests passed." << std::endl;
+    std::cout << "All SinkPluginFactory tests passed." << std::endl;
     return 0;
 }

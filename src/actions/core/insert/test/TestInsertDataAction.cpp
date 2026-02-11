@@ -319,6 +319,7 @@ void test_data_generation_with_tags() {
 
 void test_end_to_end_data_generation() {
     GlobalConfig global;
+    global.verbose = true;
 
     std::vector<DataChannel> channel_types = {
         // DataChannel{"native"},
@@ -371,6 +372,7 @@ void test_end_to_end_data_generation() {
 
 void test_end_to_end_data_generation_with_tags() {
     GlobalConfig global;
+    global.verbose = true;
 
     std::vector<DataChannel> channel_types = {
         // DataChannel{"native"},
@@ -427,6 +429,7 @@ void test_end_to_end_data_generation_with_tags() {
 
 void test_concurrent_data_generation() {
     GlobalConfig global;
+    global.verbose = true;
     auto config = create_test_config();
     config.schema.generation.rows_per_table = 1000;     // More rows to test concurrency
     config.schema.generation.generate_threads = 4;      // More threads

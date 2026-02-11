@@ -8,12 +8,12 @@ target_link_libraries(TestTimeIntervalStrategy
 )
 add_test(NAME TestTimeIntervalStrategy COMMAND TestTimeIntervalStrategy)
 
-# Test WriterFactory
-add_executable(TestWriterFactory
-  TestWriterFactory.cpp
+# Test SinkPluginFactory
+add_executable(TestSinkPluginFactory
+  TestSinkPluginFactory.cpp
 )
-target_link_libraries(TestWriterFactory
+target_link_libraries(TestSinkPluginFactory
   PRIVATE
     insert_writer
 )
-add_test(NAME TestWriterFactory COMMAND TestWriterFactory)
+add_test(NAME TestSinkPluginFactory COMMAND TestSinkPluginFactory)
