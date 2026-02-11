@@ -15,86 +15,277 @@ void create_test_file(const std::string& filename, const std::string& content) {
 }
 
 void test_manager_singleton_and_reset() {
-    auto& manager1 = CSVDataManager::instance();
-    auto& manager2 = CSVDataManager::instance();
-    assert(&manager1 == &manager2 && "instance() should return the same object");
-
-    // Create a file and get its cache
+    // Test that reset() clears all caches
     const std::string filename = "reset_test.csv";
     create_test_file(filename, "col1\nval1");
-    auto cache1 = manager1.get_cache_for_file(filename);
-    assert(cache1 != nullptr);
+
+    ColumnsCSV config;
+    config.file_path = filename;
+    config.has_header = true;
+    config.tbname_index = -1;
+    config.timestamp_strategy.generator = TimestampGeneratorConfig{};
+
+    ColumnConfigVector col_configs = {{"col1", "varchar(20)"}};
+    auto instances = ColumnConfigInstanceFactory::create(col_configs);
+
+    // Get table data first time
+    auto [using_default1, data1] = CSVDataManager::get_table_data(config, instances, "any_table");
+    (void)using_default1;
+    (void)data1;
+    assert(using_default1 && "Should use default_table");
+    assert(data1 != nullptr);
 
     // Reset the manager
-    manager1.reset();
-    manager2.reset();
+    CSVDataManager::reset();
 
-    // Get the cache again and verify it's a new instance
-    auto cache2 = manager1.get_cache_for_file(filename);
-    assert(cache2 != nullptr);
-    assert(cache1 != cache2 && "reset() should clear caches, leading to new instances");
-
-    (void)cache1;
-    (void)cache2;
+    // Get table data again and verify it still works
+    auto [using_default2, data2] = CSVDataManager::get_table_data(config, instances, "any_table");
+    (void)using_default2;
+    (void)data2;
+    assert(using_default2 && "Should use default_table after reset");
+    assert(data2 != nullptr);
 
     std::remove(filename.c_str());
     std::cout << "test_manager_singleton_and_reset passed\n";
 }
 
-void test_manager_cache_retrieval() {
-    CSVDataManager::instance().reset();
-    auto& manager = CSVDataManager::instance();
-
-    const std::string filename1 = "file1.csv";
-    const std::string filename2 = "file2.csv";
-
-    // Get cache for the same file twice
-    auto cache1_first_call = manager.get_cache_for_file(filename1);
-    auto cache1_second_call = manager.get_cache_for_file(filename1);
-    assert(cache1_first_call == cache1_second_call && "Should get the same cache instance for the same file path");
-
-    // Get cache for a different file
-    auto cache2 = manager.get_cache_for_file(filename2);
-    assert(cache1_first_call != cache2 && "Should get different cache instances for different file paths");
-
-    (void)cache1_first_call;
-    (void)cache1_second_call;
-    (void)cache2;
-
-    std::cout << "test_manager_cache_retrieval passed\n";
-}
-
-void test_cache_loads_data_successfully() {
-    CSVDataManager::instance().reset();
-    const std::string filename = "success.csv";
-    create_test_file(filename, "name,value\nAlice,100\nBob,200");
+void test_get_table_data_with_specific_table() {
+    CSVDataManager::reset();
+    const std::string filename = "specific_table.csv";
+    create_test_file(filename, "tbname,value\ntable1,100\ntable2,200");
 
     ColumnsCSV config;
     config.file_path = filename;
     config.has_header = true;
+    config.tbname_index = 0;
     config.timestamp_strategy.generator = TimestampGeneratorConfig{};
 
-    ColumnConfigVector col_configs = {{"name", "varchar(20)"}, {"value", "int"}};
+    ColumnConfigVector col_configs = {{"value", "int"}};
     auto instances = ColumnConfigInstanceFactory::create(col_configs);
 
-    auto cache = CSVDataManager::instance().get_cache_for_file(filename);
-    const auto& all_tables = cache->get_data(config, instances);
+    // Find specific table
+    auto [using_default1, data1] = CSVDataManager::get_table_data(config, instances, "table1");
+    (void)using_default1;
+    (void)data1;
+    assert(!using_default1 && "Should not use default_table");
+    assert(data1 != nullptr);
+    assert(data1->table_name == "table1");
+    assert(data1->rows.size() == 1);
 
-    assert(all_tables.count("default_table") == 1);
-    const auto& data = all_tables.at("default_table");
-    assert(data.rows.size() == 2);
-    assert(std::get<std::string>(data.rows[0][0]) == "Alice");
-    assert(std::get<int32_t>(data.rows[0][1]) == 100);
-    assert(std::get<std::string>(data.rows[1][0]) == "Bob");
-    assert(std::get<int32_t>(data.rows[1][1]) == 200);
-    (void)data;
+    // Find another table
+    auto [using_default2, data2] = CSVDataManager::get_table_data(config, instances, "table2");
+    (void)using_default2;
+    (void)data2;
+    assert(!using_default2 && "Should not use default_table");
+    assert(data2 != nullptr);
+    assert(data2->table_name == "table2");
 
     std::remove(filename.c_str());
-    std::cout << "test_cache_loads_data_successfully passed\n";
+    std::cout << "test_get_table_data_with_specific_table passed\n";
+}
+
+void test_get_table_data_fallback_to_default() {
+    CSVDataManager::reset();
+    const std::string filename = "fallback.csv";
+    create_test_file(filename, "value\n100\n200");
+
+    ColumnsCSV config;
+    config.file_path = filename;
+    config.has_header = true;
+    config.tbname_index = -1;
+    config.timestamp_strategy.generator = TimestampGeneratorConfig{};
+
+    ColumnConfigVector col_configs = {{"value", "int"}};
+    auto instances = ColumnConfigInstanceFactory::create(col_configs);
+
+    // Request non-existent table, should fallback to default_table
+    auto [using_default, data] = CSVDataManager::get_table_data(config, instances, "non_existent_table");
+    (void)using_default;
+    (void)data;
+    assert(using_default && "Should fallback to default_table");
+    assert(data != nullptr);
+    assert(data->table_name == DEFAULT_TABLE_NAME);
+    assert(data->rows.size() == 2);
+
+    std::remove(filename.c_str());
+    std::cout << "test_get_table_data_fallback_to_default passed\n";
+}
+
+void test_get_table_data_not_found() {
+    CSVDataManager::reset();
+    const std::string filename = "not_found.csv";
+    create_test_file(filename, "tbname,value\ntable1,100");
+
+    ColumnsCSV config;
+    config.file_path = filename;
+    config.has_header = true;
+    config.tbname_index = 0;
+    config.timestamp_strategy.generator = TimestampGeneratorConfig{};
+
+    ColumnConfigVector col_configs = {{"value", "int"}};
+    auto instances = ColumnConfigInstanceFactory::create(col_configs);
+
+    // Request non-existent table
+    auto [using_default, data] = CSVDataManager::get_table_data(config, instances, "non_existent");
+    (void)using_default;
+    (void)data;
+    assert(!using_default && "Should not fallback");
+    assert(data == nullptr && "Should return nullptr for non-existent table");
+
+    std::remove(filename.c_str());
+    std::cout << "test_get_table_data_not_found passed\n";
+}
+
+void test_get_shared_rows_cache() {
+    CSVDataManager::reset();
+    const std::string filename = "shared_rows.csv";
+    create_test_file(filename, "ts,value\n1000,100\n2000,200\n3000,300");
+
+    ColumnsCSV config;
+    config.file_path = filename;
+    config.has_header = true;
+    config.tbname_index = -1;
+    config.timestamp_strategy.strategy_type = "csv";
+    config.timestamp_strategy.csv.timestamp_index = 0;
+    config.timestamp_strategy.csv.timestamp_precision = "ms";
+
+    ColumnConfigVector col_configs = {{"value", "int"}};
+    auto instances = ColumnConfigInstanceFactory::create(col_configs);
+
+    // Get table data first
+    auto [using_default, table_data] = CSVDataManager::get_table_data(config, instances, "any_table");
+    assert(using_default && table_data != nullptr);
+
+    // Get shared rows first time
+    auto shared_rows1 = CSVDataManager::get_shared_rows(
+        config.file_path,
+        *table_data,
+        "ms",
+        "us"
+    );
+    (void)shared_rows1;
+    assert(shared_rows1 != nullptr);
+    assert(shared_rows1->size() == 3);
+    // Verify timestamp conversion from ms to us
+    assert((*shared_rows1)[0].timestamp == 1000000);  // 1000ms -> 1000000us
+    assert(std::get<int32_t>((*shared_rows1)[0].columns[0]) == 100);
+
+    // Get shared rows second time - should hit cache
+    auto shared_rows2 = CSVDataManager::get_shared_rows(
+        config.file_path,
+        *table_data,
+        "ms",
+        "us"
+    );
+    (void)shared_rows2;
+    assert(shared_rows1 == shared_rows2 && "Should return the same shared_ptr (cache hit)");
+
+    // Get with different precision - should create new cache entry
+    auto shared_rows3 = CSVDataManager::get_shared_rows(
+        config.file_path,
+        *table_data,
+        "ms",
+        "ns"
+    );
+    (void)shared_rows3;
+    assert(shared_rows1 != shared_rows3 && "Different precision should create different cache");
+    assert((*shared_rows3)[0].timestamp == 1000000000);  // 1000ms -> 1000000000ns
+    assert(std::get<int32_t>((*shared_rows3)[0].columns[0]) == 100);
+
+    std::remove(filename.c_str());
+    std::cout << "test_get_shared_rows_cache passed\n";
+}
+
+void test_shared_rows_multiple_tables_share_cache() {
+    CSVDataManager::reset();
+    const std::string filename = "multi_tables.csv";
+    create_test_file(filename, "ts,value\n1000,100\n2000,200");
+
+    ColumnsCSV config;
+    config.file_path = filename;
+    config.has_header = true;
+    config.tbname_index = -1;
+    config.timestamp_strategy.strategy_type = "csv";
+    config.timestamp_strategy.csv.timestamp_index = 0;
+    config.timestamp_strategy.csv.timestamp_precision = "ms";
+
+    ColumnConfigVector col_configs = {{"value", "int"}};
+    auto instances = ColumnConfigInstanceFactory::create(col_configs);
+
+    // Simulate three different subtables accessing the same CSV default_table
+    auto [using_default1, table_data1] = CSVDataManager::get_table_data(config, instances, "subtable_0001");
+    auto shared_rows1 = CSVDataManager::get_shared_rows(config.file_path, *table_data1, "ms", "us");
+
+    auto [using_default2, table_data2] = CSVDataManager::get_table_data(config, instances, "subtable_0002");
+    auto shared_rows2 = CSVDataManager::get_shared_rows(config.file_path, *table_data2, "ms", "us");
+
+    auto [using_default3, table_data3] = CSVDataManager::get_table_data(config, instances, "subtable_0003");
+    auto shared_rows3 = CSVDataManager::get_shared_rows(config.file_path, *table_data3, "ms", "us");
+
+    // All three should get the exact same shared_ptr (cache hit)
+    (void)using_default1;
+    (void)using_default2;
+    (void)using_default3;
+    assert(using_default1 && using_default2 && using_default3 && "All should use default_table");
+
+    (void)shared_rows1;
+    (void)shared_rows2;
+    (void)shared_rows3;
+    assert(shared_rows2 == shared_rows3 && "Subtable 2 and 3 should share cache");
+    assert(shared_rows1 == shared_rows2 && "Subtable 1 and 2 should share cache");
+    assert(shared_rows2 == shared_rows3 && "Subtable 2 and 3 should share cache");
+
+    assert(shared_rows1->size() == 2);
+    assert((*shared_rows1)[0].timestamp == 1000000);
+    assert((*shared_rows1)[1].timestamp == 2000000);
+    assert(std::get<int32_t>((*shared_rows1)[0].columns[0]) == 100);
+    assert(std::get<int32_t>((*shared_rows1)[1].columns[0]) == 200);
+
+    std::remove(filename.c_str());
+    std::cout << "test_shared_rows_multiple_tables_share_cache passed\n";
+}
+
+void test_different_files_different_caches() {
+    CSVDataManager::reset();
+    const std::string file1 = "file1.csv";
+    const std::string file2 = "file2.csv";
+    create_test_file(file1, "ts,value\n1000,100");
+    create_test_file(file2, "ts,value\n2000,200");
+
+    ColumnsCSV config1;
+    config1.file_path = file1;
+    config1.has_header = true;
+    config1.tbname_index = -1;
+    config1.timestamp_strategy.strategy_type = "csv";
+    config1.timestamp_strategy.csv.timestamp_index = 0;
+    config1.timestamp_strategy.csv.timestamp_precision = "ms";
+
+    ColumnsCSV config2 = config1;
+    config2.file_path = file2;
+
+    ColumnConfigVector col_configs = {{"value", "int"}};
+    auto instances = ColumnConfigInstanceFactory::create(col_configs);
+
+    auto [_, data1] = CSVDataManager::get_table_data(config1, instances, "table");
+    assert(data1 != nullptr);
+    auto shared_rows1 = CSVDataManager::get_shared_rows(config1.file_path, *data1, "ms", "us");
+
+    auto [__, data2] = CSVDataManager::get_table_data(config2, instances, "table");
+    assert(data2 != nullptr);
+    auto shared_rows2 = CSVDataManager::get_shared_rows(config2.file_path, *data2, "ms", "us");
+
+    // Different files should have different caches
+    assert(shared_rows1 != shared_rows2 && "Different files should not share cache");
+    assert((*shared_rows1)[0].timestamp == 1000000);
+    assert((*shared_rows2)[0].timestamp == 2000000);
+
+    std::remove(file1.c_str());
+    std::remove(file2.c_str());
+    std::cout << "test_different_files_different_caches passed\n";
 }
 
 void test_cache_propagates_error() {
-    CSVDataManager::instance().reset();
+    CSVDataManager::reset();
     const std::string filename = "error.csv";
     create_test_file(filename, "name,value\nAlice,not-an-int");
 
@@ -106,15 +297,12 @@ void test_cache_propagates_error() {
     ColumnConfigVector col_configs = {{"name", "varchar(20)"}, {"value", "int"}};
     auto instances = ColumnConfigInstanceFactory::create(col_configs);
 
-    auto cache = CSVDataManager::instance().get_cache_for_file(filename);
-
     try {
-        cache->get_data(config, instances);
+        CSVDataManager::get_table_data(config, instances, "any_table");
         assert(false && "Expected an exception for invalid data format");
     } catch (const std::runtime_error& e) {
         std::string error_message = e.what();
         assert(error_message.find("Failed to load CSV file") != std::string::npos);
-        assert(error_message.find("stoll") != std::string::npos);
     }
 
     std::remove(filename.c_str());
@@ -122,18 +310,37 @@ void test_cache_propagates_error() {
 }
 
 void test_multithreaded_access() {
-    CSVDataManager::instance().reset();
+    CSVDataManager::reset();
     const std::string filename = "multithread.csv";
-    create_test_file(filename, "id\n1\n2\n3\n4\n5");
+    create_test_file(filename, "ts,id\n1000,1\n2000,2\n3000,3\n4000,4\n5000,5");
+
+    ColumnsCSV config;
+    config.file_path = filename;
+    config.has_header = true;
+    config.tbname_index = -1;
+    config.timestamp_strategy.strategy_type = "csv";
+    config.timestamp_strategy.csv.timestamp_index = 0;
+    config.timestamp_strategy.csv.timestamp_precision = "ms";
+
+    ColumnConfigVector col_configs = {{"id", "int"}};
+    auto instances = ColumnConfigInstanceFactory::create(col_configs);
 
     std::vector<std::thread> threads;
     int num_threads = 10;
-    std::vector<std::shared_ptr<CSVFileCache>> caches(num_threads);
+    std::vector<CSVDataManager::SharedRows> shared_rows_list(num_threads);
 
     for (int i = 0; i < num_threads; ++i) {
         threads.emplace_back([&, i]() {
-            // All threads request the cache for the same file
-            caches[i] = CSVDataManager::instance().get_cache_for_file(filename);
+            // All threads get table data and shared rows for the same file
+            auto [using_default, table_data] = CSVDataManager::get_table_data(config, instances, "table_" + std::to_string(i));
+            if (table_data) {
+                shared_rows_list[i] = CSVDataManager::get_shared_rows(
+                    config.file_path,
+                    *table_data,
+                    "ms",
+                    "us"
+                );
+            }
         });
     }
 
@@ -141,22 +348,67 @@ void test_multithreaded_access() {
         t.join();
     }
 
-    // Verify all threads got the exact same cache instance
-    for (size_t i = 1; i < caches.size(); ++i) {
-        assert(caches[0] == caches[i] && "All threads should receive the same cache instance");
+    // Verify all threads got the exact same shared_ptr (cache hit)
+    for (size_t i = 1; i < shared_rows_list.size(); ++i) {
+        assert(shared_rows_list[0] == shared_rows_list[i] && "All threads should receive the same shared cache");
     }
+    assert(shared_rows_list[0]->size() == 5);
 
     std::remove(filename.c_str());
     std::cout << "test_multithreaded_access passed\n";
 }
 
+void test_reset_clears_shared_rows_cache() {
+    CSVDataManager::reset();
+    const std::string filename = "reset_shared.csv";
+    create_test_file(filename, "ts,value\n1000,100");
+
+    ColumnsCSV config;
+    config.file_path = filename;
+    config.has_header = true;
+    config.tbname_index = -1;
+    config.timestamp_strategy.strategy_type = "csv";
+    config.timestamp_strategy.csv.timestamp_index = 0;
+    config.timestamp_strategy.csv.timestamp_precision = "ms";
+
+    ColumnConfigVector col_configs = {{"value", "int"}};
+    auto instances = ColumnConfigInstanceFactory::create(col_configs);
+
+    // Get shared rows
+    auto [_, data1] = CSVDataManager::get_table_data(config, instances, "table");
+    assert(data1 != nullptr);
+    auto shared_rows1 = CSVDataManager::get_shared_rows(config.file_path, *data1, "ms", "us");
+    auto ptr1 = shared_rows1.get();
+
+    // Reset
+    CSVDataManager::reset();
+
+    // Get shared rows again - should be a new instance
+    auto [__, data2] = CSVDataManager::get_table_data(config, instances, "table");
+    assert(data2 != nullptr);
+    auto shared_rows2 = CSVDataManager::get_shared_rows(config.file_path, *data2, "ms", "us");
+    auto ptr2 = shared_rows2.get();
+
+    (void)ptr1;
+    (void)ptr2;
+    assert(ptr1 != ptr2 && "Reset should clear shared rows cache");
+
+    std::remove(filename.c_str());
+    std::cout << "test_reset_clears_shared_rows_cache passed\n";
+}
+
 int main() {
     test_manager_singleton_and_reset();
-    test_manager_cache_retrieval();
-    test_cache_loads_data_successfully();
+    test_get_table_data_with_specific_table();
+    test_get_table_data_fallback_to_default();
+    test_get_table_data_not_found();
+    test_get_shared_rows_cache();
+    test_shared_rows_multiple_tables_share_cache();
+    test_different_files_different_caches();
     test_cache_propagates_error();
     test_multithreaded_access();
+    test_reset_clears_shared_rows_cache();
 
-    std::cout << "All CSVDataManager tests passed!\n";
+    std::cout << "\nAll CSVDataManager tests passed!\n";
     return 0;
 }

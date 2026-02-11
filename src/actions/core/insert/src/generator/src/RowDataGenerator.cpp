@@ -106,7 +106,7 @@ void RowDataGenerator::init_raw_source() {
         if (columns_config_.csv.repeat_read) {
             total_rows_ = config_.schema.generation.rows_per_table;
         } else {
-            total_rows_ = std::min(static_cast<int64_t>(csv_rows_.size()), config_.schema.generation.rows_per_table);
+            total_rows_ = std::min(static_cast<int64_t>(csv_rows().size()), config_.schema.generation.rows_per_table);
         }
     } else {
         throw std::invalid_argument("Unsupported source_type: " + columns_config_.source_type);
@@ -145,26 +145,35 @@ void RowDataGenerator::init_csv_reader() {
         throw std::invalid_argument("CSV file path is not specified.");
     }
 
-    auto& manager = CSVDataManager::instance();
-    std::shared_ptr<CSVFileCache> file_cache = manager.get_cache_for_file(csv_config.file_path);
-    const auto& all_tables = file_cache->get_data(csv_config, instances_);
+    csv_precision_ = csv_config.timestamp_strategy.get_precision();
 
-    // Find current table data
-    auto it = all_tables.find(table_name_);
-    if (it == all_tables.end()) {
-        it = all_tables.find("default_table");
-    }
-    if (it == all_tables.end()) {
+    // Get table data
+    auto [using_default_table, table_data_ptr] = CSVDataManager::get_table_data(
+        csv_config, instances_, table_name_
+    );
+
+    if (!table_data_ptr) {
         throw std::runtime_error("Table '" + table_name_ + "' not found in CSV file");
     }
 
-    csv_precision_ = csv_config.timestamp_strategy.get_precision();
-    const auto& table_data = it->second;
-    for (size_t i = 0; i < table_data.rows.size(); i++) {
-        RowData row;
-        row.timestamp = TimestampUtils::convert_timestamp_precision(table_data.timestamps[i], csv_precision_, target_precision_);
-        row.columns = table_data.rows[i];
-        csv_rows_.push_back(row);
+    const auto& table_data = *table_data_ptr;
+
+    if (using_default_table) {
+        // Use shared cache for default_table
+        shared_csv_rows_ = CSVDataManager::get_shared_rows(
+            csv_config.file_path,
+            table_data,
+            csv_precision_,
+            target_precision_
+        );
+    } else {
+        // Convert to RowData for specific table
+        for (size_t i = 0; i < table_data.rows.size(); i++) {
+            RowData row;
+            row.timestamp = TimestampUtils::convert_timestamp_precision(table_data.timestamps[i], csv_precision_, target_precision_);
+            row.columns = table_data.rows[i];
+            csv_rows_.push_back(std::move(row));
+        }
     }
 }
 
@@ -317,19 +326,27 @@ void RowDataGenerator::generate_from_generator() {
 }
 
 bool RowDataGenerator::generate_from_csv() {
+    const auto& rows = csv_rows();
     if (timestamp_generator_) {
         cached_row_.timestamp = TimestampUtils::convert_timestamp_precision(timestamp_generator_->generate(),
             timestamp_generator_->timestamp_precision(), target_precision_);
     } else {
-        cached_row_.timestamp =  csv_rows_[csv_row_index_].timestamp;
+        cached_row_.timestamp = rows[csv_row_index_].timestamp;
     }
 
     if (!use_cache_) {
-        cached_row_.columns = csv_rows_[csv_row_index_].columns;
+        cached_row_.columns = rows[csv_row_index_].columns;
     }
 
     if (!use_cache_ || !timestamp_generator_) {
-        csv_row_index_ = (csv_row_index_ + 1) % csv_rows_.size();
+        csv_row_index_ = (csv_row_index_ + 1) % rows.size();
     }
     return true;
+}
+
+const std::vector<RowData>& RowDataGenerator::csv_rows() const {
+    if (shared_csv_rows_) {
+        return *shared_csv_rows_;
+    }
+    return csv_rows_;
 }

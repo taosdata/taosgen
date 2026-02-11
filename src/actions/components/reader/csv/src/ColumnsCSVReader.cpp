@@ -137,7 +137,7 @@ std::unordered_map<std::string, TableData> ColumnsCSVReader::generate() const {
                 }
 
                 // Get table name
-                std::string table_name = "default_table";
+                std::string table_name = DEFAULT_TABLE_NAME;
                 if (tbname_index >= 0) {
                     table_name = row[static_cast<size_t>(tbname_index)];
                     StringUtils::trim(table_name);

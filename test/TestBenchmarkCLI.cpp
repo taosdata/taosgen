@@ -87,7 +87,7 @@ void test_config_command() {
     const fs::path build_dir = bin_path.parent_path().parent_path();
 
     const std::string cfg = (fs::path(root) / "conf/tdengine-csv.yaml").string();
-    const std::string cmd = shell_cd(build_dir.string()) + "\"" + bin + "\" -c \"" + cfg + "\"";
+    const std::string cmd = shell_cd(build_dir.string()) + "\"" + bin + "\" -v -c \"" + cfg + "\"";
     int rc = run_cmd(cmd);
     (void)rc;
     assert(rc == 0 && "taosgen -c <root>/conf/tdengine-csv.yaml should exit 0");

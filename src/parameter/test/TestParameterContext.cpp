@@ -97,7 +97,6 @@ schema:
     rows_per_batch: 10000
     concurrency: 8
 
-concurrency: 4
 jobs:
   create-database:
     name: Create Database
@@ -411,6 +410,7 @@ jobs:
     ctx.merge_yaml(config);
     const auto& data = ctx.get_config_data();
     assert(data.jobs.size() == 1);
+    assert(data.concurrency == 1);
     const auto& insert_config = std::get<InsertDataConfig>(data.jobs[0].steps[0].action_config);
 
     // Inherits connection from global

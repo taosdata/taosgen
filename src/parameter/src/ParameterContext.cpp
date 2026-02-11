@@ -515,6 +515,10 @@ void ParameterContext::merge_yaml_jobs(const YAML::Node& config) {
     if (config["jobs"]) {
         parse_jobs(config["jobs"]);
     }
+
+    if (!config["concurrency"]) {
+        config_data.concurrency = config_data.jobs.size();
+    }
 }
 
 void ParameterContext::merge_yaml(const YAML::Node& config) {
