@@ -299,6 +299,7 @@ void test_implicit_hash_resize_with_threads() {
         ++drained;
     }
 
+    (void)drained;
     assert(drained == threadCount);
 
     std::cout << "test_implicit_hash_resize_with_threads passed.\n";

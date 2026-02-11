@@ -1036,8 +1036,14 @@ public:
 	template<typename It>
 	bool enqueue_bulk(It itemFirst, size_t count)
 	{
-		MOODYCAMEL_CONSTEXPR_IF (INITIAL_IMPLICIT_PRODUCER_HASH_SIZE == 0) return false;
-		else return inner_enqueue_bulk<CanAlloc>(itemFirst, count);
+		MOODYCAMEL_CONSTEXPR_IF (INITIAL_IMPLICIT_PRODUCER_HASH_SIZE == 0) {
+			(void)itemFirst;
+			(void)count;
+			return false;
+		}
+		else {
+			return inner_enqueue_bulk<CanAlloc>(itemFirst, count);
+		}
 	}
 
 	// Enqueues several items using an explicit producer token.
@@ -1100,8 +1106,14 @@ public:
 	template<typename It>
 	bool try_enqueue_bulk(It itemFirst, size_t count)
 	{
-		MOODYCAMEL_CONSTEXPR_IF (INITIAL_IMPLICIT_PRODUCER_HASH_SIZE == 0) return false;
-		else return inner_enqueue_bulk<CannotAlloc>(itemFirst, count);
+		MOODYCAMEL_CONSTEXPR_IF (INITIAL_IMPLICIT_PRODUCER_HASH_SIZE == 0) {
+			(void)itemFirst;
+			(void)count;
+			return false;
+		}
+		else {
+			return inner_enqueue_bulk<CannotAlloc>(itemFirst, count);
+		}
 	}
 
 	// Enqueues several items using an explicit producer token.
