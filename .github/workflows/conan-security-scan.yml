@@ -98,7 +98,6 @@ jobs:
 
       - name: Query OSV database for vulnerabilities
         id: osv-scan
-        continue-on-error: true
         run: |
           python3 << 'EOF'
           import json
@@ -141,12 +140,30 @@ jobs:
                       if result.get('vulns'):
                           print(f"  ⚠️  Found {len(result['vulns'])} vulnerabilities")
                           for vuln in result['vulns']:
+                              # Derive severity from OSV's standard fields, with sensible fallbacks
+                              severity = vuln.get('database_specific', {}).get('severity')
+                              if not severity:
+                                  osv_severities = vuln.get('severity') or []
+                                  severity_parts = []
+                                  for s in osv_severities:
+                                      sev_type = s.get('type')
+                                      sev_score = s.get('score')
+                                      if sev_type and sev_score:
+                                          severity_parts.append(f"{sev_type}:{sev_score}")
+                                      elif sev_score:
+                                          severity_parts.append(str(sev_score))
+                                      elif sev_type:
+                                          severity_parts.append(sev_type)
+                                  if severity_parts:
+                                      severity = ", ".join(severity_parts)
+                              if not severity:
+                                  severity = 'UNKNOWN'
                               vulnerabilities.append({
                                   'package': package,
                                   'version': version,
                                   'cve_id': vuln.get('id', 'Unknown'),
                                   'summary': vuln.get('summary', 'No summary'),
-                                  'severity': vuln.get('database_specific', {}).get('severity', 'UNKNOWN'),
+                                  'severity': severity,
                                   'url': f"https://osv.dev/vulnerability/{vuln.get('id', '')}"
                               })
                       else:
