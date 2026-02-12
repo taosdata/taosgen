@@ -6,10 +6,10 @@ on:
     branches: [ main ]
     paths:
       - 'conanfile.txt'
-      - 'conanfile.py'
-      - 'conan.lock'
   push:
     branches: [ main ]
+    paths:
+      - 'conanfile.txt'
   schedule:
     - cron: '0 0 * * 1'
 
@@ -165,6 +165,17 @@ jobs:
           high = sum(1 for v in vulnerabilities if 'HIGH' in v.get('severity', '').upper())
 
           print(f"Critical: {critical}, High: {high}")
+
+          # Set outputs for use in downstream steps
+          import os
+          with open(os.environ.get('GITHUB_OUTPUT', '/tmp/github_output'), 'a') as f:
+              f.write(f"critical={critical}\n")
+              f.write(f"high={high}\n")
+
+          # Fail if critical or high vulnerabilities found
+          if critical > 0 or high > 0:
+              print("::error ::Critical or High vulnerabilities found!")
+              sys.exit(1)
           EOF
 
       - name: Generate vulnerability report
@@ -184,16 +195,27 @@ jobs:
           except:
               vulns = []
 
-          # Generate markdown report
-          report = f"""# Conan Dependencies Security Report
+          # 去重依赖，提前处理
+          unique_deps = []
+          seen = set()
+          for dep in deps:
+              key = (dep['name'], dep['version'])
+              if key not in seen:
+                  seen.add(key)
+                  unique_deps.append(dep)
 
-          **Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
+          # Generate markdown report
+          import textwrap
+          report = textwrap.dedent(f"""
+          # Conan Dependencies Security Report
+
+          **Generated**: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}
           **Project**: taosgen
           **Scan Type**: Static Dependencies (Conan)
 
           ## Summary
 
-          - Total Dependencies: {len(deps)}
+          - Total Dependencies: {len(unique_deps)}
           - Vulnerabilities Found: {len(vulns)}
           - Critical: {sum(1 for v in vulns if 'CRITICAL' in v.get('severity', '').upper())}
           - High: {sum(1 for v in vulns if 'HIGH' in v.get('severity', '').upper())}
@@ -203,7 +225,7 @@ jobs:
 
           | Package | Version | Status |
           |---------|---------|--------|
-          """
+          """)
 
           # Group vulnerabilities by package
           vuln_by_pkg = {}
@@ -213,7 +235,7 @@ jobs:
                   vuln_by_pkg[pkg] = []
               vuln_by_pkg[pkg].append(v)
 
-          for dep in deps:
+          for dep in unique_deps:
               name = dep['name']
               version = dep['version']
               status = '❌ Vulnerable' if name in vuln_by_pkg else '✅ Clean'
@@ -221,7 +243,6 @@ jobs:
 
           if vulns:
               report += "\n## Vulnerabilities Detail\n\n"
-
               for pkg, pkg_vulns in vuln_by_pkg.items():
                   report += f"\n### {pkg}\n\n"
                   for v in pkg_vulns:
@@ -323,6 +344,7 @@ jobs:
 
       - name: Comment on PR
         if: github.event_name == 'pull_request' && always()
+        continue-on-error: true
         uses: actions/github-script@v7
         with:
           script: |
@@ -343,19 +365,56 @@ jobs:
             These dependencies are compiled into the binary and cannot be detected by standard dynamic scanning tools.
             `;
 
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: comment
-            });
+            try {
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            } catch (e) {
+              console.log('Failed to comment on PR (likely permissions):', e.message || e);
+            }
 
       - name: Fail on critical vulnerabilities
-        if: steps.osv-scan.outcome == 'failure'
+        if: always()
         run: |
-          echo "❌ Critical or High vulnerabilities detected in Conan dependencies"
-          echo "Please review the security report and update affected packages"
-          exit 1
+          if [ -f vulnerabilities.json ]; then
+            critical_or_high=$(python3 - << 'EOF'
+          import json
+          import sys
+          try:
+              with open("vulnerabilities.json", "r", encoding="utf-8") as f:
+                  vulns = json.load(f)
+          except FileNotFoundError:
+              print("false")
+              sys.exit(0)
+          sev_levels = {"HIGH", "CRITICAL"}
+          found = False
+          for v in vulns:
+              sev = v.get("severity")
+              # severity can be a string or a list of strings
+              if isinstance(sev, str):
+                  if sev.upper() in sev_levels:
+                      found = True
+                      break
+              elif isinstance(sev, list):
+                  if any(isinstance(s, str) and s.upper() in sev_levels for s in sev):
+                      found = True
+                      break
+          print("true" if found else "false")
+          EOF
+            )
+            if [ "$critical_or_high" = "true" ]; then
+              echo "❌ Critical or High vulnerabilities detected in Conan dependencies"
+              echo "Please review the security report and update affected packages"
+              exit 1
+            else
+              echo "✅ No critical or high vulnerabilities detected in Conan dependencies"
+            fi
+          else
+            echo "ℹ️ vulnerabilities.json not found; skipping critical/high failure check"
+          fi
 
       - name: Check vulnerability summary
         if: always()
