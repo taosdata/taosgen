@@ -238,6 +238,7 @@ jobs:
         run: |
           python3 - << 'EOF'
           import json
+          import os
           import sys
 
           PROHIBITED = ['GPL-2.0', 'GPL-3.0', 'AGPL-3.0', 'SSPL']
