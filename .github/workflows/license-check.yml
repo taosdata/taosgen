@@ -313,6 +313,21 @@ jobs:
           python3 << 'EOF'
           import json
           from datetime import datetime
+          import re
+
+          # Load version from src/version.hpp
+          def get_version():
+              try:
+                  with open('src/version.hpp', 'r', encoding='utf-8') as f:
+                      for line in f:
+                          m = re.search(r'TAOSGEN_VERSION\s*=\s*"([^"]+)"', line)
+                          if m:
+                              return m.group(1)
+              except Exception as e:
+                  print(f"Failed to read version.hpp: {e}")
+              return "unknown"
+
+          version = get_version()
 
           # Load dependencies
           try:
@@ -344,7 +359,7 @@ jobs:
                   "component": {
                       "type": "application",
                       "name": "taosgen",
-                      "version": "1.0.0",
+                      "version": version,
                       "description": "TDengine data generator with static Conan dependencies"
                   },
                   "properties": [
@@ -389,6 +404,7 @@ jobs:
               f.write("Software Bill of Materials (SBOM)\n")
               f.write("=" * 60 + "\n\n")
               f.write(f"Project: taosgen\n")
+              f.write(f"Version: {version}\n")
               f.write(f"Build Type: Static Linking (*.a)\n")
               f.write(f"Package Manager: Conan 2\n")
               f.write(f"Total Dependencies: {len(deps)}\n\n")
