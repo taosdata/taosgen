@@ -12,7 +12,7 @@ class TimeIntervalStrategy {
 public:
     TimeIntervalStrategy(
         const InsertDataConfig::TimeInterval& config,
-        const std::string& timestamp_precision);
+        std::string timestamp_precision);
 
     // Apply wait strategy
     void apply_wait_strategy(int64_t current_start_time,
@@ -61,7 +61,7 @@ private:
     const InsertDataConfig::TimeInterval& config_;
 
     // Timestamp precision
-    const std::string& timestamp_precision_;
+    std::string timestamp_precision_;
 
     // Last write completion timestamp
     std::chrono::steady_clock::time_point last_write_time_;

@@ -1,4 +1,5 @@
 #include "InsertDataAction.hpp"
+#include "ColumnsCSVReader.hpp"
 #include "LogUtils.hpp"
 #include "FormatterRegistrar.hpp"
 #include "FormatterFactory.hpp"
@@ -468,7 +469,7 @@ void InsertDataAction::init_cache_units_data(
     size_t max_rows_per_table
 ) {
     for (size_t table_idx = 0; table_idx < max_tables_per_block; ++table_idx) {
-        std::string table_name = "default_table";
+        std::string table_name = DEFAULT_TABLE_NAME;
         RowDataGenerator generator(table_name, config_, col_instances_);
 
         for (size_t cache_idx = 0; cache_idx < num_cached_batches; ++cache_idx) {

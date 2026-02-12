@@ -182,7 +182,7 @@ void test_generator_with_disorder() {
 }
 
 void setup_test_csv() {
-    CSVDataManager::instance().reset();
+    CSVDataManager::reset();
     std::ofstream test_file("test_data.csv");
     test_file << "table,timestamp,age,city\n";
     test_file << "table1,1622505600000,12,New York\n";
@@ -280,7 +280,7 @@ void test_csv_mode_basic() {
 
 void test_csv_mode_with_invalid_data() {
     // 1. Setup a CSV file with invalid data
-    CSVDataManager::instance().reset();
+    CSVDataManager::reset();
     std::ofstream test_file("invalid_data.csv");
     test_file << "table,timestamp,age,city\n";
     test_file << "table1,1622505600000,,New York\n"; // 'age' is empty
@@ -368,6 +368,61 @@ void test_csv_precision_conversion() {
     std::cout << "test_csv_precision_conversion passed.\n";
 }
 
+void test_csv_mode_default_table_shared_data() {
+    CSVDataManager::reset();
+    std::ofstream test_file("default_table.csv");
+    test_file << "timestamp,age,city\n";
+    test_file << "1622505600000,12,New York\n";
+    test_file << "1622505601000,25,Boston\n";
+    test_file.close();
+
+    ColumnsConfig columns_config;
+    columns_config.source_type = "csv";
+    columns_config.csv.file_path = "default_table.csv";
+    columns_config.csv.has_header = true;
+    columns_config.csv.tbname_index = -1;
+
+    TimestampCSVConfig ts_config;
+    ts_config.timestamp_index = 0;
+    ts_config.timestamp_precision = "ms";
+
+    columns_config.csv.timestamp_strategy.strategy_type = "csv";
+    columns_config.csv.timestamp_strategy.csv = ts_config;
+
+    InsertDataConfig config;
+    config.schema.columns.emplace_back(ColumnConfig{"age", "INT"});
+    config.schema.columns.emplace_back(ColumnConfig{"city", "VARCHAR(20)"});
+    config.schema.generation.rows_per_table = 2;
+    config.schema.columns_cfg = columns_config;
+    config.schema.columns_cfg.generator.schema = config.schema.columns;
+
+    auto instances = ColumnConfigInstanceFactory::create(config.schema.columns);
+
+    RowDataGenerator generator1("subtable_001", config, instances);
+    RowDataGenerator generator2("subtable_002", config, instances);
+
+    auto row1 = generator1.next_row();
+    auto row2 = generator2.next_row();
+
+    assert(row1);
+    assert(row2);
+    assert(row1->timestamp == row2->timestamp);
+    assert(std::get<int32_t>(row1->columns[0]) == std::get<int32_t>(row2->columns[0]));
+    assert(std::get<std::string>(row1->columns[1]) == std::get<std::string>(row2->columns[1]));
+
+    auto row1_next = generator1.next_row();
+    auto row2_next = generator2.next_row();
+
+    assert(row1_next);
+    assert(row2_next);
+    assert(row1_next->timestamp == row2_next->timestamp);
+    assert(std::get<int32_t>(row1_next->columns[0]) == std::get<int32_t>(row2_next->columns[0]));
+    assert(std::get<std::string>(row1_next->columns[1]) == std::get<std::string>(row2_next->columns[1]));
+
+    std::remove("default_table.csv");
+    std::cout << "test_csv_mode_default_table_shared_data passed.\n";
+}
+
 void test_invalid_source_type() {
     ColumnsConfig columns_config;
     columns_config.source_type = "invalid";
@@ -396,6 +451,7 @@ int main() {
     test_csv_mode_basic();
     test_csv_mode_with_invalid_data();
     test_csv_precision_conversion();
+    test_csv_mode_default_table_shared_data();
     test_invalid_source_type();
 
     std::cout << "All tests passed.\n";

@@ -21,7 +21,7 @@ public:
 
     bool connect() override {
         if (fail_connect) {
-            return false;
+            throw std::runtime_error("Simulated connection failure");
         }
         connected = true;
         return true;
@@ -168,6 +168,7 @@ void test_connection() {
     auto kafka_client = std::make_unique<KafkaClient>(*kc, *kf);
     kafka_client->set_client(std::move(mock));
     plugin.set_client(std::move(kafka_client));
+    assert(plugin.get_client() != nullptr);
 
     assert(plugin.connect());
     assert(mock_ptr->is_connected());

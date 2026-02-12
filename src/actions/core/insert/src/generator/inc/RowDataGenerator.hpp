@@ -81,6 +81,8 @@ private:
     // Get data from CSV
     bool generate_from_csv();
 
+    const std::vector<RowData>& csv_rows() const;
+
 private:
     const std::string& table_name_;
     const InsertDataConfig& config_;
@@ -99,6 +101,7 @@ private:
 
     // CSV data
     std::vector<RowData> csv_rows_;
+    std::shared_ptr<const std::vector<RowData>> shared_csv_rows_;
     size_t csv_row_index_ = 0;
     std::string csv_precision_;
 

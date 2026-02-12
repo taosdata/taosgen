@@ -12,6 +12,9 @@
 #include "TimestampCSVConfig.hpp"
 #include "ColumnConfigInstance.hpp"
 
+// Default table name used when tbname_index is -1 (no table name column in CSV)
+constexpr const char* DEFAULT_TABLE_NAME = "default_table";
+
 class ColumnsCSVReader {
 public:
     ColumnsCSVReader(const ColumnsCSV& config, std::optional<ColumnConfigInstanceVector> instances);

@@ -1,10 +1,12 @@
 #pragma once
 
 #include "ColumnsCSVReader.hpp"
+#include "TimestampUtils.hpp"
 #include <mutex>
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 
 class CSVFileCache {
@@ -36,12 +38,83 @@ private:
 
 class CSVDataManager {
 public:
+    using SharedRows = std::shared_ptr<const std::vector<RowData>>;
+
+    // Get or create shared rows cache from table data
+    static SharedRows get_shared_rows(const std::string& file_path,
+                                     const TableData& table_data,
+                                     const std::string& csv_precision,
+                                     const std::string& target_precision) {
+        auto& inst = instance();
+        const std::string cache_key = build_shared_rows_cache_key_internal(
+            file_path,
+            csv_precision,
+            target_precision
+        );
+        return inst.get_shared_rows_internal(table_data, csv_precision, target_precision, cache_key);
+    }
+
+    // Load file cache and get table data
+    static std::pair<bool, const TableData*> get_table_data(const ColumnsCSV& csv_config,
+                                                            const std::optional<ColumnConfigInstanceVector>& instances,
+                                                            const std::string& table_name) {
+        auto& inst = instance();
+        std::shared_ptr<CSVFileCache> file_cache = inst.get_cache_for_file_internal(csv_config.file_path);
+        const auto& all_tables = file_cache->get_data(csv_config, instances);
+
+        auto it = all_tables.find(table_name);
+        bool using_default = false;
+
+        if (it == all_tables.end()) {
+            it = all_tables.find(DEFAULT_TABLE_NAME);
+            using_default = (it != all_tables.end());
+        }
+
+        if (it == all_tables.end()) {
+            return {false, nullptr};
+        }
+
+        return {using_default, &it->second};
+    }
+
+    // Reset all caches
+    static void reset() {
+        auto& inst = instance();
+        std::scoped_lock lock(inst.mutex_, inst.shared_rows_mutex_);
+        inst.file_caches_.clear();
+        inst.shared_rows_cache_.clear();
+    }
+
+    static std::vector<RowData> convert_table_data_to_row_data(const TableData& table_data,
+                                                               const std::string& csv_precision,
+                                                               const std::string& target_precision) {
+        std::vector<RowData> rows;
+        rows.reserve(table_data.rows.size());
+        for (size_t i = 0; i < table_data.rows.size(); i++) {
+            RowData row;
+            row.timestamp = TimestampUtils::convert_timestamp_precision(
+                table_data.timestamps[i],
+                csv_precision,
+                target_precision
+            );
+            row.columns = table_data.rows[i];
+            rows.push_back(std::move(row));
+        }
+        return rows;
+    }
+
+private:
     static CSVDataManager& instance() {
         static CSVDataManager manager;
         return manager;
     }
 
-    std::shared_ptr<CSVFileCache> get_cache_for_file(const std::string& file_path) {
+    CSVDataManager() = default;
+    ~CSVDataManager() = default;
+    CSVDataManager(const CSVDataManager&) = delete;
+    CSVDataManager& operator=(const CSVDataManager&) = delete;
+
+    std::shared_ptr<CSVFileCache> get_cache_for_file_internal(const std::string& file_path) {
         std::lock_guard<std::mutex> lock(mutex_);
 
         auto it = file_caches_.find(file_path);
@@ -51,17 +124,46 @@ public:
         return it->second;
     }
 
-    void reset() {
-        std::lock_guard<std::mutex> lock(mutex_);
-        file_caches_.clear();
+    SharedRows get_shared_rows_internal(const TableData& table_data,
+                                        const std::string& csv_precision,
+                                        const std::string& target_precision,
+                                        const std::string& cache_key) {
+        // First, check cache with lock
+        {
+            std::lock_guard<std::mutex> lock(shared_rows_mutex_);
+            auto it = shared_rows_cache_.find(cache_key);
+            if (it != shared_rows_cache_.end()) {
+                return it->second;
+            }
+        }
+
+        // Convert data outside lock using utility function
+        auto rows = std::make_shared<std::vector<RowData>>(
+            convert_table_data_to_row_data(table_data, csv_precision, target_precision)
+        );
+
+        // Insert into cache with lock (check again for race condition)
+        std::lock_guard<std::mutex> lock(shared_rows_mutex_);
+        auto it = shared_rows_cache_.find(cache_key);
+        if (it != shared_rows_cache_.end()) {
+            return it->second;
+        }
+
+        shared_rows_cache_.emplace(cache_key, rows);
+        return rows;
     }
 
-private:
-    CSVDataManager() = default;
-    ~CSVDataManager() = default;
-    CSVDataManager(const CSVDataManager&) = delete;
-    CSVDataManager& operator=(const CSVDataManager&) = delete;
+    // Cache key uses DEFAULT_TABLE_NAME because shared rows are only
+    // created when using default table (tbname_index = -1)
+    static std::string build_shared_rows_cache_key_internal(const std::string& file_path,
+                                                            const std::string& csv_precision,
+                                                            const std::string& target_precision) {
+        return file_path + "|" + DEFAULT_TABLE_NAME + "|" + csv_precision + "|" + target_precision;
+    }
 
     std::mutex mutex_;
     std::unordered_map<std::string, std::shared_ptr<CSVFileCache>> file_caches_;
+
+    std::mutex shared_rows_mutex_;
+    std::unordered_map<std::string, SharedRows> shared_rows_cache_;
 };

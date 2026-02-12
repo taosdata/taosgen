@@ -55,7 +55,7 @@ IntervalStrategyType parse_strategy(const std::string& s) {
 
 TimeIntervalStrategy::TimeIntervalStrategy(
     const InsertDataConfig::TimeInterval& config,
-    const std::string& timestamp_precision)
+    std::string timestamp_precision)
     : config_(config)
     , timestamp_precision_(timestamp_precision)
     , last_write_time_(std::chrono::steady_clock::now())
