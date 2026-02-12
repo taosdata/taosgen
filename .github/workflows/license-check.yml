@@ -21,6 +21,8 @@ on:
 permissions:
   contents: read
   security-events: write
+  pull-requests: write
+  issues: write
 
 jobs:
   license-check:
@@ -276,27 +278,35 @@ jobs:
           retention-days: 30
 
       - name: Comment PR with License Report
-        if: github.event_name == 'pull_request' && always()
+        if: github.event_name == 'pull_request' && always() && github.event.pull_request.head.repo.fork == false
+        continue-on-error: true
         uses: actions/github-script@v7
         with:
-          script: |
-            const fs = require('fs');
-            const reportPath = 'license-reports/license-report.md';
+            script: |
+                const fs = require('fs').promises;
+                const reportPath = 'license-reports/license-report.md';
 
-            if (!fs.existsSync(reportPath)) {
-              console.log('License report not found');
-              return;
-            }
+                try {
+                    await fs.access(reportPath);
+                } catch (e) {
+                    console.log('License report not found');
+                    return;
+                }
 
-            const report = fs.readFileSync(reportPath, 'utf8');
-            const comment = `## 📜 License Compliance Check\n\n${report}\n\nFor detailed reports, check the artifacts.`;
+                const report = await fs.readFile(reportPath, 'utf8');
+                const comment = `## 📜 License Compliance Check\n\n${report}\n\nFor detailed reports, check the artifacts.`;
 
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: comment
-            });
+                try {
+                    await github.rest.issues.createComment({
+                        issue_number: context.issue.number,
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        body: comment
+                    });
+                    console.log('✅ License report commented on PR');
+                } catch (e) {
+                    console.warn('⚠️ Failed to comment on PR:', e.message || e);
+                }
 
       - name: Generate SBOM (Software Bill of Materials)
         run: |
