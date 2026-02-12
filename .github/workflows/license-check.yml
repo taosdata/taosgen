@@ -8,7 +8,6 @@ on:
       - 'conanfile.txt'
       - 'CMakeLists.txt'
       - 'src/**'
-      - '.github/workflows/license-check.yml'
   push:
     branches: [ main ]
     paths:
