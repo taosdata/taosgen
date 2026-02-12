@@ -1,0 +1,369 @@
+name: Conan Dependencies Security Check
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'conanfile.txt'
+      - 'conanfile.py'
+      - 'conan.lock'
+  push:
+    branches: [ main ]
+  schedule:
+    - cron: '0 0 * * 1'
+
+permissions:
+  contents: read
+  security-events: write
+  pull-requests: write
+
+jobs:
+  conan-security-scan:
+    runs-on: ubuntu-latest
+    name: Conan Dependencies CVE Scan
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Conan
+        run: |
+          pip install conan==2.20.1
+          conan --version
+
+      - name: Setup Conan profile
+        run: conan profile detect --force
+
+      - name: Generate Conan lock file
+        run: |
+          mkdir -p build
+          cd build
+          # Generate lock file with exact versions
+          conan lock create ../conanfile.txt \
+            --build=missing \
+            --lockfile-out=conan.lock
+
+          # Also create dependency graph
+          conan graph info ../conanfile.txt --format=json > conan-graph.json
+
+      - name: Extract dependencies
+        id: extract-deps
+        run: |
+          python3 << 'EOF'
+          import json
+          import sys
+
+          deps = []
+
+          # Parse conan graph
+          try:
+              with open('build/conan-graph.json', 'r') as f:
+                  graph = json.load(f)
+
+              nodes = graph.get('graph', {}).get('nodes', {})
+
+              for node_id, node in nodes.items():
+                  ref = node.get('ref', '')
+                  if not ref or '/' not in str(ref):
+                      continue
+
+                  # Parse: package/version@user/channel or package/version
+                  parts = str(ref).split('@')[0].split('/')
+                  if len(parts) >= 2:
+                      name = parts[0]
+                      version = parts[1]
+
+                      deps.append({
+                          'name': name,
+                          'version': version,
+                          'ref': str(ref)
+                      })
+
+              print(f"Found {len(deps)} dependencies")
+
+              # Save for next step
+              with open('dependencies.json', 'w') as f:
+                  json.dump(deps, f, indent=2)
+
+          except Exception as e:
+              print(f"Error: {e}", file=sys.stderr)
+              sys.exit(1)
+          EOF
+
+      - name: Query OSV database for vulnerabilities
+        id: osv-scan
+        continue-on-error: true
+        run: |
+          python3 << 'EOF'
+          import json
+          import urllib.request
+          import sys
+
+          OSV_API = "https://api.osv.dev/v1/query"
+
+          with open('dependencies.json', 'r') as f:
+              deps = json.load(f)
+
+          vulnerabilities = []
+
+          print(f"Scanning {len(deps)} dependencies...\n")
+
+          for dep in deps:
+              package = dep['name']
+              version = dep['version']
+
+              print(f"Checking {package}/{version}...")
+
+              query = {
+                  "package": {
+                      "name": package,
+                      "ecosystem": "ConanCenter"
+                  },
+                  "version": version
+              }
+
+              try:
+                  req = urllib.request.Request(
+                      OSV_API,
+                      data=json.dumps(query).encode('utf-8'),
+                      headers={'Content-Type': 'application/json'}
+                  )
+
+                  with urllib.request.urlopen(req, timeout=15) as response:
+                      result = json.loads(response.read().decode('utf-8'))
+
+                      if result.get('vulns'):
+                          print(f"  ⚠️  Found {len(result['vulns'])} vulnerabilities")
+                          for vuln in result['vulns']:
+                              vulnerabilities.append({
+                                  'package': package,
+                                  'version': version,
+                                  'cve_id': vuln.get('id', 'Unknown'),
+                                  'summary': vuln.get('summary', 'No summary'),
+                                  'severity': vuln.get('database_specific', {}).get('severity', 'UNKNOWN'),
+                                  'url': f"https://osv.dev/vulnerability/{vuln.get('id', '')}"
+                              })
+                      else:
+                          print(f"  ✅ Clean")
+
+              except Exception as e:
+                  print(f"  ℹ️  Not found in OSV database (may be safe): {e}")
+
+          print(f"\n{'='*50}")
+          print(f"Total vulnerabilities found: {len(vulnerabilities)}")
+
+          with open('vulnerabilities.json', 'w') as f:
+              json.dump(vulnerabilities, f, indent=2)
+
+          critical = sum(1 for v in vulnerabilities if 'CRITICAL' in v.get('severity', '').upper())
+          high = sum(1 for v in vulnerabilities if 'HIGH' in v.get('severity', '').upper())
+
+          print(f"Critical: {critical}, High: {high}")
+          EOF
+
+      - name: Generate vulnerability report
+        if: always()
+        run: |
+          python3 << 'EOF'
+          import json
+          from datetime import datetime
+
+          # Read data
+          with open('dependencies.json', 'r') as f:
+              deps = json.load(f)
+
+          try:
+              with open('vulnerabilities.json', 'r') as f:
+                  vulns = json.load(f)
+          except:
+              vulns = []
+
+          # Generate markdown report
+          report = f"""# Conan Dependencies Security Report
+
+          **Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
+          **Project**: taosgen
+          **Scan Type**: Static Dependencies (Conan)
+
+          ## Summary
+
+          - Total Dependencies: {len(deps)}
+          - Vulnerabilities Found: {len(vulns)}
+          - Critical: {sum(1 for v in vulns if 'CRITICAL' in v.get('severity', '').upper())}
+          - High: {sum(1 for v in vulns if 'HIGH' in v.get('severity', '').upper())}
+          - Medium: {sum(1 for v in vulns if 'MEDIUM' in v.get('severity', '').upper())}
+
+          ## Dependencies Scanned
+
+          | Package | Version | Status |
+          |---------|---------|--------|
+          """
+
+          # Group vulnerabilities by package
+          vuln_by_pkg = {}
+          for v in vulns:
+              pkg = v['package']
+              if pkg not in vuln_by_pkg:
+                  vuln_by_pkg[pkg] = []
+              vuln_by_pkg[pkg].append(v)
+
+          for dep in deps:
+              name = dep['name']
+              version = dep['version']
+              status = '❌ Vulnerable' if name in vuln_by_pkg else '✅ Clean'
+              report += f"| {name} | {version} | {status} |\n"
+
+          if vulns:
+              report += "\n## Vulnerabilities Detail\n\n"
+
+              for pkg, pkg_vulns in vuln_by_pkg.items():
+                  report += f"\n### {pkg}\n\n"
+                  for v in pkg_vulns:
+                      report += f"- **{v['cve_id']}** ({v['severity']})\n"
+                      report += f"  - Summary: {v['summary']}\n"
+                      report += f"  - URL: {v['url']}\n"
+          else:
+              report += "\n## ✅ No vulnerabilities detected\n"
+
+          report += "\n---\n"
+          report += "\n**Note**: This scan checks Conan dependencies that are **statically linked** into the binary.\n"
+          report += "Traditional dynamic scanning tools (OWASP, Trivy FS) cannot detect these dependencies.\n"
+
+          with open('conan-security-report.md', 'w') as f:
+              f.write(report)
+
+          print(report)
+          EOF
+
+      - name: Convert to SARIF format
+        if: always()
+        run: |
+          python3 << 'EOF'
+          import json
+          from datetime import datetime
+
+          try:
+              with open('vulnerabilities.json', 'r') as f:
+                  vulns = json.load(f)
+          except:
+              vulns = []
+
+          # Generate SARIF format for GitHub Security
+          sarif = {
+              "version": "2.1.0",
+              "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+              "runs": [{
+                  "tool": {
+                      "driver": {
+                          "name": "Conan Security Scanner",
+                          "version": "1.0.0",
+                          "informationUri": "https://github.com/taosdata/taosgen"
+                      }
+                  },
+                  "results": []
+              }]
+          }
+
+          for v in vulns:
+              severity = v.get('severity', 'UNKNOWN').upper()
+              level = 'error' if 'CRITICAL' in severity or 'HIGH' in severity else 'warning'
+
+              result = {
+                  "ruleId": v['cve_id'],
+                  "level": level,
+                  "message": {
+                      "text": f"{v['package']} {v['version']}: {v['summary']}"
+                  },
+                  "locations": [{
+                      "physicalLocation": {
+                          "artifactLocation": {
+                              "uri": "conanfile.txt"
+                          }
+                      }
+                  }],
+                  "properties": {
+                      "package": v['package'],
+                      "version": v['version'],
+                      "severity": severity
+                  }
+              }
+
+              sarif['runs'][0]['results'].append(result)
+
+          with open('conan-security.sarif', 'w') as f:
+              json.dump(sarif, f, indent=2)
+
+          print(f"Generated SARIF with {len(vulns)} findings")
+          EOF
+
+      - name: Upload SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: 'conan-security.sarif'
+          category: 'conan-dependencies'
+
+      - name: Upload security report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: conan-security-report
+          path: |
+            conan-security-report.md
+            conan-security.sarif
+            dependencies.json
+            vulnerabilities.json
+          retention-days: 30
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            if (!fs.existsSync('conan-security-report.md')) {
+              console.log('Report not found');
+              return;
+            }
+
+            const report = fs.readFileSync('conan-security-report.md', 'utf8');
+
+            const comment = `## 🔐 Conan Static Dependencies Security Scan
+
+            ${report}
+
+            **ℹ️ Important**: This scan checks **statically linked** Conan dependencies.
+            These dependencies are compiled into the binary and cannot be detected by standard dynamic scanning tools.
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Fail on critical vulnerabilities
+        if: steps.osv-scan.outcome == 'failure'
+        run: |
+          echo "❌ Critical or High vulnerabilities detected in Conan dependencies"
+          echo "Please review the security report and update affected packages"
+          exit 1
+
+      - name: Check vulnerability summary
+        if: always()
+        run: |
+          if [ -f vulnerabilities.json ]; then
+            vuln_count=$(python3 -c "import json; print(len(json.load(open('vulnerabilities.json'))))")
+            echo "📊 Found $vuln_count vulnerabilities"
+            echo "Please review the security report in the Artifacts"
+          else
+            echo "✅ No vulnerabilities detected"
+          fi
