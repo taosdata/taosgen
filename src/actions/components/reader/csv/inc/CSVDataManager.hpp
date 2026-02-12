@@ -85,6 +85,24 @@ public:
         inst.shared_rows_cache_.clear();
     }
 
+    static std::vector<RowData> convert_table_data_to_row_data(const TableData& table_data,
+                                                               const std::string& csv_precision,
+                                                               const std::string& target_precision) {
+        std::vector<RowData> rows;
+        rows.reserve(table_data.rows.size());
+        for (size_t i = 0; i < table_data.rows.size(); i++) {
+            RowData row;
+            row.timestamp = TimestampUtils::convert_timestamp_precision(
+                table_data.timestamps[i],
+                csv_precision,
+                target_precision
+            );
+            row.columns = table_data.rows[i];
+            rows.push_back(std::move(row));
+        }
+        return rows;
+    }
+
 private:
     static CSVDataManager& instance() {
         static CSVDataManager manager;
@@ -110,30 +128,33 @@ private:
                                         const std::string& csv_precision,
                                         const std::string& target_precision,
                                         const std::string& cache_key) {
-        std::lock_guard<std::mutex> lock(shared_rows_mutex_);
+        // First, check cache with lock
+        {
+            std::lock_guard<std::mutex> lock(shared_rows_mutex_);
+            auto it = shared_rows_cache_.find(cache_key);
+            if (it != shared_rows_cache_.end()) {
+                return it->second;
+            }
+        }
 
+        // Convert data outside lock using utility function
+        auto rows = std::make_shared<std::vector<RowData>>(
+            convert_table_data_to_row_data(table_data, csv_precision, target_precision)
+        );
+
+        // Insert into cache with lock (check again for race condition)
+        std::lock_guard<std::mutex> lock(shared_rows_mutex_);
         auto it = shared_rows_cache_.find(cache_key);
         if (it != shared_rows_cache_.end()) {
             return it->second;
-        }
-
-        auto rows = std::make_shared<std::vector<RowData>>();
-        rows->reserve(table_data.rows.size());
-        for (size_t i = 0; i < table_data.rows.size(); i++) {
-            RowData row;
-            row.timestamp = TimestampUtils::convert_timestamp_precision(
-                table_data.timestamps[i],
-                csv_precision,
-                target_precision
-            );
-            row.columns = table_data.rows[i];
-            rows->push_back(std::move(row));
         }
 
         shared_rows_cache_.emplace(cache_key, rows);
         return rows;
     }
 
+    // Cache key uses DEFAULT_TABLE_NAME because shared rows are only
+    // created when using default table (tbname_index = -1)
     static std::string build_shared_rows_cache_key_internal(const std::string& file_path,
                                                             const std::string& csv_precision,
                                                             const std::string& target_precision) {
