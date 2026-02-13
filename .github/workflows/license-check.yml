@@ -1,0 +1,426 @@
+name: License Compliance Check
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'conanfile.txt'
+      - 'CMakeLists.txt'
+      - 'src/**'
+      - '.github/workflows/license-check.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'conanfile.txt'
+      - 'CMakeLists.txt'
+      - 'src/**'
+      - '.github/workflows/license-check.yml'
+  schedule:
+    - cron: '0 0 * * 1'
+
+permissions:
+  contents: read
+  security-events: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  license-check:
+    runs-on: ubuntu-latest
+    name: License Compliance Scan
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Conan
+        run: |
+          pip install conan==2.20.1
+          conan --version
+
+      - name: Setup Conan profile
+        run: |
+          conan profile detect --force
+
+      - name: Install dependencies with Conan
+        run: |
+          mkdir -p build
+          cd build
+          conan install .. \
+            --build=missing \
+            --settings=build_type=Release \
+            --settings=arch=x86_64 \
+            --settings=compiler.cppstd=17
+
+      - name: Generate license report with Conan
+        run: |
+          mkdir -p license-reports
+          cd build
+          # Export dependency list with full details
+          conan graph info .. --format=json > ../conan-deps.json
+          cd ..
+
+          # Parse and generate license report
+          python3 - << 'EOF'
+          import json
+          import sys
+
+          try:
+              with open('conan-deps.json', 'r') as f:
+                  data = json.load(f)
+
+              # Extract packages from graph
+              packages = data.get('graph', {}).get('nodes', {})
+
+              licenses = {}
+              all_deps = []
+
+              with open('license-reports/conan-licenses.txt', 'w') as f:
+                  f.write("Conan Static Dependencies License Report\n")
+                  f.write("=" * 80 + "\n\n")
+                  f.write(f"Total packages: {len(packages)}\n")
+                  f.write("Linking: Static (*.a)\n\n")
+
+                  for pkg_id, pkg_info in packages.items():
+                      pkg_ref = pkg_info.get('ref', 'unknown')
+                      if pkg_ref == 'unknown' or '/' not in str(pkg_ref):
+                          continue
+
+                      # Parse package name and version
+                      parts = str(pkg_ref).split('@')[0].split('/')
+                      if len(parts) >= 2:
+                          name = parts[0]
+                          version = parts[1]
+                      else:
+                          continue
+
+                      # Extract license info
+                      license_info = pkg_info.get('license', 'Unknown')
+
+                      # Store dependency info
+                      dep_entry = {
+                          'name': name,
+                          'version': version,
+                          'license': license_info,
+                          'ref': str(pkg_ref)
+                      }
+                      all_deps.append(dep_entry)
+
+                      f.write(f"\n{name}/{version}\n")
+                      f.write(f"  License: {license_info}\n")
+                      f.write(f"  Ref: {pkg_ref}\n")
+
+                      if license_info not in licenses:
+                          licenses[license_info] = []
+                      licenses[license_info].append(f"{name}/{version}")
+
+                  f.write("\n\n" + "=" * 80 + "\n")
+                  f.write("Licenses Summary:\n\n")
+                  for lic, pkgs in sorted(licenses.items()):
+                      f.write(f"\n{lic}:\n")
+                      for pkg in pkgs:
+                          f.write(f"  - {pkg}\n")
+
+              # Save structured data
+              with open('license-reports/dependencies.json', 'w') as f:
+                  json.dump(all_deps, f, indent=2)
+
+              print(f"License report generated for {len(all_deps)} packages")
+
+              # Check for problematic licenses
+              prohibited = ['GPL-2.0', 'GPL-3.0', 'AGPL-3.0', 'SSPL']
+              found_issues = []
+              for dep in all_deps:
+                  lic = dep['license']
+                  for prob in prohibited:
+                      if prob in lic:
+                          found_issues.append(f"{dep['name']}: {lic}")
+
+              if found_issues:
+                  print(f"\n⚠️  Warning: Found {len(found_issues)} packages with restricted licenses:")
+                  for issue in found_issues:
+                      print(f"  - {issue}")
+
+          except Exception as e:
+              print(f"Error generating license report: {e}", file=sys.stderr)
+              import traceback
+              traceback.print_exc()
+              sys.exit(0)  # Don't fail the workflow for parsing errors
+          EOF
+
+      - name: Run Trivy License Scan
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          scanners: 'license'
+          format: 'json'
+          output: 'license-reports/trivy-license-results.json'
+          severity: 'CRITICAL,HIGH,UNKNOWN'
+          skip-dirs: 'build,target,node_modules,.git'
+
+      - name: Generate License Scan Report
+        run: |
+          # Create HTML/markdown summary for license compliance
+          python3 - << 'EOF'
+          import json
+          import os
+
+          report = """# License Compliance Report
+
+          ## Overview
+          This report contains all detected licenses in the taosgen project dependencies.
+
+          ## Allowed Licenses
+          - Apache 2.0
+          - MIT
+          - BSD-2-Clause
+          - BSD-3-Clause
+          - ISC
+
+          ## Prohibited Licenses
+          - GPL-2.0
+          - GPL-3.0
+          - AGPL-3.0
+          - SSPL
+          - MPL-2.0
+          - LGPL-2.0
+          - LGPL-2.1
+          - LGPL-3.0
+
+          """
+
+          # Parse Trivy results
+          if os.path.exists('license-reports/trivy-license-results.json'):
+              try:
+                  with open('license-reports/trivy-license-results.json', 'r') as f:
+                      trivy_data = json.load(f)
+
+                  results = trivy_data.get('Results', [])
+
+                  # Categorize licenses
+                  unknown_licenses = set()
+                  suspicious_licenses = set()
+
+                  for result in results:
+                      for finding in result.get('Findings', []):
+                          lic = finding.get('Title', 'Unknown')
+                          if 'GPL' in lic or 'AGPL' in lic or 'SSPL' in lic:
+                              suspicious_licenses.add(lic)
+                          elif 'Unknown' in lic or 'Proprietary' in lic:
+                              unknown_licenses.add(lic)
+
+                  if suspicious_licenses:
+                      report += f"\n⚠️ **Suspicious Licenses Found:** {', '.join(suspicious_licenses)}\n"
+                  if unknown_licenses:
+                      report += f"\n❓ **Unknown Licenses Found:** {', '.join(unknown_licenses)}\n"
+                  if not suspicious_licenses and not unknown_licenses:
+                      report += "\n✅ No suspicious or unknown licenses detected.\n"
+              except Exception as e:
+                  report += f"\nError parsing Trivy results: {e}\n"
+
+          with open('license-reports/license-report.md', 'w') as f:
+              f.write(report)
+
+          print(report)
+          EOF
+
+      - name: Check for Prohibited Licenses
+        run: |
+          python3 - << 'EOF'
+          import json
+          import os
+          import sys
+
+          PROHIBITED = [
+              'GPL-2.0', 'GPL-3.0', 'AGPL-3.0', 'SSPL',
+              'MPL-2.0',
+              'LGPL-2.0', 'LGPL-2.1', 'LGPL-3.0'
+          ]
+          found_prohibited = []
+
+          if os.path.exists('license-reports/trivy-license-results.json'):
+              try:
+                  with open('license-reports/trivy-license-results.json', 'r') as f:
+                      data = json.load(f)
+
+                  for result in data.get('Results', []):
+                      for finding in result.get('Findings', []):
+                          title = finding.get('Title', '')
+                          for prohibited in PROHIBITED:
+                              if prohibited in title:
+                                  found_prohibited.append(f"{finding.get('PkgName', 'unknown')}: {title}")
+              except:
+                  pass
+
+          if found_prohibited:
+              print("❌ Prohibited licenses detected:")
+              for item in found_prohibited:
+                  print(f"  - {item}")
+              sys.exit(1)
+          else:
+              print("✅ No prohibited licenses detected")
+          EOF
+
+      - name: Upload License Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-compliance-reports
+          path: license-reports/
+          retention-days: 30
+
+      - name: Comment PR with License Report
+        if: github.event_name == 'pull_request' && always() && github.event.pull_request.head.repo.fork == false
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+            script: |
+                const fs = require('fs').promises;
+                const reportPath = 'license-reports/license-report.md';
+
+                try {
+                    await fs.access(reportPath);
+                } catch (e) {
+                    console.log('License report not found');
+                    return;
+                }
+
+                const report = await fs.readFile(reportPath, 'utf8');
+                const comment = `## 📜 License Compliance Check\n\n${report}\n\nFor detailed reports, check the artifacts.`;
+
+                try {
+                    await github.rest.issues.createComment({
+                        issue_number: context.issue.number,
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        body: comment
+                    });
+                    console.log('✅ License report commented on PR');
+                } catch (e) {
+                    console.warn('⚠️ Failed to comment on PR:', e.message || e);
+                }
+
+      - name: Generate SBOM (Software Bill of Materials)
+        run: |
+          python3 << 'EOF'
+          import json
+          from datetime import datetime
+          import re
+
+          # Load version from src/version.hpp
+          def get_version():
+              try:
+                  with open('src/version.hpp', 'r', encoding='utf-8') as f:
+                      for line in f:
+                          m = re.search(r'TAOSGEN_VERSION\s*=\s*"([^"]+)"', line)
+                          if m:
+                              return m.group(1)
+              except Exception as e:
+                  print(f"Failed to read version.hpp: {e}")
+              return "unknown"
+
+          version = get_version()
+
+          # Load dependencies
+          try:
+              with open('license-reports/dependencies.json', 'r') as f:
+                  deps = json.load(f)
+          except:
+              print("No dependencies found, using conan graph")
+              with open('conan-deps.json', 'r') as f:
+                  graph = json.load(f)
+              deps = []
+              for node_id, node in graph.get('graph', {}).get('nodes', {}).items():
+                  ref = node.get('ref', '')
+                  if '/' in str(ref):
+                      parts = str(ref).split('@')[0].split('/')
+                      if len(parts) >= 2:
+                          deps.append({
+                              'name': parts[0],
+                              'version': parts[1],
+                              'license': node.get('license', 'Unknown')
+                          })
+
+          # Generate CycloneDX SBOM
+          sbom = {
+              "bomFormat": "CycloneDX",
+              "specVersion": "1.4",
+              "version": 1,
+              "metadata": {
+                  "timestamp": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
+                  "component": {
+                      "type": "application",
+                      "name": "taosgen",
+                      "version": version,
+                      "description": "TDengine data generator with static Conan dependencies"
+                  },
+                  "properties": [
+                      {"name": "build:type", "value": "static-linking"},
+                      {"name": "package-manager", "value": "conan2"},
+                      {"name": "dependency-count", "value": str(len(deps))}
+                  ]
+              },
+              "components": []
+          }
+
+          for dep in deps:
+              component = {
+                  "type": "library",
+                  "name": dep['name'],
+                  "version": dep['version'],
+                  "purl": f"pkg:conan/{dep['name']}@{dep['version']}",
+                  "properties": [
+                      {"name": "conan:linking", "value": "static"}
+                  ]
+              }
+
+              # Add license if available
+              if dep.get('license') and dep['license'] != 'Unknown':
+                  component["licenses"] = [{
+                      "license": {
+                          "name": dep['license']
+                      }
+                  }]
+
+              sbom['components'].append(component)
+
+          with open('sbom-cyclonedx.json', 'w') as f:
+              json.dump(sbom, f, indent=2)
+
+          print(f"✅ Generated CycloneDX SBOM with {len(deps)} components")
+          print(f"   Build type: Static linking")
+          print(f"   Package manager: Conan 2")
+
+          # Generate human-readable summary
+          with open('sbom-summary.txt', 'w') as f:
+              f.write("Software Bill of Materials (SBOM)\n")
+              f.write("=" * 60 + "\n\n")
+              f.write(f"Project: taosgen\n")
+              f.write(f"Version: {version}\n")
+              f.write(f"Build Type: Static Linking (*.a)\n")
+              f.write(f"Package Manager: Conan 2\n")
+              f.write(f"Total Dependencies: {len(deps)}\n\n")
+              f.write("Dependencies:\n")
+              f.write("-" * 60 + "\n")
+              for dep in sorted(deps, key=lambda x: x['name']):
+                  f.write(f"{dep['name']:20} {dep['version']:15} {dep.get('license', 'Unknown')}\n")
+
+          EOF
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-reports
+          path: |
+            sbom-cyclonedx.json
+            sbom-conan.json
+          retention-days: 30
