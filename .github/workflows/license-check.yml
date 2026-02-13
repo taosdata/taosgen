@@ -8,12 +8,14 @@ on:
       - 'conanfile.txt'
       - 'CMakeLists.txt'
       - 'src/**'
+      - '.github/workflows/license-check.yml'
   push:
     branches: [ main ]
     paths:
       - 'conanfile.txt'
       - 'CMakeLists.txt'
       - 'src/**'
+      - '.github/workflows/license-check.yml'
   schedule:
     - cron: '0 0 * * 1'
 
@@ -179,20 +181,19 @@ jobs:
 
           ## Allowed Licenses
           - Apache 2.0
-          - Apache 2.0 OR MIT
           - MIT
           - BSD-2-Clause
           - BSD-3-Clause
           - ISC
-          - MPL-2.0
-          - LGPL-2.0-or-later
-          - LGPL-2.1-or-later
-          - LGPL-3.0-or-later
 
           ## Prohibited Licenses
           - GPL-2.0
           - GPL-3.0
           - AGPL-3.0
+          - MPL-2.0
+          - LGPL-2.0
+          - LGPL-2.1
+          - LGPL-3.0
 
           """
 
@@ -239,7 +240,11 @@ jobs:
           import os
           import sys
 
-          PROHIBITED = ['GPL-2.0', 'GPL-3.0', 'AGPL-3.0', 'SSPL']
+          PROHIBITED = [
+              'GPL-2.0', 'GPL-3.0', 'AGPL-3.0', 'SSPL',
+              'MPL-2.0',
+              'LGPL-2.0', 'LGPL-2.1', 'LGPL-3.0'
+          ]
           found_prohibited = []
 
           if os.path.exists('license-reports/trivy-license-results.json'):
