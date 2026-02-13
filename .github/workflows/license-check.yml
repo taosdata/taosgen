@@ -190,6 +190,7 @@ jobs:
           - GPL-2.0
           - GPL-3.0
           - AGPL-3.0
+          - SSPL
           - MPL-2.0
           - LGPL-2.0
           - LGPL-2.1
