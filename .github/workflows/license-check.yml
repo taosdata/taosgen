@@ -205,7 +205,6 @@ jobs:
                       trivy_data = json.load(f)
 
                   results = trivy_data.get('Results', [])
-                  report += f"\n## Scan Results\nTotal results: {len(results)}\n\n"
 
                   # Categorize licenses
                   unknown_licenses = set()
