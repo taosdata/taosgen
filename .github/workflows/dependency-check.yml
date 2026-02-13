@@ -212,7 +212,7 @@ jobs:
           except:
               vulns = []
 
-          # 去重依赖，提前处理
+          # Remove duplicates
           unique_deps = []
           seen = set()
           for dep in deps:
@@ -277,6 +277,111 @@ jobs:
               f.write(report)
 
           print(report)
+          EOF
+
+      - name: Generate CycloneDX SBOM
+        if: always()
+        run: |
+          python3 << 'EOF'
+          import json
+          from datetime import datetime
+          import re
+
+          # Load version from src/version.hpp
+          def get_version():
+              try:
+                  with open('src/version.hpp', 'r', encoding='utf-8') as f:
+                      for line in f:
+                          m = re.search(r'TAOSGEN_VERSION\s*=\s*"([^"]+)"', line)
+                          if m:
+                              return m.group(1)
+              except Exception as e:
+                  print(f"Failed to read version.hpp: {e}")
+              return "unknown"
+
+          version = get_version()
+
+          # Load dependencies
+          with open('dependencies.json', 'r') as f:
+              deps = json.load(f)
+
+          # Load vulnerabilities
+          try:
+              with open('vulnerabilities.json', 'r') as f:
+                  vulns = json.load(f)
+          except:
+              vulns = []
+
+          # Create vulnerability mapping by package
+          vuln_by_pkg = {}
+          for v in vulns:
+              pkg = v['package']
+              if pkg not in vuln_by_pkg:
+                  vuln_by_pkg[pkg] = []
+              vuln_by_pkg[pkg].append(v)
+
+          # Generate CycloneDX SBOM
+          sbom = {
+              "bomFormat": "CycloneDX",
+              "specVersion": "1.4",
+              "version": 1,
+              "metadata": {
+                  "timestamp": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
+                  "component": {
+                      "type": "application",
+                      "name": "taosgen",
+                      "version": version,
+                      "description": "TDengine data generator with statically linked Conan dependencies"
+                  },
+                  "properties": [
+                      {"name": "build:type", "value": "static-linking"},
+                      {"name": "package-manager", "value": "conan"},
+                      {"name": "dependency-count", "value": str(len(deps))},
+                      {"name": "vulnerability-count", "value": str(len(vulns))}
+                  ]
+              },
+              "components": []
+          }
+
+          # Add dependencies as components
+          for dep in deps:
+              component = {
+                  "type": "library",
+                  "name": dep['name'],
+                  "version": dep['version'],
+                  "purl": f"pkg:conan/{dep['name']}@{dep['version']}",
+                  "properties": [
+                      {"name": "conan:linking", "value": "static"}
+                  ]
+              }
+
+              # Add vulnerabilities if any
+              if dep['name'] in vuln_by_pkg:
+                  component["vulnerabilities"] = []
+                  for v in vuln_by_pkg[dep['name']]:
+                      vuln_entry = {
+                          "ref": v['cve_id'],
+                          "id": v['cve_id'],
+                          "source": {"name": "OSV", "url": "https://osv.dev"},
+                          "ratings": [{
+                              "score": v.get('severity', 'UNKNOWN'),
+                              "severity": v.get('severity', 'UNKNOWN').upper()
+                          }],
+                          "description": v.get('summary', 'No summary'),
+                          "advisories": [{"url": v['url']}]
+                      }
+                      component["vulnerabilities"].append(vuln_entry)
+
+              sbom['components'].append(component)
+
+          # Save SBOM
+          with open('sbom-cyclonedx.json', 'w') as f:
+              json.dump(sbom, f, indent=2)
+
+          print(f"✅ Generated CycloneDX SBOM with {len(deps)} components")
+          print(f"   Build type: Static linking")
+          print(f"   Package manager: Conan")
+          print(f"   Vulnerabilities included: {len(vulns)}")
           EOF
 
       - name: Convert to SARIF format
@@ -355,6 +460,7 @@ jobs:
           path: |
             conan-security-report.md
             conan-security.sarif
+            sbom-cyclonedx.json
             dependencies.json
             vulnerabilities.json
           retention-days: 30
