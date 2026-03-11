@@ -17,6 +17,7 @@
 ## 目录
 - [1. 简介](#1-简介)
 - [2. 文档](#2-文档)
+  - [2.1 AI Agent 集成](#21-ai-agent-集成)
 - [3. 前置条件](#3-前置条件)
 - [4. 构建](#4-构建)
 - [5. 测试](#5-测试)
@@ -40,6 +41,71 @@
 ## 2. 文档
 - 使用 `taosgen` 工具，请查阅[参考手册](https://docs.taosdata.com/reference/tools/taosgen/)，其中包含运行、命令行参数、配置文件参数、配置文件示例等内容。
 - 本快速指南主要面向那些喜欢自己贡献、构建和测试 `taosgen` 工具的开发者。要了解更多关于 TDengine 的信息，您可以访问[官方文档](https://docs.taosdata.com/)。
+
+### 2.1 AI Agent 集成
+
+`taosgen` 提供 AI Skill 配置，帮助 AI 智能体（如 Claude、Claude Code、Cursor 等）通过自然语言对话协助用户完成配置生成、构建编译和开发工作流。
+
+**Skills 位置：** `.agent/skills/`
+
+**可用 Skills：**
+
+1. **taosgen-config** - 生成基准测试配置
+   - 通过自然语言描述生成 TDengine、MQTT 和 Kafka 的 taosgen 配置文件
+   - 自动验证配置并提供优化建议
+   - 支持多种数据生成方式（随机、表达式、CSV 导入）
+   - 配置具有依赖关系的复杂作业工作流
+
+2. **taosgen-build** - 构建编译辅助
+   - 指导用户使用 cmake 和 conan 完成构建流程
+   - 诊断和解决不同平台的常见构建问题
+   - 提供 IDE 集成说明（VSCode、CLion）
+   - 协助测试和安装
+
+**使用方法：**
+
+此 Skill 可被支持 Skill 配置的 AI 智能体使用。以下是常见的集成方式：
+
+**方式一：复制到用户技能目录（推荐）**
+```bash
+# 对于 Claude Code（用户级安装）
+mkdir -p ~/.claude/skills/
+cp -r .agent/skills/taosgen-config ~/.claude/skills/
+
+# 然后在项目目录中启动 Claude Code
+claude
+```
+
+**方式二：项目本地软链接（Claude Code）**
+Claude Code 从 `.claude/skills/` 目录识别 Skill。要在本项目本地使用该 Skill：
+```bash
+# 在项目的 .claude 目录创建软链接
+mkdir -p .claude/
+ln -s ../.agent/skills .claude/
+
+# 启动 Claude Code
+claude
+```
+
+**方式三：自定义 Skill 路径（如果您的智能体支持）**
+某些 AI 智能体允许通过环境变量或配置文件指定 Skill 目录。请参考您的智能体文档了解详情。
+
+**与 AI 智能体的对话示例：**
+
+```
+"创建一个 taosgen 配置，用于测试 TDengine，模拟 10000 个设备，
+ 每个设备每秒上报温度和湿度，持续 1 小时"
+
+"生成一个 MQTT 基准测试配置，模拟 1000 个 IoT 设备
+ 以 QoS 1 发布消息到不同主题"
+
+"帮我创建一个 Kafka 负载测试配置，发送 500 万条消息并启用批量处理"
+```
+
+**Skill 文档：**
+- [taosgen-config/SKILL.md](.agent/skills/taosgen-config/SKILL.md) - 配置生成器
+- [taosgen-config/references/](.agent/skills/taosgen-config/references/) - 配置参考文档
+- [taosgen-build/SKILL.md](.agent/skills/taosgen-build/SKILL.md) - 构建助手
 
 ## 3. 前置条件
 首先，确保 TDengine 已本地部署。有关详细的部署步骤，请参阅[部署TDengine](https://docs.tdengine.com/get-started/deploy-from-package/)。确保 taosd 和 taosAdapter 服务均已启动并运行。

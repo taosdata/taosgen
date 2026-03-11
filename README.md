@@ -17,6 +17,7 @@
 ## Table of Contents
 - [1. Introduction](#1-introduction)
 - [2. Documentation](#2-documentation)
+  - [2.1 AI Agent Integration](#21-ai-agent-integration)
 - [3. Prerequisites](#3-prerequisites)
 - [4. Build](#4-build)
 - [5. Testing](#5-testing)
@@ -40,6 +41,71 @@ Currently, `taosgen` supports Linux and macOS systems.
 ## 2. Documentation
 - For usage, refer to the [Reference Manual](https://docs.tdengine.com/tdengine-reference/tools/taosgen/), which covers running, command-line arguments, configuration parameters, and sample configuration files.
 - This quick guide is mainly for developers who want to contribute, build, and test the `taosgen` tool. For more information about TDengine, visit the [official documentation](https://docs.tdengine.com/).
+
+### 2.1 AI Agent Integration
+
+`taosgen` provides AI Skill configurations to help AI agents (such as Claude, Claude Code, Cursor, etc.) assist users through natural language conversations. These skills cover configuration generation, build assistance, and development workflows.
+
+**Skills Location:** `.agent/skills/`
+
+**Available Skills:**
+
+1. **taosgen-config** - Generate benchmark configurations
+   - Create taosgen configuration files for TDengine, MQTT, and Kafka through natural language descriptions
+   - Automatically validate configurations and provide optimization suggestions
+   - Support various data generation methods (random, expression, CSV import)
+   - Configure complex job workflows with dependencies
+
+2. **taosgen-build** - Build and compile assistance
+   - Guide users through the build process with cmake and conan
+   - Troubleshoot common build issues on different platforms
+   - Provide IDE integration instructions (VSCode, CLion)
+   - Assist with testing and installation
+
+**How to use:**
+
+This skill can be used by AI agents that support skill configurations. Here are common ways to integrate:
+
+**Option 1: Copy to user skills directory (Recommended)**
+```bash
+# For Claude Code (user-wide installation)
+mkdir -p ~/.claude/skills/
+cp -r .agent/skills/taosgen-config ~/.claude/skills/
+
+# Then start Claude Code in your project directory
+claude
+```
+
+**Option 2: Project-local symlink (Claude Code)**
+Claude Code recognizes skills from the `.claude/skills/` directory. To use the skill locally in this project:
+```bash
+# Create symlink in project's .claude directory
+mkdir -p .claude/
+ln -s ../.agent/skills .claude/
+
+# Start Claude Code
+claude
+```
+
+**Option 3: Custom skill path (if your agent supports it)**
+Some AI agents allow specifying skill directories via environment variables or configuration files. Refer to your agent's documentation for details.
+
+**Example conversations with AI agents:**
+
+```
+"Create a taosgen config for testing TDengine with 10,000 devices,
+ each reporting temperature and humidity every second for 1 hour"
+
+"Generate an MQTT benchmark configuration to simulate 1000 IoT devices
+ publishing to topics with QoS 1"
+
+"Help me create a Kafka load test config with 5M messages and batch processing"
+```
+
+**Skill Documentation:**
+- [taosgen-config/SKILL.md](.agent/skills/taosgen-config/SKILL.md) - Configuration generator
+- [taosgen-config/references/](.agent/skills/taosgen-config/references/) - Configuration reference docs
+- [taosgen-build/SKILL.md](.agent/skills/taosgen-build/SKILL.md) - Build assistant
 
 ## 3. Prerequisites
 First, ensure TDengine is deployed locally. For detailed deployment steps, see [Deploy TDengine](https://docs.tdengine.com/get-started/deploy-from-package/). Make sure both taosd and taosAdapter services are running.
