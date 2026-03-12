@@ -34,8 +34,8 @@ kafka:
 - **rdkafka_options**: librdkafka configuration options (optional)
   - Any valid librdkafka configuration parameter
   - Common options:
-    - `security.protocol`: PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL
-    - `sasl.mechanism`: PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, GSSAPI
+    - `security.protocol`: `plaintext`, `ssl`, `sasl_plaintext`, `sasl_ssl`
+    - `sasl.mechanisms`: `PLAIN`, `SCRAM-SHA-256`, `SCRAM-SHA-512`, `GSSAPI`
     - `sasl.username`: SASL username
     - `sasl.password`: SASL password
     - `ssl.ca.location`: CA certificate path
@@ -587,8 +587,8 @@ taosgen produces messages in JSON format. Each message contains one or more reco
 **SASL/PLAIN with SSL:**
 ```yaml
 rdkafka_options:
-  security.protocol: SASL_SSL
-  sasl.mechanism: PLAIN
+  security.protocol: sasl_ssl
+  sasl.mechanisms: PLAIN
   sasl.username: user
   sasl.password: password
   ssl.ca.location: /path/to/ca-cert.pem
@@ -597,8 +597,8 @@ rdkafka_options:
 **SASL/SCRAM-SHA-256:**
 ```yaml
 rdkafka_options:
-  security.protocol: SASL_SSL
-  sasl.mechanism: SCRAM-SHA-256
+  security.protocol: sasl_ssl
+  sasl.mechanisms: SCRAM-SHA-256
   sasl.username: user
   sasl.password: password
 ```
@@ -606,7 +606,7 @@ rdkafka_options:
 **SSL only (no SASL):**
 ```yaml
 rdkafka_options:
-  security.protocol: SSL
+  security.protocol: ssl
   ssl.ca.location: /path/to/ca-cert.pem
   ssl.certificate.location: /path/to/client-cert.pem
   ssl.key.location: /path/to/client-key.pem
@@ -615,8 +615,8 @@ rdkafka_options:
 **Kerberos (GSSAPI):**
 ```yaml
 rdkafka_options:
-  security.protocol: SASL_PLAINTEXT
-  sasl.mechanism: GSSAPI
+  security.protocol: sasl_plaintext
+  sasl.mechanisms: GSSAPI
   sasl.kerberos.service.name: kafka
   sasl.kerberos.principal: user@REALM
 ```

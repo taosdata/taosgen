@@ -170,10 +170,11 @@ jobs:
 - Add random noise to expressions: `base + pattern + math.random(-noise, noise)`
 - Use `_last` for random walk patterns
 - Combine multiple patterns: `trend + seasonal + noise`
+- Set `num_cached_batches: 0` for lower memory and more realistic real-time generation
 
 **Performance:**
 - Use `tables_reuse_data: true` for testing (faster, less memory, default)
-- Set `num_cached_batches: 0` for lower memory usage (default)
+- Use positive `num_cached_batches` to pre-generate batches (default, faster, higher memory)
 - Use `interlace: 1` for realistic time-series patterns
 
 **Timestamp configuration:**
@@ -197,8 +198,7 @@ jobs:
 ```yaml
 checkpoint:
   enabled: true
-  file_path: /tmp/checkpoint.json
-  save_interval: 30s
+  interval_sec: 30
 ```
 
 **Configure failure handling:**
@@ -218,7 +218,7 @@ Goal: Test maximum write throughput.
 **Configuration:**
 - High concurrency (16-20)
 - Large batches (20000-50000)
-- Auto-create tables
+- Pre-create tables
 - No checkpoints or special timing
 
 **Example:**
@@ -350,7 +350,7 @@ jobs:
 
 **Solutions:**
 - Reduce `rows_per_batch`
-- Set `num_cached_batches: 0`
+ - Set `num_cached_batches: 0` (lower memory, more realistic real-time generation)
 - Use `tables_reuse_data: true`
 - Reduce concurrency
 - Process fewer tables at once

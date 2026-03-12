@@ -355,8 +355,8 @@ generation:
   - `false`: Generate unique data for each table
 
 - **num_cached_batches**: Number of batches to pre-generate
-  - `0`: Generate on-demand (default, lower memory)
-  - Positive: Pre-generate batches (faster, higher memory)
+  - Positive: Pre-generate batches (default, faster, higher memory)
+  - `0`: Generate on-demand (lower memory, more realistic to real-time generation)
 
 ## CSV Data Source
 
@@ -634,7 +634,7 @@ schema:
 **Performance:**
 - Larger `rows_per_batch`: Better throughput
 - `interlace: 1`: More realistic time-series pattern
-- `num_cached_batches: 0`: Lower memory usage
+ - `num_cached_batches: 0`: Lower memory usage, more realistic real-time generation
 - `tables_reuse_data: false`: Unique data per table
 
 **CSV import:**
