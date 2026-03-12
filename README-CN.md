@@ -67,7 +67,7 @@
 **方式一：复制到 Claude Code 技能目录（推荐）**
 ```bash
 mkdir -p ~/.claude/skills/
-cp -r .agent/skills/taosgen-config ~/.claude/skills/
+cp -r .agent/skills/taosgen-* ~/.claude/skills/
 
 # 然后在项目目录中启动 Claude Code
 claude

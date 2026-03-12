@@ -350,7 +350,7 @@ jobs:
 
 **Solutions:**
 - Reduce `rows_per_batch`
- - Set `num_cached_batches: 0` (lower memory, more realistic real-time generation)
+- Set `num_cached_batches: 0` (lower memory, more realistic real-time generation)
 - Use `tables_reuse_data: true`
 - Reduce concurrency
 - Process fewer tables at once

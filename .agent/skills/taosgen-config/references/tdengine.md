@@ -164,7 +164,7 @@ High-throughput benchmark using pre-created tables (best performance).
 tdengine:
   dsn: taos+ws://root:taosdata@127.0.0.1:6041/test
   drop_if_exists: true
-  props: precision 'ms' vgroups 4
+  props: precision 'ms' vgroups 8
   pool:
     enabled: true
     max_size: 20

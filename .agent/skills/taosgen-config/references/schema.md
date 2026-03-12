@@ -27,6 +27,8 @@ schema:
     num_cached_batches: 0
 ```
 
+**Note:** The values of `tables_reuse_data` and `num_cached_batches` above are example (non-default) settings. By default, `tables_reuse_data` is `true` and caching is enabled unless `num_cached_batches: 0` is explicitly set.
+
 ## Table Naming
 
 ```yaml
@@ -634,7 +636,7 @@ schema:
 **Performance:**
 - Larger `rows_per_batch`: Better throughput
 - `interlace: 1`: More realistic time-series pattern
- - `num_cached_batches: 0`: Lower memory usage, more realistic real-time generation
+- `num_cached_batches: 0`: Lower memory usage, more realistic real-time generation
 - `tables_reuse_data: false`: Unique data per table
 
 **CSV import:**

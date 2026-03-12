@@ -67,7 +67,7 @@ Currently, `taosgen` supports Linux and macOS systems.
 **Option 1: Copy to Claude Code skills directory (Recommended)**
 ```bash
 mkdir -p ~/.claude/skills/
-cp -r .agent/skills/taosgen-config ~/.claude/skills/
+cp -r .agent/skills/taosgen-* ~/.claude/skills/
 
 # Then start Claude Code in your project directory
 claude
