@@ -15,6 +15,10 @@ class ParameterContext {
 public:
     ParameterContext();
 
+    bool parse_args(int argc, char* argv[]);
+
+    bool has_cli_param(const std::string& param) const;
+
     bool init(int argc, char* argv[]);
     void show_help();
     void show_version();
@@ -40,6 +44,10 @@ public:
     const TDengineConfig& get_tdengine() const;
     const DatabaseInfo& get_database_info() const;
     const SuperTableInfo& get_super_table_info() const;
+
+    // Get log file path
+    std::string get_log_file_path() const;
+    std::string get_log_dir() const;
 
     void parse_insert_action(Job& job, Step& step, std::string target_type);
 

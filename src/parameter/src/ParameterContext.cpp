@@ -6,6 +6,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <sstream>
+#include <filesystem>
 #include "CheckpointAction.hpp"
 
 ParameterContext::ParameterContext() {
@@ -19,6 +20,8 @@ const std::vector<ParameterContext::CommandOption> ParameterContext::valid_optio
     {"--user", 'u', "The user name to use when connecting to the server", true},
     {"--password", 'p', "The password to use when connecting to the server", true},
     {"--config-file", 'c', "Specify config file path", true},
+    {"--log-dir", 'd', "Specify log output directory (default: ./log)", true},
+    {"--log-file", 'f', "Specify complete log file path (overrides --log-dir)", true},
     {"--verbose", 'v', "Increase output verbosity", false},
     {"--version", 'V', "Output version information", false},
     {"--help", '?', "Display this help message", false}
@@ -723,7 +726,7 @@ void ParameterContext::merge_all() {
     merge_yaml_jobs(config);
 }
 
-bool ParameterContext::init(int argc, char* argv[]) {
+bool ParameterContext::parse_args(int argc, char* argv[]) {
     parse_commandline(argc, argv);
 
     if (cli_params.count("--help")) {
@@ -734,9 +737,19 @@ bool ParameterContext::init(int argc, char* argv[]) {
         return false;
     }
 
-    // Merge by priority from low to high
-    merge_all();
+    return true;
+}
 
+bool ParameterContext::has_cli_param(const std::string& param) const {
+    return cli_params.count(param) > 0;
+}
+
+bool ParameterContext::init(int argc, char* argv[]) {
+    if (!parse_args(argc, argv)) {
+        return false;
+    }
+
+    merge_all();
     return true;
 }
 
@@ -763,6 +776,45 @@ const DatabaseInfo& ParameterContext::get_database_info() const {
 
 const SuperTableInfo& ParameterContext::get_super_table_info() const {
     return config_data.global.super_table_info;
+}
+
+std::string ParameterContext::get_log_file_path() const {
+    // Priority: --log-file > --log-dir > config file > default
+    if (cli_params.count("--log-file")) {
+        return cli_params.at("--log-file");
+    }
+
+    if (cli_params.count("--log-dir")) {
+        std::string log_dir = cli_params.at("--log-dir");
+        // Remove trailing slash if present
+        if (!log_dir.empty() && log_dir.back() == '/') {
+            log_dir.pop_back();
+        }
+        return log_dir + "/taosgen.log";
+    }
+
+    // TODO: Add config file support for log path in future
+    // if (config_data.global has log_file config) {
+    //     return config_data.global.log_file;
+    // }
+
+    // Default
+    return "log/taosgen.log";
+}
+
+std::string ParameterContext::get_log_dir() const {
+    if (cli_params.count("--log-file")) {
+        std::filesystem::path log_path(cli_params.at("--log-file"));
+        std::filesystem::path parent_dir = log_path.parent_path();
+        return parent_dir.empty() ? "." : parent_dir.string();
+    }
+
+    if (cli_params.count("--log-dir")) {
+        return cli_params.at("--log-dir");
+    }
+
+    // Default
+    return "log";
 }
 
 // template <typename T>

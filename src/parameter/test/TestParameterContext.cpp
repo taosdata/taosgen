@@ -487,6 +487,223 @@ void test_show_version() {
   std::cout << "show_version test passed.\n";
 }
 
+// Test parse_args with --help
+void test_parse_args_help() {
+    ParameterContext ctx;
+    const char* argv[] = {"dummy", "--help"};
+
+    std::stringstream buffer;
+    std::streambuf* old = std::cout.rdbuf(buffer.rdbuf());
+
+    bool result = ctx.parse_args(2, const_cast<char**>(argv));
+
+    std::cout.rdbuf(old);
+
+    assert(result == false); // Should return false for --help
+    std::string output = buffer.str();
+    assert(output.find("Usage: taosgen") != std::string::npos);
+
+    std::cout << "parse_args with --help test passed.\n";
+}
+
+// Test parse_args with --version
+void test_parse_args_version() {
+    ParameterContext ctx;
+    const char* argv[] = {"dummy", "--version"};
+
+    std::stringstream buffer;
+    std::streambuf* old = std::cout.rdbuf(buffer.rdbuf());
+
+    bool result = ctx.parse_args(2, const_cast<char**>(argv));
+
+    std::cout.rdbuf(old);
+
+    assert(result == false); // Should return false for --version
+    std::string output = buffer.str();
+    assert(output.find("taosgen version:") != std::string::npos);
+
+    std::cout << "parse_args with --version test passed.\n";
+}
+
+// Test parse_args with normal arguments
+void test_parse_args_normal() {
+    ParameterContext ctx;
+    const char* argv[] = {
+        "dummy",
+        "--host=test.host",
+        "--port=6030",
+        "--verbose"
+    };
+
+    bool result = ctx.parse_args(4, const_cast<char**>(argv));
+
+    assert(result == true); // Should return true for normal args
+    assert(ctx.has_cli_param("--host"));
+    assert(ctx.has_cli_param("--port"));
+    assert(ctx.has_cli_param("--verbose"));
+    assert(!ctx.has_cli_param("--user"));
+
+    std::cout << "parse_args with normal arguments test passed.\n";
+}
+
+// Test has_cli_param
+void test_has_cli_param() {
+    ParameterContext ctx;
+    const char* argv[] = {
+        "dummy",
+        "--host=localhost",
+        "--verbose",
+        "-c", "test.yaml"
+    };
+
+    ctx.parse_args(5, const_cast<char**>(argv));
+
+    assert(ctx.has_cli_param("--host"));
+    assert(ctx.has_cli_param("--verbose"));
+    assert(ctx.has_cli_param("--config-file"));
+    assert(!ctx.has_cli_param("--port"));
+    assert(!ctx.has_cli_param("--user"));
+    assert(!ctx.has_cli_param("--password"));
+
+    std::cout << "has_cli_param test passed.\n";
+}
+
+// Test get_log_file_path with --log-file
+void test_get_log_file_path_with_file() {
+    ParameterContext ctx;
+    const char* argv[] = {
+        "dummy",
+        "--log-file=/tmp/custom.log"
+    };
+
+    ctx.parse_args(2, const_cast<char**>(argv));
+
+    std::string log_path = ctx.get_log_file_path();
+    assert(log_path == "/tmp/custom.log");
+
+    std::cout << "get_log_file_path with --log-file test passed.\n";
+}
+
+// Test get_log_file_path with --log-dir
+void test_get_log_file_path_with_dir() {
+    ParameterContext ctx;
+    const char* argv[] = {
+        "dummy",
+        "--log-dir=/var/log/taosgen"
+    };
+
+    ctx.parse_args(2, const_cast<char**>(argv));
+
+    std::string log_path = ctx.get_log_file_path();
+    assert(log_path == "/var/log/taosgen/taosgen.log");
+
+    std::cout << "get_log_file_path with --log-dir test passed.\n";
+}
+
+// Test get_log_file_path priority (--log-file > --log-dir)
+void test_get_log_file_path_priority() {
+    ParameterContext ctx;
+    const char* argv[] = {
+        "dummy",
+        "--log-dir=/var/log/taosgen",
+        "--log-file=/tmp/override.log"
+    };
+
+    ctx.parse_args(3, const_cast<char**>(argv));
+
+    std::string log_path = ctx.get_log_file_path();
+    assert(log_path == "/tmp/override.log"); // --log-file should override --log-dir
+
+    std::cout << "get_log_file_path priority test passed.\n";
+}
+
+// Test get_log_file_path default
+void test_get_log_file_path_default() {
+    ParameterContext ctx;
+    const char* argv[] = {"dummy"};
+
+    ctx.parse_args(1, const_cast<char**>(argv));
+
+    std::string log_path = ctx.get_log_file_path();
+    assert(log_path == "log/taosgen.log"); // Default path
+
+    std::cout << "get_log_file_path default test passed.\n";
+}
+
+// Test get_log_dir
+void test_get_log_dir() {
+    ParameterContext ctx;
+    const char* argv[] = {
+        "dummy",
+        "--log-dir=/custom/log/dir"
+    };
+
+    ctx.parse_args(2, const_cast<char**>(argv));
+
+    std::string log_dir = ctx.get_log_dir();
+    assert(log_dir == "/custom/log/dir");
+
+    std::cout << "get_log_dir test passed.\n";
+}
+
+// Test parse_args followed by merge_all
+void test_parse_args_then_merge_all() {
+    const char* config_content = "tdengine:\n  dsn: taos+ws://test.host:6041";
+    FILE* fp = fopen("parse_merge_test.yaml", "w");
+    fputs(config_content, fp);
+    fclose(fp);
+
+    ParameterContext ctx;
+    const char* argv[] = {
+        "dummy",
+        "--config-file=parse_merge_test.yaml",
+        "--host=cli.host"
+    };
+
+    bool result = ctx.parse_args(3, const_cast<char**>(argv));
+    assert(result == true);
+
+    ctx.merge_all();
+
+    const auto& tdengine = ctx.get_tdengine();
+    assert(tdengine.host == "cli.host"); // CLI should override YAML
+
+    remove("parse_merge_test.yaml");
+    std::cout << "parse_args then merge_all test passed.\n";
+}
+
+// Test short option for log-dir
+void test_log_dir_short_option() {
+    ParameterContext ctx;
+    const char* argv[] = {
+        "dummy",
+        "-d", "/short/log/dir"
+    };
+
+    ctx.parse_args(3, const_cast<char**>(argv));
+
+    std::string log_path = ctx.get_log_file_path();
+    assert(log_path == "/short/log/dir/taosgen.log");
+
+    std::cout << "log-dir short option test passed.\n";
+}
+
+// Test short option for log-file
+void test_log_file_short_option() {
+    ParameterContext ctx;
+    const char* argv[] = {
+        "dummy",
+        "-f", "/short/custom.log"
+    };
+
+    ctx.parse_args(3, const_cast<char**>(argv));
+
+    std::string log_path = ctx.get_log_file_path();
+    assert(log_path == "/short/custom.log");
+
+    std::cout << "log-file short option test passed.\n";
+}
+
 int main() {
     register_plugin_hooks();
     test_commandline_merge();
@@ -500,6 +717,19 @@ int main() {
     test_init_with_config_file();
     test_auto_create_database_step();
     test_show_version();
+
+    test_parse_args_help();
+    test_parse_args_version();
+    test_parse_args_normal();
+    test_has_cli_param();
+    test_get_log_file_path_with_file();
+    test_get_log_file_path_with_dir();
+    test_get_log_file_path_priority();
+    test_get_log_file_path_default();
+    test_get_log_dir();
+    test_parse_args_then_merge_all();
+    test_log_dir_short_option();
+    test_log_file_short_option();
 
     std::cout << "All tests passed!\n";
     return 0;
