@@ -498,7 +498,7 @@ void test_parse_args_help() {
     bool result = ctx.parse_args(2, const_cast<char**>(argv));
 
     std::cout.rdbuf(old);
-
+    (void)result;
     assert(result == false); // Should return false for --help
     std::string output = buffer.str();
     assert(output.find("Usage: taosgen") != std::string::npos);
@@ -517,7 +517,7 @@ void test_parse_args_version() {
     bool result = ctx.parse_args(2, const_cast<char**>(argv));
 
     std::cout.rdbuf(old);
-
+    (void)result;
     assert(result == false); // Should return false for --version
     std::string output = buffer.str();
     assert(output.find("taosgen version:") != std::string::npos);
@@ -536,7 +536,7 @@ void test_parse_args_normal() {
     };
 
     bool result = ctx.parse_args(4, const_cast<char**>(argv));
-
+    (void)result;
     assert(result == true); // Should return true for normal args
     assert(ctx.has_cli_param("--host"));
     assert(ctx.has_cli_param("--port"));
@@ -661,11 +661,13 @@ void test_parse_args_then_merge_all() {
     };
 
     bool result = ctx.parse_args(3, const_cast<char**>(argv));
+    (void)result;
     assert(result == true);
 
     ctx.merge_all();
 
     const auto& tdengine = ctx.get_tdengine();
+    (void)tdengine;
     assert(tdengine.host == "cli.host"); // CLI should override YAML
 
     remove("parse_merge_test.yaml");
