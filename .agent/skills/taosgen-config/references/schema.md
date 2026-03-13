@@ -483,13 +483,17 @@ timestamp_offset:
 ```
 
 **Offset formats for relative type:**
-- Format: `±[value][unit]` (e.g., "+1d3h" means add 1 day 3 hours)
-- Units: `y` (year), `m` (month), `d` (day), `h` (hour), `s` (second)
+- Format: `±[value][unit]` (e.g., "+1d3h30m" means add 1 day 3 hours 30 minutes)
+- Units: `y` (year), `M` (month, uppercase), `d` (day), `h` (hour), `m` (minute, lowercase), `s` (second)
 - Examples:
   - `+10s`, `-30s`: Seconds
+  - `+30m`, `-15m`: Minutes
   - `+2h`, `-6h`: Hours
   - `+1d`, `-7d`: Days
-  - `+1d3h`: 1 day and 3 hours
+  - `+2M`, `-1M`: Months (uppercase M)
+  - `+1y`, `-2y`: Years
+  - `+1d3h30m`: 1 day, 3 hours, and 30 minutes
+  - `+1y2M3d`: 1 year, 2 months, and 3 days
 
 ## Complete Examples
 
