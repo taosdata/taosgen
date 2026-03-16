@@ -26,13 +26,13 @@ int main(int argc, char* argv[]) {
 
         register_plugin_hooks();
 
-        if (!context.parse_args(argc, argv)) {
+        if (!context.init_global(argc, argv)) {
             return 0;
         }
 
-        // 2. Now that parameters are parsed, initialize full logging (console + file)
+        // 2. Now that global config is merged, initialize full logging (console + file)
         std::string log_file = context.get_log_file_path();
-        LogUtils::Level log_level = context.has_cli_param("--verbose") ?
+        LogUtils::Level log_level = context.get_global_config().verbose ?
                                      LogUtils::Level::Debug : LogUtils::Level::Info;
 
         try {
@@ -43,8 +43,8 @@ int main(int argc, char* argv[]) {
             return 1;
         }
 
-        // 3. Merge all configuration sources
-        context.merge_all();
+        // 3. Parse jobs
+        context.init_jobs();
 
         // 4. Get parsed configuration data and run jobs
         const ConfigData& config = context.get_config_data();

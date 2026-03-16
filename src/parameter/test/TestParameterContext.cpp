@@ -495,11 +495,11 @@ void test_parse_args_help() {
     std::stringstream buffer;
     std::streambuf* old = std::cout.rdbuf(buffer.rdbuf());
 
-    bool result = ctx.parse_args(2, const_cast<char**>(argv));
+    bool help_result = ctx.parse_args(2, const_cast<char**>(argv));
+    (void)help_result;
 
     std::cout.rdbuf(old);
-    (void)result;
-    assert(result == false); // Should return false for --help
+    assert(!help_result); // Should return false for --help
     std::string output = buffer.str();
     assert(output.find("Usage: taosgen") != std::string::npos);
 
@@ -514,11 +514,12 @@ void test_parse_args_version() {
     std::stringstream buffer;
     std::streambuf* old = std::cout.rdbuf(buffer.rdbuf());
 
-    bool result = ctx.parse_args(2, const_cast<char**>(argv));
+    bool ver_result = ctx.parse_args(2, const_cast<char**>(argv));
+    (void)ver_result;
 
     std::cout.rdbuf(old);
-    (void)result;
-    assert(result == false); // Should return false for --version
+    assert(!ver_result);
+
     std::string output = buffer.str();
     assert(output.find("taosgen version:") != std::string::npos);
 
@@ -535,9 +536,9 @@ void test_parse_args_normal() {
         "--verbose"
     };
 
-    bool result = ctx.parse_args(4, const_cast<char**>(argv));
-    (void)result;
-    assert(result == true); // Should return true for normal args
+    bool normal_result = ctx.parse_args(4, const_cast<char**>(argv));
+    (void)normal_result;
+    assert(normal_result);
     assert(ctx.has_cli_param("--host"));
     assert(ctx.has_cli_param("--port"));
     assert(ctx.has_cli_param("--verbose"));
@@ -576,7 +577,7 @@ void test_get_log_file_path_with_file() {
         "--log-file=/tmp/custom.log"
     };
 
-    ctx.parse_args(2, const_cast<char**>(argv));
+    ctx.init_global(2, const_cast<char**>(argv));
 
     std::string log_path = ctx.get_log_file_path();
     assert(log_path == "/tmp/custom.log");
@@ -592,7 +593,7 @@ void test_get_log_file_path_with_dir() {
         "--log-dir=/var/log/taosgen"
     };
 
-    ctx.parse_args(2, const_cast<char**>(argv));
+    ctx.init_global(2, const_cast<char**>(argv));
 
     std::string log_path = ctx.get_log_file_path();
     assert(log_path == "/var/log/taosgen/taosgen.log");
@@ -609,7 +610,7 @@ void test_get_log_file_path_priority() {
         "--log-file=/tmp/override.log"
     };
 
-    ctx.parse_args(3, const_cast<char**>(argv));
+    ctx.init_global(3, const_cast<char**>(argv));
 
     std::string log_path = ctx.get_log_file_path();
     assert(log_path == "/tmp/override.log"); // --log-file should override --log-dir
@@ -622,7 +623,7 @@ void test_get_log_file_path_default() {
     ParameterContext ctx;
     const char* argv[] = {"dummy"};
 
-    ctx.parse_args(1, const_cast<char**>(argv));
+    ctx.init_global(1, const_cast<char**>(argv));
 
     std::string log_path = ctx.get_log_file_path();
     assert(log_path == "log/taosgen.log"); // Default path
@@ -638,7 +639,7 @@ void test_get_log_dir() {
         "--log-dir=/custom/log/dir"
     };
 
-    ctx.parse_args(2, const_cast<char**>(argv));
+    ctx.init_global(2, const_cast<char**>(argv));
 
     std::string log_dir = ctx.get_log_dir();
     assert(log_dir == "/custom/log/dir");
@@ -660,11 +661,11 @@ void test_parse_args_then_merge_all() {
         "--host=cli.host"
     };
 
-    bool result = ctx.parse_args(3, const_cast<char**>(argv));
-    (void)result;
-    assert(result == true);
+    bool merge_result = ctx.init_global(3, const_cast<char**>(argv));
+    (void)merge_result;
+    assert(merge_result);
 
-    ctx.merge_all();
+    ctx.init_jobs();
 
     const auto& tdengine = ctx.get_tdengine();
     (void)tdengine;
@@ -682,7 +683,7 @@ void test_log_dir_short_option() {
         "-d", "/short/log/dir"
     };
 
-    ctx.parse_args(3, const_cast<char**>(argv));
+    ctx.init_global(3, const_cast<char**>(argv));
 
     std::string log_path = ctx.get_log_file_path();
     assert(log_path == "/short/log/dir/taosgen.log");
@@ -698,12 +699,196 @@ void test_log_file_short_option() {
         "-f", "/short/custom.log"
     };
 
-    ctx.parse_args(3, const_cast<char**>(argv));
+    ctx.init_global(3, const_cast<char**>(argv));
 
     std::string log_path = ctx.get_log_file_path();
     assert(log_path == "/short/custom.log");
 
     std::cout << "log-file short option test passed.\n";
+}
+
+// Test YAML log_dir
+void test_yaml_log_dir() {
+    const char* config_content = R"(
+log_dir: /tmp/yaml_log_dir/
+tdengine:
+  dsn: taos+ws://root:taosdata@127.0.0.1:6041/tsbench
+schema:
+  name: meters
+  tbname:
+    prefix: d
+    count: 10
+  columns:
+    - name: ts
+      type: timestamp
+  tags:
+    - name: groupid
+      type: int
+jobs:
+  test-job:
+    steps:
+      - uses: tdengine/insert
+)";
+    FILE* fp = fopen("test_yaml_log_dir.yaml", "w");
+    fputs(config_content, fp);
+    fclose(fp);
+
+    ParameterContext ctx;
+    const char* argv[] = {
+        "dummy",
+        "--config-file=test_yaml_log_dir.yaml"
+    };
+
+    ctx.init_global(2, const_cast<char**>(argv));
+
+    std::string log_path = ctx.get_log_file_path();
+    assert(log_path == "/tmp/yaml_log_dir/taosgen.log");
+
+    std::string log_dir = ctx.get_log_dir();
+    assert(log_dir == "/tmp/yaml_log_dir/");
+
+    remove("test_yaml_log_dir.yaml");
+    std::cout << "YAML log_dir test passed.\n";
+}
+
+// Test YAML log_file
+void test_yaml_log_file() {
+    const char* config_content = R"(
+log_file: /tmp/yaml_custom.log
+tdengine:
+  dsn: taos+ws://root:taosdata@127.0.0.1:6041/tsbench
+schema:
+  name: meters
+  tbname:
+    prefix: d
+    count: 10
+  columns:
+    - name: ts
+      type: timestamp
+  tags:
+    - name: groupid
+      type: int
+jobs:
+  test-job:
+    steps:
+      - uses: tdengine/insert
+)";
+    FILE* fp = fopen("test_yaml_log_file.yaml", "w");
+    fputs(config_content, fp);
+    fclose(fp);
+
+    ParameterContext ctx;
+    const char* argv[] = {
+        "dummy",
+        "--config-file=test_yaml_log_file.yaml"
+    };
+
+    ctx.init_global(2, const_cast<char**>(argv));
+
+    std::string log_path = ctx.get_log_file_path();
+    assert(log_path == "/tmp/yaml_custom.log");
+
+    std::string log_dir = ctx.get_log_dir();
+    assert(log_dir == "/tmp");
+
+    remove("test_yaml_log_file.yaml");
+    std::cout << "YAML log_file test passed.\n";
+}
+
+// Test CLI overrides YAML log_dir
+void test_cli_overrides_yaml_log_dir() {
+    const char* config_content = R"(
+log_dir: /tmp/yaml_log/
+tdengine:
+  dsn: taos+ws://root:taosdata@127.0.0.1:6041/tsbench
+schema:
+  name: meters
+  tbname:
+    prefix: d
+    count: 10
+  columns:
+    - name: ts
+      type: timestamp
+  tags:
+    - name: groupid
+      type: int
+jobs:
+  test-job:
+    steps:
+      - uses: tdengine/insert
+)";
+    FILE* fp = fopen("test_cli_override_yaml.yaml", "w");
+    fputs(config_content, fp);
+    fclose(fp);
+
+    ParameterContext ctx;
+    const char* argv[] = {
+        "dummy",
+        "--config-file=test_cli_override_yaml.yaml",
+        "--log-dir=/tmp/cli_wins"
+    };
+
+    ctx.init_global(3, const_cast<char**>(argv));
+
+    std::string log_path = ctx.get_log_file_path();
+    assert(log_path == "/tmp/cli_wins/taosgen.log"); // CLI should override YAML
+
+    remove("test_cli_override_yaml.yaml");
+    std::cout << "CLI overrides YAML log_dir test passed.\n";
+}
+
+// Test init_global then init_jobs two-phase flow
+void test_init_global_then_init_jobs() {
+    const char* config_content = R"(
+log_dir: /tmp/two_phase_log/
+tdengine:
+  dsn: taos+ws://root:taosdata@127.0.0.1:6041/tsbench
+schema:
+  name: meters
+  tbname:
+    prefix: d
+    count: 10
+  columns:
+    - name: ts
+      type: timestamp
+  tags:
+    - name: groupid
+      type: int
+jobs:
+  test-job:
+    steps:
+      - uses: tdengine/insert
+)";
+    FILE* fp = fopen("test_two_phase.yaml", "w");
+    fputs(config_content, fp);
+    fclose(fp);
+
+    ParameterContext ctx;
+    const char* argv[] = {
+        "dummy",
+        "--config-file=test_two_phase.yaml"
+    };
+
+    // Phase 1
+    bool phase1_result = ctx.init_global(2, const_cast<char**>(argv));
+    (void)phase1_result;
+    assert(phase1_result);
+
+    // Log path should be available after init_global
+    std::string log_path = ctx.get_log_file_path();
+    assert(log_path == "/tmp/two_phase_log/taosgen.log");
+
+    // Jobs should be empty before init_jobs
+    assert(ctx.get_config_data().jobs.empty());
+
+    // Phase 2
+    ctx.init_jobs();
+
+    // Jobs should be populated after init_jobs
+    assert(!ctx.get_config_data().jobs.empty());
+
+    remove("test_two_phase.yaml");
+    std::cout << "init_global then init_jobs test passed.\n";
 }
 
 int main() {
@@ -732,6 +917,11 @@ int main() {
     test_parse_args_then_merge_all();
     test_log_dir_short_option();
     test_log_file_short_option();
+
+    test_yaml_log_dir();
+    test_yaml_log_file();
+    test_cli_overrides_yaml_log_dir();
+    test_init_global_then_init_jobs();
 
     std::cout << "All tests passed!\n";
     return 0;

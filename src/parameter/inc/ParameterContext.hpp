@@ -19,6 +19,8 @@ public:
 
     bool has_cli_param(const std::string& param) const;
 
+    bool init_global(int argc, char* argv[]);
+    void init_jobs();
     bool init(int argc, char* argv[]);
     void show_help();
     void show_version();
@@ -33,6 +35,8 @@ public:
     void merge_yaml(const YAML::Node& config);
     void merge_yaml(const std::string& file_path);
     void merge_all();
+    void merge_all_global();
+    void merge_all_jobs();
 
     // Get parameter
     // template <typename T>
@@ -54,6 +58,7 @@ public:
 private:
     // int concurrency = 1;
     ConfigData config_data; // Top-level config data
+    YAML::Node cached_config_;
 
     // Command line and environment variable storage
     std::unordered_map<std::string, std::string> cli_params;
