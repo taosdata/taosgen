@@ -73,7 +73,7 @@ private:
         escaped.reserve(input.size() + 4);
         for (size_t i = 0; i < input.size(); ++i) {
             const char c = input[i];
-            if (c == '\'' && (i == 0 || input[i - 1] != '\\')) {
+            if (c == '\'') {
                 escaped.push_back('\'');
             }
             escaped.push_back(c);
