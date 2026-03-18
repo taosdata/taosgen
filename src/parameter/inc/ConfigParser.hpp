@@ -178,7 +178,7 @@ namespace YAML {
             static const std::set<std::string> valid_keys = {
                 "interlace", "num_cached_batches", "rate_limit", "data_disorder",
                 "concurrency", "rows_per_table", "rows_per_batch", "per_table_rows", "per_batch_rows",
-                "tables_reuse_data"
+                "tables_reuse_data", "loading_mode"
             };
 
             check_unknown_keys(node, valid_keys, "generation");
@@ -266,6 +266,14 @@ namespace YAML {
             // tables_reuse_data
             if (node["tables_reuse_data"]) {
                 rhs.tables_reuse_data = node["tables_reuse_data"].as<bool>();
+            }
+
+            // loading_mode
+            if (node["loading_mode"]) {
+                rhs.loading_mode = node["loading_mode"].as<std::string>();
+                if (rhs.loading_mode != "preload" && rhs.loading_mode != "streaming") {
+                    throw std::runtime_error("loading_mode must be 'preload' or 'streaming', got: " + rhs.loading_mode);
+                }
             }
 
             // num_cached_batches

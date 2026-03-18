@@ -10,6 +10,7 @@
 #include "TimestampGenerator.hpp"
 #include "ColumnsCSVReader.hpp"
 #include "TableNameCSVReader.hpp"
+#include "ICSVRowSource.hpp"
 #include "MemoryPool.hpp"
 
 class RowDataGenerator {
@@ -17,7 +18,8 @@ public:
     RowDataGenerator(const std::string& table_name,
                     const InsertDataConfig& config,
                     const ColumnConfigInstanceVector& instances,
-                    bool use_cache = false);
+                    bool use_cache = false,
+                    std::shared_ptr<ICSVRowSource> external_csv_source = nullptr);
 
     // Get next row data
     std::optional<RowData> next_row();
@@ -99,16 +101,21 @@ private:
     std::unique_ptr<ColumnsCSVReader> columns_csv_;
     std::unique_ptr<TimestampGenerator> timestamp_generator_;
 
-    // CSV data
+    // CSV data (preload mode)
     std::vector<RowData> csv_rows_;
     std::shared_ptr<const std::vector<RowData>> shared_csv_rows_;
     size_t csv_row_index_ = 0;
     std::string csv_precision_;
 
+    // Streaming mode CSV source
+    std::shared_ptr<ICSVRowSource> csv_source_;
+    RowData streaming_cached_row_;
+
     // State management
     int64_t generated_rows_ = 0;
     int64_t total_rows_ = 0;
     bool use_generator_ = false;
+    bool use_streaming_ = false;
 
     // Disorder management
     std::priority_queue<DelayedRow> delay_queue_;

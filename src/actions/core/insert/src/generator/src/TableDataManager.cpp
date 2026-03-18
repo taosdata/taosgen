@@ -1,4 +1,6 @@
 #include "TableDataManager.hpp"
+#include "FilePathResolver.hpp"
+#include "StreamingCSVRowSource.hpp"
 #include <algorithm>
 #include <limits>
 #include <iostream>
@@ -36,6 +38,25 @@ bool TableDataManager::init(const std::vector<std::string>& table_names) {
     table_states_.reserve(table_names.size());
 
     try {
+        // Create shared streaming source if in streaming mode
+        std::shared_ptr<ICSVRowSource> shared_streaming_source;
+        if (config_.schema.columns_cfg.source_type == "csv"
+            && config_.schema.generation.loading_mode == "streaming") {
+            const auto& csv_config = config_.schema.columns_cfg.csv;
+            auto resolved_paths = FilePathResolver::resolve(csv_config.file_path);
+            std::string csv_precision = csv_config.timestamp_strategy.get_precision();
+            shared_streaming_source = std::make_shared<StreamingCSVRowSource>(
+                resolved_paths,
+                csv_config.has_header,
+                csv_config.delimiter.empty() ? ',' : csv_config.delimiter[0],
+                col_instances_,
+                csv_config.timestamp_strategy,
+                csv_precision,
+                config_.timestamp_precision,
+                csv_config.repeat_read
+            );
+        }
+
         // Create RowDataGenerator for each table
         for (const auto& table_name : table_names) {
             TableState state;
@@ -45,7 +66,8 @@ bool TableDataManager::init(const std::vector<std::string>& table_names) {
                     table_name,
                     config_,
                     col_instances_,
-                    pool_.is_cache_mode()
+                    pool_.is_cache_mode(),
+                    shared_streaming_source
                 );
                 state.rows_generated = 0;
                 state.interlace_counter = 0;

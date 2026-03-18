@@ -1,6 +1,8 @@
 # Create library target
 add_library(reader_csv STATIC
   src/CSVReader.cpp
+  src/FilePathResolver.cpp
+  src/StreamingCSVRowSource.cpp
   src/TableNameCSVReader.cpp
   src/TagsCSVReader.cpp
   src/ColumnsCSVReader.cpp
@@ -21,6 +23,7 @@ target_link_libraries(reader_csv
     actions_config
     components_generator
     utils
+    vincentlaucsb-csv-parser::vincentlaucsb-csv-parser
 )
 
 # Enable tests

@@ -1,4 +1,5 @@
 #include "ColumnsCSVReader.hpp"
+#include "FilePathResolver.hpp"
 #include "LogUtils.hpp"
 #include "StringUtils.hpp"
 #include "TypeConverter.hpp"
@@ -30,9 +31,12 @@ void ColumnsCSVReader::validate_config() {
         throw std::invalid_argument("CSV file path is empty for columns data");
     }
 
+    // Resolve file paths (supports single file, directory, glob)
+    auto resolved_paths = FilePathResolver::resolve(config_.file_path);
+
     // Create a CSV reader to get total columns
     CSVReader reader(
-        config_.file_path,
+        resolved_paths,
         config_.has_header,
         config_.delimiter.empty() ? ',' : config_.delimiter[0]
     );
@@ -90,9 +94,10 @@ ColumnType ColumnsCSVReader::convert_to_type(const std::string& value, ColumnTyp
 
 std::unordered_map<std::string, TableData> ColumnsCSVReader::generate() const {
     try {
-        // Create CSV reader
+        // Resolve file paths and create CSV reader
+        auto resolved_paths = FilePathResolver::resolve(config_.file_path);
         CSVReader reader(
-            config_.file_path,
+            resolved_paths,
             config_.has_header,
             config_.delimiter.empty() ? ',' : config_.delimiter[0]
         );

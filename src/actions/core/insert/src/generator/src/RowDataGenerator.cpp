@@ -1,6 +1,8 @@
 #include "RowDataGenerator.hpp"
 #include "StringUtils.hpp"
 #include "CSVDataManager.hpp"
+#include "FilePathResolver.hpp"
+#include "StreamingCSVRowSource.hpp"
 #include <stdexcept>
 #include <cstdlib>
 #include <ctime>
@@ -10,13 +12,15 @@
 RowDataGenerator::RowDataGenerator(const std::string& table_name,
                                   const InsertDataConfig& config,
                                   const ColumnConfigInstanceVector& instances,
-                                  bool use_cache)
+                                  bool use_cache,
+                                  std::shared_ptr<ICSVRowSource> external_csv_source)
     : table_name_(table_name),
       config_(config),
       columns_config_(config.schema.columns_cfg),
       instances_(instances),
       target_precision_(config.timestamp_precision),
-      use_cache_(use_cache) {
+      use_cache_(use_cache),
+      csv_source_(std::move(external_csv_source)) {
 
     init_cached_row();
     init_raw_source();
@@ -78,8 +82,6 @@ void RowDataGenerator::init_cache() {
     while (cache_.size() < config_.schema.generation.data_cache.num_cached_batches && has_more()) {
         if (auto row = fetch_raw_row()) {
             cache_.push_back(*row);
-        } else {
-            break;
         }
     }
 }
@@ -102,11 +104,33 @@ void RowDataGenerator::init_raw_source() {
         init_generator();
         total_rows_ = config_.schema.generation.rows_per_table;
     } else if (columns_config_.source_type == "csv") {
-        init_csv_reader();
-        if (columns_config_.csv.repeat_read) {
+        const auto& loading_mode = config_.schema.generation.loading_mode;
+        if (loading_mode == "streaming") {
+            use_streaming_ = true;
+            // If no external source provided, create our own
+            if (!csv_source_) {
+                const auto& csv_config = columns_config_.csv;
+                auto resolved_paths = FilePathResolver::resolve(csv_config.file_path);
+                csv_precision_ = csv_config.timestamp_strategy.get_precision();
+                csv_source_ = std::make_shared<StreamingCSVRowSource>(
+                    resolved_paths,
+                    csv_config.has_header,
+                    csv_config.delimiter.empty() ? ',' : csv_config.delimiter[0],
+                    instances_,
+                    csv_config.timestamp_strategy,
+                    csv_precision_,
+                    target_precision_,
+                    csv_config.repeat_read
+                );
+            }
             total_rows_ = config_.schema.generation.rows_per_table;
         } else {
-            total_rows_ = std::min(static_cast<int64_t>(csv_rows().size()), config_.schema.generation.rows_per_table);
+            init_csv_reader();
+            if (columns_config_.csv.repeat_read) {
+                total_rows_ = config_.schema.generation.rows_per_table;
+            } else {
+                total_rows_ = std::min(static_cast<int64_t>(csv_rows().size()), config_.schema.generation.rows_per_table);
+            }
         }
     } else {
         throw std::invalid_argument("Unsupported source_type: " + columns_config_.source_type);
@@ -117,7 +141,8 @@ void RowDataGenerator::init_raw_source() {
         timestamp_generator_ = std::make_unique<TimestampGenerator>(
             columns_config_.generator.timestamp_strategy.timestamp_config
         );
-    } else if (columns_config_.source_type == "csv" && columns_config_.csv.timestamp_strategy.strategy_type == "generator") {
+    } else if (columns_config_.source_type == "csv" && !use_streaming_
+               && columns_config_.csv.timestamp_strategy.strategy_type == "generator") {
         timestamp_generator_ = std::make_unique<TimestampGenerator>(
             columns_config_.csv.timestamp_strategy.generator
         );
@@ -250,8 +275,42 @@ int RowDataGenerator::next_row(MemoryPool::TableBlock& table_block) {
     return 1;
 }
 
+bool RowDataGenerator::has_more() const {
+    return generated_rows_ < total_rows_;
+}
+
+void RowDataGenerator::reset() {
+    generated_rows_ = 0;
+    csv_row_index_ = 0;
+    current_timestamp_ = 0;
+    if (timestamp_generator_) {
+        timestamp_generator_->reset();
+    }
+    if (csv_source_) {
+        csv_source_->reset();
+    }
+}
+
+std::optional<std::reference_wrapper<RowData>> RowDataGenerator::fetch_raw_row() {
+    if (use_streaming_) {
+        auto row = csv_source_->next();
+        if (!row) return std::nullopt;
+        streaming_cached_row_ = std::move(*row);
+        return std::ref(streaming_cached_row_);
+    }
+
+    if (use_generator_) {
+        generate_from_generator();
+    } else {
+        if (!generate_from_csv()) {
+            return std::nullopt;
+        }
+    }
+    return std::ref(cached_row_);
+}
+
 bool RowDataGenerator::apply_disorder(RowData& row) {
-    if (!config_.schema.generation.data_disorder.enabled) {
+    if (disorder_intervals_.empty()) {
         return false;
     }
 
@@ -274,39 +333,14 @@ bool RowDataGenerator::apply_disorder(RowData& row) {
 }
 
 void RowDataGenerator::process_delay_queue() {
-    while (!delay_queue_.empty() && delay_queue_.top().deliver_timestamp <= current_timestamp_) {
-        cache_.push_back(delay_queue_.top().row);
-        delay_queue_.pop();
-    }
-}
-
-std::optional<std::reference_wrapper<RowData>> RowDataGenerator::fetch_raw_row() {
-    try {
-        if (use_generator_) {
-            generate_from_generator();
+    while (!delay_queue_.empty()) {
+        const auto& top = delay_queue_.top();
+        if (top.deliver_timestamp <= current_timestamp_) {
+            cache_.push_back(top.row);
+            delay_queue_.pop();
         } else {
-            if (!generate_from_csv()) {
-                total_rows_ = generated_rows_;
-                return std::nullopt;
-            }
+            break;
         }
-
-        return cached_row_;
-    } catch (const std::exception& e) {
-        throw std::runtime_error(std::string("Error generating row: ") + e.what());
-    }
-}
-
-bool RowDataGenerator::has_more() const {
-    return generated_rows_ < total_rows_;
-}
-
-void RowDataGenerator::reset() {
-    generated_rows_ = 0;
-    csv_row_index_ = 0;
-
-    if (timestamp_generator_) {
-        timestamp_generator_->reset();
     }
 }
 

@@ -8,6 +8,16 @@ target_link_libraries(TestCSVReader
 )
 add_test(NAME TestCSVReader COMMAND TestCSVReader)
 
+# Test FilePathResolver
+add_executable(TestFilePathResolver
+  TestFilePathResolver.cpp
+)
+target_link_libraries(TestFilePathResolver
+  PRIVATE
+    reader_csv
+)
+add_test(NAME TestFilePathResolver COMMAND TestFilePathResolver)
+
 # Test TableNameCSVReader
 add_executable(TestTableNameCSVReader
   TestTableNameCSVReader.cpp

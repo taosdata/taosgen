@@ -38,6 +38,7 @@ struct GenerationConfig {
     int64_t rows_per_table = 10000;
     size_t rows_per_batch = 10000;
     bool tables_reuse_data = true;
+    std::string loading_mode = "preload";  // "preload" | "streaming"
 
     GenerationConfig() {
         if (data_cache.enabled) {
