@@ -2,6 +2,7 @@
 
 #include "ColumnsCSVReader.hpp"
 #include "TimestampUtils.hpp"
+#include "LogUtils.hpp"
 #include <mutex>
 #include <memory>
 #include <string>
@@ -16,6 +17,7 @@ public:
     const TableMap& get_data(const ColumnsCSV& config, const std::optional<ColumnConfigInstanceVector>& instances) {
         std::call_once(once_flag_, [this, &config, &instances]() {
             try {
+                LogUtils::debug("Loading CSV file: {}", config.file_path);
                 auto columns_csv = std::make_unique<ColumnsCSVReader>(config, instances);
                 data_ = columns_csv->generate();
             } catch (const std::exception& e) {

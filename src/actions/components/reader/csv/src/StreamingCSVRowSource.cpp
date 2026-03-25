@@ -38,9 +38,10 @@ std::optional<RowData> StreamingCSVRowSource::next() {
             reader_->reset();
             first_raw_ts_ = 0;
             first_raw_ts_set_ = false;
-            if (timestamp_generator_) {
-                timestamp_generator_->reset();
-            }
+            // Note: do NOT reset timestamp_generator_ here.
+            // In preload mode, repeat_read simply cycles csv_row_index_ via modulo
+            // while timestamp_generator_ continues to advance monotonically.
+            // Streaming mode must match this behavior.
             raw_row = reader_->read_next();
             if (!raw_row) {
                 exhausted_ = true;

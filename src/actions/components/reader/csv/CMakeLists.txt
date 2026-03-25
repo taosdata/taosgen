@@ -3,6 +3,7 @@ add_library(reader_csv STATIC
   src/CSVReader.cpp
   src/FilePathResolver.cpp
   src/StreamingCSVRowSource.cpp
+  src/PreloadCSVRowSource.cpp
   src/TableNameCSVReader.cpp
   src/TagsCSVReader.cpp
   src/ColumnsCSVReader.cpp

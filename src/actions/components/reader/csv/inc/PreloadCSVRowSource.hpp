@@ -2,53 +2,46 @@
 
 #include "ICSVRowSource.hpp"
 #include "CSVDataManager.hpp"
+#include "TimestampGenerator.hpp"
+#include "TimestampGeneratorConfig.hpp"
 #include <vector>
 #include <memory>
+#include <string>
 
 class PreloadCSVRowSource : public ICSVRowSource {
 public:
-    // Constructor using shared rows (default table, tbname_index = -1)
-    explicit PreloadCSVRowSource(CSVDataManager::SharedRows shared_rows)
-        : shared_rows_(std::move(shared_rows)), row_index_(0) {}
+    // CSV timestamp mode: use timestamps already present in the rows
+    PreloadCSVRowSource(CSVDataManager::SharedRows shared_rows, bool repeat_read);
+    PreloadCSVRowSource(std::vector<RowData> rows, bool repeat_read);
 
-    // Constructor using owned rows (specific table)
-    explicit PreloadCSVRowSource(std::vector<RowData> rows)
-        : owned_rows_(std::move(rows)), row_index_(0) {}
+    // Generator timestamp mode: override row timestamps with TimestampGenerator
+    PreloadCSVRowSource(const TimestampGeneratorConfig& ts_config,
+                        const std::string& target_precision,
+                        CSVDataManager::SharedRows shared_rows,
+                        bool repeat_read);
+    PreloadCSVRowSource(const TimestampGeneratorConfig& ts_config,
+                        const std::string& target_precision,
+                        std::vector<RowData> rows,
+                        bool repeat_read);
 
-    std::optional<RowData> next() override {
-        const auto& rows = get_rows();
-        if (rows.empty()) return std::nullopt;
-        if (row_index_ >= rows.size()) return std::nullopt;
+    // Degenerate case: use_cache + generator ts, only need timestamp generation, no row data
+    PreloadCSVRowSource(const TimestampGeneratorConfig& ts_config,
+                        const std::string& target_precision);
 
-        auto& row = rows[row_index_];
-        row_index_ = (row_index_ + 1) % rows.size();
-        return row;
-    }
-
-    bool has_more() const override {
-        return !get_rows().empty();
-    }
-
-    void reset() override {
-        row_index_ = 0;
-    }
-
-    size_t total_rows() const override {
-        return get_rows().size();
-    }
-
-    // Direct access to underlying rows (for backward compatibility)
-    const std::vector<RowData>& rows() const { return get_rows(); }
-    size_t current_index() const { return row_index_; }
-    void set_index(size_t idx) { row_index_ = idx; }
+    std::optional<RowData> next() override;
+    bool has_more() const override;
+    void reset() override;
+    size_t total_rows() const override;
 
 private:
-    const std::vector<RowData>& get_rows() const {
-        if (shared_rows_) return *shared_rows_;
-        return owned_rows_;
-    }
+    const std::vector<RowData>& get_rows() const;
 
     CSVDataManager::SharedRows shared_rows_;
     std::vector<RowData> owned_rows_;
     size_t row_index_ = 0;
+    bool repeat_read_ = false;
+    bool exhausted_ = false;
+    bool degenerate_ = false;  // true when no row data, only timestamp generation
+    std::unique_ptr<TimestampGenerator> timestamp_generator_;
+    std::string target_precision_;
 };

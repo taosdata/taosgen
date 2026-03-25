@@ -8,7 +8,6 @@
 #include "InsertDataConfig.hpp"
 #include "RowGenerator.hpp"
 #include "TimestampGenerator.hpp"
-#include "ColumnsCSVReader.hpp"
 #include "TableNameCSVReader.hpp"
 #include "ICSVRowSource.hpp"
 #include "MemoryPool.hpp"
@@ -80,11 +79,6 @@ private:
     // Get data from generator
     void generate_from_generator();
 
-    // Get data from CSV
-    bool generate_from_csv();
-
-    const std::vector<RowData>& csv_rows() const;
-
 private:
     const std::string& table_name_;
     const InsertDataConfig& config_;
@@ -98,24 +92,15 @@ private:
 
     // Data source components
     std::unique_ptr<RowGenerator> row_generator_;
-    std::unique_ptr<ColumnsCSVReader> columns_csv_;
-    std::unique_ptr<TimestampGenerator> timestamp_generator_;
+    std::unique_ptr<TimestampGenerator> timestamp_generator_;  // Only for generator source_type
 
-    // CSV data (preload mode)
-    std::vector<RowData> csv_rows_;
-    std::shared_ptr<const std::vector<RowData>> shared_csv_rows_;
-    size_t csv_row_index_ = 0;
-    std::string csv_precision_;
-
-    // Streaming mode CSV source
+    // Unified CSV data source (preload and streaming)
     std::shared_ptr<ICSVRowSource> csv_source_;
-    RowData streaming_cached_row_;
 
     // State management
     int64_t generated_rows_ = 0;
     int64_t total_rows_ = 0;
     bool use_generator_ = false;
-    bool use_streaming_ = false;
 
     // Disorder management
     std::priority_queue<DelayedRow> delay_queue_;

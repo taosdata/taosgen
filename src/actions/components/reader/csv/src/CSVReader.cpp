@@ -1,5 +1,6 @@
 #include "CSVReader.hpp"
 #include "StringUtils.hpp"
+#include "LogUtils.hpp"
 #include <csv.hpp>
 #include <cerrno>
 #include <cstring>
@@ -95,6 +96,7 @@ struct CSVReader::Impl {
             // Current file exhausted, move to next
             size_t next_idx = current_file_index + 1;
             if (next_idx < file_paths.size()) {
+                LogUtils::debug("Switching to next CSV file: {}", file_paths[next_idx]);
                 open_file(next_idx);
             } else {
                 current_reader.reset();
