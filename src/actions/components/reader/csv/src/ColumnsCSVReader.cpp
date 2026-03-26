@@ -174,7 +174,7 @@ std::unordered_map<std::string, TableData> ColumnsCSVReader::generate() const {
                         } else if (offset.offset_type == "relative") {
                             // relative mode
                             int64_t multiplier = TimestampUtils::get_precision_multiplier(ts_config.timestamp_precision.value());
-                            auto [years, months, days, hours, seconds] = offset.relative_offset;
+                            auto [years, months, days, hours, minutes, seconds] = offset.relative_offset;
 
                             // Convert timestamp to seconds
                             std::time_t raw_time = raw_ts / multiplier;
@@ -186,11 +186,12 @@ std::unordered_map<std::string, TableData> ColumnsCSVReader::generate() const {
                                 throw std::runtime_error("Failed to convert timestamp to local time, raw_ts: " + std::to_string(raw_ts));
                             }
 
-                            // Apply year/month/day offset
+                            // Apply year/month/day/hour/minute/second offset
                             timeinfo->tm_year += years;
                             timeinfo->tm_mon  += months;
                             timeinfo->tm_mday += days;
                             timeinfo->tm_hour += hours;
+                            timeinfo->tm_min  += minutes;
                             timeinfo->tm_sec  += seconds;
 
                             std::time_t new_time = std::mktime(timeinfo);
