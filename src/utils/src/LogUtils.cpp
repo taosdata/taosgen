@@ -75,7 +75,10 @@ void init(Level level, const std::string& log_file, size_t max_file_size, size_t
 }
 
 void shutdown() {
-    if (logger) logger->flush();
+    if (logger) {
+        logger->flush();
+        logger.reset();  // Release logger reference
+    }
     spdlog::shutdown();
 }
 
