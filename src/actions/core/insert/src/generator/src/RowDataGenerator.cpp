@@ -83,6 +83,8 @@ void RowDataGenerator::init_cache() {
     while (cache_.size() < config_.schema.generation.data_cache.num_cached_batches && has_more()) {
         if (auto row = fetch_raw_row()) {
             cache_.push_back(*row);
+        } else {
+            break;
         }
     }
 }

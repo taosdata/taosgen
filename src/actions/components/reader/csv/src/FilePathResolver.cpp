@@ -1,4 +1,5 @@
 #include "FilePathResolver.hpp"
+#include "StringUtils.hpp"
 #include <filesystem>
 #include <algorithm>
 #include <stdexcept>
@@ -42,8 +43,7 @@ std::vector<std::string> FilePathResolver::resolve_directory(const std::string& 
     std::vector<std::string> results;
     for (const auto& entry : fs::directory_iterator(dir_path)) {
         if (entry.is_regular_file()) {
-            auto ext = entry.path().extension().string();
-            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+            auto ext = StringUtils::to_lower(entry.path().extension().string());
             if (ext == ".csv") {
                 results.push_back(entry.path().string());
             }

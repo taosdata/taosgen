@@ -41,9 +41,11 @@ namespace TypeConverter {
         T parse_integral(std::string_view sv) {
             T parsed{};
             auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), parsed);
-            if (ec != std::errc() || ptr != sv.data() + sv.size()) {
+            if (ec != std::errc()) {
                 throw std::runtime_error("Invalid integer value");
             }
+            // Allow trailing non-digit characters (e.g. "221.5" → 221)
+            // to match the previous std::stoi/stol/stoll behavior
             return parsed;
         }
 

@@ -6,6 +6,8 @@
 #include <chrono>
 #include <stdexcept>
 #include <vector>
+#include <cctz/civil_time.h>
+#include <cctz/time_zone.h>
 #include "TimestampUtils.hpp"
 
 // Test: pass int64_t directly
@@ -100,16 +102,11 @@ void test_parse_timestamp_now_plus_100_default_precision() {
 
 // Test: ISO time string
 void test_parse_timestamp_iso_string() {
-    // 2023-01-01 00:00:00
-    std::tm tm = {};
-    tm.tm_year = 2023 - 1900;
-    tm.tm_mon = 0;
-    tm.tm_mday = 1;
-    tm.tm_hour = 0;
-    tm.tm_min = 0;
-    tm.tm_sec = 0;
-    tm.tm_isdst = -1;
-    time_t expected = std::mktime(&tm);
+    // 2023-01-01 00:00:00 in local time using cctz (thread-safe)
+    static const cctz::time_zone local_tz = cctz::local_time_zone();
+    cctz::civil_second cs(2023, 1, 1, 0, 0, 0);
+    auto tp = cctz::convert(cs, local_tz);
+    time_t expected = std::chrono::system_clock::to_time_t(tp);
     int64_t result = TimestampUtils::parse_timestamp("2023-01-01 00:00:00", "s");
     (void)expected;
     (void)result;
@@ -314,13 +311,13 @@ void test_performance_iso_local_cctz() {
 
 // Thread safety test: multiple threads parsing timestamps concurrently
 void test_thread_safety_concurrent_parsing() {
-    const int NUM_THREADS = 10;
-    const int ITERATIONS_PER_THREAD = 100;
+    constexpr int NUM_THREADS = 10;
+    constexpr int ITERATIONS_PER_THREAD = 100;
     std::vector<std::thread> threads;
     std::vector<bool> results(NUM_THREADS, true);
 
     for (int t = 0; t < NUM_THREADS; ++t) {
-        threads.emplace_back([t, &results]() {
+        threads.emplace_back([t, &results, ITERATIONS_PER_THREAD]() {
             try {
                 for (int i = 0; i < ITERATIONS_PER_THREAD; ++i) {
                     // Mix of different timestamp formats
@@ -532,10 +529,12 @@ void test_parse_timestamp_precision_scales() {
     int64_t ns_val = TimestampUtils::parse_timestamp(timestamp, "ns");
     (void)s_val; (void)ms_val; (void)us_val; (void)ns_val;
 
-    // Verify relationships
-    assert(ms_val == s_val * 1000);   // milliseconds = seconds * 1000
-    assert(us_val == ms_val * 1000);  // microseconds = milliseconds * 1000
-    assert(ns_val == us_val * 1000);  // nanoseconds = microseconds * 1000
+    // Verify relationships (accounting for fractional truncation at each scale)
+    // s_val truncates to whole seconds, so ms_val != s_val * 1000 when fractional part exists
+    // Instead, verify that lower precisions are consistent with higher ones
+    assert(ms_val / 1000 == s_val);       // truncating ms to s matches s_val
+    assert(us_val / 1000 == ms_val);      // truncating us to ms matches ms_val
+    assert(ns_val / 1000 == us_val);      // truncating ns to us matches us_val
 
     std::cout << "test_parse_timestamp_precision_scales passed\n";
 }

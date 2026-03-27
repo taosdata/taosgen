@@ -1,5 +1,4 @@
 #include "CSVReader.hpp"
-#include "StringUtils.hpp"
 #include "LogUtils.hpp"
 #include <csv.hpp>
 #include <cerrno>
@@ -15,7 +14,6 @@ struct CSVReader::Impl {
     // Multi-file state
     size_t current_file_index = 0;
     std::unique_ptr<csv::CSVReader> current_reader;
-    csv::CSVReader::iterator current_it;
     bool need_skip_header = false;  // For subsequent files with headers
 
     Impl(const std::vector<std::string>& paths, bool header, char delim)
@@ -45,9 +43,9 @@ struct CSVReader::Impl {
             return current_reader->get_col_names().size();
         }
         // For no-header files, read first row to get column count
-        auto it = current_reader->begin();
-        if (it != current_reader->end()) {
-            return (*it).size();
+        csv::CSVRow row;
+        if (current_reader->read_row(row)) {
+            return row.size();
         }
         return 0;
     }
@@ -62,46 +60,46 @@ struct CSVReader::Impl {
         // Subsequent files: always no_header (header line becomes data, we skip it)
         bool use_header_mode = (index == 0 && has_header);
         auto format = make_format(use_header_mode);
+
+        current_reader.reset();
         current_reader = std::make_unique<csv::CSVReader>(file_paths[index], format);
-        current_it = current_reader->begin();
         need_skip_header = (index > 0 && has_header);
     }
 
     std::optional<CSVRow> next() {
         while (current_reader) {
+            csv::CSVRow csv_row;
+            // Use read_row() instead of iterator ++ to avoid blocking
+            // at EOF. The csv-parser's iterator::operator++ can deadlock
+            // on small files in no_header mode due to background threading.
+            if (!current_reader->read_row(csv_row)) {
+                // Current file exhausted, move to next
+                size_t next_idx = current_file_index + 1;
+                if (next_idx < file_paths.size()) {
+                    LogUtils::debug("Switching to next CSV file: {}", file_paths[next_idx]);
+                    open_file(next_idx);
+                    continue;
+                } else {
+                    current_reader.reset();
+                    return std::nullopt;
+                }
+            }
+
             // Skip header row of subsequent files
             if (need_skip_header) {
                 need_skip_header = false;
-                if (current_it != current_reader->end()) {
-                    ++current_it;
-                }
+                continue;
             }
 
-            if (current_it != current_reader->end()) {
-                csv::CSVRow& row = *current_it;
-
-                // Validate column count consistency across files
-                if (row.size() != column_count) {
-                    throw std::runtime_error(
-                        "Column count mismatch in file '" + file_paths[current_file_index] +
-                        "': expected " + std::to_string(column_count) +
-                        " but got " + std::to_string(row.size()));
-                }
-
-                CSVRow result = row_to_csvrow(row);
-                ++current_it;
-                return result;
+            // Validate column count consistency across files
+            if (csv_row.size() != column_count) {
+                throw std::runtime_error(
+                    "Column count mismatch in file '" + file_paths[current_file_index] +
+                    "': expected " + std::to_string(column_count) +
+                    " but got " + std::to_string(csv_row.size()));
             }
 
-            // Current file exhausted, move to next
-            size_t next_idx = current_file_index + 1;
-            if (next_idx < file_paths.size()) {
-                LogUtils::debug("Switching to next CSV file: {}", file_paths[next_idx]);
-                open_file(next_idx);
-            } else {
-                current_reader.reset();
-                return std::nullopt;
-            }
+            return row_to_csvrow(csv_row);
         }
         return std::nullopt;
     }
@@ -110,17 +108,7 @@ struct CSVReader::Impl {
         CSVRow result;
         result.reserve(row.size());
         for (auto& field : row) {
-            std::string val = field.get<>();
-            StringUtils::trim(val);
-            if (val.size() >= 2) {
-                char first = val.front();
-                char last = val.back();
-                if ((first == last) && (first == '"' || first == '\'')) {
-                    val.pop_back();
-                    val.erase(0, 1);
-                }
-            }
-            result.push_back(std::move(val));
+            result.push_back(field.get<std::string>());
         }
         return result;
     }

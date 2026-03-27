@@ -141,7 +141,8 @@ bool TimestampUtils::is_numeric_string(const std::string& str) {
         start = 1;
     }
     // Check if all remaining characters are digits
-    return std::all_of(str.begin() + start, str.end(), ::isdigit);
+    return std::all_of(str.begin() + start, str.end(),
+                       [](unsigned char c) { return std::isdigit(c); });
 }
 
 int64_t TimestampUtils::parse_numeric_timestamp(const std::string& str) {

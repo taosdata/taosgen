@@ -1,6 +1,8 @@
 #include "StreamingCSVRowSource.hpp"
 #include "StringUtils.hpp"
-#include <ctime>
+#include <cctz/civil_time.h>
+#include <cctz/time_zone.h>
+#include <chrono>
 
 StreamingCSVRowSource::StreamingCSVRowSource(
     const std::vector<std::string>& file_paths,
@@ -103,26 +105,28 @@ RowData StreamingCSVRowSource::convert_row(const CSVRow& raw_row) {
                     row.timestamp = offset.absolute_value + (raw_ts - first_raw_ts_);
                 } else if (offset.offset_type == "relative") {
                     int64_t multiplier = TimestampUtils::get_precision_multiplier(ts_config.timestamp_precision.value());
-                    auto [years, months, days, hours, seconds] = offset.relative_offset;
+                    auto [years, months, days, hours, minutes, seconds] = offset.relative_offset;
 
-                    std::time_t raw_time = raw_ts / multiplier;
+                    int64_t raw_seconds = raw_ts / multiplier;
                     int64_t fraction = raw_ts % multiplier;
 
-                    std::tm* timeinfo = std::localtime(&raw_time);
-                    if (!timeinfo) {
-                        throw std::runtime_error("Failed to convert timestamp to local time, raw_ts: " + std::to_string(raw_ts));
-                    }
+                    // Use cctz for thread-safe local time conversion
+                    static const cctz::time_zone local_tz = cctz::local_time_zone();
+                    auto tp = std::chrono::system_clock::from_time_t(raw_seconds);
+                    auto cs = cctz::convert(tp, local_tz);
 
-                    timeinfo->tm_year += years;
-                    timeinfo->tm_mon  += months;
-                    timeinfo->tm_mday += days;
-                    timeinfo->tm_hour += hours;
-                    timeinfo->tm_sec  += seconds;
+                    // Apply relative offset in civil time
+                    cctz::civil_second adjusted = cctz::civil_second(
+                        cs.year() + years,
+                        cs.month() + months,
+                        cs.day() + days,
+                        cs.hour() + hours,
+                        cs.minute() + minutes,
+                        cs.second() + seconds);
 
-                    std::time_t new_time = std::mktime(timeinfo);
-                    if (new_time == -1) {
-                        throw std::runtime_error("Failed to apply time offset, raw_ts: " + std::to_string(raw_ts));
-                    }
+                    // Convert back to time_point
+                    auto new_tp = cctz::convert(adjusted, local_tz);
+                    auto new_time = std::chrono::system_clock::to_time_t(new_tp);
 
                     row.timestamp = new_time * multiplier + fraction;
                 } else {
