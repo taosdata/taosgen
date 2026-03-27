@@ -318,6 +318,8 @@ from_csv:
     has_header: false
     repeat_read: true
     tbname_index: 0
+generation:
+  loading_mode: preload
 columns:
 - name: ts
   type: BIGINT

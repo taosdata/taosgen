@@ -311,13 +311,13 @@ void test_performance_iso_local_cctz() {
 
 // Thread safety test: multiple threads parsing timestamps concurrently
 void test_thread_safety_concurrent_parsing() {
-    constexpr int NUM_THREADS = 10;
-    constexpr int ITERATIONS_PER_THREAD = 100;
+    static constexpr int NUM_THREADS = 10;
+    static constexpr int ITERATIONS_PER_THREAD = 100;
     std::vector<std::thread> threads;
     std::vector<bool> results(NUM_THREADS, true);
 
     for (int t = 0; t < NUM_THREADS; ++t) {
-        threads.emplace_back([t, &results, ITERATIONS_PER_THREAD]() {
+        threads.emplace_back([t, &results]() {
             try {
                 for (int i = 0; i < ITERATIONS_PER_THREAD; ++i) {
                     // Mix of different timestamp formats
