@@ -21,9 +21,9 @@ void TagsCSVReader::validate_config() {
     }
 
     // Resolve file paths and create a CSV reader to get total columns
-    auto resolved_paths = FilePathResolver::resolve(config_.file_path);
+    resolved_paths_ = FilePathResolver::resolve(config_.file_path);
     CSVReader reader(
-        resolved_paths,
+        resolved_paths_,
         config_.has_header,
         config_.delimiter.empty() ? ',' : config_.delimiter[0]
     );
@@ -67,10 +67,9 @@ ColumnType TagsCSVReader::convert_to_type(const std::string& value, ColumnTypeTa
 
 std::vector<ColumnTypeVector> TagsCSVReader::generate() const {
     try {
-        // Resolve file paths and create a CSV reader
-        auto resolved_paths = FilePathResolver::resolve(config_.file_path);
+        // Use resolved file paths from validate_config()
         CSVReader reader(
-            resolved_paths,
+            resolved_paths_,
             config_.has_header,
             config_.delimiter.empty() ? ',' : config_.delimiter[0]
         );

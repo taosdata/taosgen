@@ -202,6 +202,7 @@ void test_csv_mode_basic() {
     columns_config.source_type = "csv";
 
     // Configure CSV data source
+    columns_config.csv.loading_mode = "preload";
     columns_config.csv.file_path = "test_data.csv";
     columns_config.csv.has_header = true;
     columns_config.csv.delimiter = ",";
@@ -221,7 +222,6 @@ void test_csv_mode_basic() {
     config.schema.columns.emplace_back(ColumnConfig{"age", "INT"});
     config.schema.columns.emplace_back(ColumnConfig{"city", "VARCHAR(20)"});
     config.schema.generation.rows_per_table = 3;
-    config.schema.columns_cfg.csv.loading_mode = "preload";
     config.schema.columns_cfg = columns_config;
     config.schema.columns_cfg.generator.schema = config.schema.columns;
 
