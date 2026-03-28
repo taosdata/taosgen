@@ -106,7 +106,8 @@ void test_streaming_csv_basic() {
     // File exhausted, no repeat
     auto r4 = generator.next_row();
     assert(!r4.has_value());
-    assert(!generator.has_more() || generator.generated_rows() >= 3);
+    assert(!generator.has_more());
+    assert(generator.generated_rows() == 3);
 
     remove_test_file(filename);
     std::cout << "test_streaming_csv_basic passed\n";

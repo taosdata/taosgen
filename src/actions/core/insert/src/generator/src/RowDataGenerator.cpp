@@ -103,6 +103,8 @@ void RowDataGenerator::init_disorder() {
 }
 
 void RowDataGenerator::init_raw_source() {
+    source_exhausted_ = false;
+
     if (columns_config_.source_type == "generator") {
         init_generator();
         total_rows_ = config_.schema.generation.rows_per_table;
@@ -315,12 +317,25 @@ int RowDataGenerator::next_row(MemoryPool::TableBlock& table_block) {
 }
 
 bool RowDataGenerator::has_more() const {
-    return generated_rows_ < total_rows_;
+    if (generated_rows_ >= total_rows_) {
+        return false;
+    }
+
+    if (use_generator_) {
+        return true;
+    }
+
+    if (!cache_.empty()) {
+        return true;
+    }
+
+    return !source_exhausted_;
 }
 
 void RowDataGenerator::reset() {
     generated_rows_ = 0;
     current_timestamp_ = 0;
+    source_exhausted_ = false;
     if (timestamp_generator_) {
         timestamp_generator_->reset();
     }
@@ -337,7 +352,10 @@ std::optional<std::reference_wrapper<RowData>> RowDataGenerator::fetch_raw_row()
 
     // CSV path - preload and streaming unified
     auto row = csv_source_->next();
-    if (!row) return std::nullopt;
+    if (!row) {
+        source_exhausted_ = true;
+        return std::nullopt;
+    }
 
     if (use_cache_) {
         cached_row_.timestamp = row->timestamp;  // Only need timestamp

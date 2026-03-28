@@ -101,6 +101,7 @@ private:
     int64_t generated_rows_ = 0;
     int64_t total_rows_ = 0;
     bool use_generator_ = false;
+    bool source_exhausted_ = false;
 
     // Disorder management
     std::priority_queue<DelayedRow> delay_queue_;
