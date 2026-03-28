@@ -131,7 +131,7 @@ void RowDataGenerator::init_csv_reader() {
     use_generator_ = false;
 
     const auto& csv_config = columns_config_.csv;
-    const auto& loading_mode = config_.schema.generation.loading_mode;
+    const auto& loading_mode = config_.schema.columns_cfg.csv.loading_mode;
     bool has_generator_ts = csv_config.timestamp_strategy.strategy_type == "generator";
 
     if (loading_mode == "streaming") {

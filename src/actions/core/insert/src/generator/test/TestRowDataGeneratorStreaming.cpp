@@ -31,6 +31,7 @@ static InsertDataConfig make_streaming_config(
 {
     ColumnsConfig columns_config;
     columns_config.source_type = "csv";
+    columns_config.csv.loading_mode = "streaming";
     columns_config.csv.file_path = file_path;
     columns_config.csv.has_header = true;
     columns_config.csv.delimiter = ",";
@@ -46,7 +47,6 @@ static InsertDataConfig make_streaming_config(
     InsertDataConfig config;
     config.schema.columns = columns;
     config.schema.generation.rows_per_table = rows_per_table;
-    config.schema.generation.loading_mode = "streaming";
     config.schema.columns_cfg = columns_config;
     config.schema.columns_cfg.generator.schema = columns;
 
@@ -62,7 +62,7 @@ static InsertDataConfig make_preload_config(
     int64_t rows_per_table = 100)
 {
     auto config = make_streaming_config(file_path, columns, tbname_index, repeat_read, rows_per_table);
-    config.schema.generation.loading_mode = "preload";
+    config.schema.columns_cfg.csv.loading_mode = "preload";
     return config;
 }
 

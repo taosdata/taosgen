@@ -221,7 +221,7 @@ void test_csv_mode_basic() {
     config.schema.columns.emplace_back(ColumnConfig{"age", "INT"});
     config.schema.columns.emplace_back(ColumnConfig{"city", "VARCHAR(20)"});
     config.schema.generation.rows_per_table = 3;
-    config.schema.generation.loading_mode = "preload";
+    config.schema.columns_cfg.csv.loading_mode = "preload";
     config.schema.columns_cfg = columns_config;
     config.schema.columns_cfg.generator.schema = config.schema.columns;
 
@@ -299,12 +299,12 @@ void test_csv_mode_with_invalid_data() {
     ts_config.timestamp_precision = "ms";
     columns_config.csv.timestamp_strategy.strategy_type = "csv";
     columns_config.csv.timestamp_strategy.csv = ts_config;
+    columns_config.csv.loading_mode = "preload";
 
     InsertDataConfig config;
     // Define schema where 'age' is an INT
     config.schema.columns.emplace_back(ColumnConfig{"age", "INT"});
     config.schema.columns.emplace_back(ColumnConfig{"city", "VARCHAR(20)"});
-    config.schema.generation.loading_mode = "preload";
     config.schema.columns_cfg = columns_config;
     config.schema.columns_cfg.generator.schema = config.schema.columns;
 
@@ -341,12 +341,12 @@ void test_csv_precision_conversion() {
 
     columns_config.csv.timestamp_strategy.strategy_type = "csv";
     columns_config.csv.timestamp_strategy.csv = ts_config;
+    columns_config.csv.loading_mode = "preload";
 
     InsertDataConfig config;
     config.schema.columns.emplace_back(ColumnConfig{"age", "INT"});
     config.schema.columns.emplace_back(ColumnConfig{"city", "VARCHAR(20)"});
     config.schema.generation.rows_per_table = 3;
-    config.schema.generation.loading_mode = "preload";
     config.timestamp_precision = "us";
     config.schema.columns_cfg = columns_config;
     config.schema.columns_cfg.generator.schema = config.schema.columns;

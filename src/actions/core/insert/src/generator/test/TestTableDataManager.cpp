@@ -403,6 +403,7 @@ void test_csv_streaming_shared_source() {
     // Key: source_type = "csv" + loading_mode = "streaming"
     config.schema.columns_cfg.source_type = "csv";
     config.schema.columns_cfg.csv.enabled = true;
+    config.schema.columns_cfg.csv.loading_mode = "streaming";
     config.schema.columns_cfg.csv.file_path = csv_path;
     config.schema.columns_cfg.csv.has_header = true;
     config.schema.columns_cfg.csv.delimiter = ",";
@@ -417,7 +418,6 @@ void test_csv_streaming_shared_source() {
     config.schema.columns_cfg.csv.timestamp_strategy.generator.start_timestamp = Timestamp{5000};
     config.schema.columns_cfg.csv.timestamp_strategy.generator.timestamp_step = 100;
 
-    config.schema.generation.loading_mode = "streaming";
     config.schema.generation.rows_per_table = 5;
     config.schema.generation.rows_per_batch = 100;
     config.timestamp_precision = "ms";
@@ -462,6 +462,7 @@ void test_csv_streaming_with_empty_delimiter() {
     InsertDataConfig config;
     config.schema.columns_cfg.source_type = "csv";
     config.schema.columns_cfg.csv.enabled = true;
+    config.schema.columns_cfg.csv.loading_mode = "streaming";
     config.schema.columns_cfg.csv.file_path = csv_path;
     config.schema.columns_cfg.csv.has_header = true;
     config.schema.columns_cfg.csv.delimiter = "";  // empty → defaults to ','
@@ -475,7 +476,6 @@ void test_csv_streaming_with_empty_delimiter() {
     config.schema.columns_cfg.csv.timestamp_strategy.generator.start_timestamp = Timestamp{1000};
     config.schema.columns_cfg.csv.timestamp_strategy.generator.timestamp_step = 10;
 
-    config.schema.generation.loading_mode = "streaming";
     config.schema.generation.rows_per_table = 2;
     config.schema.generation.rows_per_batch = 100;
     config.timestamp_precision = "ms";
@@ -516,6 +516,7 @@ void test_csv_streaming_with_custom_delimiter() {
     InsertDataConfig config;
     config.schema.columns_cfg.source_type = "csv";
     config.schema.columns_cfg.csv.enabled = true;
+    config.schema.columns_cfg.csv.loading_mode = "streaming";
     config.schema.columns_cfg.csv.file_path = csv_path;
     config.schema.columns_cfg.csv.has_header = true;
     config.schema.columns_cfg.csv.delimiter = ";";
@@ -529,7 +530,6 @@ void test_csv_streaming_with_custom_delimiter() {
     config.schema.columns_cfg.csv.timestamp_strategy.generator.start_timestamp = Timestamp{2000};
     config.schema.columns_cfg.csv.timestamp_strategy.generator.timestamp_step = 50;
 
-    config.schema.generation.loading_mode = "streaming";
     config.schema.generation.rows_per_table = 3;
     config.schema.generation.rows_per_batch = 100;
     config.timestamp_precision = "ms";
@@ -562,7 +562,7 @@ void test_csv_streaming_not_triggered_for_generator_source() {
     // Verify the streaming branch is NOT entered when source_type == "generator"
     // (no CSV file needed — the generator source path should work as before)
     auto config = create_test_config();
-    config.schema.generation.loading_mode = "streaming";  // streaming mode, but source is generator
+    config.schema.columns_cfg.csv.loading_mode = "streaming";  // streaming mode, but source is generator
     config.schema.generation.rows_per_table = 3;
 
     auto col_inst = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.generator.schema);
@@ -599,6 +599,7 @@ void test_csv_streaming_not_triggered_for_preload_mode() {
     InsertDataConfig config;
     config.schema.columns_cfg.source_type = "csv";
     config.schema.columns_cfg.csv.enabled = true;
+    config.schema.columns_cfg.csv.loading_mode = "preload";  // NOT streaming
     config.schema.columns_cfg.csv.file_path = csv_path;
     config.schema.columns_cfg.csv.has_header = true;
     config.schema.columns_cfg.csv.delimiter = ",";
@@ -612,7 +613,6 @@ void test_csv_streaming_not_triggered_for_preload_mode() {
     config.schema.columns_cfg.csv.timestamp_strategy.generator.start_timestamp = Timestamp{1000};
     config.schema.columns_cfg.csv.timestamp_strategy.generator.timestamp_step = 10;
 
-    config.schema.generation.loading_mode = "preload";  // NOT streaming
     config.schema.generation.rows_per_table = 2;
     config.schema.generation.rows_per_batch = 100;
     config.timestamp_precision = "ms";

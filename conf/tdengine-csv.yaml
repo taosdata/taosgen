@@ -15,6 +15,7 @@ schema:
       tbname_index: 2
       exclude_indices:
     columns:
+      loading_mode: preload
       file_path: ../conf/ctb-data.csv
       tbname_index : 0
       timestamp_index: 1
@@ -39,7 +40,6 @@ schema:
     - name: location
       type: binary(24)
   generation:
-    loading_mode: preload
     interlace: 1
     rows_per_table: 100
     rows_per_batch: 10000

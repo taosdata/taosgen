@@ -477,10 +477,10 @@ void test_apply_streaming_throws_when_tbname_index_positive() {
     SchemaConfig cfg;
     cfg.columns.push_back(ColumnConfig("ts", "BIGINT"));
     cfg.from_csv.columns.enabled = true;
+    cfg.from_csv.columns.loading_mode = "streaming";
     cfg.from_csv.columns.file_path = "data.csv";
     cfg.from_csv.columns.tbname_index = 0;
     cfg.from_csv.columns.timestamp_strategy.csv.enabled = false;
-    cfg.generation.loading_mode = "streaming";
     cfg.generation.data_cache.enabled = false;
     cfg.generation.tables_reuse_data = false;
 
@@ -500,10 +500,10 @@ void test_apply_streaming_throws_when_data_disorder_enabled() {
     SchemaConfig cfg;
     cfg.columns.push_back(ColumnConfig("ts", "BIGINT"));
     cfg.from_csv.columns.enabled = true;
+    cfg.from_csv.columns.loading_mode = "streaming";
     cfg.from_csv.columns.file_path = "data.csv";
     cfg.from_csv.columns.tbname_index = -1;
     cfg.from_csv.columns.timestamp_strategy.csv.enabled = false;
-    cfg.generation.loading_mode = "streaming";
     cfg.generation.data_disorder.enabled = true;
 
     try {
@@ -522,15 +522,15 @@ void test_apply_streaming_ok_no_tbname_no_disorder() {
     SchemaConfig cfg;
     cfg.columns.push_back(ColumnConfig("ts", "BIGINT"));
     cfg.from_csv.columns.enabled = true;
+    cfg.from_csv.columns.loading_mode = "streaming";
     cfg.from_csv.columns.file_path = "data.csv";
     cfg.from_csv.columns.tbname_index = -1;
     cfg.from_csv.columns.timestamp_strategy.csv.enabled = false;
-    cfg.generation.loading_mode = "streaming";
     cfg.generation.data_disorder.enabled = false;
 
     // Should not throw
     cfg.apply();
-    assert(cfg.generation.loading_mode == "streaming");
+    assert(cfg.from_csv.columns.loading_mode == "streaming");
     (void)cfg;
     std::cout << "  PASSED: test_apply_streaming_ok_no_tbname_no_disorder\n";
 }
@@ -539,16 +539,16 @@ void test_apply_preload_mode_with_tbname_index_no_throw() {
     SchemaConfig cfg;
     cfg.columns.push_back(ColumnConfig("ts", "BIGINT"));
     cfg.from_csv.columns.enabled = true;
+    cfg.from_csv.columns.loading_mode = "preload";
     cfg.from_csv.columns.file_path = "data.csv";
     cfg.from_csv.columns.tbname_index = 0;
     cfg.from_csv.columns.timestamp_strategy.csv.enabled = false;
-    cfg.generation.loading_mode = "preload";
     cfg.generation.data_cache.enabled = false;
     cfg.generation.tables_reuse_data = false;
 
     // Should not throw (only streaming mode throws)
     cfg.apply();
-    assert(cfg.generation.loading_mode == "preload");
+    assert(cfg.from_csv.columns.loading_mode == "preload");
     (void)cfg;
     std::cout << "  PASSED: test_apply_preload_mode_with_tbname_index_no_throw\n";
 }
@@ -557,12 +557,12 @@ void test_apply_streaming_no_csv_columns_no_throw() {
     SchemaConfig cfg;
     cfg.columns.push_back(ColumnConfig("ts", "BIGINT"));
     cfg.from_csv.columns.enabled = false;
-    cfg.generation.loading_mode = "streaming";
+    cfg.from_csv.columns.loading_mode = "streaming";
     cfg.generation.data_disorder.enabled = true;
 
     // csv columns not enabled → streaming validation block not entered
     cfg.apply();
-    assert(cfg.generation.loading_mode == "streaming");
+    assert(cfg.from_csv.columns.loading_mode == "streaming");
     (void)cfg;
     std::cout << "  PASSED: test_apply_streaming_no_csv_columns_no_throw\n";
 }
@@ -575,12 +575,12 @@ void test_apply_data_cache_and_reuse_both_disabled_by_tbname_index() {
     SchemaConfig cfg;
     cfg.columns.push_back(ColumnConfig("ts", "BIGINT"));
     cfg.from_csv.columns.enabled = true;
+    cfg.from_csv.columns.loading_mode = "preload";
     cfg.from_csv.columns.file_path = "data.csv";
     cfg.from_csv.columns.tbname_index = 0;
     cfg.from_csv.columns.timestamp_strategy.csv.enabled = false;
     cfg.generation.data_cache.enabled = true;
     cfg.generation.tables_reuse_data = true;
-    cfg.generation.loading_mode = "preload";
 
     cfg.apply();
 
@@ -695,10 +695,10 @@ void test_apply_streaming_tbname_index_zero_throws() {
     SchemaConfig cfg;
     cfg.columns.push_back(ColumnConfig("ts", "BIGINT"));
     cfg.from_csv.columns.enabled = true;
+    cfg.from_csv.columns.loading_mode = "streaming";
     cfg.from_csv.columns.file_path = "data.csv";
     cfg.from_csv.columns.tbname_index = 0;
     cfg.from_csv.columns.timestamp_strategy.csv.enabled = false;
-    cfg.generation.loading_mode = "streaming";
     cfg.generation.data_cache.enabled = false;
     cfg.generation.tables_reuse_data = false;
 

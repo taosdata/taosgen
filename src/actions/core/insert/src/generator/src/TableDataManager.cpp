@@ -41,7 +41,7 @@ bool TableDataManager::init(const std::vector<std::string>& table_names) {
         // Create shared streaming source if in streaming mode
         std::shared_ptr<ICSVRowSource> shared_streaming_source;
         if (config_.schema.columns_cfg.source_type == "csv"
-            && config_.schema.generation.loading_mode == "streaming") {
+            && config_.schema.columns_cfg.csv.loading_mode == "streaming") {
             const auto& csv_config = config_.schema.columns_cfg.csv;
             auto resolved_paths = FilePathResolver::resolve(csv_config.file_path);
             std::string csv_precision = csv_config.timestamp_strategy.get_precision();
