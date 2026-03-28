@@ -88,8 +88,8 @@ struct SchemaConfig {
         }
 
         // Streaming mode validations
-        if (generation.loading_mode == "streaming") {
-            if (from_csv.columns.enabled && from_csv.columns.tbname_index >= 0) {
+        if (from_csv.columns.enabled &&generation.loading_mode == "streaming") {
+            if (from_csv.columns.tbname_index >= 0) {
                 throw std::runtime_error("loading_mode 'streaming' is incompatible with 'tbname_index' >= 0. "
                     "Streaming mode requires tbname_index = -1.");
             }

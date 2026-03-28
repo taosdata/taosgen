@@ -39,6 +39,11 @@ namespace TypeConverter {
 
         template <typename T>
         T parse_integral(std::string_view sv) {
+            // std::from_chars does not accept leading '+' for any integer type,
+            // but std::stoi/stoll/stoull (the previous implementation) did. Skip it for compatibility.
+            if (!sv.empty() && sv.front() == '+') {
+                sv.remove_prefix(1);
+            }
             T parsed{};
             auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), parsed);
             if (ec != std::errc()) {

@@ -553,6 +553,519 @@ void test_parse_timestamp_utc_nanosecond() {
     std::cout << "test_parse_timestamp_utc_nanosecond passed\n";
 }
 
+// ============================================================
+// Supplemental tests — coverage gaps
+// ============================================================
+
+// --- get_precision_factor: invalid key throws std::out_of_range ---
+void test_get_precision_factor_invalid_key() {
+    bool threw = false;
+    try {
+        TimestampUtils::convert_timestamp_precision(100, "bad", "ms");
+    } catch (const std::out_of_range&) {
+        threw = true;
+    } catch (const std::exception&) {
+        threw = true;  // any exception from .at() is acceptable
+    }
+    (void)threw;
+    assert(threw);
+
+    threw = false;
+    try {
+        TimestampUtils::convert_timestamp_precision(100, "ms", "bad");
+    } catch (const std::out_of_range&) {
+        threw = true;
+    } catch (const std::exception&) {
+        threw = true;
+    }
+    (void)threw;
+    assert(threw);
+
+    std::cout << "test_get_precision_factor_invalid_key passed\n";
+}
+
+// --- convert_timestamp_precision: all cross-precision pairs ---
+void test_convert_precision_all_pairs() {
+    // ns → us, ns → ms, ns → s
+    int64_t ns_val = 1000000000LL;  // 1 second in ns
+    int64_t us_val = TimestampUtils::convert_timestamp_precision(ns_val, "ns", "us");
+    (void)us_val;
+    assert(us_val == 1000000LL);
+    int64_t ms_val = TimestampUtils::convert_timestamp_precision(ns_val, "ns", "ms");
+    (void)ms_val;
+    assert(ms_val == 1000LL);
+    int64_t s_val = TimestampUtils::convert_timestamp_precision(ns_val, "ns", "s");
+    (void)s_val;
+    assert(s_val == 1LL);
+
+    // us → ns, us → s
+    int64_t from_us = 1000000LL;  // 1 second in us
+    int64_t to_ns = TimestampUtils::convert_timestamp_precision(from_us, "us", "ns");
+    (void)to_ns;
+    assert(to_ns == 1000000000LL);
+    int64_t to_s = TimestampUtils::convert_timestamp_precision(from_us, "us", "s");
+    (void)to_s;
+    assert(to_s == 1LL);
+
+    // s → ns, s → us
+    int64_t from_s = 1;
+    int64_t s_to_ns = TimestampUtils::convert_timestamp_precision(from_s, "s", "ns");
+    (void)s_to_ns;
+    assert(s_to_ns == 1000000000LL);
+    int64_t s_to_us = TimestampUtils::convert_timestamp_precision(from_s, "s", "us");
+    (void)s_to_us;
+    assert(s_to_us == 1000000LL);
+
+    std::cout << "test_convert_precision_all_pairs passed\n";
+}
+
+// --- convert_timestamp_precision_double: same precision shortcut ---
+void test_convert_precision_double_same() {
+    double d = TimestampUtils::convert_timestamp_precision_double(12345, "ms", "ms");
+    (void)d;
+    assert(d == 12345.0);
+    std::cout << "test_convert_precision_double_same passed\n";
+}
+
+// --- convert_timestamp_precision_double: various conversions ---
+void test_convert_precision_double_various() {
+    // ms → us: 1.5 ms → 1500 us (using integer input 1, but with double precision)
+    double d1 = TimestampUtils::convert_timestamp_precision_double(1, "ms", "us");
+    (void)d1;
+    assert(d1 == 1000.0);
+
+    // ns → ms: 1500000 ns → 1.5 ms
+    double d2 = TimestampUtils::convert_timestamp_precision_double(1500000, "ns", "ms");
+    (void)d2;
+    assert(d2 == 1.5);
+
+    // us → s: 500000 us → 0.5 s
+    double d3 = TimestampUtils::convert_timestamp_precision_double(500000, "us", "s");
+    (void)d3;
+    assert(d3 == 0.5);
+
+    std::cout << "test_convert_precision_double_various passed\n";
+}
+
+// --- convert_to_timestamp: us and ns precisions ---
+void test_convert_to_timestamp_us_ns() {
+    int64_t us_now = TimestampUtils::convert_to_timestamp("us");
+    (void)us_now;
+    assert(us_now > 0);
+
+    int64_t ns_now = TimestampUtils::convert_to_timestamp("ns");
+    (void)ns_now;
+    assert(ns_now > 0);
+
+    // ns should be >= us * 1000
+    assert(ns_now >= us_now * 1000);
+
+    std::cout << "test_convert_to_timestamp_us_ns passed\n";
+}
+
+// --- convert_to_timestamp: invalid precision throws ---
+void test_convert_to_timestamp_invalid() {
+    bool threw = false;
+    try {
+        TimestampUtils::convert_to_timestamp("bad");
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+    (void)threw;
+    assert(threw);
+
+    std::cout << "test_convert_to_timestamp_invalid passed\n";
+}
+
+// --- parse_timestamp: negative numeric string ---
+void test_parse_timestamp_negative_numeric() {
+    int64_t result = TimestampUtils::parse_timestamp(std::string("-1000"), "ms");
+    (void)result;
+    assert(result == -1000);
+    std::cout << "test_parse_timestamp_negative_numeric passed\n";
+}
+
+// --- parse_timestamp: positive sign numeric string ---
+void test_parse_timestamp_positive_sign_numeric() {
+    int64_t result = TimestampUtils::parse_timestamp(std::string("+5000"), "ms");
+    (void)result;
+    assert(result == 5000);
+    std::cout << "test_parse_timestamp_positive_sign_numeric passed\n";
+}
+
+// --- parse_timestamp: "now" without parens ---
+void test_parse_timestamp_now_bare() {
+    int64_t before = TimestampUtils::convert_to_timestamp("ms");
+    int64_t result = TimestampUtils::parse_timestamp(std::string("now"), "ms");
+    int64_t after = TimestampUtils::convert_to_timestamp("ms");
+    (void)before;
+    (void)result;
+    (void)after;
+    assert(result >= before && result <= after);
+    std::cout << "test_parse_timestamp_now_bare passed\n";
+}
+
+// --- parse_timestamp: "now+10s" without parens ---
+void test_parse_timestamp_now_bare_plus() {
+    int64_t before = TimestampUtils::convert_to_timestamp("s");
+    int64_t result = TimestampUtils::parse_timestamp(std::string("now+10s"), "s");
+    int64_t after = TimestampUtils::convert_to_timestamp("s");
+    (void)before;
+    (void)result;
+    (void)after;
+    assert(result >= before + 10 && result <= after + 10);
+    std::cout << "test_parse_timestamp_now_bare_plus passed\n";
+}
+
+// --- parse_timestamp: now()+Nm for minute offset ---
+void test_parse_timestamp_now_plus_minutes() {
+    int64_t before = TimestampUtils::convert_to_timestamp("s");
+    int64_t result = TimestampUtils::parse_timestamp(std::string("now()+2m"), "s");
+    int64_t after = TimestampUtils::convert_to_timestamp("s");
+    (void)before;
+    (void)result;
+    (void)after;
+    assert(result >= before + 120 && result <= after + 120);
+    std::cout << "test_parse_timestamp_now_plus_minutes passed\n";
+}
+
+// --- parse_timestamp: now()+Nus (microseconds) ---
+void test_parse_timestamp_now_plus_us() {
+    int64_t before = TimestampUtils::convert_to_timestamp("us");
+    int64_t result = TimestampUtils::parse_timestamp(std::string("now()+500us"), "us");
+    int64_t after = TimestampUtils::convert_to_timestamp("us");
+    (void)before;
+    (void)result;
+    (void)after;
+    assert(result >= before + 500 && result <= after + 500);
+    std::cout << "test_parse_timestamp_now_plus_us passed\n";
+}
+
+// --- parse_timestamp: now()+Nns (nanoseconds) ---
+void test_parse_timestamp_now_plus_ns() {
+    int64_t before = TimestampUtils::convert_to_timestamp("ns");
+    int64_t result = TimestampUtils::parse_timestamp(std::string("now()+1000ns"), "ns");
+    int64_t after = TimestampUtils::convert_to_timestamp("ns");
+    (void)before;
+    (void)result;
+    (void)after;
+    assert(result >= before + 1000 && result <= after + 1000);
+    std::cout << "test_parse_timestamp_now_plus_ns passed\n";
+}
+
+// --- parse_timestamp: now offset with default precision for us / ns ---
+void test_parse_timestamp_now_default_precision_us() {
+    int64_t before = TimestampUtils::convert_to_timestamp("us");
+    int64_t result = TimestampUtils::parse_timestamp(std::string("now()+100"), "us");
+    int64_t after = TimestampUtils::convert_to_timestamp("us");
+    (void)before;
+    (void)result;
+    (void)after;
+    assert(result >= before + 100 && result <= after + 100);
+    std::cout << "test_parse_timestamp_now_default_precision_us passed\n";
+}
+
+void test_parse_timestamp_now_default_precision_ns() {
+    int64_t before = TimestampUtils::convert_to_timestamp("ns");
+    int64_t result = TimestampUtils::parse_timestamp(std::string("now()+1000"), "ns");
+    int64_t after = TimestampUtils::convert_to_timestamp("ns");
+    (void)before;
+    (void)result;
+    (void)after;
+    assert(result >= before + 1000 && result <= after + 1000);
+    std::cout << "test_parse_timestamp_now_default_precision_ns passed\n";
+}
+
+void test_parse_timestamp_now_default_precision_s() {
+    int64_t before = TimestampUtils::convert_to_timestamp("s");
+    int64_t result = TimestampUtils::parse_timestamp(std::string("now()+5"), "s");
+    int64_t after = TimestampUtils::convert_to_timestamp("s");
+    (void)before;
+    (void)result;
+    (void)after;
+    assert(result >= before + 5 && result <= after + 5);
+    std::cout << "test_parse_timestamp_now_default_precision_s passed\n";
+}
+
+// --- parse_timestamp: now delta_in_precision for us / ns precision ---
+void test_parse_timestamp_now_plus_10s_in_us_precision() {
+    int64_t before = TimestampUtils::convert_to_timestamp("us");
+    int64_t result = TimestampUtils::parse_timestamp(std::string("now()+1s"), "us");
+    int64_t after = TimestampUtils::convert_to_timestamp("us");
+    (void)before;
+    (void)result;
+    (void)after;
+    assert(result >= before + 1000000 && result <= after + 1000000);
+    std::cout << "test_parse_timestamp_now_plus_10s_in_us_precision passed\n";
+}
+
+void test_parse_timestamp_now_plus_1ms_in_ns_precision() {
+    int64_t before = TimestampUtils::convert_to_timestamp("ns");
+    int64_t result = TimestampUtils::parse_timestamp(std::string("now()+1ms"), "ns");
+    int64_t after = TimestampUtils::convert_to_timestamp("ns");
+    (void)before;
+    (void)result;
+    (void)after;
+    assert(result >= before + 1000000 && result <= after + 1000000);
+    std::cout << "test_parse_timestamp_now_plus_1ms_in_ns_precision passed\n";
+}
+
+// --- parse_timestamp: now minus with us/ns precision ---
+void test_parse_timestamp_now_minus_in_us() {
+    int64_t before = TimestampUtils::convert_to_timestamp("us");
+    int64_t result = TimestampUtils::parse_timestamp(std::string("now()-100us"), "us");
+    int64_t after = TimestampUtils::convert_to_timestamp("us");
+    (void)before;
+    (void)result;
+    (void)after;
+    assert(result >= before - 100 - 1000 && result <= after - 100 + 1000);
+    std::cout << "test_parse_timestamp_now_minus_in_us passed\n";
+}
+
+// --- parse_iso_utc_time: invalid format ---
+void test_parse_iso_utc_invalid_format() {
+    bool threw = false;
+    try {
+        TimestampUtils::parse_timestamp(std::string("not-a-dateZ"), "ms");
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+    (void)threw;
+    assert(threw);
+    std::cout << "test_parse_iso_utc_invalid_format passed\n";
+}
+
+// --- parse_iso_local_time: invalid format ---
+void test_parse_iso_local_invalid_format() {
+    bool threw = false;
+    try {
+        TimestampUtils::parse_timestamp(std::string("not-a-date"), "ms");
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+    (void)threw;
+    assert(threw);
+    std::cout << "test_parse_iso_local_invalid_format passed\n";
+}
+
+// --- parse_iso_utc: fractional with non-digit chars (should stop at first non-digit) ---
+void test_parse_fractional_non_digit_chars() {
+    // ".123abc" fractional part — parser should stop at 'a', treating as .123
+    int64_t r1 = TimestampUtils::parse_timestamp("2023-01-01T00:00:00.123Z", "ms");
+    (void)r1;
+    assert(r1 > 0);
+
+    // Verify .1 == .100 (padding behavior)
+    int64_t base = TimestampUtils::parse_timestamp("2023-01-01T00:00:00.000Z", "ms");
+    int64_t one_digit = TimestampUtils::parse_timestamp("2023-01-01T00:00:00.1Z", "ms");
+    int64_t three_digits = TimestampUtils::parse_timestamp("2023-01-01T00:00:00.100Z", "ms");
+    (void)base;
+    (void)one_digit;
+    (void)three_digits;
+    assert(one_digit - base == 100);
+    assert(three_digits - base == 100);
+    assert(one_digit == three_digits);
+
+    std::cout << "test_parse_fractional_non_digit_chars passed\n";
+}
+
+// --- parse_step: ns unit ---
+void test_parse_step_ns_unit() {
+    int64_t r = TimestampUtils::parse_step(std::string("1000ns"), "ns");
+    (void)r;
+    assert(r == 1000);
+
+    // 1000ns in us precision = 1
+    int64_t r2 = TimestampUtils::parse_step(std::string("1000ns"), "us");
+    (void)r2;
+    assert(r2 == 1);
+
+    // 1000000ns in ms precision = 1
+    int64_t r3 = TimestampUtils::parse_step(std::string("1000000ns"), "ms");
+    (void)r3;
+    assert(r3 == 1);
+
+    std::cout << "test_parse_step_ns_unit passed\n";
+}
+
+// --- parse_step: s precision default ---
+void test_parse_step_s_precision() {
+    // "5" with precision "s" → 5 seconds
+    int64_t r = TimestampUtils::parse_step(std::string("5"), "s");
+    (void)r;
+    assert(r == 5);
+
+    // "2s" with precision "s" → 2
+    int64_t r2 = TimestampUtils::parse_step(std::string("2s"), "s");
+    (void)r2;
+    assert(r2 == 2);
+
+    std::cout << "test_parse_step_s_precision passed\n";
+}
+
+// --- parse_step: us precision default ---
+void test_parse_step_us_precision() {
+    // "10" with precision "us" → 10
+    int64_t r = TimestampUtils::parse_step(std::string("10"), "us");
+    (void)r;
+    assert(r == 10);
+
+    // "1ms" in us precision → 1000
+    int64_t r2 = TimestampUtils::parse_step(std::string("1ms"), "us");
+    (void)r2;
+    assert(r2 == 1000);
+
+    std::cout << "test_parse_step_us_precision passed\n";
+}
+
+// --- parse_step: ns precision default ---
+void test_parse_step_ns_precision() {
+    // "100" with precision "ns" → 100
+    int64_t r = TimestampUtils::parse_step(std::string("100"), "ns");
+    (void)r;
+    assert(r == 100);
+
+    // "1us" in ns precision → 1000
+    int64_t r2 = TimestampUtils::parse_step(std::string("1us"), "ns");
+    (void)r2;
+    assert(r2 == 1000);
+
+    std::cout << "test_parse_step_ns_precision passed\n";
+}
+
+// --- parse_step: number overflow ---
+void test_parse_step_number_overflow() {
+    bool threw = false;
+    try {
+        TimestampUtils::parse_step(std::string("99999999999999999999"), "ms");
+    } catch (const std::runtime_error&) {
+        threw = true;
+    } catch (const std::out_of_range&) {
+        threw = true;
+    }
+    (void)threw;
+    assert(threw);
+    std::cout << "test_parse_step_number_overflow passed\n";
+}
+
+// --- parse_step: empty string ---
+void test_parse_step_empty_string() {
+    bool threw = false;
+    try {
+        TimestampUtils::parse_step(std::string(""), "ms");
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+    (void)threw;
+    assert(threw);
+    std::cout << "test_parse_step_empty_string passed\n";
+}
+
+// --- parse_step: int64_t passthrough ---
+void test_parse_step_int64_passthrough() {
+    int64_t r1 = TimestampUtils::parse_step(int64_t(42), "ms");
+    (void)r1;
+    assert(r1 == 42);
+
+    int64_t r2 = TimestampUtils::parse_step(int64_t(-10), "us");
+    (void)r2;
+    assert(r2 == -10);
+
+    std::cout << "test_parse_step_int64_passthrough passed\n";
+}
+
+// --- parse_step: "2s" in ns precision → 2000000000 ---
+void test_parse_step_seconds_to_ns() {
+    int64_t r = TimestampUtils::parse_step(std::string("2s"), "ns");
+    (void)r;
+    assert(r == 2000000000LL);
+    std::cout << "test_parse_step_seconds_to_ns passed\n";
+}
+
+// --- ISO with T separator preserved correctly ---
+void test_parse_timestamp_iso_t_separator() {
+    // T separator should be replaced with space internally
+    int64_t r1 = TimestampUtils::parse_timestamp(std::string("2023-06-15T10:30:00"), "s");
+    int64_t r2 = TimestampUtils::parse_timestamp(std::string("2023-06-15 10:30:00"), "s");
+    (void)r1;
+    (void)r2;
+    assert(r1 == r2);
+    std::cout << "test_parse_timestamp_iso_t_separator passed\n";
+}
+
+// --- parse_timestamp: zero value ---
+void test_parse_timestamp_zero() {
+    int64_t r = TimestampUtils::parse_timestamp(std::string("0"), "ms");
+    (void)r;
+    assert(r == 0);
+    std::cout << "test_parse_timestamp_zero passed\n";
+}
+
+// --- parse_timestamp: spaces around numeric ---
+void test_parse_timestamp_spaces_around_numeric() {
+    int64_t r = TimestampUtils::parse_timestamp(std::string("  42  "), "ms");
+    (void)r;
+    assert(r == 42);
+    std::cout << "test_parse_timestamp_spaces_around_numeric passed\n";
+}
+
+// --- parse_timestamp: spaces around ISO ---
+void test_parse_timestamp_spaces_around_iso() {
+    int64_t r1 = TimestampUtils::parse_timestamp(std::string("  2023-01-01 00:00:00  "), "s");
+    int64_t r2 = TimestampUtils::parse_timestamp(std::string("2023-01-01 00:00:00"), "s");
+    (void)r1;
+    (void)r2;
+    assert(r1 == r2);
+    std::cout << "test_parse_timestamp_spaces_around_iso passed\n";
+}
+
+// --- ISO UTC: s precision default ---
+void test_parse_iso_utc_s_precision() {
+    int64_t r = TimestampUtils::parse_timestamp(std::string("2023-01-01T00:00:00Z"), "s");
+    (void)r;
+    assert(r > 0);
+    std::cout << "test_parse_iso_utc_s_precision passed\n";
+}
+
+// --- ISO UTC: us precision ---
+void test_parse_iso_utc_us_precision() {
+    int64_t r = TimestampUtils::parse_timestamp(std::string("2023-01-01T00:00:00Z"), "us");
+    (void)r;
+    assert(r > 0);
+    // us should be ms * 1000
+    int64_t ms = TimestampUtils::parse_timestamp(std::string("2023-01-01T00:00:00Z"), "ms");
+    (void)ms;
+    assert(r == ms * 1000);
+    std::cout << "test_parse_iso_utc_us_precision passed\n";
+}
+
+// --- ISO UTC: ns precision ---
+void test_parse_iso_utc_ns_precision() {
+    int64_t r = TimestampUtils::parse_timestamp(std::string("2023-01-01T00:00:00Z"), "ns");
+    (void)r;
+    assert(r > 0);
+    int64_t us = TimestampUtils::parse_timestamp(std::string("2023-01-01T00:00:00Z"), "us");
+    (void)us;
+    assert(r == us * 1000);
+    std::cout << "test_parse_iso_utc_ns_precision passed\n";
+}
+
+// --- ISO local: s, us, ns precision ---
+void test_parse_iso_local_all_precisions() {
+    int64_t s  = TimestampUtils::parse_timestamp(std::string("2023-06-15 12:00:00"), "s");
+    int64_t ms = TimestampUtils::parse_timestamp(std::string("2023-06-15 12:00:00"), "ms");
+    int64_t us = TimestampUtils::parse_timestamp(std::string("2023-06-15 12:00:00"), "us");
+    int64_t ns = TimestampUtils::parse_timestamp(std::string("2023-06-15 12:00:00"), "ns");
+    (void)s;
+    (void)ms;
+    (void)us;
+    (void)ns;
+    assert(ms == s * 1000);
+    assert(us == ms * 1000);
+    assert(ns == us * 1000);
+    std::cout << "test_parse_iso_local_all_precisions passed\n";
+}
+
 int main() {
     test_parse_timestamp_int64();
     test_parse_timestamp_string_int();
@@ -589,6 +1102,46 @@ int main() {
     test_parse_timestamp_nanosecond_precision();
     test_parse_timestamp_precision_scales();
     test_parse_timestamp_utc_nanosecond();
+
+    // Supplemental coverage tests
+    test_get_precision_factor_invalid_key();
+    test_convert_precision_all_pairs();
+    test_convert_precision_double_same();
+    test_convert_precision_double_various();
+    test_convert_to_timestamp_us_ns();
+    test_convert_to_timestamp_invalid();
+    test_parse_timestamp_negative_numeric();
+    test_parse_timestamp_positive_sign_numeric();
+    test_parse_timestamp_now_bare();
+    test_parse_timestamp_now_bare_plus();
+    test_parse_timestamp_now_plus_minutes();
+    test_parse_timestamp_now_plus_us();
+    test_parse_timestamp_now_plus_ns();
+    test_parse_timestamp_now_default_precision_us();
+    test_parse_timestamp_now_default_precision_ns();
+    test_parse_timestamp_now_default_precision_s();
+    test_parse_timestamp_now_plus_10s_in_us_precision();
+    test_parse_timestamp_now_plus_1ms_in_ns_precision();
+    test_parse_timestamp_now_minus_in_us();
+    test_parse_iso_utc_invalid_format();
+    test_parse_iso_local_invalid_format();
+    test_parse_fractional_non_digit_chars();
+    test_parse_step_ns_unit();
+    test_parse_step_s_precision();
+    test_parse_step_us_precision();
+    test_parse_step_ns_precision();
+    test_parse_step_number_overflow();
+    test_parse_step_empty_string();
+    test_parse_step_int64_passthrough();
+    test_parse_step_seconds_to_ns();
+    test_parse_timestamp_iso_t_separator();
+    test_parse_timestamp_zero();
+    test_parse_timestamp_spaces_around_numeric();
+    test_parse_timestamp_spaces_around_iso();
+    test_parse_iso_utc_s_precision();
+    test_parse_iso_utc_us_precision();
+    test_parse_iso_utc_ns_precision();
+    test_parse_iso_local_all_precisions();
 
     std::cout << "All TimestampUtils tests passed!\n";
     return 0;

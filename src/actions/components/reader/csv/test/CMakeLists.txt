@@ -57,3 +57,23 @@ target_link_libraries(TestCSVDataManager
     reader_csv
 )
 add_test(NAME TestCSVDataManager COMMAND TestCSVDataManager)
+
+# Test StreamingCSVRowSource
+add_executable(TestStreamingCSVRowSource
+  TestStreamingCSVRowSource.cpp
+)
+target_link_libraries(TestStreamingCSVRowSource
+  PRIVATE
+    reader_csv
+)
+add_test(NAME TestStreamingCSVRowSource COMMAND TestStreamingCSVRowSource)
+
+# Test PreloadCSVRowSource
+add_executable(TestPreloadCSVRowSource
+  TestPreloadCSVRowSource.cpp
+)
+target_link_libraries(TestPreloadCSVRowSource
+  PRIVATE
+    reader_csv
+)
+add_test(NAME TestPreloadCSVRowSource COMMAND TestPreloadCSVRowSource)
