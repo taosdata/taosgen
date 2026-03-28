@@ -443,6 +443,7 @@ void test_csv_streaming_shared_source() {
         total += block.value()->total_rows;
         block.value()->release();
     }
+    (void)total;
     assert(total > 0 && "Should generate rows from CSV streaming source");
     assert(manager.get_total_rows_generated() == total);
 
@@ -496,6 +497,7 @@ void test_csv_streaming_with_empty_delimiter() {
         total += block.value()->total_rows;
         block.value()->release();
     }
+    (void)total;
     assert(total > 0 && "Should parse CSV with default comma delimiter");
 
     remove_csv_file(csv_path);
@@ -549,6 +551,7 @@ void test_csv_streaming_with_custom_delimiter() {
         total += block.value()->total_rows;
         block.value()->release();
     }
+    (void)total;
     assert(total == 3 && "Should generate 3 rows from semicolon-delimited CSV");
 
     remove_csv_file(csv_path);
@@ -578,6 +581,7 @@ void test_csv_streaming_not_triggered_for_generator_source() {
         total += block.value()->total_rows;
         block.value()->release();
     }
+    (void)total;
     assert(total == 3);
 
     std::cout << "test_csv_streaming_not_triggered_for_generator_source passed.\n";
@@ -631,6 +635,7 @@ void test_csv_streaming_not_triggered_for_preload_mode() {
         total += block.value()->total_rows;
         block.value()->release();
     }
+    (void)total;
     assert(total == 2);
 
     remove_csv_file(csv_path);
