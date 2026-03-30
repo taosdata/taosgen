@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstdio>
+#include <unordered_map>
 
 InsertDataConfig create_test_config() {
     InsertDataConfig config;
@@ -437,18 +438,168 @@ void test_csv_streaming_shared_source() {
 
     // Drain all data
     size_t total = 0;
+    std::unordered_map<std::string, std::vector<int32_t>> col1_by_table;
     while (manager.has_more()) {
         auto block = manager.next_multi_batch();
         if (!block.has_value()) break;
+
+        for (size_t table_idx = 0; table_idx < block.value()->used_tables; ++table_idx) {
+            auto& table_block = block.value()->tables[table_idx];
+            auto& values = col1_by_table[table_block.table_name];
+            for (size_t row_idx = 0; row_idx < table_block.used_rows; ++row_idx) {
+                values.push_back(std::get<int32_t>(table_block.get_column_cell(row_idx, 0)));
+            }
+        }
+
         total += block.value()->total_rows;
         block.value()->release();
     }
     (void)total;
     assert(total > 0 && "Should generate rows from CSV streaming source");
     assert(manager.get_total_rows_generated() == total);
+    assert(col1_by_table.size() == 2);
+    assert(col1_by_table["csv_t1"].size() == 5);
+    assert(col1_by_table["csv_t2"].size() == 5);
+    assert(col1_by_table["csv_t1"] == col1_by_table["csv_t2"]);
 
     remove_csv_file(csv_path);
     std::cout << "test_csv_streaming_shared_source passed.\n";
+}
+
+void test_csv_streaming_shared_source_interlace_2() {
+    const std::string csv_path = "tdm_csv_stream_interlace2.csv";
+    create_csv_file(csv_path,
+        "col1,col2\n"
+        "10,0.1\n"
+        "20,0.2\n"
+        "30,0.3\n"
+        "40,0.4\n"
+        "50,0.5\n"
+        "60,0.6\n");
+
+    InsertDataConfig config;
+    config.schema.columns_cfg.source_type = "csv";
+    config.schema.columns_cfg.csv.enabled = true;
+    config.schema.columns_cfg.csv.loading_mode = "streaming";
+    config.schema.columns_cfg.csv.file_path = csv_path;
+    config.schema.columns_cfg.csv.has_header = true;
+    config.schema.columns_cfg.csv.delimiter = ",";
+    config.schema.columns_cfg.csv.repeat_read = false;
+    config.schema.columns_cfg.csv.schema = {
+        {"col1", "INT"},
+        {"col2", "FLOAT"}
+    };
+    config.schema.columns_cfg.csv.timestamp_strategy.strategy_type = "generator";
+    config.schema.columns_cfg.csv.timestamp_strategy.generator.timestamp_precision = "ms";
+    config.schema.columns_cfg.csv.timestamp_strategy.generator.start_timestamp = Timestamp{1000};
+    config.schema.columns_cfg.csv.timestamp_strategy.generator.timestamp_step = 10;
+
+    config.schema.generation.interlace_mode.enabled = true;
+    config.schema.generation.interlace_mode.rows = 2;
+    config.schema.generation.rows_per_table = 4;
+    config.schema.generation.rows_per_batch = 100;
+    config.timestamp_precision = "ms";
+    config.data_format.support_tags = false;
+
+    auto col_inst = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.csv.schema);
+    auto tag_inst = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.generator.schema);
+    MemoryPool pool(1, 2, 4, col_inst, tag_inst);
+    TableDataManager manager(pool, config, col_inst, tag_inst);
+
+    bool ok = manager.init({"csv_i2_t1", "csv_i2_t2"});
+    (void)ok;
+    assert(ok);
+
+    std::unordered_map<std::string, std::vector<int32_t>> col1_by_table;
+    while (manager.has_more()) {
+        auto block = manager.next_multi_batch();
+        if (!block.has_value()) break;
+
+        for (size_t table_idx = 0; table_idx < block.value()->used_tables; ++table_idx) {
+            auto& table_block = block.value()->tables[table_idx];
+            auto& values = col1_by_table[table_block.table_name];
+            for (size_t row_idx = 0; row_idx < table_block.used_rows; ++row_idx) {
+                values.push_back(std::get<int32_t>(table_block.get_column_cell(row_idx, 0)));
+            }
+        }
+
+        block.value()->release();
+    }
+
+    assert(col1_by_table.size() == 2);
+    assert(col1_by_table["csv_i2_t1"].size() == 4);
+    assert(col1_by_table["csv_i2_t2"].size() == 4);
+    assert(col1_by_table["csv_i2_t1"] == col1_by_table["csv_i2_t2"]);
+    assert((col1_by_table["csv_i2_t1"] == std::vector<int32_t>{10, 20, 30, 40}));
+
+    remove_csv_file(csv_path);
+    std::cout << "test_csv_streaming_shared_source_interlace_2 passed.\n";
+}
+
+void test_csv_streaming_shared_source_interlace_2_repeat_read() {
+    const std::string csv_path = "tdm_csv_stream_interlace2_repeat.csv";
+    create_csv_file(csv_path,
+        "col1,col2\n"
+        "10,0.1\n"
+        "20,0.2\n");
+
+    InsertDataConfig config;
+    config.schema.columns_cfg.source_type = "csv";
+    config.schema.columns_cfg.csv.enabled = true;
+    config.schema.columns_cfg.csv.loading_mode = "streaming";
+    config.schema.columns_cfg.csv.file_path = csv_path;
+    config.schema.columns_cfg.csv.has_header = true;
+    config.schema.columns_cfg.csv.delimiter = ",";
+    config.schema.columns_cfg.csv.repeat_read = true;
+    config.schema.columns_cfg.csv.schema = {
+        {"col1", "INT"},
+        {"col2", "FLOAT"}
+    };
+    config.schema.columns_cfg.csv.timestamp_strategy.strategy_type = "generator";
+    config.schema.columns_cfg.csv.timestamp_strategy.generator.timestamp_precision = "ms";
+    config.schema.columns_cfg.csv.timestamp_strategy.generator.start_timestamp = Timestamp{2000};
+    config.schema.columns_cfg.csv.timestamp_strategy.generator.timestamp_step = 10;
+
+    config.schema.generation.interlace_mode.enabled = true;
+    config.schema.generation.interlace_mode.rows = 2;
+    config.schema.generation.rows_per_table = 4;
+    config.schema.generation.rows_per_batch = 100;
+    config.timestamp_precision = "ms";
+    config.data_format.support_tags = false;
+
+    auto col_inst = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.csv.schema);
+    auto tag_inst = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.generator.schema);
+    MemoryPool pool(1, 2, 4, col_inst, tag_inst);
+    TableDataManager manager(pool, config, col_inst, tag_inst);
+
+    bool ok = manager.init({"csv_i2_rr_t1", "csv_i2_rr_t2"});
+    (void)ok;
+    assert(ok);
+
+    std::unordered_map<std::string, std::vector<int32_t>> col1_by_table;
+    while (manager.has_more()) {
+        auto block = manager.next_multi_batch();
+        if (!block.has_value()) break;
+
+        for (size_t table_idx = 0; table_idx < block.value()->used_tables; ++table_idx) {
+            auto& table_block = block.value()->tables[table_idx];
+            auto& values = col1_by_table[table_block.table_name];
+            for (size_t row_idx = 0; row_idx < table_block.used_rows; ++row_idx) {
+                values.push_back(std::get<int32_t>(table_block.get_column_cell(row_idx, 0)));
+            }
+        }
+
+        block.value()->release();
+    }
+
+    assert(col1_by_table.size() == 2);
+    assert(col1_by_table["csv_i2_rr_t1"].size() == 4);
+    assert(col1_by_table["csv_i2_rr_t2"].size() == 4);
+    assert(col1_by_table["csv_i2_rr_t1"] == col1_by_table["csv_i2_rr_t2"]);
+    assert((col1_by_table["csv_i2_rr_t1"] == std::vector<int32_t>{10, 20, 10, 20}));
+
+    remove_csv_file(csv_path);
+    std::cout << "test_csv_streaming_shared_source_interlace_2_repeat_read passed.\n";
 }
 
 void test_csv_streaming_with_empty_delimiter() {
@@ -657,6 +808,8 @@ int main() {
 
     // CSV streaming shared source path
     test_csv_streaming_shared_source();
+    test_csv_streaming_shared_source_interlace_2();
+    test_csv_streaming_shared_source_interlace_2_repeat_read();
     test_csv_streaming_with_empty_delimiter();
     test_csv_streaming_with_custom_delimiter();
     test_csv_streaming_not_triggered_for_generator_source();
