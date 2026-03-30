@@ -602,6 +602,151 @@ void test_csv_streaming_shared_source_interlace_2_repeat_read() {
     std::cout << "test_csv_streaming_shared_source_interlace_2_repeat_read passed.\n";
 }
 
+void test_csv_streaming_shared_source_reset_rewinds_all_cursors() {
+    const std::string csv_path = "tdm_csv_stream_reset_rewind.csv";
+    create_csv_file(csv_path,
+        "col1,col2\n"
+        "10,0.1\n"
+        "20,0.2\n"
+        "30,0.3\n");
+
+    InsertDataConfig config;
+    config.schema.columns_cfg.source_type = "csv";
+    config.schema.columns_cfg.csv.enabled = true;
+    config.schema.columns_cfg.csv.loading_mode = "streaming";
+    config.schema.columns_cfg.csv.file_path = csv_path;
+    config.schema.columns_cfg.csv.has_header = true;
+    config.schema.columns_cfg.csv.delimiter = ",";
+    config.schema.columns_cfg.csv.repeat_read = false;
+    config.schema.columns_cfg.csv.tbname_index = -1;
+    config.schema.columns_cfg.csv.schema = {
+        {"col1", "INT"},
+        {"col2", "FLOAT"}
+    };
+    config.schema.columns_cfg.csv.timestamp_strategy.strategy_type = "generator";
+    config.schema.columns_cfg.csv.timestamp_strategy.generator.timestamp_precision = "ms";
+    config.schema.columns_cfg.csv.timestamp_strategy.generator.start_timestamp = Timestamp{1000};
+    config.schema.columns_cfg.csv.timestamp_strategy.generator.timestamp_step = 1;
+
+    config.schema.generation.interlace_mode.enabled = true;
+    config.schema.generation.interlace_mode.rows = 1;
+    config.schema.generation.rows_per_table = 3;
+    config.schema.generation.rows_per_batch = 10;
+    config.timestamp_precision = "ms";
+    config.data_format.support_tags = false;
+
+    auto col_inst = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.csv.schema);
+    auto tag_inst = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.generator.schema);
+    MemoryPool pool(1, 2, 3, col_inst, tag_inst);
+    TableDataManager manager(pool, config, col_inst, tag_inst);
+
+    bool ok = manager.init({"csv_reset_t1", "csv_reset_t2"});
+    (void)ok;
+    assert(ok);
+
+    const auto& states = manager.table_states();
+    assert(states.size() == 2);
+
+    auto row_t1_a = states[0].generator->next_row();
+    auto row_t2_a = states[1].generator->next_row();
+    assert(row_t1_a.has_value());
+    assert(row_t2_a.has_value());
+    assert(std::get<int32_t>(row_t1_a->columns[0]) == 10);
+    assert(std::get<int32_t>(row_t2_a->columns[0]) == 10);
+
+    auto row_t1_b = states[0].generator->next_row();
+    auto row_t2_b = states[1].generator->next_row();
+    assert(row_t1_b.has_value());
+    assert(row_t2_b.has_value());
+    assert(std::get<int32_t>(row_t1_b->columns[0]) == 20);
+    assert(std::get<int32_t>(row_t2_b->columns[0]) == 20);
+
+    // Reset one cursor source should rewind the shared coordinator for all cursors.
+    states[0].generator->reset();
+
+    auto row_t1_after_reset = states[0].generator->next_row();
+    auto row_t2_after_reset = states[1].generator->next_row();
+    assert(row_t1_after_reset.has_value());
+    assert(row_t2_after_reset.has_value());
+    assert(std::get<int32_t>(row_t1_after_reset->columns[0]) == 10);
+    assert(std::get<int32_t>(row_t2_after_reset->columns[0]) == 10);
+
+    remove_csv_file(csv_path);
+    std::cout << "test_csv_streaming_shared_source_reset_rewinds_all_cursors passed.\n";
+}
+
+void test_csv_streaming_shared_source_reset_after_exhaustion() {
+    const std::string csv_path = "tdm_csv_stream_reset_after_eof.csv";
+    create_csv_file(csv_path,
+        "col1,col2\n"
+        "10,0.1\n"
+        "20,0.2\n");
+
+    InsertDataConfig config;
+    config.schema.columns_cfg.source_type = "csv";
+    config.schema.columns_cfg.csv.enabled = true;
+    config.schema.columns_cfg.csv.loading_mode = "streaming";
+    config.schema.columns_cfg.csv.file_path = csv_path;
+    config.schema.columns_cfg.csv.has_header = true;
+    config.schema.columns_cfg.csv.delimiter = ",";
+    config.schema.columns_cfg.csv.repeat_read = false;
+    config.schema.columns_cfg.csv.tbname_index = -1;
+    config.schema.columns_cfg.csv.schema = {
+        {"col1", "INT"},
+        {"col2", "FLOAT"}
+    };
+    config.schema.columns_cfg.csv.timestamp_strategy.strategy_type = "generator";
+    config.schema.columns_cfg.csv.timestamp_strategy.generator.timestamp_precision = "ms";
+    config.schema.columns_cfg.csv.timestamp_strategy.generator.start_timestamp = Timestamp{1000};
+    config.schema.columns_cfg.csv.timestamp_strategy.generator.timestamp_step = 1;
+
+    config.schema.generation.interlace_mode.enabled = true;
+    config.schema.generation.interlace_mode.rows = 1;
+    config.schema.generation.rows_per_table = 2;
+    config.schema.generation.rows_per_batch = 10;
+    config.timestamp_precision = "ms";
+    config.data_format.support_tags = false;
+
+    auto col_inst = ColumnConfigInstanceFactory::create(config.schema.columns_cfg.csv.schema);
+    auto tag_inst = ColumnConfigInstanceFactory::create(config.schema.tags_cfg.generator.schema);
+    MemoryPool pool(1, 2, 2, col_inst, tag_inst);
+    TableDataManager manager(pool, config, col_inst, tag_inst);
+
+    bool ok = manager.init({"csv_eof_t1", "csv_eof_t2"});
+    (void)ok;
+    assert(ok);
+
+    const auto& states = manager.table_states();
+    assert(states.size() == 2);
+
+    // Drain both cursors to EOF.
+    for (int i = 0; i < 2; ++i) {
+        auto r1 = states[0].generator->next_row();
+        auto r2 = states[1].generator->next_row();
+        assert(r1.has_value());
+        assert(r2.has_value());
+    }
+    assert(!states[0].generator->next_row().has_value());
+    assert(!states[1].generator->next_row().has_value());
+    assert(!states[0].generator->has_more());
+    assert(!states[1].generator->has_more());
+
+    // Reset on one cursor should rewind shared source and both cursors.
+    states[1].generator->reset();
+
+    auto r1_after_reset = states[0].generator->next_row();
+    auto r2_after_reset = states[1].generator->next_row();
+    (void)r1_after_reset;
+    (void)r2_after_reset;
+    assert(r1_after_reset.has_value());
+    assert(r2_after_reset.has_value());
+    assert(std::get<int32_t>(r1_after_reset->columns[0]) == 10);
+    assert(std::get<int32_t>(r2_after_reset->columns[0]) == 10);
+
+    remove_csv_file(csv_path);
+    std::cout << "test_csv_streaming_shared_source_reset_after_exhaustion passed.\n";
+}
+
 void test_csv_streaming_with_empty_delimiter() {
     // Verify the empty-delimiter fallback: delimiter.empty() ? ',' : delimiter[0]
     const std::string csv_path = "tdm_csv_delim.csv";
@@ -810,6 +955,8 @@ int main() {
     test_csv_streaming_shared_source();
     test_csv_streaming_shared_source_interlace_2();
     test_csv_streaming_shared_source_interlace_2_repeat_read();
+    test_csv_streaming_shared_source_reset_rewinds_all_cursors();
+    test_csv_streaming_shared_source_reset_after_exhaustion();
     test_csv_streaming_with_empty_delimiter();
     test_csv_streaming_with_custom_delimiter();
     test_csv_streaming_not_triggered_for_generator_source();
