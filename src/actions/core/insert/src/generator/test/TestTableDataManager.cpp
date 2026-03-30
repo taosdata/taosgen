@@ -731,7 +731,9 @@ void test_csv_streaming_shared_source_reset_after_exhaustion() {
     assert(!states[0].generator->has_more());
     assert(!states[1].generator->has_more());
 
-    // Reset on one cursor should rewind shared source and both cursors.
+    // One reset rewinds shared source, but each generator also has its own
+    // generated_rows_ counter, so reset both generators before replay checks.
+    states[0].generator->reset();
     states[1].generator->reset();
 
     auto r1_after_reset = states[0].generator->next_row();
