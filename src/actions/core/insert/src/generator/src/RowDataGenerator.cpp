@@ -336,6 +336,8 @@ void RowDataGenerator::reset() {
     generated_rows_ = 0;
     current_timestamp_ = 0;
     source_exhausted_ = false;
+    cache_.clear();
+    decltype(delay_queue_)().swap(delay_queue_);
     if (timestamp_generator_) {
         timestamp_generator_->reset();
     }

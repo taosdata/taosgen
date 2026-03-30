@@ -172,17 +172,20 @@ private:
                     shared_rows_cache_.emplace(cache_key, rows);
                     result = rows;
                 }
+
+                // Keep inflight marker until the shared future is fulfilled.
+                build_promise->set_value(result);
                 shared_rows_inflight_.erase(cache_key);
             }
-
-            build_promise->set_value(result);
             return result;
         } catch (...) {
             {
                 std::lock_guard<std::mutex> lock(shared_rows_mutex_);
+
+                // Keep inflight marker until the shared future is fulfilled.
+                build_promise->set_exception(std::current_exception());
                 shared_rows_inflight_.erase(cache_key);
             }
-            build_promise->set_exception(std::current_exception());
             throw;
         }
     }
