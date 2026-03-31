@@ -853,6 +853,7 @@ void test_csv_row_too_few_columns_throws() {
         threw = (msg.find("column count mismatch") != std::string::npos);
     }
 
+    (void)threw;
     assert(threw && "Too-few streamed columns should throw");
     remove_test_file(filename);
     std::cout << "test_csv_row_too_few_columns_throws passed\n";
@@ -889,6 +890,7 @@ void test_csv_row_too_many_columns_throws() {
         threw = (msg.find("column count mismatch") != std::string::npos);
     }
 
+    (void)threw;
     assert(threw && "Too-many streamed columns should throw");
     remove_test_file(filename);
     std::cout << "test_csv_row_too_many_columns_throws passed\n";
