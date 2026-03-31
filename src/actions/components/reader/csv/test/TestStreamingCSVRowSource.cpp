@@ -822,6 +822,78 @@ void test_custom_delimiter() {
     std::cout << "test_custom_delimiter passed\n";
 }
 
+void test_csv_row_too_few_columns_throws() {
+    const std::string filename = "streaming_row_too_few.csv";
+    create_test_file(filename,
+        "1000,10\n");
+
+    ColumnConfigVector col_configs = {
+        {"v1", "int"},
+        {"v2", "int"}
+    };
+    auto instances = ColumnConfigInstanceFactory::create(col_configs);
+
+    TimestampStrategy ts;
+    ts.strategy_type = "csv";
+    ts.csv.enabled = true;
+    ts.csv.timestamp_index = 0;
+    ts.csv.timestamp_precision = "ms";
+
+    StreamingCSVRowSource source(
+        {filename}, /*has_header=*/false, /*delimiter=*/',',
+        instances, ts, "ms", "ms", /*repeat_read=*/false);
+
+    bool threw = false;
+    try {
+        auto row = source.next();
+        (void)row;
+    } catch (const std::runtime_error& e) {
+        std::string msg = e.what();
+        (void)msg;
+        threw = (msg.find("column count mismatch") != std::string::npos);
+    }
+
+    assert(threw && "Too-few streamed columns should throw");
+    remove_test_file(filename);
+    std::cout << "test_csv_row_too_few_columns_throws passed\n";
+}
+
+void test_csv_row_too_many_columns_throws() {
+    const std::string filename = "streaming_row_too_many.csv";
+    create_test_file(filename,
+        "1000,10,20,30\n");
+
+    ColumnConfigVector col_configs = {
+        {"v1", "int"},
+        {"v2", "int"}
+    };
+    auto instances = ColumnConfigInstanceFactory::create(col_configs);
+
+    TimestampStrategy ts;
+    ts.strategy_type = "csv";
+    ts.csv.enabled = true;
+    ts.csv.timestamp_index = 0;
+    ts.csv.timestamp_precision = "ms";
+
+    StreamingCSVRowSource source(
+        {filename}, /*has_header=*/false, /*delimiter=*/',',
+        instances, ts, "ms", "ms", /*repeat_read=*/false);
+
+    bool threw = false;
+    try {
+        auto row = source.next();
+        (void)row;
+    } catch (const std::runtime_error& e) {
+        std::string msg = e.what();
+        (void)msg;
+        threw = (msg.find("column count mismatch") != std::string::npos);
+    }
+
+    assert(threw && "Too-many streamed columns should throw");
+    remove_test_file(filename);
+    std::cout << "test_csv_row_too_many_columns_throws passed\n";
+}
+
 
 int main() {
     test_basic_csv_with_generator_timestamp();
@@ -843,6 +915,8 @@ int main() {
     test_csv_without_header();
     test_various_column_types();
     test_custom_delimiter();
+    test_csv_row_too_few_columns_throws();
+    test_csv_row_too_many_columns_throws();
 
     std::cout << "All StreamingCSVRowSource tests passed!\n";
     return 0;

@@ -138,6 +138,24 @@ RowData StreamingCSVRowSource::convert_row(const CSVRow& raw_row) {
         }
     }
 
+    size_t actual_columns = raw_row.size();
+    if (timestamp_index) {
+        size_t ts_idx = *timestamp_index;
+        if (ts_idx >= raw_row.size()) {
+            throw std::runtime_error(
+                "CSV timestamp index out of range: index=" + std::to_string(ts_idx)
+                + ", row_columns=" + std::to_string(raw_row.size()));
+        }
+        actual_columns -= 1;
+    }
+
+    if (actual_columns != instances_.size()) {
+        throw std::runtime_error(
+            "CSV row column count mismatch: expected " + std::to_string(instances_.size())
+            + ", got " + std::to_string(actual_columns)
+            + " (excluding timestamp column)");
+    }
+
     // Convert columns (skip timestamp column)
     row.columns.reserve(instances_.size());
     size_t instance_idx = 0;
