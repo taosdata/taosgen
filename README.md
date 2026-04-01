@@ -55,53 +55,19 @@ Currently, `taosgen` supports Linux, macOS and Windows systems.
 ```mermaid
 flowchart TB
   U["CLI User"] --> M["taosgen main"]
-  M --> PC["ParameterContext"]
-  M --> RH["register_plugin_hooks()"]
-  M --> JS["JobScheduler"]
+  M --> CFG["Config Build<br/>(CLI / ENV / YAML)"]
+  M --> REG["Plugin Registries"]
+  M --> SCH["JobScheduler<br/>(DAG + Workers)"]
 
-  subgraph CFG["Config Build"]
-    CLI["CLI args"] --> PC
-    ENV["Environment vars"] --> PC
-    YAML["YAML config"] --> PC
-    PC --> CP["ConfigParser"]
-    CP --> PCR
-    PC --> CD["ConfigData"]
-  end
+  CFG --> SCH
+  REG --> AFR["ActionFactory"]
+  SCH --> AFR
 
-  subgraph REG["Runtime Registries"]
-    PCR["PluginConfigRegistry"]
-    SPR["StepParserRegistry"]
-    SPF["SinkPluginFactory"]
-  end
+  AFR --> DDL["Create*Action"]
+  AFR --> A4["InsertDataAction"]
+  AFR -. WIP .-> QS["Query / Subscribe"]
 
-  RH --> PCR
-  RH --> SPR
-  RH --> SPF
-
-  CD --> JS
-
-  subgraph SCH["Scheduler"]
-    JS --> DAG["JobDAG"]
-    JS --> RQ["ready-job queue"]
-    JS --> SS["StepStrategy"]
-  end
-
-  RH --> AFR["ActionFactory"]
-  SS --> AFR
-
-  subgraph ACT["Action Layer"]
-    A1["CreateDatabaseAction"]
-    A2["CreateSuperTableAction"]
-    A3["CreateChildTableAction"]
-    A4["InsertDataAction"]
-    A5["QueryDataAction"]
-    A6["SubscribeDataAction"]
-  end
-
-  AFR --> A1 & A2 & A3 & A4
-  AFR -. WIP .-> A5 & A6
-
-  A1 & A2 & A3 -->|DDL| TD[("TDengine")]
+  DDL -->|SQL| TD[("TDengine")]
   A4 -->|"see §2.2"| INS["Insert Pipeline"]
   INS --> TD
   INS --> MQ[("MQTT Broker")]
@@ -117,7 +83,7 @@ flowchart TB
   SPF --> KFSP["KafkaSinkPlugin"]
 
   A4 --> TN["TableNameManager"]
-  A4 --> TM["TableDataManager + RowDataGenerator"]
+  A4 --> TM["TableDataManager<br/>+ RowDataGenerator"]
   TM --> MP["MemoryPool"]
 
   A4 --> P["Producer threads<br/>(generate + format)"]
