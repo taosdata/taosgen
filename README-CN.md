@@ -55,24 +55,11 @@
 flowchart TB
   %% ========== Entry ==========
   U["CLI User"] --> M["taosgen main"]
-  M --> RH["register_plugin_hooks()"]
   M --> PC["ParameterContext"]
+  M --> RH["register_plugin_hooks()"]
   M --> JS["JobScheduler"]
 
-  %% ========== Registries ==========
-  subgraph REG["Runtime Registries"]
-    PCR["PluginConfigRegistry<br/>plugin config + decode + merge hooks"]
-    SPR["StepParserRegistry<br/>uses -> parser"]
-    AFR["ActionFactory<br/>uses -> Action"]
-    SPF["SinkPluginFactory<br/>target -> SinkPlugin"]
-  end
-
-  RH --> PCR
-  RH --> SPR
-  RH --> AFR
-  RH --> SPF
-
-  %% ========== Config ==========
+  %% ========== Config (left branch) ==========
   subgraph CFG["Config Build"]
     CLI["CLI args"] --> PC
     ENV["Environment vars"] --> PC
@@ -82,15 +69,29 @@ flowchart TB
     PC --> CD["ConfigData<br/>Global + Jobs + Steps"]
   end
 
-  CD --> JS
+  %% ========== Registries ==========
+  subgraph REG["Runtime Registries"]
+    PCR["PluginConfigRegistry<br/>plugin config + decode + merge hooks"]
+    SPR["StepParserRegistry<br/>uses -> parser"]
+    SPF["SinkPluginFactory<br/>target -> SinkPlugin"]
+  end
+
+  RH --> PCR
+  RH --> SPR
+  RH --> SPF
 
   %% ========== Scheduling ==========
+  CD --> JS
+
   subgraph SCH["Scheduler / DAG / Workers"]
     JS --> DAG["JobDAG"]
     JS --> RQ["ready-job queue"]
     JS --> SS["ProductionStepStrategy"]
-    SS --> AFR
   end
+
+  %% ========== Action dispatch (bridge) ==========
+  RH --> AFR["ActionFactory<br/>uses -> Action"]
+  SS --> AFR
 
   %% ========== Action Layer ==========
   subgraph ACT["Action Layer"]
@@ -109,7 +110,7 @@ flowchart TB
   AFR -. WIP .-> A5
   AFR -. WIP .-> A6
 
-  %% ========== DDL Path ==========
+  %% ========== DDL Path (left execution branch) ==========
   subgraph DDL["DDL Execution Path"]
     FF["FormatterFactory"]
     SQL["SQL statements"]
@@ -129,7 +130,7 @@ flowchart TB
   NC --> TD
   WC --> TD
 
-  %% ========== Insert Pipeline ==========
+  %% ========== Insert Pipeline (right execution branch) ==========
   subgraph INS["InsertDataAction Data Pipeline"]
     A4 --> SPF
     SPF --> TDSP["TDengineSinkPlugin"]
