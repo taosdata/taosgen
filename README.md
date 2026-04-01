@@ -17,8 +17,9 @@
 ## Table of Contents
 - [1. Introduction](#1-introduction)
 - [2. Architecture](#2-architecture)
-  - [2.1 System Architecture](#21-system-architecture)
-  - [2.2 Data Flow](#22-data-flow)
+  - [2.1 System Overview](#21-system-overview)
+  - [2.2 Insert Pipeline](#22-insert-pipeline)
+  - [2.3 Data Flow](#23-data-flow)
 - [3. Documentation](#3-documentation)
 - [4. AI Agent Integration](#4-ai-agent-integration)
 - [5. Prerequisites](#5-prerequisites)
@@ -50,50 +51,44 @@ Currently, `taosgen` supports Linux, macOS and Windows systems.
 
 ## 2. Architecture
 
-### 2.1 System Architecture
+### 2.1 System Overview
 ```mermaid
 flowchart TB
-  %% ========== Entry ==========
   U["CLI User"] --> M["taosgen main"]
   M --> PC["ParameterContext"]
   M --> RH["register_plugin_hooks()"]
   M --> JS["JobScheduler"]
 
-  %% ========== Config (left branch) ==========
   subgraph CFG["Config Build"]
     CLI["CLI args"] --> PC
     ENV["Environment vars"] --> PC
     YAML["YAML config"] --> PC
     PC --> CP["ConfigParser"]
     CP --> PCR
-    PC --> CD["ConfigData<br/>Global + Jobs + Steps"]
+    PC --> CD["ConfigData"]
   end
 
-  %% ========== Registries ==========
   subgraph REG["Runtime Registries"]
-    PCR["PluginConfigRegistry<br/>plugin config + decode + merge hooks"]
-    SPR["StepParserRegistry<br/>uses -> parser"]
-    SPF["SinkPluginFactory<br/>target -> SinkPlugin"]
+    PCR["PluginConfigRegistry"]
+    SPR["StepParserRegistry"]
+    SPF["SinkPluginFactory"]
   end
 
   RH --> PCR
   RH --> SPR
   RH --> SPF
 
-  %% ========== Scheduling ==========
   CD --> JS
 
-  subgraph SCH["Scheduler / DAG / Workers"]
+  subgraph SCH["Scheduler"]
     JS --> DAG["JobDAG"]
     JS --> RQ["ready-job queue"]
-    JS --> SS["ProductionStepStrategy"]
+    JS --> SS["StepStrategy"]
   end
 
-  %% ========== Action dispatch (bridge) ==========
-  RH --> AFR["ActionFactory<br/>uses -> Action"]
+  RH --> AFR["ActionFactory"]
   SS --> AFR
 
-  %% ========== Action Layer ==========
   subgraph ACT["Action Layer"]
     A1["CreateDatabaseAction"]
     A2["CreateSuperTableAction"]
@@ -103,64 +98,44 @@ flowchart TB
     A6["SubscribeDataAction"]
   end
 
-  AFR --> A1
-  AFR --> A2
-  AFR --> A3
-  AFR --> A4
-  AFR -. WIP .-> A5
-  AFR -. WIP .-> A6
+  AFR --> A1 & A2 & A3 & A4
+  AFR -. WIP .-> A5 & A6
 
-  %% ========== DDL Path (left execution branch) ==========
-  subgraph DDL["DDL Execution Path"]
-    FF["FormatterFactory"]
-    SQL["SQL statements"]
-    CF["ConnectorFactory"]
-    NC["NativeConnector"]
-    WC["WebsocketConnector"]
-    TD[("TDengine")]
-  end
+  A1 & A2 & A3 -->|DDL| TD[("TDengine")]
+  A4 -->|"see §2.2"| INS["Insert Pipeline"]
+  INS --> TD
+  INS --> MQ[("MQTT Broker")]
+  INS --> KF[("Kafka Cluster")]
+```
 
-  A1 --> FF
-  A2 --> FF
-  A3 --> FF
-  FF --> SQL
-  SQL --> CF
-  CF --> NC
-  CF --> WC
-  NC --> TD
-  WC --> TD
+### 2.2 Insert Pipeline
+```mermaid
+flowchart TB
+  A4["InsertDataAction"] --> SPF["SinkPluginFactory"]
+  SPF --> TDSP["TDengineSinkPlugin"]
+  SPF --> MQSP["MqttSinkPlugin"]
+  SPF --> KFSP["KafkaSinkPlugin"]
 
-  %% ========== Insert Pipeline (right execution branch) ==========
-  subgraph INS["InsertDataAction Data Pipeline"]
-    A4 --> SPF
-    SPF --> TDSP["TDengineSinkPlugin"]
-    SPF --> MQSP["MqttSinkPlugin"]
-    SPF --> KFSP["KafkaSinkPlugin"]
+  A4 --> TN["TableNameManager"]
+  A4 --> TM["TableDataManager + RowDataGenerator"]
+  TM --> MP["MemoryPool"]
 
-    A4 --> TN["TableNameManager"]
-    A4 --> TM["TableDataManager<br/>+ RowDataGenerator"]
-    TM --> MP["MemoryPool"]
+  A4 --> P["Producer threads<br/>(generate + format)"]
+  P --> MP
+  P -->|"plugin.format(batch)"| DP["DataPipeline&lt;FormatResult&gt;<br/>(bounded queue)"]
 
-    A4 --> P["Producer threads<br/>(generate + format)"]
-    P --> MP
-    P -->|"plugin.format(batch)"| DP["DataPipeline&lt;FormatResult&gt;<br/>(bounded queue)"]
+  A4 --> C["Consumer threads<br/>(write formatted results)"]
+  DP --> C
+  C -->|"plugin.write(data)"| TDSP
+  C -->|"plugin.write(data)"| MQSP
+  C -->|"plugin.write(data)"| KFSP
 
-    A4 --> C["Consumer threads<br/>(write formatted results)"]
-    DP --> C
-    C -->|"plugin.write(data)"| TDSP
-    C -->|"plugin.write(data)"| MQSP
-    C -->|"plugin.write(data)"| KFSP
-  end
-
-  %% ========== Sink Targets ==========
-  TDSP --> TDCF["DatabaseConnector / Formatter"]
-  TDCF --> TD
-
+  TDSP --> TD[("TDengine")]
   MQSP --> MQ[("MQTT Broker")]
   KFSP --> KF[("Kafka Cluster")]
 ```
 
-### 2.2 Data Flow
+### 2.3 Data Flow
 
 ```mermaid
 sequenceDiagram
