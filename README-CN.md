@@ -106,8 +106,8 @@ flowchart TB
   AFR --> A2
   AFR --> A3
   AFR --> A4
-  AFR -. internal .-> A5
-  AFR -. internal .-> A6
+  AFR -. WIP .-> A5
+  AFR -. WIP .-> A6
 
   %% ========== DDL Path ==========
   subgraph DDL["DDL Execution Path"]
@@ -116,7 +116,6 @@ flowchart TB
     CF["ConnectorFactory"]
     NC["NativeConnector"]
     WC["WebsocketConnector"]
-    RC["RestfulConnector<br/>(not implemented)"]
     TD[("TDengine")]
   end
 
@@ -127,33 +126,29 @@ flowchart TB
   SQL --> CF
   CF --> NC
   CF --> WC
-  CF --> RC
   NC --> TD
   WC --> TD
-  RC --> TD
 
   %% ========== Insert Pipeline ==========
   subgraph INS["InsertDataAction Data Pipeline"]
-    A4 --> TN["TableNameManager"]
-    A4 --> TM["TableDataManager<br/>+ RowDataGenerator"]
-    TM --> MP["MemoryPool"]
-
-    A4 --> P["Producer threads"]
-    P --> MP
-    P --> DP["DataPipeline<br/>(bounded queue)"]
-
-    A4 --> C["Consumer threads"]
-    C --> DP
-    DP --> C
-
-    C --> SPF
+    A4 --> SPF
     SPF --> TDSP["TDengineSinkPlugin"]
     SPF --> MQSP["MqttSinkPlugin"]
     SPF --> KFSP["KafkaSinkPlugin"]
 
-    C --> TDSP
-    C --> MQSP
-    C --> KFSP
+    A4 --> TN["TableNameManager"]
+    A4 --> TM["TableDataManager<br/>+ RowDataGenerator"]
+    TM --> MP["MemoryPool"]
+
+    A4 --> P["Producer threads<br/>(generate + format)"]
+    P --> MP
+    P -->|"plugin.format(batch)"| DP["DataPipeline&lt;FormatResult&gt;<br/>(bounded queue)"]
+
+    A4 --> C["Consumer threads<br/>(write formatted results)"]
+    DP --> C
+    C -->|"plugin.write(data)"| TDSP
+    C -->|"plugin.write(data)"| MQSP
+    C -->|"plugin.write(data)"| KFSP
   end
 
   %% ========== Sink Targets ==========
@@ -208,23 +203,21 @@ sequenceDiagram
 
         par Producers
           IA->>P: start producer workers
-          loop produce blocks
-            P->>P: generate rows/table-batches
-            P->>DP: push MemoryBlock
+          loop produce batches
+            P->>P: generate rows / table-batches
+            P->>SP: format(batch) → FormatResult
+            P->>DP: push FormatResult
           end
           P->>DP: push EOF/sentinel
         and Consumers
           IA->>C: start consumer workers
-          loop consume blocks
-            C->>DP: pop/take MemoryBlock
-            DP-->>C: block or EOF
-            alt got data block
-              C->>SP: connect() if needed
-              C->>SP: prepare() if needed
-              C->>SP: format(block)
-              C->>SP: write(payload)
+          C->>SP: connect() + prepare()
+          loop consume results
+            C->>DP: fetch FormatResult
+            DP-->>C: FormatResult or EOF
+            alt got FormatResult
+              C->>SP: write(FormatResult)
               SP->>T: execute/publish/produce
-              C->>DP: release/ack block
             else got EOF
               C->>C: stop loop
             end
@@ -399,7 +392,7 @@ ctest --build-config Release --output-on-failure
 - 新增测试文件：在文件内编写测试用例和 `main` 函数，并在同目录下的 `CMakeLists.txt` 文件中，添加编译控制相关配置。
 
 ## 8. CI/CD
-- [Build Workflow](https://github.com/taosdata/tsgen/actions/workflows/build.yml)
+- [Build Workflow](https://github.com/taosdata/taosgen/actions/workflows/build.yml)
 - [Code Coverage](https://app.codecov.io/github/taosdata/taosgen)
 
 ## 9. 提交 Issue
