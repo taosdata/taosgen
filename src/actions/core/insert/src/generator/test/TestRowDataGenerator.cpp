@@ -310,14 +310,17 @@ void test_csv_mode_with_invalid_data() {
 
     auto instances = ColumnConfigInstanceFactory::create(config.schema.columns);
 
-    // 3. Verify that creating the generator throws an exception
-    try {
+    // 3. Verify numeric empty cell is treated as NULL (std::monostate)
+    {
         RowDataGenerator generator("table1", config, instances);
-        assert(false && "Expected an exception for invalid data in CSV");
-    } catch (const std::runtime_error& e) {
-        std::string error_message = e.what();
-        // Check for the error propagated from ColumnsCSVReader
-        assert(error_message.find("stoll") != std::string::npos || error_message.find("Failed to convert value") != std::string::npos);
+
+        auto row = generator.next_row();
+        assert(row);
+        assert(row->columns.size() == 2);
+        assert(std::holds_alternative<std::monostate>(row->columns[0]));
+        assert(std::get<std::string>(row->columns[1]) == "New York");
+        assert(!generator.next_row());
+        assert(!generator.has_more());
         std::cout << "test_csv_mode_with_invalid_data passed.\n";
     }
 
