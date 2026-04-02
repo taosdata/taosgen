@@ -11,6 +11,7 @@ namespace CsvNullUtils {
         }
         return StringUtils::iequals_ascii(trimmed, "null")
             || StringUtils::iequals_ascii(trimmed, "na")
-            || StringUtils::iequals_ascii(trimmed, "n/a");
+            || StringUtils::iequals_ascii(trimmed, "n/a")
+            || StringUtils::iequals_ascii(trimmed, "nan");
     }
 }

@@ -279,8 +279,8 @@ void test_csv_mode_basic() {
     std::cout << "test_csv_mode_basic passed.\n";
 }
 
-void test_csv_mode_with_invalid_data() {
-    // 1. Setup a CSV file with invalid data
+void test_csv_mode_with_numeric_null_cell() {
+    // 1. Setup a CSV file where numeric cell is empty and should map to NULL
     CSVDataManager::reset();
     std::ofstream test_file("invalid_data.csv");
     test_file << "table,timestamp,age,city\n";
@@ -321,11 +321,58 @@ void test_csv_mode_with_invalid_data() {
         assert(std::get<std::string>(row->columns[1]) == "New York");
         assert(!generator.next_row());
         assert(!generator.has_more());
-        std::cout << "test_csv_mode_with_invalid_data passed.\n";
+        std::cout << "test_csv_mode_with_numeric_null_cell passed.\n";
     }
 
     // Cleanup
     std::remove("invalid_data.csv");
+}
+
+void test_csv_mode_with_non_numeric_literal_throws() {
+    CSVDataManager::reset();
+    std::ofstream test_file("invalid_literal.csv");
+    test_file << "table,timestamp,age,city\n";
+    test_file << "table1,1622505600000,abc,New York\n";
+    test_file.close();
+
+    ColumnsConfig columns_config;
+    columns_config.source_type = "csv";
+    columns_config.csv.file_path = "invalid_literal.csv";
+    columns_config.csv.has_header = true;
+    columns_config.csv.tbname_index = 0;
+    columns_config.csv.loading_mode = "preload";
+
+    TimestampCSVConfig ts_config;
+    ts_config.timestamp_index = 1;
+    ts_config.timestamp_precision = "ms";
+    columns_config.csv.timestamp_strategy.strategy_type = "csv";
+    columns_config.csv.timestamp_strategy.csv = ts_config;
+
+    InsertDataConfig config;
+    config.schema.columns.emplace_back(ColumnConfig{"age", "INT"});
+    config.schema.columns.emplace_back(ColumnConfig{"city", "VARCHAR(20)"});
+    config.schema.columns_cfg = columns_config;
+    config.schema.columns_cfg.generator.schema = config.schema.columns;
+
+    auto instances = ColumnConfigInstanceFactory::create(config.schema.columns);
+
+    bool threw = false;
+    try {
+        RowDataGenerator generator("table1", config, instances);
+        auto row = generator.next_row();
+        (void)row;
+    } catch (const std::exception& e) {
+        threw = true;
+        std::string msg = e.what();
+        assert(msg.find("convert") != std::string::npos
+            || msg.find("Invalid integer") != std::string::npos
+            || msg.find("stoll") != std::string::npos);
+    }
+
+    (void)threw;
+    assert(threw && "Expected conversion failure for non-numeric literal in INT column");
+    std::remove("invalid_literal.csv");
+    std::cout << "test_csv_mode_with_non_numeric_literal_throws passed.\n";
 }
 
 void test_csv_precision_conversion() {
@@ -455,7 +502,8 @@ int main() {
     test_generator_with_cache();
     test_generator_with_disorder();
     test_csv_mode_basic();
-    test_csv_mode_with_invalid_data();
+    test_csv_mode_with_numeric_null_cell();
+    test_csv_mode_with_non_numeric_literal_throws();
     test_csv_precision_conversion();
     test_csv_mode_default_table_shared_data();
     test_invalid_source_type();

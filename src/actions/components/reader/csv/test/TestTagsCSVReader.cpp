@@ -151,6 +151,38 @@ void test_generate_tags_numeric_null_literals() {
     std::cout << "test_generate_tags_numeric_null_literals passed\n";
 }
 
+void test_generate_tags_bool_null_literals() {
+    TagsCSV config;
+    config.file_path = "tags_bool_null_literals.csv";
+    config.has_header = true;
+
+    std::ofstream test_file("tags_bool_null_literals.csv");
+    test_file << "enabled,region\n";
+    test_file << ",North\n";
+    test_file << "NULL,South\n";
+    test_file << "NA,West\n";
+    test_file.close();
+
+    ColumnConfigVector tag_configs = {
+        {"enabled", "bool"},
+        {"region", "varchar(20)"}
+    };
+    auto instances = ColumnConfigInstanceFactory::create(tag_configs);
+
+    TagsCSVReader tags_csv(config, instances);
+    auto tags = tags_csv.generate();
+
+    assert(tags.size() == 3 && "Expected 3 rows of tags");
+    assert(std::holds_alternative<std::monostate>(tags[0][0]));
+    assert(std::holds_alternative<std::monostate>(tags[1][0]));
+    assert(std::holds_alternative<std::monostate>(tags[2][0]));
+
+    assert(std::get<std::string>(tags[0][1]) == "North");
+
+    std::remove("tags_bool_null_literals.csv");
+    std::cout << "test_generate_tags_bool_null_literals passed\n";
+}
+
 int main() {
     test_validate_config_empty_file_path();
     test_validate_config_mismatched_tag_types();
@@ -158,6 +190,7 @@ int main() {
     test_generate_tags_excluded_columns();
     test_generate_tags_default_tag_types();
     test_generate_tags_numeric_null_literals();
+    test_generate_tags_bool_null_literals();
 
     std::cout << "All tests passed!\n";
     return 0;

@@ -212,8 +212,6 @@ void MemoryPool::TableBlock::add_rows(const std::vector<RowData>& rows) {
         } else {
             // Batch copy data
             for (size_t i = 0; i < rows.size(); ++i) {
-                if (col_block.is_nulls[start_index + i]) continue;
-
                 const auto& col_value = rows[i].columns[col_idx];
 
                 if (std::holds_alternative<std::monostate>(col_value)) {
@@ -260,7 +258,7 @@ ColumnType MemoryPool::TableBlock::get_cell_impl(size_t row_index, size_t col_in
     const auto& handler = handlers[col_index];
 
     if (col.is_nulls[row_index]) {
-        throw std::runtime_error("NULL value not supported");
+        return std::monostate{};
     }
 
     if (col.is_fixed) {

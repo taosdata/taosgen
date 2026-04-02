@@ -311,6 +311,42 @@ void test_generate_with_numeric_null_literals() {
     std::cout << "test_generate_with_numeric_null_literals passed\n";
 }
 
+void test_generate_with_bool_null_literals() {
+    ColumnsCSV config;
+    config.file_path = "bool_null_literals.csv";
+    config.has_header = true;
+    config.timestamp_strategy.generator = TimestampGeneratorConfig{};
+
+    std::ofstream test_file("bool_null_literals.csv");
+    test_file << "name,enabled,city\n";
+    test_file << "Alice,,Shenzhen\n";
+    test_file << "Bob,NULL,Shanghai\n";
+    test_file << "Carol,NA,Beijing\n";
+    test_file.close();
+
+    ColumnConfigVector col_configs = {
+        {"name", "varchar(20)"},
+        {"enabled", "bool"},
+        {"city", "varchar(20)"}
+    };
+    auto instances = ColumnConfigInstanceFactory::create(col_configs);
+
+    ColumnsCSVReader columns_csv(config, instances);
+    auto table_data = columns_csv.generate();
+
+    assert(table_data.size() == 1 && "Expected 1 table");
+    const auto& table = table_data.begin()->second;
+    (void)table;
+    assert(table.rows.size() == 3 && "Expected 3 rows");
+
+    assert(std::holds_alternative<std::monostate>(table.rows[0][1]));
+    assert(std::holds_alternative<std::monostate>(table.rows[1][1]));
+    assert(std::holds_alternative<std::monostate>(table.rows[2][1]));
+
+    std::remove("bool_null_literals.csv");
+    std::cout << "test_generate_with_bool_null_literals passed\n";
+}
+
 void test_generate_with_relative_offset_minutes() {
     ColumnsCSV config;
     config.enabled = true;
@@ -539,6 +575,7 @@ int main() {
     test_generate_table_data_default_column_types();
     test_generate_with_invalid_data_format();
     test_generate_with_numeric_null_literals();
+    test_generate_with_bool_null_literals();
     test_generate_with_relative_offset_minutes();
     test_generate_with_relative_offset_months();
     test_generate_with_relative_offset_mixed();
