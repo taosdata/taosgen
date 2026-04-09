@@ -17,9 +17,6 @@
 ## 目录
 - [1. 简介](#1-简介)
 - [2. 架构](#2-架构)
-  - [2.1 系统总览](#21-系统总览)
-  - [2.2 Insert Pipeline](#22-insert-pipeline)
-  - [2.3 数据流](#23-数据流)
 - [3. 文档](#3-文档)
 - [4. AI Agent 集成](#4-ai-agent-集成)
 - [5. 前置条件](#5-前置条件)
@@ -51,132 +48,18 @@
 
 ## 2. 架构
 
-### 2.1 系统总览
-```mermaid
-flowchart TB
-  U["CLI User"] --> M["taosgen main"]
-  M --> CFG["Config Build<br/>(CLI / ENV / YAML)"]
-  M --> REG["Plugin Registries"]
-  M --> SCH["JobScheduler<br/>(DAG + Workers)"]
+详细的架构内容请查阅设计文档：
 
-  CFG --> SCH
-  REG --> AFR["ActionFactory"]
-  SCH --> AFR
+- [架构设计](docs/architecture-CN.md)
 
-  AFR --> DDL["Create*Action"]
-  AFR --> A4["InsertDataAction"]
-  AFR -. WIP .-> QS["Query / Subscribe"]
+快速摘要：
 
-  DDL -->|SQL| TD[("TDengine")]
-  A4 -->|"see §2.2"| INS["Insert Pipeline"]
-  INS --> TD
-  INS --> MQ[("MQTT Broker")]
-  INS --> KF[("Kafka Cluster")]
-```
+- `taosgen` 采用配置驱动模式：将 CLI/ENV/YAML 合并为运行时作业定义。
+- 执行模型基于 DAG 作业调度，由 worker 驱动步骤执行。
+- `ActionFactory` 根据步骤 `uses` + 配置映射到具体动作（DDL / insert / query / subscribe）。
+- Insert 负载采用生产者-消费者流水线，结合有界队列与可插拔 sink。
 
-### 2.2 Insert Pipeline
-```mermaid
-flowchart TB
-  A4["InsertDataAction"] --> SPF["SinkPluginFactory"]
-  SPF --> TDSP["TDengineSinkPlugin"]
-  SPF --> MQSP["MqttSinkPlugin"]
-  SPF --> KFSP["KafkaSinkPlugin"]
-
-  A4 --> TN["TableNameManager"]
-  A4 --> TM["TableDataManager<br/>+ RowDataGenerator"]
-  TM --> MP["MemoryPool"]
-
-  A4 --> P["Producer threads<br/>(generate + format)"]
-  P --> MP
-  P -->|"plugin.format(batch)"| DP["DataPipeline&lt;FormatResult&gt;<br/>(bounded queue)"]
-
-  A4 --> C["Consumer threads<br/>(write formatted results)"]
-  DP --> C
-  C -->|"plugin.write(data)"| TDSP
-  C -->|"plugin.write(data)"| MQSP
-  C -->|"plugin.write(data)"| KFSP
-
-  TDSP --> TD[("TDengine")]
-  MQSP --> MQ[("MQTT Broker")]
-  KFSP --> KF[("Kafka Cluster")]
-```
-
-### 2.3 数据流
-
-```mermaid
-sequenceDiagram
-  autonumber
-  participant U as User CLI
-  participant M as main
-  participant PC as ParameterContext
-  participant JS as JobScheduler
-  participant W as Worker
-  participant ST as StepStrategy
-  participant AF as ActionFactory
-  participant IA as InsertDataAction
-  participant P as Producer threads
-  participant DP as DataPipeline
-  participant C as Consumer threads
-  participant SP as SinkPlugin
-  participant T as Target sink
-
-  U->>M: start taosgen
-  M->>M: register plugin hooks
-  M->>PC: init global(argc, argv)
-  PC->>PC: merge CLI / ENV / YAML
-  PC->>PC: parse global plugin configs
-  M->>PC: init jobs()
-  PC->>PC: parse jobs/steps -> action_config
-  PC-->>M: ConfigData
-  M->>JS: run()
-
-  loop each ready job in DAG
-    JS->>W: dispatch job
-    loop each step in job
-      W->>ST: execute step
-      ST->>AF: create_action(uses, action_config)
-
-      alt create database/table
-        AF-->>ST: Create*Action
-        ST->>T: execute DDL
-      else insert/publish/produce
-        AF-->>ST: InsertDataAction
-        ST->>IA: execute()
-
-        par Producers
-          IA->>P: start producer workers
-          loop produce batches
-            P->>P: generate rows / table-batches
-            P->>SP: format(batch) → FormatResult
-            P->>DP: push FormatResult
-          end
-          P->>DP: push EOF/sentinel
-        and Consumers
-          IA->>C: start consumer workers
-          C->>SP: connect() + prepare()
-          loop consume results
-            C->>DP: fetch FormatResult
-            DP-->>C: FormatResult or EOF
-            alt got FormatResult
-              C->>SP: write(FormatResult)
-              SP->>T: execute/publish/produce
-            else got EOF
-              C->>C: stop loop
-            end
-          end
-          C->>SP: close()
-        end
-
-        IA->>IA: aggregate metrics / finalize
-      else query or subscribe
-        AF-->>ST: QueryDataAction / SubscribeDataAction
-        ST->>T: execute query / subscribe
-      end
-    end
-  end
-
-  JS-->>M: success / failure
-```
+如需了解设计哲学、权衡取舍、模块职责、核心时序图以及可选生命周期细节，请阅读 `docs/architecture-CN.md`。
 
 ## 3. 文档
 - 使用 `taosgen` 工具，请查阅[参考手册](https://docs.taosdata.com/reference/tools/taosgen/)，其中包含运行、命令行参数、配置文件参数、配置文件示例等内容。

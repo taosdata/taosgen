@@ -17,9 +17,6 @@
 ## Table of Contents
 - [1. Introduction](#1-introduction)
 - [2. Architecture](#2-architecture)
-  - [2.1 System Overview](#21-system-overview)
-  - [2.2 Insert Pipeline](#22-insert-pipeline)
-  - [2.3 Data Flow](#23-data-flow)
 - [3. Documentation](#3-documentation)
 - [4. AI Agent Integration](#4-ai-agent-integration)
 - [5. Prerequisites](#5-prerequisites)
@@ -51,132 +48,18 @@ Currently, `taosgen` supports Linux, macOS and Windows systems.
 
 ## 2. Architecture
 
-### 2.1 System Overview
-```mermaid
-flowchart TB
-  U["CLI User"] --> M["taosgen main"]
-  M --> CFG["Config Build<br/>(CLI / ENV / YAML)"]
-  M --> REG["Plugin Registries"]
-  M --> SCH["JobScheduler<br/>(DAG + Workers)"]
+For detailed architecture content, please refer to the design document:
 
-  CFG --> SCH
-  REG --> AFR["ActionFactory"]
-  SCH --> AFR
+- [Architecture Design](docs/architecture.md)
 
-  AFR --> DDL["Create*Action"]
-  AFR --> A4["InsertDataAction"]
-  AFR -. WIP .-> QS["Query / Subscribe"]
+Quick summary:
 
-  DDL -->|SQL| TD[("TDengine")]
-  A4 -->|"see §2.2"| INS["Insert Pipeline"]
-  INS --> TD
-  INS --> MQ[("MQTT Broker")]
-  INS --> KF[("Kafka Cluster")]
-```
+- `taosgen` is configuration-driven: CLI/ENV/YAML are merged into runtime job definitions.
+- The execution model is DAG-based job scheduling with worker-driven step execution.
+- `ActionFactory` maps step `uses` + config to concrete actions (DDL / insert / query / subscribe).
+- Insert workloads use a producer-consumer pipeline with bounded queues and pluggable sinks.
 
-### 2.2 Insert Pipeline
-```mermaid
-flowchart TB
-  A4["InsertDataAction"] --> SPF["SinkPluginFactory"]
-  SPF --> TDSP["TDengineSinkPlugin"]
-  SPF --> MQSP["MqttSinkPlugin"]
-  SPF --> KFSP["KafkaSinkPlugin"]
-
-  A4 --> TN["TableNameManager"]
-  A4 --> TM["TableDataManager<br/>+ RowDataGenerator"]
-  TM --> MP["MemoryPool"]
-
-  A4 --> P["Producer threads<br/>(generate + format)"]
-  P --> MP
-  P -->|"plugin.format(batch)"| DP["DataPipeline&lt;FormatResult&gt;<br/>(bounded queue)"]
-
-  A4 --> C["Consumer threads<br/>(write formatted results)"]
-  DP --> C
-  C -->|"plugin.write(data)"| TDSP
-  C -->|"plugin.write(data)"| MQSP
-  C -->|"plugin.write(data)"| KFSP
-
-  TDSP --> TD[("TDengine")]
-  MQSP --> MQ[("MQTT Broker")]
-  KFSP --> KF[("Kafka Cluster")]
-```
-
-### 2.3 Data Flow
-
-```mermaid
-sequenceDiagram
-  autonumber
-  participant U as User CLI
-  participant M as main
-  participant PC as ParameterContext
-  participant JS as JobScheduler
-  participant W as Worker
-  participant ST as StepStrategy
-  participant AF as ActionFactory
-  participant IA as InsertDataAction
-  participant P as Producer threads
-  participant DP as DataPipeline
-  participant C as Consumer threads
-  participant SP as SinkPlugin
-  participant T as Target sink
-
-  U->>M: start taosgen
-  M->>M: register plugin hooks
-  M->>PC: init global(argc, argv)
-  PC->>PC: merge CLI / ENV / YAML
-  PC->>PC: parse global plugin configs
-  M->>PC: init jobs()
-  PC->>PC: parse jobs/steps -> action_config
-  PC-->>M: ConfigData
-  M->>JS: run()
-
-  loop each ready job in DAG
-    JS->>W: dispatch job
-    loop each step in job
-      W->>ST: execute step
-      ST->>AF: create_action(uses, action_config)
-
-      alt create database/table
-        AF-->>ST: Create*Action
-        ST->>T: execute DDL
-      else insert/publish/produce
-        AF-->>ST: InsertDataAction
-        ST->>IA: execute()
-
-        par Producers
-          IA->>P: start producer workers
-          loop produce batches
-            P->>P: generate rows / table-batches
-            P->>SP: format(batch) → FormatResult
-            P->>DP: push FormatResult
-          end
-          P->>DP: push EOF/sentinel
-        and Consumers
-          IA->>C: start consumer workers
-          C->>SP: connect() + prepare()
-          loop consume results
-            C->>DP: fetch FormatResult
-            DP-->>C: FormatResult or EOF
-            alt got FormatResult
-              C->>SP: write(FormatResult)
-              SP->>T: execute/publish/produce
-            else got EOF
-              C->>C: stop loop
-            end
-          end
-          C->>SP: close()
-        end
-
-        IA->>IA: aggregate metrics / finalize
-      else query or subscribe
-        AF-->>ST: QueryDataAction / SubscribeDataAction
-        ST->>T: execute query / subscribe
-      end
-    end
-  end
-
-  JS-->>M: success / failure
-```
+For design philosophy, trade-offs, module responsibilities, core sequence diagrams, and optional lifecycle details, read `docs/architecture.md`.
 
 ## 3. Documentation
 - For usage, refer to the [Reference Manual](https://docs.tdengine.com/tdengine-reference/tools/taosgen/), which covers running, command-line arguments, configuration parameters, and sample configuration files.
