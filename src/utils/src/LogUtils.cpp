@@ -55,8 +55,6 @@ void init_console(Level level) {
         logger.reset();
     }
 
-    spdlog::shutdown();
-
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
 
     std::vector<spdlog::sink_ptr> sinks{console_sink};
@@ -105,8 +103,6 @@ void init(Level level, const std::string& log_file, size_t max_file_size, size_t
         spdlog::drop("taosgen_logger");
         logger.reset();
     }
-
-    spdlog::shutdown();
 
     spdlog::init_thread_pool(8192, 1);
 
