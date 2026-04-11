@@ -64,7 +64,7 @@ namespace TypeConverter {
 
     template <typename T>
     T convert_value(const std::string& value) {
-        std::string_view input(value);
+        std::string_view input = StringUtils::trim_view(value);
 
         if constexpr (std::is_same_v<T, bool>) {
             if (input == "1" || iequals_ascii(input, "true") || iequals_ascii(input, "t")) {
@@ -135,4 +135,19 @@ namespace TypeConverter {
             throw std::runtime_error(ss.str());
         }
     }
+
+    template bool convert_value<bool>(const std::string& value);
+    template int8_t convert_value<int8_t>(const std::string& value);
+    template uint8_t convert_value<uint8_t>(const std::string& value);
+    template int16_t convert_value<int16_t>(const std::string& value);
+    template uint16_t convert_value<uint16_t>(const std::string& value);
+    template int32_t convert_value<int32_t>(const std::string& value);
+    template uint32_t convert_value<uint32_t>(const std::string& value);
+    template int64_t convert_value<int64_t>(const std::string& value);
+    template uint64_t convert_value<uint64_t>(const std::string& value);
+    template float convert_value<float>(const std::string& value);
+    template double convert_value<double>(const std::string& value);
+    template std::string convert_value<std::string>(const std::string& value);
+    template std::u16string convert_value<std::u16string>(const std::string& value);
+    template std::vector<uint8_t> convert_value<std::vector<uint8_t>>(const std::string& value);
 }
