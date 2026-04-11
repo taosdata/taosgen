@@ -41,8 +41,31 @@ void test_convert_float_double() {
 }
 
 void test_convert_string() {
-    assert(convert_value<std::string>("  hello  ") == "hello");
+    assert(convert_value<std::string>("  hello  ") == "  hello  ");
     std::cout << "test_convert_string passed" << std::endl;
+}
+
+void test_convert_no_trim_behavior() {
+    bool bool_failed = false;
+    try {
+        (void)convert_value<bool>(" true ");
+    } catch (const std::exception&) {
+        bool_failed = true;
+    }
+    (void)bool_failed;
+    assert(bool_failed);
+
+    bool int_failed = false;
+    try {
+        (void)convert_value<int32_t>(" 123 ");
+    } catch (const std::exception&) {
+        int_failed = true;
+    }
+    (void)int_failed;
+    assert(int_failed);
+
+    assert(convert_value<std::string>(" a ") == " a ");
+    std::cout << "test_convert_no_trim_behavior passed" << std::endl;
 }
 
 void test_convert_u16string() {
@@ -88,6 +111,7 @@ int main() {
     test_convert_u16string();
     test_convert_vector_uint8();
     test_convert_to_type();
+    test_convert_no_trim_behavior();
 
     std::cout << "All TypeConverter tests passed!" << std::endl;
     return 0;

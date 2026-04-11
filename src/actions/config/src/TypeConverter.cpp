@@ -14,16 +14,6 @@
 namespace TypeConverter {
 
     namespace {
-        std::string_view trim_view(std::string_view sv) {
-            while (!sv.empty() && std::isspace(static_cast<unsigned char>(sv.front()))) {
-                sv.remove_prefix(1);
-            }
-            while (!sv.empty() && std::isspace(static_cast<unsigned char>(sv.back()))) {
-                sv.remove_suffix(1);
-            }
-            return sv;
-        }
-
         bool iequals_ascii(std::string_view input, std::string_view expected_lower) {
             if (input.size() != expected_lower.size()) {
                 return false;
@@ -74,26 +64,26 @@ namespace TypeConverter {
 
     template <typename T>
     T convert_value(const std::string& value) {
-        std::string_view trimmed = trim_view(value);
+        std::string_view input(value);
 
         if constexpr (std::is_same_v<T, bool>) {
-            if (trimmed == "1" || iequals_ascii(trimmed, "true") || iequals_ascii(trimmed, "t")) {
+            if (input == "1" || iequals_ascii(input, "true") || iequals_ascii(input, "t")) {
                 return true;
             }
-            if (trimmed == "0" || iequals_ascii(trimmed, "false") || iequals_ascii(trimmed, "f")) {
+            if (input == "0" || iequals_ascii(input, "false") || iequals_ascii(input, "f")) {
                 return false;
             }
-            throw std::runtime_error("Invalid boolean value: " + std::string(trimmed));
+            throw std::runtime_error("Invalid boolean value: " + std::string(input));
         } else if constexpr (std::is_integral_v<T>) {
-            return parse_integral<T>(trimmed);
+            return parse_integral<T>(input);
         } else if constexpr (std::is_floating_point_v<T>) {
-            return parse_floating<T>(trimmed);
+            return parse_floating<T>(input);
         } else if constexpr (std::is_same_v<T, std::string>) {
-            return std::string(trimmed);
+            return std::string(input);
         } else if constexpr (std::is_same_v<T, std::u16string>) {
-            return StringUtils::utf8_to_u16string(std::string(trimmed));
+            return StringUtils::utf8_to_u16string(std::string(input));
         } else if constexpr (std::is_same_v<T, std::vector<uint8_t>>) {
-            return std::vector<uint8_t>(trimmed.begin(), trimmed.end());
+            return std::vector<uint8_t>(input.begin(), input.end());
         } else {
             throw std::runtime_error("Unsupported type conversion.");
         }
