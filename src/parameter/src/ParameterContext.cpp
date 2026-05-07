@@ -672,7 +672,7 @@ void ParameterContext::parse_commandline(int argc, char* argv[]) {
 
             // Deprecated: -f was renamed to -o; kept for backward compatibility
             if (short_opt == 'f') {
-                LogUtils::warn("Option '-f' is deprecated and will be removed in a future version. Please use '-o' instead.");
+                LogUtils::warn("Option '-f' is deprecated and will be removed in a future version. Please use '-o' or '--log-file' instead.");
                 if (i + 1 >= argc) {
                     throw std::runtime_error("Option requires a value: -f");
                 }
@@ -687,14 +687,13 @@ void ParameterContext::parse_commandline(int argc, char* argv[]) {
                 throw std::runtime_error("Unknown option: " + arg);
             }
 
+            key = it->long_opt;
             if (it->requires_value) {
                 if (i + 1 >= argc) {
                     throw std::runtime_error("Option requires a value: " + key);
                 }
-                key = it->long_opt;
                 value = argv[++i];
             } else {
-                key = it->long_opt;
                 value = "";
             }
 

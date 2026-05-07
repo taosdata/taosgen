@@ -744,6 +744,25 @@ void test_log_file_short_option_f_missing_value() {
     std::cout << "log-file short option (-f) missing value test passed.\n";
 }
 
+// Test short option for log-file (-o) missing value
+void test_log_file_short_option_o_missing_value() {
+    ParameterContext ctx;
+    const char* argv[] = {
+        "dummy",
+        "-o"
+    };
+
+    try {
+        ctx.parse_commandline(2, const_cast<char**>(argv));
+        assert(false && "Expected exception when -o has no value");
+    } catch (const std::runtime_error& e) {
+        std::string msg = e.what();
+        assert(msg.find("Option requires a value: --log-file") != std::string::npos);
+    }
+
+    std::cout << "log-file short option (-o) missing value test passed.\n";
+}
+
 // Test YAML log_dir
 void test_yaml_log_dir() {
     const char* config_content = R"(
@@ -956,6 +975,7 @@ int main() {
     test_log_file_short_option_o();
     test_log_file_short_option_f_compat();
     test_log_file_short_option_f_missing_value();
+    test_log_file_short_option_o_missing_value();
 
     test_yaml_log_dir();
     test_yaml_log_file();
