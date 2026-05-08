@@ -1,6 +1,6 @@
 influxdb:
   url: http://localhost:8086
-  token: "RXr2xDMX0xuXRKrmHFM137T6PJ45VmrkZ_NF6nwZtM9_g0Ofu2UL_w73WDr0ru_JS7HOr8p-KCOj205Cxqukpg=="
+  token: "<INFLUXDB_TOKEN>"
   org: default
   bucket: default
 

@@ -50,6 +50,7 @@ void test_influxdb_client_connect_close() {
     assert(!client.is_connected());
 
     bool ok = client.connect();
+    (void)ok;
     assert(ok);
     assert(client.is_connected());
 

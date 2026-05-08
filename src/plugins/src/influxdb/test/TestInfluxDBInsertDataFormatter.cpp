@@ -98,6 +98,7 @@ void test_influxdb_format_multiple_tables() {
     assert(std::holds_alternative<InsertFormatResult>(result));
     const auto& ptr = std::get<InsertFormatResult>(result);
     const auto* payload = ptr->payload_as<InfluxDBInsertData>();
+    (void)payload;
     assert(payload != nullptr);
     assert(payload->total_rows == 2);
     // Measurement should be schema name for all tables

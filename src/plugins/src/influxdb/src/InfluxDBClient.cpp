@@ -1,9 +1,44 @@
 #include "InfluxDBClient.hpp"
 #include "LogUtils.hpp"
 #include <curl/curl.h>
+#include <atomic>
+#include <cstdlib>
+#include <mutex>
 #include <stdexcept>
 #include <vector>
 #include <zlib.h>
+
+namespace {
+
+std::once_flag curl_global_init_once;
+std::once_flag curl_global_cleanup_register_once;
+std::atomic<bool> curl_global_ready{false};
+
+void curl_global_cleanup_at_exit() {
+    if (curl_global_ready.load(std::memory_order_acquire)) {
+        curl_global_cleanup();
+        curl_global_ready.store(false, std::memory_order_release);
+    }
+}
+
+bool ensure_curl_global_initialized() {
+    std::call_once(curl_global_init_once, []() {
+        CURLcode code = curl_global_init(CURL_GLOBAL_DEFAULT);
+        if (code != CURLE_OK) {
+            LogUtils::error("InfluxDB: curl_global_init failed: {}", curl_easy_strerror(code));
+            return;
+        }
+
+        curl_global_ready.store(true, std::memory_order_release);
+        std::call_once(curl_global_cleanup_register_once, []() {
+            std::atexit(curl_global_cleanup_at_exit);
+        });
+    });
+
+    return curl_global_ready.load(std::memory_order_acquire);
+}
+
+} // namespace
 
 // Callback to capture response body
 static size_t write_callback(char* ptr, size_t size, size_t nmemb, void* userdata) {
@@ -40,6 +75,10 @@ std::string InfluxDBClient::build_auth_header() const {
 
 bool InfluxDBClient::connect() {
     if (is_connected_) return true;
+
+    if (!ensure_curl_global_initialized()) {
+        return false;
+    }
 
     curl_ = curl_easy_init();
     if (!curl_) {
@@ -78,19 +117,64 @@ bool InfluxDBClient::execute(const InfluxDBInsertData& data) {
         throw std::runtime_error("InfluxDB client not connected");
     }
 
+    if (data.lines.empty()) {
+        return true;
+    }
+
+    size_t batch_size = format_options_.batch_size;
+
+    // Fast path: if total rows fit in one batch, send directly
+    if (static_cast<size_t>(data.total_rows) <= batch_size) {
+        return send_chunk(data.lines.c_str(), data.lines.size());
+    }
+
+    // Split lines into chunks of batch_size
+    const std::string& lines = data.lines;
+    size_t pos = 0;
+    size_t line_count = 0;
+    size_t chunk_start = 0;
+
+    while (pos < lines.size()) {
+        size_t nl = lines.find('\n', pos);
+        if (nl == std::string::npos) {
+            nl = lines.size();
+        }
+        line_count++;
+        size_t next_pos = (nl < lines.size()) ? nl + 1 : nl;
+
+        if (line_count >= batch_size || next_pos >= lines.size()) {
+            size_t chunk_end = (nl < lines.size()) ? nl : lines.size();
+            size_t chunk_len = chunk_end - chunk_start;
+
+            if (chunk_len > 0) {
+                if (!send_chunk(lines.c_str() + chunk_start, chunk_len)) {
+                    return false;
+                }
+            }
+            chunk_start = next_pos;
+            line_count = 0;
+        }
+
+        pos = next_pos;
+    }
+
+    return true;
+}
+
+bool InfluxDBClient::send_chunk(const char* chunk_data, size_t chunk_size) {
     struct curl_slist* headers = nullptr;
     headers = curl_slist_append(headers, ("Authorization: " + auth_header_).c_str());
     headers = curl_slist_append(headers, "Content-Type: text/plain; charset=utf-8");
 
-    const char* post_data = data.lines.c_str();
-    long post_size = static_cast<long>(data.lines.size());
+    const char* post_data = chunk_data;
+    curl_off_t post_size = static_cast<curl_off_t>(chunk_size);
 
     // Optional gzip compression
     std::vector<uint8_t> compressed;
-    if (format_options_.gzip && !data.lines.empty()) {
+    if (format_options_.gzip && chunk_size > 0) {
         headers = curl_slist_append(headers, "Content-Encoding: gzip");
 
-        uLongf compressed_size = compressBound(data.lines.size());
+        uLongf compressed_size = compressBound(chunk_size);
         compressed.resize(compressed_size + 18); // gzip header/trailer overhead
 
         z_stream zs{};
@@ -101,8 +185,8 @@ bool InfluxDBClient::execute(const InfluxDBInsertData& data) {
             return false;
         }
 
-        zs.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(data.lines.data()));
-        zs.avail_in = static_cast<uInt>(data.lines.size());
+        zs.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(chunk_data));
+        zs.avail_in = static_cast<uInt>(chunk_size);
         zs.next_out = compressed.data();
         zs.avail_out = static_cast<uInt>(compressed.size());
 
@@ -117,11 +201,11 @@ bool InfluxDBClient::execute(const InfluxDBInsertData& data) {
 
         compressed.resize(zs.total_out);
         post_data = reinterpret_cast<const char*>(compressed.data());
-        post_size = static_cast<long>(compressed.size());
+        post_size = static_cast<curl_off_t>(compressed.size());
     }
 
     curl_easy_setopt(curl_, CURLOPT_HTTPHEADER, headers);
-    curl_easy_setopt(curl_, CURLOPT_POSTFIELDSIZE, post_size);
+    curl_easy_setopt(curl_, CURLOPT_POSTFIELDSIZE_LARGE, post_size);
     curl_easy_setopt(curl_, CURLOPT_POSTFIELDS, post_data);
 
     // Capture response
@@ -130,6 +214,7 @@ bool InfluxDBClient::execute(const InfluxDBInsertData& data) {
     curl_easy_setopt(curl_, CURLOPT_WRITEDATA, &response_body);
 
     CURLcode res = curl_easy_perform(curl_);
+    curl_easy_setopt(curl_, CURLOPT_HTTPHEADER, nullptr);
     curl_slist_free_all(headers);
 
     if (res != CURLE_OK) {

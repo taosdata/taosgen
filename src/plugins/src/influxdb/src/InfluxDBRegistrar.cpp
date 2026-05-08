@@ -82,8 +82,11 @@ void register_influxdb_plugin_config_hooks() {
             if (!ic) return;
 
             if (auto it = cli.find("--host"); it != cli.end() && !it->second.empty()) {
-                // Replace host in URL if it follows http://host:port pattern
-                ic->url = "http://" + it->second + ":8086";
+                if (it->second.find("://") != std::string::npos) {
+                    ic->url = it->second;
+                } else {
+                    ic->url = "http://" + it->second + ":8086";
+                }
             }
             if (auto it = cli.find("--password"); it != cli.end() && !it->second.empty()) {
                 ic->token = it->second;

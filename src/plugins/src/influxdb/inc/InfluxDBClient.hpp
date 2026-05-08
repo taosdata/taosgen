@@ -3,11 +3,9 @@
 #include "InfluxDBConfig.hpp"
 #include "InfluxDBFormatOptions.hpp"
 #include "InfluxDBInsertData.hpp"
+#include <curl/curl.h>
 #include <string>
 #include <memory>
-
-// Forward declare CURL handle
-typedef void CURL;
 
 class InfluxDBClient {
 public:
@@ -22,6 +20,7 @@ public:
 private:
     std::string build_write_url() const;
     std::string build_auth_header() const;
+    bool send_chunk(const char* data, size_t size);
 
     const InfluxDBConfig& config_;
     const InfluxDBFormatOptions& format_options_;
