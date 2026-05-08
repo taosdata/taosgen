@@ -29,4 +29,13 @@ public:
         const MemoryPool::TableBlock& table,
         size_t row_index,
         fmt::memory_buffer& out);
+
+    // Overload with custom measurement name and optional child table id tag
+    static void to_influx_inplace(
+        const ColumnConfigInstanceVector& col_instances,
+        const ColumnConfigInstanceVector& tag_instances,
+        const MemoryPool::TableBlock& table,
+        size_t row_index,
+        const std::string& measurement,
+        fmt::memory_buffer& out);
 };

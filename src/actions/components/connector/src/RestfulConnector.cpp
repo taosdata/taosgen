@@ -47,6 +47,11 @@ bool RestfulConnector::execute(const StmtV2InsertData& data) {
     throw std::runtime_error("RestfulConnector::execute is not implemented.");
 }
 
+bool RestfulConnector::execute(const SchemalessInsertData& data) {
+    (void)data;
+    throw std::runtime_error("RestfulConnector::execute(SchemalessInsertData) is not supported. Schemaless insert requires native connection.");
+}
+
 void RestfulConnector::reset_state() noexcept {
     LogUtils::error("RestfulConnector::reset_state is not implemented");
     std::abort();
