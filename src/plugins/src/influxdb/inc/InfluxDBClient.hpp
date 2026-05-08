@@ -7,15 +7,24 @@
 #include <string>
 #include <memory>
 
-class InfluxDBClient {
+class IInfluxDBClient {
 public:
-    InfluxDBClient(const InfluxDBConfig& config, const InfluxDBFormatOptions& format_options);
-    ~InfluxDBClient();
+    virtual ~IInfluxDBClient() = default;
+    virtual bool connect() = 0;
+    virtual bool is_connected() const = 0;
+    virtual void close() = 0;
+    virtual bool execute(const InfluxDBInsertData& data) = 0;
+};
 
-    bool connect();
-    bool is_connected() const;
-    void close();
-    bool execute(const InfluxDBInsertData& data);
+class CurlInfluxDBClient : public IInfluxDBClient {
+public:
+    CurlInfluxDBClient(const InfluxDBConfig& config, const InfluxDBFormatOptions& format_options);
+    ~CurlInfluxDBClient() override;
+
+    bool connect() override;
+    bool is_connected() const override;
+    void close() override;
+    bool execute(const InfluxDBInsertData& data) override;
 
 private:
     std::string build_write_url() const;
@@ -28,4 +37,22 @@ private:
     bool is_connected_ = false;
     std::string write_url_;
     std::string auth_header_;
+};
+
+class InfluxDBClient {
+public:
+    InfluxDBClient(const InfluxDBConfig& config, const InfluxDBFormatOptions& format_options);
+    ~InfluxDBClient();
+
+    bool connect();
+    bool is_connected() const;
+    void close();
+    bool execute(const InfluxDBInsertData& data);
+
+    void set_client(std::unique_ptr<IInfluxDBClient> client) {
+        client_ = std::move(client);
+    }
+
+private:
+    std::unique_ptr<IInfluxDBClient> client_;
 };

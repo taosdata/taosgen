@@ -47,17 +47,17 @@ static size_t write_callback(char* ptr, size_t size, size_t nmemb, void* userdat
     return size * nmemb;
 }
 
-InfluxDBClient::InfluxDBClient(const InfluxDBConfig& config, const InfluxDBFormatOptions& format_options)
+CurlInfluxDBClient::CurlInfluxDBClient(const InfluxDBConfig& config, const InfluxDBFormatOptions& format_options)
     : config_(config), format_options_(format_options) {
     write_url_ = build_write_url();
     auth_header_ = build_auth_header();
 }
 
-InfluxDBClient::~InfluxDBClient() {
+CurlInfluxDBClient::~CurlInfluxDBClient() {
     close();
 }
 
-std::string InfluxDBClient::build_write_url() const {
+std::string CurlInfluxDBClient::build_write_url() const {
     // POST /api/v2/write?org={org}&bucket={bucket}&precision={precision}
     std::string url = config_.url;
     if (!url.empty() && url.back() == '/') {
@@ -69,11 +69,11 @@ std::string InfluxDBClient::build_write_url() const {
     return url;
 }
 
-std::string InfluxDBClient::build_auth_header() const {
+std::string CurlInfluxDBClient::build_auth_header() const {
     return "Token " + config_.token;
 }
 
-bool InfluxDBClient::connect() {
+bool CurlInfluxDBClient::connect() {
     if (is_connected_) return true;
 
     if (!ensure_curl_global_initialized()) {
@@ -100,11 +100,11 @@ bool InfluxDBClient::connect() {
     return true;
 }
 
-bool InfluxDBClient::is_connected() const {
+bool CurlInfluxDBClient::is_connected() const {
     return is_connected_;
 }
 
-void InfluxDBClient::close() {
+void CurlInfluxDBClient::close() {
     if (curl_) {
         curl_easy_cleanup(curl_);
         curl_ = nullptr;
@@ -112,7 +112,7 @@ void InfluxDBClient::close() {
     is_connected_ = false;
 }
 
-bool InfluxDBClient::execute(const InfluxDBInsertData& data) {
+bool CurlInfluxDBClient::execute(const InfluxDBInsertData& data) {
     if (!curl_) {
         throw std::runtime_error("InfluxDB client not connected");
     }
@@ -161,7 +161,7 @@ bool InfluxDBClient::execute(const InfluxDBInsertData& data) {
     return true;
 }
 
-bool InfluxDBClient::send_chunk(const char* chunk_data, size_t chunk_size) {
+bool CurlInfluxDBClient::send_chunk(const char* chunk_data, size_t chunk_size) {
     struct curl_slist* headers = nullptr;
     headers = curl_slist_append(headers, ("Authorization: " + auth_header_).c_str());
     headers = curl_slist_append(headers, "Content-Type: text/plain; charset=utf-8");
@@ -236,3 +236,15 @@ bool InfluxDBClient::send_chunk(const char* chunk_data, size_t chunk_size) {
     LogUtils::error("InfluxDB write failed (HTTP {}): {}", http_code, preview);
     return false;
 }
+
+// InfluxDBClient wrapper
+
+InfluxDBClient::InfluxDBClient(const InfluxDBConfig& config, const InfluxDBFormatOptions& format_options)
+    : client_(std::make_unique<CurlInfluxDBClient>(config, format_options)) {}
+
+InfluxDBClient::~InfluxDBClient() = default;
+
+bool InfluxDBClient::connect() { return client_->connect(); }
+bool InfluxDBClient::is_connected() const { return client_->is_connected(); }
+void InfluxDBClient::close() { client_->close(); }
+bool InfluxDBClient::execute(const InfluxDBInsertData& data) { return client_->execute(data); }

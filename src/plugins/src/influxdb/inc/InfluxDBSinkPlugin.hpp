@@ -20,6 +20,9 @@ public:
     FormatResult format(MemoryPool::MemoryBlock* block, bool is_checkpoint_recover) const override;
     bool write(const BaseInsertData& data) override;
 
+    void set_client(std::unique_ptr<InfluxDBClient> client);
+    InfluxDBClient* get_client();
+
 private:
     template<typename PayloadT>
     bool handle_insert(const BaseInsertData& data);

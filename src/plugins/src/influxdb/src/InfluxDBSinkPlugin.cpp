@@ -29,6 +29,14 @@ InfluxDBSinkPlugin::InfluxDBSinkPlugin(const InsertDataConfig& config,
     client_ = std::make_unique<InfluxDBClient>(*ic, *fo);
 }
 
+void InfluxDBSinkPlugin::set_client(std::unique_ptr<InfluxDBClient> client) {
+    client_ = std::move(client);
+}
+
+InfluxDBClient* InfluxDBSinkPlugin::get_client() {
+    return client_.get();
+}
+
 InfluxDBSinkPlugin::~InfluxDBSinkPlugin() {
     close();
 }
