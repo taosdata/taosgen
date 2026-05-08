@@ -262,6 +262,7 @@ void RowSerializer::to_influx_inplace(
     const MemoryPool::TableBlock& table,
     size_t row_index,
     const std::string& measurement,
+    const std::string& id_tag_key,
     fmt::memory_buffer& out) {
 
     if (row_index >= table.used_rows) {
@@ -272,8 +273,10 @@ void RowSerializer::to_influx_inplace(
     append_escape_measure_or_key(out, measurement);
 
     // id tag for child table name
-    if (table.table_name) {
-        fmt::format_to(std::back_inserter(out), ",id=");
+    if (!id_tag_key.empty() && table.table_name) {
+        out.push_back(',');
+        append_escape_measure_or_key(out, id_tag_key);
+        out.push_back('=');
         append_escape_tag_value(out, table.table_name);
     }
 

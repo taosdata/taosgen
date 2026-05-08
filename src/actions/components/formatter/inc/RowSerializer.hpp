@@ -37,5 +37,6 @@ public:
         const MemoryPool::TableBlock& table,
         size_t row_index,
         const std::string& measurement,
+        const std::string& id_tag_key,
         fmt::memory_buffer& out);
 };
