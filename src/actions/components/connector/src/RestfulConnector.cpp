@@ -53,11 +53,9 @@ bool RestfulConnector::execute(const SchemalessInsertData& data) {
 }
 
 void RestfulConnector::reset_state() noexcept {
-    LogUtils::error("RestfulConnector::reset_state is not implemented");
-    std::abort();
+    // no-op: stub class has no state to reset
 }
 
 void RestfulConnector::close() noexcept {
-    LogUtils::error("RestfulConnector::close is not implemented");
-    std::abort();
+    // no-op: stub class has no connection to close
 }
