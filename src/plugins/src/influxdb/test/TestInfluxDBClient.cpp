@@ -259,6 +259,7 @@ void test_influxdb_client_url_encoding() {
 
     CurlInfluxDBClient client(config, format);
     const auto& url = client.write_url();
+    (void)url;
     // Space should be encoded as %20 (or +), ampersand as %26
     assert(url.find("org=my%20org") != std::string::npos ||
            url.find("org=my+org") != std::string::npos);

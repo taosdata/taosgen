@@ -1,4 +1,5 @@
 #pragma once
+#include "taos.h"
 #include <string>
 #include <cstdint>
 #include <typeindex>
@@ -6,8 +7,8 @@
 struct SchemalessInsertData {
     std::string lines;
     int32_t total_rows = 0;
-    int protocol = 1;       // TSDB_SML_LINE_PROTOCOL
-    int precision = 4;      // TSDB_SML_TIMESTAMP_MILLI_SECONDS
+    int protocol = TSDB_SML_LINE_PROTOCOL;
+    int precision = TSDB_SML_TIMESTAMP_MILLI_SECONDS;
 
     SchemalessInsertData() = default;
 

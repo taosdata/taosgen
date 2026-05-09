@@ -69,6 +69,10 @@ std::string CurlInfluxDBClient::build_write_url() const {
     if (tmp) {
         auto url_encode = [&](const std::string& s) -> std::string {
             char* encoded = curl_easy_escape(tmp, s.c_str(), static_cast<int>(s.size()));
+            if (!encoded) {
+                LogUtils::warn("InfluxDB: curl_easy_escape failed for '{}', using unescaped value", s);
+                return s;
+            }
             std::string result(encoded);
             curl_free(encoded);
             return result;
