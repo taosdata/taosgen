@@ -63,9 +63,26 @@ std::string CurlInfluxDBClient::build_write_url() const {
     if (!url.empty() && url.back() == '/') {
         url.pop_back();
     }
-    url += "/api/v2/write?org=" + config_.org +
-           "&bucket=" + config_.bucket +
-           "&precision=" + format_options_.precision;
+
+    // URL-encode query parameters to handle spaces/special characters
+    CURL* tmp = curl_easy_init();
+    if (tmp) {
+        auto url_encode = [&](const std::string& s) -> std::string {
+            char* encoded = curl_easy_escape(tmp, s.c_str(), static_cast<int>(s.size()));
+            std::string result(encoded);
+            curl_free(encoded);
+            return result;
+        };
+        url += "/api/v2/write?org=" + url_encode(config_.org) +
+               "&bucket=" + url_encode(config_.bucket) +
+               "&precision=" + url_encode(format_options_.precision);
+        curl_easy_cleanup(tmp);
+    } else {
+        // Fallback without encoding (best-effort)
+        url += "/api/v2/write?org=" + config_.org +
+               "&bucket=" + config_.bucket +
+               "&precision=" + format_options_.precision;
+    }
     return url;
 }
 

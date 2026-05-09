@@ -246,6 +246,28 @@ void test_influxdb_client_empty_data() {
     std::cout << "test_influxdb_client_empty_data PASSED\n";
 }
 
+void test_influxdb_client_url_encoding() {
+    // Test that org/bucket with special characters are properly URL-encoded
+    InfluxDBConfig config;
+    config.url = "http://localhost:8086";
+    config.token = "test-token";
+    config.org = "my org";        // space in org
+    config.bucket = "test&bucket"; // ampersand in bucket
+
+    InfluxDBFormatOptions format;
+    format.precision = "ns";
+
+    CurlInfluxDBClient client(config, format);
+    const auto& url = client.write_url();
+    // Space should be encoded as %20 (or +), ampersand as %26
+    assert(url.find("org=my%20org") != std::string::npos ||
+           url.find("org=my+org") != std::string::npos);
+    assert(url.find("bucket=test%26bucket") != std::string::npos);
+    assert(url.find("precision=ns") != std::string::npos);
+
+    std::cout << "test_influxdb_client_url_encoding PASSED\n";
+}
+
 int main() {
     test_influxdb_client_url_construction();
     test_influxdb_client_trailing_slash();
@@ -255,6 +277,7 @@ int main() {
     test_influxdb_client_mock_connect_failure();
     test_influxdb_client_mock_execute_failure();
     test_influxdb_client_empty_data();
+    test_influxdb_client_url_encoding();
     std::cout << "\nAll InfluxDB client tests PASSED\n";
     return 0;
 }

@@ -26,6 +26,8 @@ public:
     void close() override;
     bool execute(const InfluxDBInsertData& data) override;
 
+    const std::string& write_url() const { return write_url_; }
+
 private:
     std::string build_write_url() const;
     std::string build_auth_header() const;
