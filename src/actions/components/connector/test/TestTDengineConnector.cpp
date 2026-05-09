@@ -315,6 +315,7 @@ static void test_schemaless_insert_basic_child() {
     data.precision = TSDB_SML_TIMESTAMP_NANO_SECONDS;
 
     bool ok = conn.execute(data);
+    (void)ok;
     assert(ok && "Schemaless basic insert should succeed");
 
     conn.execute(std::string("DROP DATABASE IF EXISTS " + db));
@@ -345,6 +346,7 @@ static void test_schemaless_insert_multiple_measurements_child() {
     data.precision = TSDB_SML_TIMESTAMP_NANO_SECONDS;
 
     bool ok = conn.execute(data);
+    (void)ok;
     assert(ok && "Schemaless multi-measurement insert should succeed");
 
     conn.execute(std::string("DROP DATABASE IF EXISTS " + db));
@@ -402,6 +404,7 @@ static void test_schemaless_insert_invalid_format_child() {
     data.precision = TSDB_SML_TIMESTAMP_NANO_SECONDS;
 
     bool ok = conn.execute(data);
+    (void)ok;
     assert(!ok && "Invalid line protocol should fail");
 
     conn.execute(std::string("DROP DATABASE IF EXISTS " + db));
@@ -426,6 +429,7 @@ static void test_schemaless_insert_not_connected_child() {
 
     // Should fail (cannot connect) but not crash
     bool ok = conn.execute(data);
+    (void)ok;
     assert(!ok && "Execute on unreachable host should fail");
 
     std::cout << "[schemaless_not_connected] PASSED (no crash)\n";
@@ -462,6 +466,7 @@ static void test_schemaless_insert_large_batch_child() {
     data.precision = TSDB_SML_TIMESTAMP_NANO_SECONDS;
 
     bool ok = conn.execute(data);
+    (void)ok;
     assert(ok && "Large batch schemaless insert should succeed");
 
     conn.execute(std::string("DROP DATABASE IF EXISTS " + db));
