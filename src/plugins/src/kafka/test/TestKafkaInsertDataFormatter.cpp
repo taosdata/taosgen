@@ -146,6 +146,7 @@ void test_kafka_format_json_multiple_records() {
 
 void test_kafka_format_influx_single_record() {
     auto config = create_base_kafka_config();
+    config.schema.name = "weather";
 
     auto* kf = get_kafka_format_options(config);
     assert(kf != nullptr);
@@ -201,6 +202,7 @@ void test_kafka_format_influx_single_record() {
 
 void test_kafka_format_influx_multiple_records() {
     auto config = create_base_kafka_config();
+    config.schema.name = "weather";
 
     auto* kf = get_kafka_format_options(config);
     assert(kf != nullptr);

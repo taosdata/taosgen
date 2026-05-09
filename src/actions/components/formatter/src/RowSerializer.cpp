@@ -195,64 +195,12 @@ static inline std::string to_utf8_for_text_like(const ColumnType& cell) {
     }, cell);
 }
 
-void RowSerializer::to_influx_inplace(
-    const ColumnConfigInstanceVector& col_instances,
-    const ColumnConfigInstanceVector& tag_instances,
-    const MemoryPool::TableBlock& table,
-    size_t row_index,
-    fmt::memory_buffer& out) {
-
-    if (row_index >= table.used_rows) {
-        throw std::out_of_range("Row index " + std::to_string(row_index) + " is out of range for table with " + std::to_string(table.used_rows) + " used rows");
-    }
-
-    // measurement
-    const char* measurement = table.table_name ? table.table_name : "unknown";
-    append_escape_measure_or_key(out, measurement);
-
-    // tags
-    for (size_t tag_idx = 0; tag_idx < tag_instances.size(); ++tag_idx) {
-        const auto& inst = tag_instances[tag_idx];
-        const auto cell = table.get_tag_cell(0, tag_idx);
-        out.push_back(',');
-        append_escape_measure_or_key(out, inst.name());
-        out.push_back('=');
-        const auto value_str = to_utf8_for_text_like(cell);
-        append_escape_tag_value(out, value_str);
-    }
-
-    // Space separator
-    out.push_back(' ');
-
-    // Fields
-    bool first_field = true;
-    for (size_t col_idx = 0; col_idx < col_instances.size(); ++col_idx) {
-        const auto& inst = col_instances[col_idx];
-        if (!first_field) out.push_back(',');
-        first_field = false;
-
-        append_escape_measure_or_key(out, inst.name());
-        out.push_back('=');
-
-        const auto cell = table.get_column_cell(row_index, col_idx);
-        std::visit([&](const auto& value) {
-            using T = std::decay_t<decltype(value)>;
-            if constexpr (std::is_same_v<T, bool>) {
-                fmt::format_to(std::back_inserter(out), "{}", value ? "true" : "false");
-            } else if constexpr (std::is_integral_v<T> && !std::is_same_v<T, bool>) {
-                fmt::format_to(std::back_inserter(out), "{}i", value);
-            } else if constexpr (std::is_floating_point_v<T>) {
-                fmt::format_to(std::back_inserter(out), "{}", value);
-            } else {
-                const auto s = to_utf8_for_text_like(cell);
-                append_escape_field_string(out, s);
-            }
-        }, cell);
-    }
-
-    // Timestamp
-    if (table.timestamps) {
-        fmt::format_to(std::back_inserter(out), " {}", table.timestamps[row_index]);
+static inline void append_int_suffix(fmt::memory_buffer& out, IntSuffixMode mode,
+                                     const char* standard_suffix, const char* tdengine_suffix) {
+    if (mode == IntSuffixMode::TDENGINE) {
+        fmt::format_to(std::back_inserter(out), "{}", tdengine_suffix);
+    } else {
+        fmt::format_to(std::back_inserter(out), "{}", standard_suffix);
     }
 }
 
@@ -263,13 +211,14 @@ void RowSerializer::to_influx_inplace(
     size_t row_index,
     const std::string& measurement,
     const std::string& id_tag_key,
-    fmt::memory_buffer& out) {
+    fmt::memory_buffer& out,
+    IntSuffixMode suffix_mode) {
 
     if (row_index >= table.used_rows) {
         throw std::out_of_range("Row index " + std::to_string(row_index) + " is out of range for table with " + std::to_string(table.used_rows) + " used rows");
     }
 
-    // measurement (use provided name instead of table_name)
+    // measurement
     append_escape_measure_or_key(out, measurement);
 
     // id tag for child table name
@@ -310,7 +259,24 @@ void RowSerializer::to_influx_inplace(
             if constexpr (std::is_same_v<T, bool>) {
                 fmt::format_to(std::back_inserter(out), "{}", value ? "true" : "false");
             } else if constexpr (std::is_integral_v<T> && !std::is_same_v<T, bool>) {
-                fmt::format_to(std::back_inserter(out), "{}i", value);
+                fmt::format_to(std::back_inserter(out), "{}", value);
+                if constexpr (std::is_same_v<T, int8_t>) {
+                    append_int_suffix(out, suffix_mode, "i", "i8");
+                } else if constexpr (std::is_same_v<T, uint8_t>) {
+                    append_int_suffix(out, suffix_mode, "u", "u8");
+                } else if constexpr (std::is_same_v<T, int16_t>) {
+                    append_int_suffix(out, suffix_mode, "i", "i16");
+                } else if constexpr (std::is_same_v<T, uint16_t>) {
+                    append_int_suffix(out, suffix_mode, "u", "u16");
+                } else if constexpr (std::is_same_v<T, int32_t>) {
+                    append_int_suffix(out, suffix_mode, "i", "i32");
+                } else if constexpr (std::is_same_v<T, uint32_t>) {
+                    append_int_suffix(out, suffix_mode, "u", "u32");
+                } else if constexpr (std::is_same_v<T, int64_t>) {
+                    append_int_suffix(out, suffix_mode, "i", "i64");
+                } else if constexpr (std::is_same_v<T, uint64_t>) {
+                    append_int_suffix(out, suffix_mode, "u", "u64");
+                }
             } else if constexpr (std::is_floating_point_v<T>) {
                 fmt::format_to(std::back_inserter(out), "{}", value);
             } else {

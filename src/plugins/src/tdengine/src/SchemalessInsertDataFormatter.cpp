@@ -42,7 +42,8 @@ FormatResult SchemalessInsertDataFormatter::format(MemoryPool::MemoryBlock* batc
             }
 
             RowSerializer::to_influx_inplace(
-                cols(), tags(), table_block, row_idx, measurement, "id", line_buffer);
+                cols(), tags(), table_block, row_idx, measurement, "id", line_buffer,
+                IntSuffixMode::TDENGINE);
             total_rows++;
         }
     }
