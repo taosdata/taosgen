@@ -156,6 +156,109 @@ void test_generate_string_column_with_values() {
     std::cout << "test_generate_string_column_with_values passed.\n";
 }
 
+void test_generate_varchar_fixed_length() {
+    ColumnConfig config;
+    config.type = "varchar(20)";
+    config.parse_type();
+    ColumnConfigInstance instance(config);
+
+    RandomColumnGenerator generator(instance);
+
+    for (int i = 0; i < 100; ++i) {
+        ColumnType value = generator.generate();
+        assert(std::holds_alternative<std::string>(value));
+        std::string str_value = std::get<std::string>(value);
+        assert(str_value.size() == 20);
+    }
+
+    std::cout << "test_generate_varchar_fixed_length passed.\n";
+}
+
+void test_generate_varchar_random_length() {
+    ColumnConfig config;
+    config.type = "varchar(20)";
+    config.parse_type();
+    config.random_length = true;
+    ColumnConfigInstance instance(config);
+
+    RandomColumnGenerator generator(instance);
+
+    bool has_short = false;
+    bool has_long = false;
+    for (int i = 0; i < 200; ++i) {
+        ColumnType value = generator.generate();
+        assert(std::holds_alternative<std::string>(value));
+        std::string str_value = std::get<std::string>(value);
+        assert(str_value.size() >= 1 && str_value.size() <= 20);
+        if (str_value.size() < 10) has_short = true;
+        if (str_value.size() > 10) has_long = true;
+    }
+    assert(has_short && has_long);
+
+    std::cout << "test_generate_varchar_random_length passed.\n";
+}
+
+void test_generate_varchar_random_length_false() {
+    ColumnConfig config;
+    config.type = "varchar(15)";
+    config.parse_type();
+    config.random_length = false;
+    ColumnConfigInstance instance(config);
+
+    RandomColumnGenerator generator(instance);
+
+    for (int i = 0; i < 100; ++i) {
+        ColumnType value = generator.generate();
+        assert(std::holds_alternative<std::string>(value));
+        std::string str_value = std::get<std::string>(value);
+        assert(str_value.size() == 15);
+    }
+
+    std::cout << "test_generate_varchar_random_length_false passed.\n";
+}
+
+void test_generate_nchar_fixed_length() {
+    ColumnConfig config;
+    config.type = "nchar(10)";
+    config.parse_type();
+    ColumnConfigInstance instance(config);
+
+    RandomColumnGenerator generator(instance);
+
+    for (int i = 0; i < 100; ++i) {
+        ColumnType value = generator.generate();
+        assert(std::holds_alternative<std::u16string>(value));
+        std::u16string str_value = std::get<std::u16string>(value);
+        assert(str_value.size() == 10);
+    }
+
+    std::cout << "test_generate_nchar_fixed_length passed.\n";
+}
+
+void test_generate_nchar_random_length() {
+    ColumnConfig config;
+    config.type = "nchar(10)";
+    config.parse_type();
+    config.random_length = true;
+    ColumnConfigInstance instance(config);
+
+    RandomColumnGenerator generator(instance);
+
+    bool has_short = false;
+    bool has_long = false;
+    for (int i = 0; i < 200; ++i) {
+        ColumnType value = generator.generate();
+        assert(std::holds_alternative<std::u16string>(value));
+        std::u16string str_value = std::get<std::u16string>(value);
+        assert(str_value.size() >= 1 && str_value.size() <= 10);
+        if (str_value.size() <= 3) has_short = true;
+        if (str_value.size() >= 7) has_long = true;
+    }
+    assert(has_short && has_long);
+
+    std::cout << "test_generate_nchar_random_length passed.\n";
+}
+
 int main() {
     test_generate_int_column();
     test_generate_double_column();
@@ -165,6 +268,11 @@ int main() {
     test_generate_int_column_with_values();
     test_generate_bool_column_with_values();
     test_generate_string_column_with_values();
+    test_generate_varchar_fixed_length();
+    test_generate_varchar_random_length();
+    test_generate_varchar_random_length_false();
+    test_generate_nchar_fixed_length();
+    test_generate_nchar_random_length();
 
     std::cout << "All tests passed.\n";
     return 0;

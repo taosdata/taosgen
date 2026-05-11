@@ -421,6 +421,56 @@ max: 100
     assert(col.order_max.has_value() && *col.order_max == 100);
 }
 
+void test_ColumnConfig_random_length_varchar() {
+    std::string yaml = R"(
+name: descripe
+type: varchar(20)
+random_length: true
+)";
+    YAML::Node node = YAML::Load(yaml);
+    ColumnConfig col = node.as<ColumnConfig>();
+    assert(col.name == "descripe");
+    assert(col.type == "varchar(20)");
+    assert(col.gen_type.has_value() && *col.gen_type == "random");
+    assert(col.random_length.has_value() && *col.random_length == true);
+}
+
+void test_ColumnConfig_random_length_nchar() {
+    std::string yaml = R"(
+name: info
+type: nchar(32)
+random_length: true
+)";
+    YAML::Node node = YAML::Load(yaml);
+    ColumnConfig col = node.as<ColumnConfig>();
+    assert(col.name == "info");
+    assert(col.type == "nchar(32)");
+    assert(col.random_length.has_value() && *col.random_length == true);
+}
+
+void test_ColumnConfig_random_length_false() {
+    std::string yaml = R"(
+name: label
+type: binary(16)
+random_length: false
+)";
+    YAML::Node node = YAML::Load(yaml);
+    ColumnConfig col = node.as<ColumnConfig>();
+    assert(col.name == "label");
+    assert(col.random_length.has_value() && *col.random_length == false);
+}
+
+void test_ColumnConfig_random_length_default() {
+    std::string yaml = R"(
+name: tag
+type: varchar(10)
+)";
+    YAML::Node node = YAML::Load(yaml);
+    ColumnConfig col = node.as<ColumnConfig>();
+    assert(col.name == "tag");
+    assert(!col.random_length.has_value());
+}
+
 void test_ColumnConfig_expression() {
     std::string yaml = R"(
 name: value
@@ -1165,6 +1215,10 @@ int main() {
     test_ColumnConfig_random();
     test_ColumnConfig_order();
     test_ColumnConfig_expression();
+    test_ColumnConfig_random_length_varchar();
+    test_ColumnConfig_random_length_nchar();
+    test_ColumnConfig_random_length_false();
+    test_ColumnConfig_random_length_default();
     test_ColumnConfig_strip_backticks_plain();
     test_ColumnConfig_strip_backticks_unmatched();
     test_ColumnConfig_strip_backticks_none();
