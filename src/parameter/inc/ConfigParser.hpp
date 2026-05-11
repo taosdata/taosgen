@@ -560,7 +560,15 @@ namespace YAML {
                 }
                 if (node["dec_min"]) rhs.dec_min = node["dec_min"].as<std::string>();
                 if (node["dec_max"]) rhs.dec_max = node["dec_max"].as<std::string>();
-                if (node["corpus"]) rhs.corpus = node["corpus"].as<std::string>();
+                if (node["corpus"]) {
+                    rhs.corpus = node["corpus"].as<std::string>();
+                    if (rhs.is_var_length() && rhs.len.has_value() &&
+                        rhs.corpus->size() > static_cast<size_t>(*rhs.len)) {
+                        throw std::runtime_error("corpus length (" + std::to_string(rhs.corpus->size()) +
+                            ") exceeds max length (" + std::to_string(*rhs.len) +
+                            ") for column: " + rhs.name);
+                    }
+                }
                 if (node["chinese"]) rhs.chinese = node["chinese"].as<bool>();
                 if (node["random_length"]) rhs.random_length = node["random_length"].as<bool>();
                 if (node["values"]) {

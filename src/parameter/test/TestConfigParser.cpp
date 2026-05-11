@@ -423,13 +423,13 @@ max: 100
 
 void test_ColumnConfig_random_length_varchar() {
     std::string yaml = R"(
-name: descripe
+name: describe
 type: varchar(20)
 random_length: true
 )";
     YAML::Node node = YAML::Load(yaml);
     ColumnConfig col = node.as<ColumnConfig>();
-    assert(col.name == "descripe");
+    assert(col.name == "describe");
     assert(col.type == "varchar(20)");
     assert(col.gen_type.has_value() && *col.gen_type == "random");
     assert(col.random_length.has_value() && *col.random_length == true);
@@ -469,6 +469,44 @@ type: varchar(10)
     ColumnConfig col = node.as<ColumnConfig>();
     assert(col.name == "tag");
     assert(!col.random_length.has_value());
+}
+
+void test_ColumnConfig_corpus_within_len() {
+    std::string yaml = R"(
+name: code
+type: varchar(10)
+corpus: "abc"
+)";
+    YAML::Node node = YAML::Load(yaml);
+    ColumnConfig col = node.as<ColumnConfig>();
+    assert(col.name == "code");
+    assert(col.corpus.has_value() && *col.corpus == "abc");
+}
+
+void test_ColumnConfig_corpus_exceeds_len() {
+    std::string yaml = R"(
+name: code
+type: varchar(3)
+corpus: "abcdef"
+)";
+    YAML::Node node = YAML::Load(yaml);
+    try {
+        node.as<ColumnConfig>();
+        assert(false && "Should throw for corpus exceeding max length");
+    } catch (const std::runtime_error& e) {
+        assert(std::string(e.what()).find("corpus length (6) exceeds max length (3)") != std::string::npos);
+    }
+}
+
+void test_ColumnConfig_corpus_exact_len() {
+    std::string yaml = R"(
+name: flag
+type: binary(5)
+corpus: "abcde"
+)";
+    YAML::Node node = YAML::Load(yaml);
+    ColumnConfig col = node.as<ColumnConfig>();
+    assert(col.corpus.has_value() && col.corpus->size() == 5);
 }
 
 void test_ColumnConfig_expression() {
@@ -1219,6 +1257,9 @@ int main() {
     test_ColumnConfig_random_length_nchar();
     test_ColumnConfig_random_length_false();
     test_ColumnConfig_random_length_default();
+    test_ColumnConfig_corpus_within_len();
+    test_ColumnConfig_corpus_exceeds_len();
+    test_ColumnConfig_corpus_exact_len();
     test_ColumnConfig_strip_backticks_plain();
     test_ColumnConfig_strip_backticks_unmatched();
     test_ColumnConfig_strip_backticks_none();

@@ -186,16 +186,15 @@ void RandomColumnGenerator::initialize_generator() {
                 break;
             case ColumnTypeTag::NCHAR: {
                 bool use_random_len = instance_.config().random_length.value_or(false);
-                generator_ = [this, use_random_len]() {
-                    int max_len = *instance_.config().len;
-                    int len = use_random_len
-                        ? std::uniform_int_distribution<int>(1, max_len)(random_engine)
-                        : max_len;
-                    std::uniform_int_distribution<uint16_t> dist(0x4E00, 0x9FA5);
+                int max_len = *instance_.config().len;
+                std::uniform_int_distribution<int> len_dist(1, max_len);
+                std::uniform_int_distribution<uint16_t> char_dist(0x4E00, 0x9FA5);
+                generator_ = [use_random_len, max_len, len_dist, char_dist]() mutable {
+                    int len = use_random_len ? len_dist(random_engine) : max_len;
                     std::u16string result;
                     result.reserve(len);
                     for (int i = 0; i < len; ++i) {
-                        result.push_back(static_cast<char16_t>(dist(random_engine)));
+                        result.push_back(static_cast<char16_t>(char_dist(random_engine)));
                     }
                     return result;
                 };
@@ -212,12 +211,11 @@ void RandomColumnGenerator::initialize_generator() {
                 } else {
                     static const std::string default_corpus = "abcdefghijklmnopqrstuvwxyz";
                     bool use_random_len = instance_.config().random_length.value_or(false);
+                    int max_len = *instance_.config().len;
+                    std::uniform_int_distribution<int> len_dist(1, max_len);
                     std::uniform_int_distribution<size_t> char_dist(0, default_corpus.size() - 1);
-                    generator_ = [this, use_random_len, char_dist]() mutable {
-                        int max_len = *instance_.config().len;
-                        int len = use_random_len
-                            ? std::uniform_int_distribution<int>(1, max_len)(random_engine)
-                            : max_len;
+                    generator_ = [use_random_len, max_len, len_dist, char_dist]() mutable {
+                        int len = use_random_len ? len_dist(random_engine) : max_len;
                         std::string result;
                         result.reserve(len);
                         for (int i = 0; i < len; ++i) {
