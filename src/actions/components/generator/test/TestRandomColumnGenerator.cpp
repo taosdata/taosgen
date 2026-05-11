@@ -193,6 +193,8 @@ void test_generate_varchar_random_length() {
         if (str_value.size() < 10) has_short = true;
         if (str_value.size() > 10) has_long = true;
     }
+    (void)has_short;
+    (void)has_long;
     assert(has_short && has_long);
 
     std::cout << "test_generate_varchar_random_length passed.\n";
@@ -254,6 +256,8 @@ void test_generate_nchar_random_length() {
         if (str_value.size() <= 3) has_short = true;
         if (str_value.size() >= 7) has_long = true;
     }
+    (void)has_short;
+    (void)has_long;
     assert(has_short && has_long);
 
     std::cout << "test_generate_nchar_random_length passed.\n";
