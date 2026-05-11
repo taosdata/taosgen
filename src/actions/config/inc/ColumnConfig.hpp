@@ -35,6 +35,7 @@ struct ColumnConfig {
     std::optional<std::string> dec_max;
     std::optional<std::string> corpus;
     std::optional<bool> chinese;
+    std::optional<bool> random_length;
 
     int values_count = -1;
     std::vector<double> dbl_values;

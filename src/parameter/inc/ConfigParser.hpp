@@ -454,7 +454,7 @@ namespace YAML {
                 "name", "type", "primary_key", "count", "gen_type", "props", "null_ratio", "none_ratio"
             };
             static const std::set<std::string> random_allowed = {
-                "distribution", "min", "max", "dec_min", "dec_max", "corpus", "chinese", "values"
+                "distribution", "min", "max", "dec_min", "dec_max", "corpus", "chinese", "random_length", "values"
             };
             static const std::set<std::string> order_allowed = {
                 "min", "max"
@@ -562,6 +562,7 @@ namespace YAML {
                 if (node["dec_max"]) rhs.dec_max = node["dec_max"].as<std::string>();
                 if (node["corpus"]) rhs.corpus = node["corpus"].as<std::string>();
                 if (node["chinese"]) rhs.chinese = node["chinese"].as<bool>();
+                if (node["random_length"]) rhs.random_length = node["random_length"].as<bool>();
                 if (node["values"]) {
                     if (rhs.type_tag == ColumnTypeTag::BOOL) {
                         auto str_values = node["values"].as<std::vector<std::string>>();
