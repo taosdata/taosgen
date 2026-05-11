@@ -185,12 +185,14 @@ void RandomColumnGenerator::initialize_generator() {
                 };
                 break;
             case ColumnTypeTag::NCHAR: {
-                bool use_random_len = instance_.config().random_length.value_or(false);
-                int max_len = *instance_.config().len;
-                std::uniform_int_distribution<int> len_dist(1, max_len);
+                int cap = *instance_.config().len;
+                bool use_random_len = instance_.config().min_length.has_value() || instance_.config().max_length.has_value();
+                int min_len = instance_.config().min_length.value_or(cap);
+                int max_len = instance_.config().max_length.value_or(cap);
+                std::uniform_int_distribution<int> len_dist(min_len, max_len);
                 std::uniform_int_distribution<uint16_t> char_dist(0x4E00, 0x9FA5);
-                generator_ = [use_random_len, max_len, len_dist, char_dist]() mutable {
-                    int len = use_random_len ? len_dist(random_engine) : max_len;
+                generator_ = [use_random_len, cap, len_dist, char_dist]() mutable {
+                    int len = use_random_len ? len_dist(random_engine) : cap;
                     std::u16string result;
                     result.reserve(len);
                     for (int i = 0; i < len; ++i) {
@@ -210,12 +212,14 @@ void RandomColumnGenerator::initialize_generator() {
                     };
                 } else {
                     static const std::string default_corpus = "abcdefghijklmnopqrstuvwxyz";
-                    bool use_random_len = instance_.config().random_length.value_or(false);
-                    int max_len = *instance_.config().len;
-                    std::uniform_int_distribution<int> len_dist(1, max_len);
+                    int cap = *instance_.config().len;
+                    bool use_random_len = instance_.config().min_length.has_value() || instance_.config().max_length.has_value();
+                    int min_len = instance_.config().min_length.value_or(cap);
+                    int max_len = instance_.config().max_length.value_or(cap);
+                    std::uniform_int_distribution<int> len_dist(min_len, max_len);
                     std::uniform_int_distribution<size_t> char_dist(0, default_corpus.size() - 1);
-                    generator_ = [use_random_len, max_len, len_dist, char_dist]() mutable {
-                        int len = use_random_len ? len_dist(random_engine) : max_len;
+                    generator_ = [use_random_len, cap, len_dist, char_dist]() mutable {
+                        int len = use_random_len ? len_dist(random_engine) : cap;
                         std::string result;
                         result.reserve(len);
                         for (int i = 0; i < len; ++i) {
