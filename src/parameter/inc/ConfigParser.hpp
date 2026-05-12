@@ -562,6 +562,9 @@ namespace YAML {
                 if (node["dec_max"]) rhs.dec_max = node["dec_max"].as<std::string>();
                 if (node["corpus"]) {
                     rhs.corpus = node["corpus"].as<std::string>();
+                    if (rhs.corpus->empty()) {
+                        throw std::runtime_error("corpus must be non-empty for column: " + rhs.name);
+                    }
                     if (rhs.is_var_length() && rhs.len.has_value() &&
                         rhs.corpus->size() > static_cast<size_t>(*rhs.len)) {
                         throw std::runtime_error("corpus length (" + std::to_string(rhs.corpus->size()) +
@@ -579,6 +582,9 @@ namespace YAML {
                     int max_len = node["max_length"] ? node["max_length"].as<int>() : cap;
                     if (min_len < 0) {
                         throw std::runtime_error("min_length must be >= 0 for column: " + rhs.name);
+                    }
+                    if (max_len < 0) {
+                        throw std::runtime_error("max_length must be >= 0 for column: " + rhs.name);
                     }
                     if (max_len > cap) {
                         throw std::runtime_error("max_length (" + std::to_string(max_len) +

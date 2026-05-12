@@ -187,7 +187,7 @@ void RandomColumnGenerator::initialize_generator() {
             case ColumnTypeTag::NCHAR: {
                 int cap = *instance_.config().len;
                 bool use_random_len = instance_.config().min_length.has_value() || instance_.config().max_length.has_value();
-                int min_len = instance_.config().min_length.value_or(cap);
+                int min_len = instance_.config().min_length.value_or(0);
                 int max_len = instance_.config().max_length.value_or(cap);
                 std::uniform_int_distribution<int> len_dist(min_len, max_len);
                 std::uniform_int_distribution<uint16_t> char_dist(0x4E00, 0x9FA5);
@@ -214,7 +214,7 @@ void RandomColumnGenerator::initialize_generator() {
                     static const std::string default_corpus = "abcdefghijklmnopqrstuvwxyz";
                     int cap = *instance_.config().len;
                     bool use_random_len = instance_.config().min_length.has_value() || instance_.config().max_length.has_value();
-                    int min_len = instance_.config().min_length.value_or(cap);
+                    int min_len = instance_.config().min_length.value_or(0);
                     int max_len = instance_.config().max_length.value_or(cap);
                     std::uniform_int_distribution<int> len_dist(min_len, max_len);
                     std::uniform_int_distribution<size_t> char_dist(0, default_corpus.size() - 1);

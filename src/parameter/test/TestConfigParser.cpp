@@ -536,6 +536,21 @@ min_length: -1
     }
 }
 
+void test_ColumnConfig_negative_max_length() {
+    std::string yaml = R"(
+name: bad
+type: varchar(10)
+max_length: -1
+)";
+    YAML::Node node = YAML::Load(yaml);
+    try {
+        node.as<ColumnConfig>();
+        assert(false && "Should throw for negative max_length");
+    } catch (const std::runtime_error& e) {
+        assert(std::string(e.what()).find("max_length must be >= 0") != std::string::npos);
+    }
+}
+
 void test_ColumnConfig_min_max_length_non_varlen() {
     std::string yaml = R"(
 name: val
@@ -587,6 +602,21 @@ corpus: "abcde"
     YAML::Node node = YAML::Load(yaml);
     ColumnConfig col = node.as<ColumnConfig>();
     assert(col.corpus.has_value() && col.corpus->size() == 5);
+}
+
+void test_ColumnConfig_corpus_empty() {
+    std::string yaml = R"(
+name: code
+type: varchar(10)
+corpus: ""
+)";
+    YAML::Node node = YAML::Load(yaml);
+    try {
+        node.as<ColumnConfig>();
+        assert(false && "Should throw for empty corpus");
+    } catch (const std::runtime_error& e) {
+        assert(std::string(e.what()).find("corpus must be non-empty") != std::string::npos);
+    }
 }
 
 void test_ColumnConfig_expression() {
@@ -1341,10 +1371,12 @@ int main() {
     test_ColumnConfig_max_length_exceeds_cap();
     test_ColumnConfig_min_length_exceeds_max_length();
     test_ColumnConfig_negative_min_length();
+    test_ColumnConfig_negative_max_length();
     test_ColumnConfig_min_max_length_non_varlen();
     test_ColumnConfig_corpus_within_len();
     test_ColumnConfig_corpus_exceeds_len();
     test_ColumnConfig_corpus_exact_len();
+    test_ColumnConfig_corpus_empty();
     test_ColumnConfig_strip_backticks_plain();
     test_ColumnConfig_strip_backticks_unmatched();
     test_ColumnConfig_strip_backticks_none();
