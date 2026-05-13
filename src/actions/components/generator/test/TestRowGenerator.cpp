@@ -162,6 +162,8 @@ void test_generate_row_null_none_mixed() {
         else assert(false && "Expected NULL or NONE when ratios sum to 1.0");
     }
     // Both should appear roughly 50/50
+    (void)null_count;
+    (void)none_count;
     assert(null_count > N / 4 && null_count < 3 * N / 4);
     assert(none_count > N / 4 && none_count < 3 * N / 4);
     std::cout << "test_generate_row_null_none_mixed passed.\n";

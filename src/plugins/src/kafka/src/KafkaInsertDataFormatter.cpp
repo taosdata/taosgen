@@ -98,6 +98,7 @@ FormatResult KafkaInsertDataFormatter::format_influx(MemoryPool::MemoryBlock* ba
         auto& table_block = batch->tables[table_idx];
 
         for (size_t row_idx = 0; row_idx < table_block.used_rows; ++row_idx) {
+            size_t pos_before = line_buffer.size();
             if (records_in_current_message == 0) {
                 first_record_key = key_generator.generate(table_block, row_idx);
             } else {
@@ -106,9 +107,7 @@ FormatResult KafkaInsertDataFormatter::format_influx(MemoryPool::MemoryBlock* ba
 
             if (!RowSerializer::to_influx_inplace(*col_instances_, *tag_instances_, table_block, row_idx,
                                               config().schema.name, "", line_buffer)) {
-                // Row skipped (all fields NULL/NONE). If this was going to be
-                // the first record, we need to re-generate the key on the next
-                // valid row, so leave records_in_current_message unchanged.
+                line_buffer.resize(pos_before);
                 continue;
             }
             records_in_current_message++;

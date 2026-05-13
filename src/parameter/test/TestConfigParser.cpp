@@ -457,7 +457,7 @@ null_ratio: -0.1
         node.as<ColumnConfig>();
         assert(false && "Should throw for negative null_ratio");
     } catch (const std::runtime_error& e) {
-        assert(std::string(e.what()).find("null_ratio must be >= 0.0") != std::string::npos);
+        assert(std::string(e.what()).find("null_ratio must be a finite value in [0.0, 1.0]") != std::string::npos);
     }
 }
 
@@ -472,7 +472,52 @@ none_ratio: -0.1
         node.as<ColumnConfig>();
         assert(false && "Should throw for negative none_ratio");
     } catch (const std::runtime_error& e) {
-        assert(std::string(e.what()).find("none_ratio must be >= 0.0") != std::string::npos);
+        assert(std::string(e.what()).find("none_ratio must be a finite value in [0.0, 1.0]") != std::string::npos);
+    }
+}
+
+void test_ColumnConfig_null_ratio_nan() {
+    std::string yaml = R"(
+name: temp
+type: float
+null_ratio: .nan
+)";
+    YAML::Node node = YAML::Load(yaml);
+    try {
+        node.as<ColumnConfig>();
+        assert(false && "Should throw for NaN null_ratio");
+    } catch (const std::runtime_error& e) {
+        assert(std::string(e.what()).find("null_ratio must be a finite value in [0.0, 1.0]") != std::string::npos);
+    }
+}
+
+void test_ColumnConfig_none_ratio_inf() {
+    std::string yaml = R"(
+name: temp
+type: float
+none_ratio: .inf
+)";
+    YAML::Node node = YAML::Load(yaml);
+    try {
+        node.as<ColumnConfig>();
+        assert(false && "Should throw for Inf none_ratio");
+    } catch (const std::runtime_error& e) {
+        assert(std::string(e.what()).find("none_ratio must be a finite value in [0.0, 1.0]") != std::string::npos);
+    }
+}
+
+void test_ColumnConfig_null_ratio_above_one() {
+    std::string yaml = R"(
+name: temp
+type: float
+null_ratio: 1.5
+)";
+    YAML::Node node = YAML::Load(yaml);
+    try {
+        node.as<ColumnConfig>();
+        assert(false && "Should throw for null_ratio > 1.0");
+    } catch (const std::runtime_error& e) {
+        assert(std::string(e.what()).find("null_ratio must be a finite value in [0.0, 1.0]") != std::string::npos);
     }
 }
 
@@ -1252,6 +1297,9 @@ int main() {
     test_ColumnConfig_null_ratio_only();
     test_ColumnConfig_null_ratio_negative();
     test_ColumnConfig_none_ratio_negative();
+    test_ColumnConfig_null_ratio_nan();
+    test_ColumnConfig_none_ratio_inf();
+    test_ColumnConfig_null_ratio_above_one();
     test_ColumnConfig_null_none_ratio_sum_exceeds();
     test_ColumnConfig_null_none_ratio_sum_equals_one();
     test_ColumnConfig_strip_backticks_plain();

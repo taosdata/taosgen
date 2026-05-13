@@ -37,6 +37,7 @@ FormatResult SchemalessInsertDataFormatter::format(MemoryPool::MemoryBlock* batc
         if (table_block.used_rows == 0) continue;
 
         for (size_t row_idx = 0; row_idx < table_block.used_rows; ++row_idx) {
+            size_t pos_before = line_buffer.size();
             if (total_rows > 0) {
                 line_buffer.push_back('\n');
             }
@@ -44,6 +45,7 @@ FormatResult SchemalessInsertDataFormatter::format(MemoryPool::MemoryBlock* batc
             if (!RowSerializer::to_influx_inplace(
                 cols(), tags(), table_block, row_idx, measurement, "id", line_buffer,
                 IntSuffixMode::TDENGINE)) {
+                line_buffer.resize(pos_before);
                 continue;
             }
             total_rows++;
