@@ -513,6 +513,21 @@ namespace YAML {
             if (node["null_ratio"]) rhs.null_ratio = node["null_ratio"].as<float>();
             if (node["none_ratio"]) rhs.none_ratio = node["none_ratio"].as<float>();
 
+            // Validate null_ratio and none_ratio
+            {
+                float nr = rhs.null_ratio.value_or(0.0f);
+                float no = rhs.none_ratio.value_or(0.0f);
+                if (nr < 0.0f) {
+                    throw std::runtime_error("null_ratio must be >= 0.0 for column: " + rhs.name);
+                }
+                if (no < 0.0f) {
+                    throw std::runtime_error("none_ratio must be >= 0.0 for column: " + rhs.name);
+                }
+                if (nr + no > 1.0f) {
+                    throw std::runtime_error("null_ratio + none_ratio must be <= 1.0 for column: " + rhs.name);
+                }
+            }
+
             // Inference generation method
             if (node["gen_type"]) {
                 rhs.gen_type = node["gen_type"].as<std::string>();

@@ -62,13 +62,14 @@ void test_row_type_ostream() {
 }
 
 void test_variant_index() {
-    static_assert(variant_index<std::monostate, ColumnType>::value == 0);
-    static_assert(variant_index<bool, ColumnType>::value == 1);
-    static_assert(variant_index<int8_t, ColumnType>::value == 2);
-    static_assert(variant_index<int32_t, ColumnType>::value == 6);
-    static_assert(variant_index<double, ColumnType>::value == 11);
-    static_assert(variant_index<std::string, ColumnType>::value == 14);
-    static_assert(variant_index<Geometry, ColumnType>::value == 17);
+    static_assert(variant_index<NullValue, ColumnType>::value == 0);
+    static_assert(variant_index<NoneValue, ColumnType>::value == 1);
+    static_assert(variant_index<bool, ColumnType>::value == 2);
+    static_assert(variant_index<int8_t, ColumnType>::value == 3);
+    static_assert(variant_index<int32_t, ColumnType>::value == 7);
+    static_assert(variant_index<double, ColumnType>::value == 12);
+    static_assert(variant_index<std::string, ColumnType>::value == 15);
+    static_assert(variant_index<Geometry, ColumnType>::value == 18);
 
     std::cout << "test_variant_index passed!" << std::endl;
 }
