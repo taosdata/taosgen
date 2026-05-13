@@ -206,10 +206,107 @@ void test_generate_batch_with_null_none() {
         else val_count++;
     }
     // Roughly 30% null, 30% none, 40% value (with wide tolerance)
+    (void)null_count;
+    (void)none_count;
+    (void)val_count;
     assert(null_count > 100 && null_count < 500);
     assert(none_count > 100 && none_count < 500);
     assert(val_count > 200 && val_count < 600);
     std::cout << "test_generate_batch_with_null_none passed.\n";
+}
+
+void test_generate_inplace_with_null_none() {
+    ColumnConfig cfg1;
+    cfg1.name = "temp";
+    cfg1.type = "int";
+    cfg1.null_ratio = 1.0f;
+
+    ColumnConfig cfg2;
+    cfg2.name = "humidity";
+    cfg2.type = "float";
+    cfg2.none_ratio = 1.0f;
+
+    ColumnConfigInstanceVector instances;
+    instances.emplace_back(cfg1);
+    instances.emplace_back(cfg2);
+
+    RowGenerator generator(instances);
+
+    RowType row(2);
+    for (int i = 0; i < 50; ++i) {
+        generator.generate(row);
+        assert(std::holds_alternative<NullValue>(row[0]));
+        assert(std::holds_alternative<NoneValue>(row[1]));
+    }
+    std::cout << "test_generate_inplace_with_null_none passed.\n";
+}
+
+void test_generate_multi_column_different_ratios() {
+    ColumnConfig cfg_null;
+    cfg_null.name = "c1";
+    cfg_null.type = "int";
+    cfg_null.null_ratio = 1.0f;  // always NULL
+
+    ColumnConfig cfg_none;
+    cfg_none.name = "c2";
+    cfg_none.type = "float";
+    cfg_none.none_ratio = 1.0f;  // always NONE
+
+    ColumnConfig cfg_normal;
+    cfg_normal.name = "c3";
+    cfg_normal.type = "int";
+    cfg_normal.min = 1;
+    cfg_normal.max = 100;
+    // no ratios, always normal
+
+    ColumnConfigInstanceVector instances;
+    instances.emplace_back(cfg_null);
+    instances.emplace_back(cfg_none);
+    instances.emplace_back(cfg_normal);
+
+    RowGenerator generator(instances);
+
+    for (int i = 0; i < 100; ++i) {
+        RowType row = generator.generate();
+        assert(row.size() == 3);
+        assert(std::holds_alternative<NullValue>(row[0]));
+        assert(std::holds_alternative<NoneValue>(row[1]));
+        assert(std::holds_alternative<int32_t>(row[2]));
+    }
+    std::cout << "test_generate_multi_column_different_ratios passed.\n";
+}
+
+void test_generate_with_timestamp_null_none() {
+    TimestampGeneratorConfig ts_config;
+    ts_config.start_timestamp = Timestamp{1000};
+    ts_config.timestamp_step = 10;
+    ts_config.timestamp_precision = "ms";
+
+    ColumnConfig cfg;
+    cfg.name = "val";
+    cfg.type = "int";
+    cfg.null_ratio = 1.0f;
+
+    ColumnConfigInstanceVector instances;
+    instances.emplace_back(cfg);
+
+    RowGenerator generator(ts_config, instances);
+    RowType row = generator.generate();
+
+    // Timestamp should NOT be affected by null_ratio
+    assert(row.size() == 2);
+    assert(std::holds_alternative<Timestamp>(row[0]));
+    assert(std::get<Timestamp>(row[0]) == 1000);
+    // Data column should be NULL
+    assert(std::holds_alternative<NullValue>(row[1]));
+
+    // Batch variant
+    auto rows = generator.generate(5);
+    for (size_t i = 0; i < 5; ++i) {
+        assert(std::holds_alternative<Timestamp>(rows[i][0]));
+        assert(std::holds_alternative<NullValue>(rows[i][1]));
+    }
+    std::cout << "test_generate_with_timestamp_null_none passed.\n";
 }
 
 int main() {
@@ -221,6 +318,9 @@ int main() {
     test_generate_row_null_none_mixed();
     test_generate_row_no_ratio();
     test_generate_batch_with_null_none();
+    test_generate_inplace_with_null_none();
+    test_generate_multi_column_different_ratios();
+    test_generate_with_timestamp_null_none();
 
     std::cout << "All tests passed.\n";
     return 0;

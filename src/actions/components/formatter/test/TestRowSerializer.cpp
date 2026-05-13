@@ -591,6 +591,7 @@ void test_influx_inplace_all_fields_null_none() {
     fmt::memory_buffer buf;
     buf.push_back('X');  // sentinel to verify rollback
     bool written = RowSerializer::to_influx_inplace(col_instances, tag_instances, tb, 0, "m", "", buf);
+    (void)written;
     assert(!written);
     assert(buf.size() == 1);
     assert(buf[0] == 'X');
