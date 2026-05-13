@@ -819,6 +819,7 @@ void test_memory_pool_none_value() {
     MemoryPool pool(1, 1, 2, col_instances, tag_instances);
     auto* block = pool.convert_to_memory_block(std::move(batch));
     const auto& tb = block->tables[0];
+    (void)tb;
 
     // Row 0: val=42 (normal), desc=NONE (is_nulls=2)
     assert(tb.columns[0].is_nulls[0] == 0);

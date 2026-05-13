@@ -210,7 +210,7 @@ static inline void append_int_suffix(fmt::memory_buffer& out, IntSuffixMode mode
     }
 }
 
-void RowSerializer::to_influx_inplace(
+bool RowSerializer::to_influx_inplace(
     const ColumnConfigInstanceVector& col_instances,
     const ColumnConfigInstanceVector& tag_instances,
     const MemoryPool::TableBlock& table,
@@ -223,6 +223,9 @@ void RowSerializer::to_influx_inplace(
     if (row_index >= table.used_rows) {
         throw std::out_of_range("Row index " + std::to_string(row_index) + " is out of range for table with " + std::to_string(table.used_rows) + " used rows");
     }
+
+    // Save buffer position so we can roll back if all fields are NULL/NONE
+    const size_t saved_size = out.size();
 
     // measurement
     append_escape_measure_or_key(out, measurement);
@@ -299,8 +302,16 @@ void RowSerializer::to_influx_inplace(
         }, cell);
     }
 
+    // All fields were NULL/NONE — invalid line protocol, drop this row
+    if (first_field) {
+        out.resize(saved_size);
+        return false;
+    }
+
     // Timestamp
     if (table.timestamps) {
         fmt::format_to(std::back_inserter(out), " {}", table.timestamps[row_index]);
     }
+
+    return true;
 }

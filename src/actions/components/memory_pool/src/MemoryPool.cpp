@@ -555,8 +555,8 @@ void MemoryPool::TagsManager::init_table_tags(TableBlock::Tags& tags,
         // 设置 is_nulls
         tag.is_nulls = common_meta_ptr;
         common_meta_ptr += sizeof(char);
-        const bool is_null = std::holds_alternative<NullValue>(tag_value);
-        tag.is_nulls[0] = is_null ? 1 : 0;
+        tag.is_nulls[0] = std::holds_alternative<NullValue>(tag_value) ? 1 : (std::holds_alternative<NoneValue>(tag_value) ? 2 : 0);
+        const bool is_null = tag.is_nulls[0] > 0;
 
         // 初始化 binding
         bind.buffer_type = config.get_taos_type();

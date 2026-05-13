@@ -100,11 +100,14 @@ std::vector<RowType> RowGenerator::generate(size_t count) const {
 }
 
 void RowGenerator::apply_null_none(RowType& row, size_t col_offset) const {
+    static thread_local std::mt19937 rng{std::random_device{}()};
+    static thread_local std::uniform_real_distribution<float> dice{0.0f, 1.0f};
+
     for (size_t i = 0; i < ratios_.size() && (i + col_offset) < row.size(); ++i) {
         const auto& r = ratios_[i];
         if (!r.has_ratio()) continue;
 
-        float roll = dice_(rng_);
+        float roll = dice(rng);
         if (roll < r.null_ratio) {
             row[i + col_offset] = NullValue{};
         } else if (roll < r.null_ratio + r.none_ratio) {

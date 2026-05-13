@@ -104,8 +104,13 @@ FormatResult KafkaInsertDataFormatter::format_influx(MemoryPool::MemoryBlock* ba
                 line_buffer.push_back('\n');
             }
 
-            RowSerializer::to_influx_inplace(*col_instances_, *tag_instances_, table_block, row_idx,
-                                              config().schema.name, "", line_buffer);
+            if (!RowSerializer::to_influx_inplace(*col_instances_, *tag_instances_, table_block, row_idx,
+                                              config().schema.name, "", line_buffer)) {
+                // Row skipped (all fields NULL/NONE). If this was going to be
+                // the first record, we need to re-generate the key on the next
+                // valid row, so leave records_in_current_message unchanged.
+                continue;
+            }
             records_in_current_message++;
 
             // If the message is full, push it to the batch and reset

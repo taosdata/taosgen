@@ -30,9 +30,11 @@ FormatResult InfluxDBInsertDataFormatter::format(MemoryPool::MemoryBlock* batch,
                 line_buffer.push_back('\n');
             }
 
-            RowSerializer::to_influx_inplace(
+            if (!RowSerializer::to_influx_inplace(
                 cols(), tags(), table_block, row_idx,
-                config().schema.name, "", line_buffer);
+                config().schema.name, "", line_buffer)) {
+                continue;
+            }
             total_rows++;
         }
     }

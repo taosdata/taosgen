@@ -35,6 +35,4 @@ private:
     };
     std::vector<NullNoneRatio> ratios_;
     bool has_any_ratio_ = false;
-    mutable std::mt19937 rng_{std::random_device{}()};
-    mutable std::uniform_real_distribution<float> dice_{0.0f, 1.0f};
 };

@@ -556,12 +556,56 @@ void test_influx_inplace_with_null_none() {
     const auto& tb = block->tables[0];
 
     fmt::memory_buffer buf;
-    RowSerializer::to_influx_inplace(col_instances, tag_instances, tb, 0, "m", "", buf);
+    bool written = RowSerializer::to_influx_inplace(col_instances, tag_instances, tb, 0, "m", "", buf);
+	(void)written;
+    assert(written);
     auto s = fmt::to_string(buf);
     // NULL and NONE fields should be skipped in influx line protocol
     assert(s == "m f_val=1.5 100000");
 
     std::cout << "test_influx_inplace_with_null_none passed." << std::endl;
+}
+
+void test_influx_inplace_all_fields_null_none() {
+    ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
+
+    col_instances.emplace_back(ColumnConfig{"f1", "INT"});
+    col_instances.emplace_back(ColumnConfig{"f2", "FLOAT"});
+    col_instances.emplace_back(ColumnConfig{"f3", "INT"});
+
+    MultiBatch batch;
+    std::vector<RowData> rows;
+    // Row 0: all fields NULL/NONE
+    rows.push_back({100000, {NullValue{}, NoneValue{}, NullValue{}}});
+    // Row 1: one valid field among NULL/NONE
+    rows.push_back({100001, {NoneValue{}, 3.14f, NullValue{}}});
+    batch.table_batches.emplace_back("tbl", std::move(rows));
+    batch.update_metadata();
+
+    MemoryPool pool(1, 1, 2, col_instances, tag_instances);
+    auto* block = pool.convert_to_memory_block(std::move(batch));
+    const auto& tb = block->tables[0];
+
+    // Row 0: all fields NULL/NONE — should be dropped (return false), buffer unchanged
+    fmt::memory_buffer buf;
+    buf.push_back('X');  // sentinel to verify rollback
+    bool written = RowSerializer::to_influx_inplace(col_instances, tag_instances, tb, 0, "m", "", buf);
+    assert(!written);
+    assert(buf.size() == 1);
+    assert(buf[0] == 'X');
+
+    // Row 1: has one valid field — should succeed
+    fmt::memory_buffer buf2;
+    written = RowSerializer::to_influx_inplace(col_instances, tag_instances, tb, 1, "m", "", buf2);
+    assert(written);
+    auto s = fmt::to_string(buf2);
+    assert(s.find("f2=") != std::string::npos);
+    // f1 and f3 should NOT appear
+    assert(s.find("f1=") == std::string::npos);
+    assert(s.find("f3=") == std::string::npos);
+
+    std::cout << "test_influx_inplace_all_fields_null_none passed." << std::endl;
 }
 
 int main() {
@@ -578,6 +622,7 @@ int main() {
     test_influx_inplace_unsigned_with_measurement_overload();
     test_influx_inplace_tdengine_suffix_mode();
     test_influx_inplace_with_null_none();
+    test_influx_inplace_all_fields_null_none();
 
     std::cout << "All RowSerializer tests passed." << std::endl;
     return 0;
