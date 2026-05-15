@@ -21,9 +21,9 @@ void test_schemaless_format_single_table() {
     DataFormat format;
     format.format_type = "schemaless";
     auto* sf = get_schemaless_format_options(format);
-    sf->tbname_key = "id";
     (void)sf;
     assert(sf != nullptr);
+    sf->tbname_key = "id";
 
     InsertDataConfig config;
     config.schema.name = "meters";
@@ -212,6 +212,7 @@ void test_schemaless_format_no_tbname_key() {
     format.format_type = "schemaless";
     auto* sf = get_schemaless_format_options(format);
     // Default tbname_key is "" — no child table name tag in output
+    (void)sf;
     assert(sf != nullptr);
     assert(sf->tbname_key.empty());
 
@@ -252,6 +253,7 @@ void test_schemaless_format_no_tbname_key() {
     assert(payload != nullptr);
     (void)payload;
     const std::string& lines = payload->lines;
+    (void)lines;
     // Should NOT contain any id/table name tag
     assert(lines.find("id=") == std::string::npos);
     assert(lines.find("d1001") == std::string::npos);
@@ -307,6 +309,7 @@ void test_schemaless_format_custom_tbname_key() {
     assert(payload != nullptr);
     (void)payload;
     const std::string& lines = payload->lines;
+    (void)lines;
     // Should use custom tbname_key "device_id"
     assert(lines.find("device_id=d1001") != std::string::npos);
     // Should NOT contain ",id=" as a standalone tag key
