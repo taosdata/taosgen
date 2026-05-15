@@ -327,7 +327,7 @@ bool TDengineConnector::execute(const SchemalessInsertData& data) {
     }
 
     if (data.total_rows <= 0) {
-        LogUtils::warning("{} SchemalessInsertData has non-positive total_rows: {}", display_name_, data.total_rows);
+        LogUtils::warn("{} SchemalessInsertData has non-positive total_rows: {}", display_name_, data.total_rows);
         return true;
     }
 
