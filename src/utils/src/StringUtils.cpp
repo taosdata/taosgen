@@ -23,7 +23,7 @@ inline char to_lower_ascii(unsigned char ch) {
 std::string StringUtils::to_lower(const std::string& str) {
     std::string lower_str = str;
     std::transform(lower_str.begin(), lower_str.end(), lower_str.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
+                   [](unsigned char c) { return to_lower_ascii(c); });
     return lower_str;
 }
 
