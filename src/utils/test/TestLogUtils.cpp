@@ -353,7 +353,7 @@ void test_console_only_then_file() {
 void test_get_logger_snapshot_returns_valid_logger() {
     LogUtils::init_console(LogUtils::Level::Info);
     auto snapshot = LogUtils::get_logger_snapshot();
-	(void)snapshot;
+    (void)snapshot;
     assert(snapshot != nullptr);
     // Snapshot should remain valid even after shutdown
     LogUtils::shutdown();
@@ -363,7 +363,7 @@ void test_get_logger_snapshot_returns_valid_logger() {
 
     // After shutdown, get_logger_snapshot should return nullptr
     auto snapshot2 = LogUtils::get_logger_snapshot();
-	(void)snapshot2;
+    (void)snapshot2;
     assert(snapshot2 == nullptr);
     std::cout << "test_get_logger_snapshot_returns_valid_logger passed" << std::endl;
 }

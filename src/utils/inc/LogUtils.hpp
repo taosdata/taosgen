@@ -29,8 +29,7 @@ void shutdown();
 void set_level(Level level);
 void flush(); // Flush all pending log messages
 
-// Logger instance
-extern std::shared_ptr<spdlog::logger> logger;
+// Logger snapshot (thread-safe access)
 std::shared_ptr<spdlog::logger> get_logger_snapshot();
 
 // String version

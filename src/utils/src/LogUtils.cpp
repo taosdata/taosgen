@@ -12,10 +12,10 @@
 
 namespace LogUtils {
 
-std::shared_ptr<spdlog::logger> logger;
-static std::mutex logger_lifecycle_mutex;
-
 namespace {
+std::shared_ptr<spdlog::logger> logger;
+std::mutex logger_lifecycle_mutex;
+
 inline std::shared_ptr<spdlog::logger> load_logger() {
     return std::atomic_load(&logger);
 }
