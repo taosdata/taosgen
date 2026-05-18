@@ -28,6 +28,24 @@ void test_iequals_ascii_rejects_different_strings() {
     assert(!StringUtils::iequals_ascii("n-a", "n/a"));
 }
 
+void test_to_lower_basic() {
+    assert(StringUtils::to_lower("HELLO") == "hello");
+    assert(StringUtils::to_lower("Hello World") == "hello world");
+    assert(StringUtils::to_lower("already lower") == "already lower");
+    assert(StringUtils::to_lower("") == "");
+    assert(StringUtils::to_lower("123ABC!@#") == "123abc!@#");
+}
+
+void test_to_lower_ascii_only() {
+    // Non-ASCII bytes should pass through unchanged (no locale dependency)
+    std::string input = "A\xC0\xC1Z";
+    std::string result = StringUtils::to_lower(input);
+    assert(result[0] == 'a');
+    assert(result[1] == '\xC0');
+    assert(result[2] == '\xC1');
+    assert(result[3] == 'z');
+}
+
 void test_trim_view_ascii_only_whitespace() {
     std::string input = std::string("\xC2\xA0") + "value" + "\xC2\xA0";
     std::string_view view = StringUtils::trim_view(input);
@@ -41,6 +59,8 @@ int main() {
     test_trim_view_returns_empty_for_whitespace_only();
     test_iequals_ascii_matches_case_insensitively();
     test_iequals_ascii_rejects_different_strings();
+    test_to_lower_basic();
+    test_to_lower_ascii_only();
     test_trim_view_ascii_only_whitespace();
 
     std::cout << "TestStringUtils passed" << std::endl;
