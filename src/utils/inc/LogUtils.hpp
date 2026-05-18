@@ -31,6 +31,7 @@ void flush(); // Flush all pending log messages
 
 // Logger instance
 extern std::shared_ptr<spdlog::logger> logger;
+std::shared_ptr<spdlog::logger> get_logger_snapshot();
 
 // String version
 void debug(const std::string& msg);
@@ -42,8 +43,9 @@ void fatal(const std::string& msg);
 // Variadic template version (fmt-style)
 template <typename... Args>
 inline void debug(fmt::format_string<Args...> fmt, Args&&... args) {
-    if (logger) {
-        logger->debug(fmt, std::forward<Args>(args)...);
+    auto local_logger = get_logger_snapshot();
+    if (local_logger) {
+        local_logger->debug(fmt, std::forward<Args>(args)...);
     } else {
         std::cout << "[DEBUG] " << fmt::format(fmt, std::forward<Args>(args)...) << std::endl;
     }
@@ -51,8 +53,9 @@ inline void debug(fmt::format_string<Args...> fmt, Args&&... args) {
 
 template <typename... Args>
 inline void info(fmt::format_string<Args...> fmt, Args&&... args) {
-    if (logger) {
-        logger->info(fmt, std::forward<Args>(args)...);
+    auto local_logger = get_logger_snapshot();
+    if (local_logger) {
+        local_logger->info(fmt, std::forward<Args>(args)...);
     } else {
         std::cout << "[INFO] " << fmt::format(fmt, std::forward<Args>(args)...) << std::endl;
     }
@@ -60,8 +63,9 @@ inline void info(fmt::format_string<Args...> fmt, Args&&... args) {
 
 template <typename... Args>
 inline void warn(fmt::format_string<Args...> fmt, Args&&... args) {
-    if (logger) {
-        logger->warn(fmt, std::forward<Args>(args)...);
+    auto local_logger = get_logger_snapshot();
+    if (local_logger) {
+        local_logger->warn(fmt, std::forward<Args>(args)...);
     } else {
         std::cout << "[WARN] " << fmt::format(fmt, std::forward<Args>(args)...) << std::endl;
     }
@@ -69,8 +73,9 @@ inline void warn(fmt::format_string<Args...> fmt, Args&&... args) {
 
 template <typename... Args>
 inline void error(fmt::format_string<Args...> fmt, Args&&... args) {
-    if (logger) {
-        logger->error(fmt, std::forward<Args>(args)...);
+    auto local_logger = get_logger_snapshot();
+    if (local_logger) {
+        local_logger->error(fmt, std::forward<Args>(args)...);
     } else {
         std::cerr << "[ERROR] " << fmt::format(fmt, std::forward<Args>(args)...) << std::endl;
     }
@@ -78,8 +83,9 @@ inline void error(fmt::format_string<Args...> fmt, Args&&... args) {
 
 template <typename... Args>
 inline void fatal(fmt::format_string<Args...> fmt, Args&&... args) {
-    if (logger) {
-        logger->critical(fmt, std::forward<Args>(args)...);
+    auto local_logger = get_logger_snapshot();
+    if (local_logger) {
+        local_logger->critical(fmt, std::forward<Args>(args)...);
     } else {
         std::cerr << "[FATAL] " << fmt::format(fmt, std::forward<Args>(args)...) << std::endl;
     }

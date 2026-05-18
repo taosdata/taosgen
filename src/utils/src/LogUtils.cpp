@@ -15,6 +15,20 @@ namespace LogUtils {
 std::shared_ptr<spdlog::logger> logger;
 static std::mutex logger_lifecycle_mutex;
 
+namespace {
+inline std::shared_ptr<spdlog::logger> load_logger() {
+    return std::atomic_load(&logger);
+}
+
+inline void store_logger(const std::shared_ptr<spdlog::logger>& new_logger) {
+    std::atomic_store(&logger, new_logger);
+}
+}
+
+std::shared_ptr<spdlog::logger> get_logger_snapshot() {
+    return load_logger();
+}
+
 spdlog::level::level_enum to_spdlog_level(Level level) {
     switch (level) {
         case Level::Debug: return spdlog::level::debug;
@@ -49,27 +63,29 @@ public:
 void init_console(Level level) {
     std::lock_guard<std::mutex> lock(logger_lifecycle_mutex);
 
-    if (logger) {
-        logger->flush();
+    auto current_logger = load_logger();
+    if (current_logger) {
+        current_logger->flush();
         spdlog::drop("taosgen_logger");
-        logger.reset();
+        store_logger(nullptr);
     }
 
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
 
     std::vector<spdlog::sink_ptr> sinks{console_sink};
-    logger = std::make_shared<spdlog::logger>("taosgen_logger", sinks.begin(), sinks.end());
+    auto new_logger = std::make_shared<spdlog::logger>("taosgen_logger", sinks.begin(), sinks.end());
 
     auto formatter = std::make_unique<spdlog::pattern_formatter>(
         "%Y-%m-%d %H:%M:%S.%f %t %X %v"
     );
     formatter->add_flag<LevelFullNameFormatter>('X');
 
-    logger->set_formatter(std::move(formatter));
-    logger->set_level(to_spdlog_level(level));
-    logger->flush_on(spdlog::level::info);
-    spdlog::register_logger(logger);
-    spdlog::set_default_logger(logger);
+    new_logger->set_formatter(std::move(formatter));
+    new_logger->set_level(to_spdlog_level(level));
+    new_logger->flush_on(spdlog::level::info);
+    spdlog::register_logger(new_logger);
+    spdlog::set_default_logger(new_logger);
+    store_logger(new_logger);
 }
 
 void init(Level level, const std::string& log_file, size_t max_file_size, size_t max_files) {
@@ -98,19 +114,22 @@ void init(Level level, const std::string& log_file, size_t max_file_size, size_t
     }
 
     // Shutdown existing logger if any
-    if (logger) {
-        logger->flush();
+    auto current_logger = load_logger();
+    if (current_logger) {
+        current_logger->flush();
         spdlog::drop("taosgen_logger");
-        logger.reset();
+        store_logger(nullptr);
     }
 
-    spdlog::init_thread_pool(8192, 1);
+    if (!spdlog::thread_pool()) {
+        spdlog::init_thread_pool(8192, 1);
+    }
 
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
     auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(log_file, max_file_size, max_files);
 
     std::vector<spdlog::sink_ptr> sinks{console_sink, file_sink};
-    logger = std::make_shared<spdlog::async_logger>(
+    auto new_logger = std::make_shared<spdlog::async_logger>(
         "taosgen_logger", sinks.begin(), sinks.end(),
         spdlog::thread_pool(), spdlog::async_overflow_policy::block);
 
@@ -119,67 +138,80 @@ void init(Level level, const std::string& log_file, size_t max_file_size, size_t
     );
     formatter->add_flag<LevelFullNameFormatter>('X');
 
-    logger->set_formatter(std::move(formatter));
-    logger->set_level(to_spdlog_level(level));
-    logger->flush_on(spdlog::level::info);
-    spdlog::register_logger(logger);
-    spdlog::set_default_logger(logger);
+    new_logger->set_formatter(std::move(formatter));
+    new_logger->set_level(to_spdlog_level(level));
+    new_logger->flush_on(spdlog::level::info);
+    spdlog::register_logger(new_logger);
+    spdlog::set_default_logger(new_logger);
+    store_logger(new_logger);
 }
 
 void shutdown() {
     std::lock_guard<std::mutex> lock(logger_lifecycle_mutex);
 
-    if (logger) {
-        logger->flush();
+    auto current_logger = load_logger();
+    if (current_logger) {
+        current_logger->flush();
         spdlog::drop("taosgen_logger");
-        logger.reset();
+        store_logger(nullptr);
     }
     spdlog::shutdown();
 }
 
 void set_level(Level level) {
-    if (logger) logger->set_level(to_spdlog_level(level));
+    auto current_logger = load_logger();
+    if (current_logger) {
+        current_logger->set_level(to_spdlog_level(level));
+    }
 }
 
 void flush() {
-    if (logger) logger->flush();
+    auto current_logger = load_logger();
+    if (current_logger) {
+        current_logger->flush();
+    }
 }
 
 void debug(const std::string& msg) {
-    if (logger) {
-        logger->debug(msg);
+    auto current_logger = load_logger();
+    if (current_logger) {
+        current_logger->debug(msg);
     } else {
         std::cout << "[DEBUG] " << msg << std::endl;
     }
 }
 
 void info(const std::string& msg) {
-    if (logger) {
-        logger->info(msg);
+    auto current_logger = load_logger();
+    if (current_logger) {
+        current_logger->info(msg);
     } else {
         std::cout << "[INFO] " << msg << std::endl;
     }
 }
 
 void warn(const std::string& msg) {
-    if (logger) {
-        logger->warn(msg);
+    auto current_logger = load_logger();
+    if (current_logger) {
+        current_logger->warn(msg);
     } else {
         std::cout << "[WARN] " << msg << std::endl;
     }
 }
 
 void error(const std::string& msg) {
-    if (logger) {
-        logger->error(msg);
+    auto current_logger = load_logger();
+    if (current_logger) {
+        current_logger->error(msg);
     } else {
         std::cerr << "[ERROR] " << msg << std::endl;
     }
 }
 
 void fatal(const std::string& msg) {
-    if (logger) {
-        logger->critical(msg);
+    auto current_logger = load_logger();
+    if (current_logger) {
+        current_logger->critical(msg);
     } else {
         std::cerr << "[FATAL] " << msg << std::endl;
     }
