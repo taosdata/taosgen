@@ -2,6 +2,8 @@
 
 namespace SignalManager {
 
+static std::atomic<bool> g_interrupted{false};
+
 struct SignalCallbackList {
     std::vector<SignalCallback> normal_callbacks;
     std::optional<SignalCallback> final_callback;
@@ -10,7 +12,12 @@ struct SignalCallbackList {
 static std::map<int, SignalCallbackList> callbacks;
 static std::mutex cb_mutex;
 
+bool interrupted() {
+    return g_interrupted.load(std::memory_order_relaxed);
+}
+
 void signal_handler(int signum) {
+    g_interrupted.store(true, std::memory_order_relaxed);
     std::lock_guard<std::mutex> lock(cb_mutex);
     auto it = callbacks.find(signum);
     if (it != callbacks.end()) {

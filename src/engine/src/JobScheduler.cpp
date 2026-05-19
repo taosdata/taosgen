@@ -31,14 +31,16 @@ bool JobScheduler::run() {
         workers.emplace_back([this] { worker_loop(); });
     }
 
-    // Wait for all jobs to complete
+    // Wait for all jobs to complete, periodically checking stop flag
     {
         std::unique_lock<std::mutex> lock(done_mutex_);
-        done_cv_.wait(lock, [this] { return remaining_jobs_ == 0 || stop_execution_.load(); });
+        while (remaining_jobs_ != 0 && !stop_execution_.load()) {
+            done_cv_.wait_for(lock, std::chrono::milliseconds(100));
+        }
     }
 
-    // Stop queue and wait for threads
-    queue_->stop();
+    // Ensure queue is stopped and wait for threads
+    wakeup();
     for (auto& worker : workers) {
         if (worker.joinable()) worker.join();
     }
@@ -48,12 +50,12 @@ bool JobScheduler::run() {
 
 void JobScheduler::stop() {
     stop_execution_.store(true);
-    LogUtils::info("Stopping job scheduler...");
+}
+
+void JobScheduler::wakeup() {
     queue_->stop();
-    {
-        std::unique_lock<std::mutex> lock(done_mutex_);
-        done_cv_.notify_all();
-    }
+    std::unique_lock<std::mutex> lock(done_mutex_);
+    done_cv_.notify_all();
 }
 
 void JobScheduler::worker_loop() {

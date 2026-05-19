@@ -32,7 +32,7 @@ public:
     // Run scheduler
     bool run();
 
-    // Stop scheduler (signal-safe, can be called from signal handler)
+    // Stop scheduler. Only sets an atomic flag — safe to call from signal handler.
     void stop();
 
     bool has_failure() const { return stop_execution_.load(); }
@@ -40,6 +40,9 @@ public:
 private:
     // Worker thread loop
     void worker_loop();
+
+    // Stop queue and notify waiting threads (called from normal thread context)
+    void wakeup();
 
     const ConfigData& config_;                              // Configuration data
     std::unique_ptr<JobDAG> dag_;                           // Job dependency graph
