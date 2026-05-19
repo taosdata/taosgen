@@ -18,6 +18,13 @@ inline char to_lower_ascii(unsigned char ch) {
     }
     return static_cast<char>(ch);
 }
+
+inline char to_upper_ascii(unsigned char ch) {
+    if (ch >= 'a' && ch <= 'z') {
+        return static_cast<char>(ch - 'a' + 'A');
+    }
+    return static_cast<char>(ch);
+}
 }
 
 std::string StringUtils::to_lower(const std::string& str) {
@@ -30,7 +37,7 @@ std::string StringUtils::to_lower(const std::string& str) {
 std::string StringUtils::to_upper(const std::string& str) {
     std::string upper_str = str;
     std::transform(upper_str.begin(), upper_str.end(), upper_str.begin(),
-                   [](unsigned char c) { return std::toupper(c); });
+                   [](unsigned char c) { return to_upper_ascii(c); });
     return upper_str;
 }
 

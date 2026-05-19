@@ -54,6 +54,24 @@ void test_trim_view_ascii_only_whitespace() {
     assert(view == std::string_view(input));
 }
 
+void test_to_upper_basic() {
+    assert(StringUtils::to_upper("hello") == "HELLO");
+    assert(StringUtils::to_upper("Hello World") == "HELLO WORLD");
+    assert(StringUtils::to_upper("ALREADY UPPER") == "ALREADY UPPER");
+    assert(StringUtils::to_upper("") == "");
+    assert(StringUtils::to_upper("123abc!@#") == "123ABC!@#");
+}
+
+void test_to_upper_ascii_only() {
+    // Non-ASCII bytes should pass through unchanged (no locale dependency)
+    std::string input = "a\xC0\xE1z";
+    std::string result = StringUtils::to_upper(input);
+    assert(result[0] == 'A');
+    assert(result[1] == '\xC0');
+    assert(result[2] == '\xE1');
+    assert(result[3] == 'Z');
+}
+
 int main() {
     test_trim_view_trims_leading_and_trailing_whitespace();
     test_trim_view_returns_empty_for_whitespace_only();
@@ -61,6 +79,8 @@ int main() {
     test_iequals_ascii_rejects_different_strings();
     test_to_lower_basic();
     test_to_lower_ascii_only();
+    test_to_upper_basic();
+    test_to_upper_ascii_only();
     test_trim_view_ascii_only_whitespace();
 
     std::cout << "TestStringUtils passed" << std::endl;
