@@ -7,11 +7,13 @@
 #include <chrono>
 #include <thread>
 
+static JobScheduler* g_scheduler = nullptr;
+
 void exit_handler(int signum) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    LogUtils::info("Interrupt signal ({}) received. Shutting down gracefully...", signum);
-    LogUtils::shutdown();
-    exit(signum);
+    (void)signum;
+    if (g_scheduler) {
+        g_scheduler->stop();
+    }
 }
 
 int main(int argc, char* argv[]) {
@@ -53,10 +55,16 @@ int main(int argc, char* argv[]) {
         try {
             // Create job scheduler instance
             JobScheduler scheduler(config);
+            g_scheduler = &scheduler;
 
             // Run scheduler
             bool success = scheduler.run();
+            g_scheduler = nullptr;
+
             if (!success) {
+                if (scheduler.has_failure()) {
+                    LogUtils::info("Interrupt signal received. Shutting down gracefully...");
+                }
                 return 1;
             }
 
@@ -64,6 +72,7 @@ int main(int argc, char* argv[]) {
             return 0;
 
         } catch (const std::exception& e) {
+            g_scheduler = nullptr;
             LogUtils::error("Error during job execution: {}", e.what());
             return 1;
         }

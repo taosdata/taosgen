@@ -32,6 +32,9 @@ public:
     // Run scheduler
     bool run();
 
+    // Stop scheduler (signal-safe, can be called from signal handler)
+    void stop();
+
     bool has_failure() const { return stop_execution_.load(); }
 
 private:

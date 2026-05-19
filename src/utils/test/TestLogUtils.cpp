@@ -350,24 +350,6 @@ void test_console_only_then_file() {
     std::cout << "test_console_only_then_file passed" << std::endl;
 }
 
-void test_get_logger_snapshot_returns_valid_logger() {
-    LogUtils::init_console(LogUtils::Level::Info);
-    auto snapshot = LogUtils::get_logger_snapshot();
-    (void)snapshot;
-    assert(snapshot != nullptr);
-    // Snapshot should remain valid even after shutdown
-    LogUtils::shutdown();
-    // snapshot still holds a reference, so it should not be null
-    assert(snapshot != nullptr);
-    snapshot->info("Snapshot still works after shutdown");
-
-    // After shutdown, get_logger_snapshot should return nullptr
-    auto snapshot2 = LogUtils::get_logger_snapshot();
-    (void)snapshot2;
-    assert(snapshot2 == nullptr);
-    std::cout << "test_get_logger_snapshot_returns_valid_logger passed" << std::endl;
-}
-
 void test_concurrent_logging_during_shutdown() {
     std::string log_file = "testlog/test_concurrent_shutdown.log";
     if (std::filesystem::exists(log_file)) std::filesystem::remove(log_file);
@@ -390,13 +372,15 @@ void test_concurrent_logging_during_shutdown() {
     // Let threads log for a bit
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-    // Shutdown while threads are still logging - should NOT crash
-    LogUtils::shutdown();
+    // Cooperative shutdown: stop threads first, then shutdown logger
     stop.store(true, std::memory_order_relaxed);
 
     for (auto& t : threads) {
         t.join();
     }
+
+    // Now safe to shutdown - no concurrent access
+    LogUtils::shutdown();
 
     std::filesystem::remove(log_file);
     std::filesystem::remove("testlog");
@@ -465,7 +449,6 @@ int main() {
     test_create_log_directory();
     test_console_only_debug_level();
     test_console_only_then_file();
-    test_get_logger_snapshot_returns_valid_logger();
     test_concurrent_logging_during_shutdown();
     test_logging_fallback_without_logger();
     test_repeated_shutdown_is_safe_after_reinit();

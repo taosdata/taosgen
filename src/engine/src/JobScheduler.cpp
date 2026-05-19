@@ -46,6 +46,16 @@ bool JobScheduler::run() {
     return !stop_execution_.load();
 }
 
+void JobScheduler::stop() {
+    stop_execution_.store(true);
+    LogUtils::info("Stopping job scheduler...");
+    queue_->stop();
+    {
+        std::unique_lock<std::mutex> lock(done_mutex_);
+        done_cv_.notify_all();
+    }
+}
+
 void JobScheduler::worker_loop() {
     while (true) {
         if (stop_execution_.load()) return;

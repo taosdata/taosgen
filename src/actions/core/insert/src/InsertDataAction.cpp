@@ -1,6 +1,7 @@
 #include "InsertDataAction.hpp"
 #include "ColumnsCSVReader.hpp"
 #include "LogUtils.hpp"
+#include "SignalManager.hpp"
 #include "FormatterRegistrar.hpp"
 #include "FormatterFactory.hpp"
 #include "TableNameManager.hpp"
@@ -84,6 +85,10 @@ void InsertDataAction::set_thread_affinity(size_t thread_id, bool reverse, const
 
 void InsertDataAction::execute() {
     std::optional<ConnectorSource> conn_source;
+
+    // Register signal handler to stop execution on interrupt
+    SignalManager::register_signal(SIGINT, [this](int){ stop_execution_.store(true); });
+    SignalManager::register_signal(SIGTERM, [this](int){ stop_execution_.store(true); });
 
     try {
         // Generate all child table names and split by producer thread count
