@@ -32,7 +32,6 @@ public:
     // Run scheduler
     bool run();
 
-    // Stop scheduler. Only sets an atomic flag — safe to call from signal handler.
     void stop();
 
     bool has_failure() const { return failed_.load(); }

@@ -1,4 +1,5 @@
 #include "JobScheduler.hpp"
+#include "SignalManager.hpp"
 #include <iostream>
 
 
@@ -36,6 +37,10 @@ bool JobScheduler::run() {
         std::unique_lock<std::mutex> lock(done_mutex_);
         while (remaining_jobs_ != 0 && !stop_execution_.load()) {
             done_cv_.wait_for(lock, std::chrono::milliseconds(100));
+            if (SignalManager::interrupted()) {
+                interrupted_.store(true);
+                stop_execution_.store(true);
+            }
         }
     }
 

@@ -7,20 +7,12 @@
 #include <chrono>
 #include <thread>
 
-static JobScheduler* g_scheduler = nullptr;
-
-void exit_handler(int signum) {
-    (void)signum;
-    if (g_scheduler) {
-        g_scheduler->stop();
-    }
-}
-
 int main(int argc, char* argv[]) {
     LogUtils::LoggerGuard logger_guard(LogUtils::Level::Info, "");
 
-    SignalManager::register_signal(SIGINT, exit_handler, true);
-    SignalManager::register_signal(SIGTERM, exit_handler, true);
+    // Register signals to install our handler (sets SignalManager::interrupted())
+    SignalManager::register_signal(SIGINT);
+    SignalManager::register_signal(SIGTERM);
     SignalManager::setup();
 
     try {
@@ -55,11 +47,9 @@ int main(int argc, char* argv[]) {
         try {
             // Create job scheduler instance
             JobScheduler scheduler(config);
-            g_scheduler = &scheduler;
 
             // Run scheduler
             bool success = scheduler.run();
-            g_scheduler = nullptr;
 
             if (!success) {
                 if (scheduler.was_interrupted()) {
@@ -72,7 +62,6 @@ int main(int argc, char* argv[]) {
             return 0;
 
         } catch (const std::exception& e) {
-            g_scheduler = nullptr;
             LogUtils::error("Error during job execution: {}", e.what());
             return 1;
         }
