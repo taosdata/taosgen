@@ -22,14 +22,6 @@ const TDengineConfig& get_tdengine_config_from_global(const GlobalConfig& global
 }
 } // namespace
 
-void CheckpointAction::register_signal_handlers() {
-    static std::once_flag flag;
-    std::call_once(flag, [] {
-        SignalManager::register_signal(SIGINT, [](int){ CheckpointAction::request_stop(true); });
-        SignalManager::register_signal(SIGTERM, [](int){ CheckpointAction::request_stop(true); });
-        LogUtils::info("[Checkpoint] Signal handlers registered for SIGINT and SIGTERM");
-    });
-}
 
 CheckpointAction::~CheckpointAction() {
     if (timer_thread_.joinable()) {
@@ -55,20 +47,29 @@ void CheckpointAction::execute() {
 
 void CheckpointAction::run_timer() {
     const size_t interval_sec = config_.interval_sec;
-    // Loop until stop_flag_ is set to true
-    while (!global_stop_flag_.load()) {
-        // Wait for the specified interval, or until stop is requested
+    // Loop until stop_flag_ is set or global interrupt received
+    while (!global_stop_flag_.load() && !SignalManager::interrupted()) {
+        // Wait for the specified interval using short polling to respond quickly to interrupts
         {
             std::unique_lock<std::mutex> lock(global_mutex_);
-            global_cv_.wait_for(lock, std::chrono::seconds(interval_sec),
-                [] { return global_stop_flag_.load(); });
+            auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(interval_sec);
+            while (!global_stop_flag_.load() && !SignalManager::interrupted()
+                   && std::chrono::steady_clock::now() < deadline) {
+                global_cv_.wait_for(lock, std::chrono::milliseconds(200));
+            }
         }
-        if (global_stop_flag_.load()) break;
+        if (global_stop_flag_.load() || SignalManager::interrupted()) break;
         try {
             save_checkpoint();
         } catch (const std::exception& e) {
             LogUtils::error("[Checkpoint] Error saving checkpoint: {}", e.what());
         }
+    }
+
+    // If interrupted by signal, set internal flags for consistency
+    if (SignalManager::interrupted()) {
+        global_interrupt_flag_.store(true);
+        global_stop_flag_.store(true);
     }
 
     if (!global_interrupt_flag_.load()) {

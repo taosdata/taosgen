@@ -15,8 +15,6 @@
 
 class CheckpointAction : public ActionBase {
 public:
-    static void register_signal_handlers();
-
     explicit CheckpointAction(const GlobalConfig& global, const CheckpointActionConfig& config) : global_(global), config_(config) {}
 
      ~CheckpointAction(); // Add destructor to manage thread lifecycle
