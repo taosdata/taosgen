@@ -49,6 +49,7 @@ bool JobScheduler::run() {
 }
 
 void JobScheduler::stop() {
+    interrupted_.store(true);
     stop_execution_.store(true);
 }
 
@@ -71,6 +72,7 @@ void JobScheduler::worker_loop() {
 
             bool success = step_strategy_->execute(step);
             if (!success) {
+                failed_.store(true);
                 stop_execution_.store(true);
                 LogUtils::error(
                     "Job step execution failed, exiting (job: {}, step: {})",

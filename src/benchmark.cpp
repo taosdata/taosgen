@@ -62,7 +62,7 @@ int main(int argc, char* argv[]) {
             g_scheduler = nullptr;
 
             if (!success) {
-                if (scheduler.has_failure()) {
+                if (scheduler.was_interrupted()) {
                     LogUtils::info("Interrupt signal received. Shutting down gracefully...");
                 }
                 return 1;

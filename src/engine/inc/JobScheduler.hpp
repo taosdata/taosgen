@@ -35,7 +35,8 @@ public:
     // Stop scheduler. Only sets an atomic flag — safe to call from signal handler.
     void stop();
 
-    bool has_failure() const { return stop_execution_.load(); }
+    bool has_failure() const { return failed_.load(); }
+    bool was_interrupted() const { return interrupted_.load(); }
 
 private:
     // Worker thread loop
@@ -53,4 +54,6 @@ private:
     std::unique_ptr<StepExecutionStrategy> step_strategy_;  // Step execution strategy
 
     std::atomic<bool> stop_execution_{false};
+    std::atomic<bool> interrupted_{false};
+    std::atomic<bool> failed_{false};
 };

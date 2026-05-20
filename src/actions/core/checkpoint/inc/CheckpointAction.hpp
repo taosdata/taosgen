@@ -27,6 +27,7 @@ public:
     void update_checkpoint(const std::vector<CheckpointData>& data_list);
 
     static void stop_all(bool is_interrupt = false);
+    static void request_stop(bool is_interrupt = false);
 
     static void checkpoint_recover(const GlobalConfig& global, InsertDataConfig& config);
 

@@ -25,8 +25,8 @@ const TDengineConfig& get_tdengine_config_from_global(const GlobalConfig& global
 void CheckpointAction::register_signal_handlers() {
     static std::once_flag flag;
     std::call_once(flag, [] {
-        SignalManager::register_signal(SIGINT, [](int){ CheckpointAction::stop_all(true); });
-        SignalManager::register_signal(SIGTERM, [](int){ CheckpointAction::stop_all(true); });
+        SignalManager::register_signal(SIGINT, [](int){ CheckpointAction::request_stop(true); });
+        SignalManager::register_signal(SIGTERM, [](int){ CheckpointAction::request_stop(true); });
         LogUtils::info("[Checkpoint] Signal handlers registered for SIGINT and SIGTERM");
     });
 }
@@ -57,8 +57,13 @@ void CheckpointAction::run_timer() {
     const size_t interval_sec = config_.interval_sec;
     // Loop until stop_flag_ is set to true
     while (!global_stop_flag_.load()) {
-        // Wait for the specified interval
-        std::this_thread::sleep_for(std::chrono::seconds(interval_sec));
+        // Wait for the specified interval, or until stop is requested
+        {
+            std::unique_lock<std::mutex> lock(global_mutex_);
+            global_cv_.wait_for(lock, std::chrono::seconds(interval_sec),
+                [] { return global_stop_flag_.load(); });
+        }
+        if (global_stop_flag_.load()) break;
         try {
             save_checkpoint();
         } catch (const std::exception& e) {
@@ -91,13 +96,16 @@ void CheckpointAction::wait_for_all_to_stop() {
 }
 
 void CheckpointAction::stop_all(bool is_interrupt) {
+    request_stop(is_interrupt);
+    CheckpointAction::wait_for_all_to_stop();
+}
+
+void CheckpointAction::request_stop(bool is_interrupt) {
     if (is_interrupt) {
         global_interrupt_flag_.store(true);
-        LogUtils::debug("[Checkpoint] CheckpointAction received interrupt signal, will not delete checkpoints.");
     }
     global_stop_flag_.store(true);
     global_cv_.notify_all();
-    CheckpointAction::wait_for_all_to_stop();
 }
 
 void CheckpointAction::save_checkpoint() {
