@@ -241,8 +241,8 @@ namespace YAML {
                 int64_t val = rows_per_table.value();
                 if (val == -1) {
                     rhs.rows_per_table = std::numeric_limits<int64_t>::max();
-                } else if (val <= 0) {
-                    throw std::runtime_error("rows_per_table must be positive or -1 (for unlimited).");
+                } else if (val < 0) {
+                    throw std::runtime_error("rows_per_table must be non-negative or -1 (for unlimited).");
                 } else {
                     rhs.rows_per_table = val;
                 }
