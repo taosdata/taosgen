@@ -125,6 +125,12 @@ void InsertDataAction::execute() {
         const size_t num_cached_batches = config_.schema.generation.data_cache.enabled ?
             config_.schema.generation.data_cache.num_cached_batches : 0;
 
+        // rows_per_table == 0 means create tables only, no data to insert
+        if (rows_per_table == 0) {
+            LogUtils::info("rows_per_table is 0, skipping data insertion.");
+            return;
+        }
+
         size_t num_blocks = queue_capacity * consumer_thread_count;
         size_t max_tables_per_block = std::min(name_manager.chunk_size(), rows_per_request);
         size_t max_rows_per_table = std::min(rows_per_table, rows_per_request);
