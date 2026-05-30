@@ -3,6 +3,7 @@
 #include <iostream>
 #include <sstream>
 #include <cassert>
+#include <limits>
 #include <yaml-cpp/yaml.h>
 
 void test_FromCSVConfig_tags_columns() {
@@ -245,6 +246,43 @@ num_cached_batches: 200
         } catch (const std::runtime_error& e) {
             assert(std::string(e.what()).find("num_cached_batches cannot be greater than the number of batches needed") != std::string::npos);
         }
+    }
+}
+
+void test_GenerationConfig_rows_per_table_zero() {
+    std::string yaml = R"(
+rows_per_table: 0
+rows_per_batch: 500
+)";
+    YAML::Node node = YAML::Load(yaml);
+    GenerationConfig cfg = node.as<GenerationConfig>();
+    assert(cfg.rows_per_table == 0);
+    assert(cfg.rows_per_batch == 500);
+}
+
+void test_GenerationConfig_rows_per_table_unlimited() {
+    std::string yaml = R"(
+rows_per_table: -1
+rows_per_batch: 500
+)";
+    YAML::Node node = YAML::Load(yaml);
+    GenerationConfig cfg = node.as<GenerationConfig>();
+    assert(cfg.rows_per_table == std::numeric_limits<int64_t>::max());
+    assert(cfg.rows_per_batch == 500);
+}
+
+void test_GenerationConfig_rows_per_table_negative_invalid() {
+    std::string yaml = R"(
+rows_per_table: -2
+rows_per_batch: 500
+)";
+    YAML::Node node = YAML::Load(yaml);
+    try {
+        GenerationConfig cfg = node.as<GenerationConfig>();
+        (void)cfg;
+        assert(false && "Should throw for invalid negative rows_per_table");
+    } catch (const std::runtime_error& e) {
+        assert(std::string(e.what()).find("rows_per_table must be non-negative or -1") != std::string::npos);
     }
 }
 
@@ -1557,6 +1595,10 @@ int main() {
 
     test_InsertDataConfig_invalid_target();
     test_InsertDataConfig_unknown_key();
+
+    test_GenerationConfig_rows_per_table_zero();
+    test_GenerationConfig_rows_per_table_unlimited();
+    test_GenerationConfig_rows_per_table_negative_invalid();
 
     std::cout << "All ConfigParser YAML tests passed!" << std::endl;
     return 0;
