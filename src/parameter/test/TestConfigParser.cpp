@@ -258,6 +258,7 @@ rows_per_batch: 500
     GenerationConfig cfg = node.as<GenerationConfig>();
     assert(cfg.rows_per_table == 0);
     assert(cfg.rows_per_batch == 500);
+    assert(cfg.data_cache.enabled == false);
 }
 
 void test_GenerationConfig_rows_per_table_unlimited() {

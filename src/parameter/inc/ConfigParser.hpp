@@ -291,6 +291,10 @@ namespace YAML {
                 }
             }
 
+            if (rhs.rows_per_table == 0) {
+                rhs.data_cache.enabled = false;
+            }
+
             if (rhs.data_cache.enabled) {
                 size_t batches_needed = 0;
                 if (rhs.interlace_mode.enabled) {
