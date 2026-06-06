@@ -6,9 +6,12 @@
 #include "InsertDataConfig.hpp"
 #include "CreateSuperTableConfig.hpp"
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
+#include <fstream>
 #include <stdexcept>
 #include <sstream>
+#include <system_error>
 #include <filesystem>
 
 
@@ -648,12 +651,64 @@ jobs:
 }
 
 YAML::Node ParameterContext::load_config(const std::string& file_path) {
+    config_data.global.yaml_cfg_dir = file_path;
+
+    // Pre-check the path so we can return precise diagnostics instead of yaml-cpp's
+    // generic "bad file" message. The original report ('bad file: <relative path>')
+    // gave no hint whether the file was missing, unreadable, or had bad YAML syntax.
+    std::error_code ec;
+    auto abs_path = std::filesystem::absolute(file_path, ec);
+    std::string abs_str = ec ? file_path : abs_path.string();
+    std::string cwd_str = std::filesystem::current_path(ec).string();
+    if (ec) cwd_str = "<unknown>";
+
+    std::error_code exists_ec;
+    bool exists = std::filesystem::exists(file_path, exists_ec);
+    if (!exists && (!exists_ec || exists_ec == std::errc::no_such_file_or_directory || exists_ec == std::errc::not_a_directory)) {
+        throw std::runtime_error(
+            "Failed to load yaml file: file not found. path='" + file_path +
+            "', resolved='" + abs_str + "', cwd='" + cwd_str +
+            "'. Check that the path is correct and that you are running from the expected working directory.");
+    }
+
+    auto status = std::filesystem::status(file_path, ec);
+    if (!ec && std::filesystem::is_directory(status)) {
+        throw std::runtime_error(
+            "Failed to load yaml file: path is a directory, not a regular file. path='" +
+            file_path + "', resolved='" + abs_str + "'.");
+    }
+    {
+        std::ifstream probe(file_path);
+        if (!probe.is_open()) {
+            throw std::runtime_error(
+                "Failed to load yaml file: cannot open for reading. path='" + file_path +
+                "', resolved='" + abs_str + "', errno=" + std::to_string(errno) +
+                " (" + std::strerror(errno) +
+                "). Likely causes: insufficient permission, file locked by another process, "
+                "or path contains characters not representable in the system code page (Windows).");
+        }
+    }
+
     try {
-        // Load YAML file
-        config_data.global.yaml_cfg_dir = file_path;
         return YAML::LoadFile(file_path);
+    } catch (const YAML::ParserException& e) {
+        const auto& m = e.mark;
+        std::string loc = (m.line >= 0)
+            ? (" at line " + std::to_string(m.line + 1) + ", column " + std::to_string(m.column + 1))
+            : "";
+        throw std::runtime_error(
+            "Failed to load yaml file: YAML syntax error" + loc + ". path='" +
+            file_path + "', resolved='" + abs_str + "': " + e.msg);
+    } catch (const YAML::BadFile& e) {
+        // Reaches here only on race (file disappeared between probe and LoadFile)
+        // or platform-specific open failure that std::ifstream did not surface.
+        throw std::runtime_error(
+            "Failed to load yaml file: yaml-cpp could not open the file. path='" +
+            file_path + "', resolved='" + abs_str + "': " + e.what());
     } catch (const std::exception& e) {
-        throw std::runtime_error("Failed to load yaml file '" + file_path + "': " + e.what());
+        throw std::runtime_error(
+            "Failed to load yaml file: " + std::string(e.what()) +
+            ". path='" + file_path + "', resolved='" + abs_str + "'.");
     }
 }
 

@@ -296,7 +296,7 @@ bool TDengineConnector::execute(const StmtV2InsertData& data) {
             "{} failed to bind parameters: {} [code: 0x{:x}]",
             display_name_,
             taos_stmt2_error_(stmt_),
-            code
+            static_cast<uint32_t>(code)
         );
         return false;
     }
@@ -309,7 +309,7 @@ bool TDengineConnector::execute(const StmtV2InsertData& data) {
             "{} execute failed: {} [code: 0x{:x}]",
             display_name_,
             taos_stmt2_error_(stmt_),
-            code
+            static_cast<uint32_t>(code)
         );
         return false;
     }

@@ -1082,6 +1082,137 @@ jobs:
     std::cout << "init_global then init_jobs test passed.\n";
 }
 
+// Test load_config error: file not found - should mention path, resolved abs path, and cwd
+void test_load_config_file_not_found() {
+    ParameterContext ctx;
+    const std::string missing = "definitely_does_not_exist_12345.yaml";
+    std::string arg = "--config-file=" + missing;
+    const char* argv[] = {"dummy", arg.c_str()};
+
+    try {
+        ctx.init_global(2, const_cast<char**>(argv));
+        assert(false && "Expected exception when config file does not exist");
+    } catch (const std::runtime_error& e) {
+        std::string msg = e.what();
+        assert(msg.find("file not found") != std::string::npos);
+        assert(msg.find(missing) != std::string::npos);
+        assert(msg.find("resolved=") != std::string::npos);
+        assert(msg.find("cwd=") != std::string::npos);
+    }
+
+    std::cout << "load_config file not found test passed.\n";
+}
+
+// Test load_config error: path is a directory
+void test_load_config_path_is_directory() {
+    ParameterContext ctx;
+    auto dir = std::filesystem::temp_directory_path() / "tsgen_load_config_dir_test";
+    std::filesystem::create_directories(dir);
+
+    std::string arg = "--config-file=" + dir.string();
+    const char* argv[] = {"dummy", arg.c_str()};
+
+    try {
+        ctx.init_global(2, const_cast<char**>(argv));
+        assert(false && "Expected exception when config path is a directory");
+    } catch (const std::runtime_error& e) {
+        std::string msg = e.what();
+        assert(msg.find("directory") != std::string::npos);
+        assert(msg.find(dir.string()) != std::string::npos);
+    }
+
+    std::filesystem::remove_all(dir);
+    std::cout << "load_config path-is-directory test passed.\n";
+}
+
+// Test load_config error: status() fails with non-"missing" error (e.g. ELOOP from symlink loop).
+// Regression guard for the misleading "file not found" diagnostic that fired whenever
+// std::filesystem::status returned any error, masking the real cause. Now such errors
+// must fall through to the std::ifstream probe so errno surfaces the true reason.
+//
+// POSIX-only: on Windows, creating symlinks requires SeCreateSymbolicLinkPrivilege, and
+// even when allowed, MSVC's filesystem may map a reparse-point loop to no_such_file_or_directory
+// rather than too_many_symbolic_link_levels — which would make this assertion brittle.
+// The fix itself is correct on all platforms; this test exercises it on Linux/macOS.
+void test_load_config_status_error_falls_through_to_open() {
+#ifdef _WIN32
+    std::cout << "load_config status-error fallthrough test skipped (Windows: symlink-loop "
+                 "error mapping is not portable).\n";
+    return;
+#else
+    auto a = std::filesystem::temp_directory_path() / "tsgen_load_config_loop_a.yaml";
+    auto b = std::filesystem::temp_directory_path() / "tsgen_load_config_loop_b.yaml";
+    std::error_code ignore;
+    std::filesystem::remove(a, ignore);
+    std::filesystem::remove(b, ignore);
+
+    std::error_code ec;
+    std::filesystem::create_symlink(b, a, ec);
+    if (ec) {
+        std::cout << "load_config status-error fallthrough test skipped (symlink unsupported: "
+                  << ec.message() << ").\n";
+        return;
+    }
+    std::filesystem::create_symlink(a, b, ec);
+    if (ec) {
+        std::filesystem::remove(a, ignore);
+        std::cout << "load_config status-error fallthrough test skipped (symlink unsupported: "
+                  << ec.message() << ").\n";
+        return;
+    }
+
+    ParameterContext ctx;
+    std::string arg = "--config-file=" + a.string();
+    const char* argv[] = {"dummy", arg.c_str()};
+
+    try {
+        ctx.init_global(2, const_cast<char**>(argv));
+        assert(false && "Expected exception on symlink loop");
+    } catch (const std::runtime_error& e) {
+        std::string msg = e.what();
+        // Must NOT be misdiagnosed as missing — the file entry exists, it just can't be resolved.
+        assert(msg.find("file not found") == std::string::npos);
+        // Should reach the ifstream probe and report the real reason via errno.
+        assert(msg.find("cannot open for reading") != std::string::npos);
+        assert(msg.find("errno=") != std::string::npos);
+    }
+
+    std::filesystem::remove(a, ignore);
+    std::filesystem::remove(b, ignore);
+    std::cout << "load_config status-error fallthrough (cannot-open) test passed.\n";
+#endif
+}
+
+// Test load_config error: YAML syntax error - should report line/column and not say "bad file"
+void test_load_config_yaml_syntax_error() {
+    // Use a clearly malformed flow mapping which yaml-cpp consistently rejects.
+    const char* bad_yaml =
+        "tdengine:\n"
+        "  dsn: taos://h:6030\n"
+        "broken: { a: 1, b: 2\n"; // unterminated flow mapping
+    const char* path = "test_load_config_syntax.yaml";
+    FILE* fp = fopen(path, "w");
+    fputs(bad_yaml, fp);
+    fclose(fp);
+
+    ParameterContext ctx;
+    std::string arg = std::string("--config-file=") + path;
+    const char* argv[] = {"dummy", arg.c_str()};
+
+    try {
+        ctx.init_global(2, const_cast<char**>(argv));
+        assert(false && "Expected exception on YAML syntax error");
+    } catch (const std::runtime_error& e) {
+        std::string msg = e.what();
+        // Must be diagnosed as a syntax error, not as "bad file"
+        assert(msg.find("YAML syntax error") != std::string::npos);
+        assert(msg.find("bad file") == std::string::npos);
+    }
+
+    remove(path);
+    std::cout << "load_config YAML syntax error test passed.\n";
+}
+
 int main() {
     register_plugin_hooks();
     test_commandline_merge();
@@ -1120,6 +1251,11 @@ int main() {
     test_schemaless_without_create_stb_no_validation();
     test_create_stb_without_schemaless_no_validation();
     test_init_global_then_init_jobs();
+
+    test_load_config_file_not_found();
+    test_load_config_path_is_directory();
+    test_load_config_status_error_falls_through_to_open();
+    test_load_config_yaml_syntax_error();
 
     std::cout << "All tests passed!\n";
     return 0;
