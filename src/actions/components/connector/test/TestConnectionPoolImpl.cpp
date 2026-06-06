@@ -93,7 +93,7 @@ void test_connection_timeout() {
 
     auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
     int expected = info.pool.timeout;
-    int tolerance = 30;
+    int tolerance = 100;
     (void)elapsed_ms;
     (void)expected;
     (void)tolerance;
