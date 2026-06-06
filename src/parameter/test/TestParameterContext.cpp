@@ -1082,6 +1082,79 @@ jobs:
     std::cout << "init_global then init_jobs test passed.\n";
 }
 
+// Test load_config error: file not found - should mention path, resolved abs path, and cwd
+void test_load_config_file_not_found() {
+    ParameterContext ctx;
+    const std::string missing = "definitely_does_not_exist_12345.yaml";
+    std::string arg = "--config-file=" + missing;
+    const char* argv[] = {"dummy", arg.c_str()};
+
+    try {
+        ctx.init_global(2, const_cast<char**>(argv));
+        assert(false && "Expected exception when config file does not exist");
+    } catch (const std::runtime_error& e) {
+        std::string msg = e.what();
+        assert(msg.find("file not found") != std::string::npos);
+        assert(msg.find(missing) != std::string::npos);
+        assert(msg.find("resolved=") != std::string::npos);
+        assert(msg.find("cwd=") != std::string::npos);
+    }
+
+    std::cout << "load_config file not found test passed.\n";
+}
+
+// Test load_config error: path is a directory
+void test_load_config_path_is_directory() {
+    ParameterContext ctx;
+    auto dir = std::filesystem::temp_directory_path() / "tsgen_load_config_dir_test";
+    std::filesystem::create_directories(dir);
+
+    std::string arg = "--config-file=" + dir.string();
+    const char* argv[] = {"dummy", arg.c_str()};
+
+    try {
+        ctx.init_global(2, const_cast<char**>(argv));
+        assert(false && "Expected exception when config path is a directory");
+    } catch (const std::runtime_error& e) {
+        std::string msg = e.what();
+        assert(msg.find("directory") != std::string::npos);
+        assert(msg.find(dir.string()) != std::string::npos);
+    }
+
+    std::filesystem::remove_all(dir);
+    std::cout << "load_config path-is-directory test passed.\n";
+}
+
+// Test load_config error: YAML syntax error - should report line/column and not say "bad file"
+void test_load_config_yaml_syntax_error() {
+    // Use a clearly malformed flow mapping which yaml-cpp consistently rejects.
+    const char* bad_yaml =
+        "tdengine:\n"
+        "  dsn: taos://h:6030\n"
+        "broken: { a: 1, b: 2\n"; // unterminated flow mapping
+    const char* path = "test_load_config_syntax.yaml";
+    FILE* fp = fopen(path, "w");
+    fputs(bad_yaml, fp);
+    fclose(fp);
+
+    ParameterContext ctx;
+    std::string arg = std::string("--config-file=") + path;
+    const char* argv[] = {"dummy", arg.c_str()};
+
+    try {
+        ctx.init_global(2, const_cast<char**>(argv));
+        assert(false && "Expected exception on YAML syntax error");
+    } catch (const std::runtime_error& e) {
+        std::string msg = e.what();
+        // Must be diagnosed as a syntax error, not as "bad file"
+        assert(msg.find("YAML syntax error") != std::string::npos);
+        assert(msg.find("bad file") == std::string::npos);
+    }
+
+    remove(path);
+    std::cout << "load_config YAML syntax error test passed.\n";
+}
+
 int main() {
     register_plugin_hooks();
     test_commandline_merge();
@@ -1120,6 +1193,10 @@ int main() {
     test_schemaless_without_create_stb_no_validation();
     test_create_stb_without_schemaless_no_validation();
     test_init_global_then_init_jobs();
+
+    test_load_config_file_not_found();
+    test_load_config_path_is_directory();
+    test_load_config_yaml_syntax_error();
 
     std::cout << "All tests passed!\n";
     return 0;
