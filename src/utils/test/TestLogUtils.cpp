@@ -29,7 +29,7 @@ void test_init_and_info_log() {
     assert(std::filesystem::exists(log_file));
     assert(log_file_contains(log_file, "Hello Info Log"));
     std::filesystem::remove(log_file);
-    std::filesystem::remove("testlog");
+    std::filesystem::remove_all("testlog");
     std::cout << "test_init_and_info_log passed" << std::endl;
 }
 
@@ -44,7 +44,7 @@ void test_debug_level_no_output() {
     assert(!log_file_contains(log_file, "Debug message should not appear"));
     assert(log_file_contains(log_file, "Info message should appear"));
     std::filesystem::remove(log_file);
-    std::filesystem::remove("testlog");
+    std::filesystem::remove_all("testlog");
     std::cout << "test_debug_level_no_output passed" << std::endl;
 }
 
@@ -61,7 +61,7 @@ void test_warn_error_fatal_log() {
     assert(log_file_contains(log_file, "Error log"));
     assert(log_file_contains(log_file, "Fatal log"));
     std::filesystem::remove(log_file);
-    std::filesystem::remove("testlog");
+    std::filesystem::remove_all("testlog");
     std::cout << "test_warn_error_fatal_log passed" << std::endl;
 }
 
@@ -101,7 +101,7 @@ void test_set_level_runtime() {
     assert(log_file_contains(log_file, "Debug should appear now"));
     assert(log_file_contains(log_file, "Info should appear now"));
     std::filesystem::remove(log_file);
-    std::filesystem::remove("testlog");
+    std::filesystem::remove_all("testlog");
     std::cout << "test_set_level_runtime passed" << std::endl;
 }
 
@@ -116,7 +116,7 @@ void test_fmt_info_log() {
     assert(std::filesystem::exists(log_file));
     assert(log_file_contains(log_file, "Hello Fmt Log 123"));
     std::filesystem::remove(log_file);
-    std::filesystem::remove("testlog");
+    std::filesystem::remove_all("testlog");
     std::cout << "test_fmt_info_log passed" << std::endl;
 }
 
@@ -131,7 +131,7 @@ void test_fmt_debug_level_no_output() {
     assert(!log_file_contains(log_file, "Debug fmt should not appear 456"));
     assert(log_file_contains(log_file, "Info fmt should appear 789"));
     std::filesystem::remove(log_file);
-    std::filesystem::remove("testlog");
+    std::filesystem::remove_all("testlog");
     std::cout << "test_fmt_debug_level_no_output passed" << std::endl;
 }
 
@@ -148,7 +148,7 @@ void test_fmt_warn_error_fatal_log() {
     assert(log_file_contains(log_file, "Error fmt log 1"));
     assert(log_file_contains(log_file, "Fatal fmt log 2"));
     std::filesystem::remove(log_file);
-    std::filesystem::remove("testlog");
+    std::filesystem::remove_all("testlog");
     std::cout << "test_fmt_warn_error_fatal_log passed" << std::endl;
 }
 
@@ -173,7 +173,7 @@ void test_fmt_set_level_runtime() {
     assert(log_file_contains(log_file, "Debug fmt should appear now"));
     assert(log_file_contains(log_file, "Info fmt should appear now"));
     std::filesystem::remove(log_file);
-    std::filesystem::remove("testlog");
+    std::filesystem::remove_all("testlog");
     std::cout << "test_fmt_set_level_runtime passed" << std::endl;
 }
 
@@ -191,7 +191,7 @@ void test_logger_guard_basic() {
     assert(log_file_contains(log_file, "LoggerGuard info message"));
     assert(log_file_contains(log_file, "LoggerGuard warn message"));
     std::filesystem::remove(log_file);
-    std::filesystem::remove("testlog");
+    std::filesystem::remove_all("testlog");
     std::cout << "test_logger_guard_basic passed" << std::endl;
 }
 
@@ -212,7 +212,7 @@ void test_logger_guard_set_level() {
     assert(log_file_contains(log_file, "Should appear"));
     assert(log_file_contains(log_file, "Should appear now"));
     std::filesystem::remove(log_file);
-    std::filesystem::remove("testlog");
+    std::filesystem::remove_all("testlog");
     std::cout << "test_logger_guard_set_level passed" << std::endl;
 }
 
@@ -269,7 +269,7 @@ void test_reinit_logger() {
 
     std::filesystem::remove(log_file1);
     std::filesystem::remove(log_file2);
-    std::filesystem::remove("testlog");
+    std::filesystem::remove_all("testlog");
     std::cout << "test_reinit_logger passed" << std::endl;
 }
 
@@ -346,7 +346,7 @@ void test_console_only_then_file() {
     assert(!log_file_contains(log_file, "Console only phase"));
 
     std::filesystem::remove(log_file);
-    std::filesystem::remove("testlog");
+    std::filesystem::remove_all("testlog");
     std::cout << "test_console_only_then_file passed" << std::endl;
 }
 
@@ -383,7 +383,7 @@ void test_concurrent_logging_during_shutdown() {
     LogUtils::shutdown();
 
     std::filesystem::remove(log_file);
-    std::filesystem::remove("testlog");
+    std::filesystem::remove_all("testlog");
     std::cout << "test_concurrent_logging_during_shutdown passed" << std::endl;
 }
 
@@ -425,7 +425,7 @@ void test_repeated_shutdown_is_safe_after_reinit() {
     assert(log_file_contains(log_file, "phase2"));
 
     std::filesystem::remove(log_file);
-    std::filesystem::remove("testlog");
+    std::filesystem::remove_all("testlog");
     std::cout << "test_repeated_shutdown_is_safe_after_reinit passed" << std::endl;
 }
 
