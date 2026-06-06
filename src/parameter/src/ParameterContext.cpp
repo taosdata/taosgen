@@ -662,14 +662,17 @@ YAML::Node ParameterContext::load_config(const std::string& file_path) {
     std::string cwd_str = std::filesystem::current_path(ec).string();
     if (ec) cwd_str = "<unknown>";
 
-    auto status = std::filesystem::status(file_path, ec);
-    if (ec || !std::filesystem::exists(status)) {
+    std::error_code exists_ec;
+    bool exists = std::filesystem::exists(file_path, exists_ec);
+    if (!exists && (!exists_ec || exists_ec == std::errc::no_such_file_or_directory || exists_ec == std::errc::not_a_directory)) {
         throw std::runtime_error(
             "Failed to load yaml file: file not found. path='" + file_path +
             "', resolved='" + abs_str + "', cwd='" + cwd_str +
             "'. Check that the path is correct and that you are running from the expected working directory.");
     }
-    if (std::filesystem::is_directory(status)) {
+
+    auto status = std::filesystem::status(file_path, ec);
+    if (!ec && std::filesystem::is_directory(status)) {
         throw std::runtime_error(
             "Failed to load yaml file: path is a directory, not a regular file. path='" +
             file_path + "', resolved='" + abs_str + "'.");
