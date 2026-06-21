@@ -83,7 +83,7 @@ jobs:
           pip3 --version || true
 
       - name: Setup jq
-        uses: dcarbone/install-jq-action@v2
+        uses: dcarbone/install-jq-action@8867ddb4788346d7c22b72ea2e2ffe4d514c7bcb # v2.1.0
         with:
           version: '1.6'
 
@@ -202,7 +202,7 @@ jobs:
           fi
 
       - name: Checkout taosgen code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           fetch-depth: 0
           clean: true
@@ -249,7 +249,7 @@ jobs:
 
       - name: Setup Conan (Linux)
         if: runner.os == 'Linux'
-        uses: conan-io/setup-conan@v1
+        uses: conan-io/setup-conan@2f4bd34e8e0af00e1a77a66e1d284e06d71d703f # v1.3.0
         with:
           version: 2.20.1
           use_venv: true
@@ -265,7 +265,7 @@ jobs:
           echo "PATH=$HOME/.conan-venv/bin:$PATH" >> $GITHUB_ENV
 
       - name: Cache Conan packages
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: $HOME/.conan2/p
           key: conan2-${{ runner.os }}-${{ matrix.conan_arch }}-${{ hashFiles('conanfile.*') }}
@@ -423,7 +423,7 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: inputs.build_type == 'Debug'
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
         with:
           files: coverage_upload.info
           flags: ${{ runner.os }}-${{ matrix.arch }}
@@ -473,7 +473,7 @@ jobs:
 
       - name: Upload release artifact
         if: ${{ inputs.build_type == 'Release' && inputs.package_release == true }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: taosgen-${{ runner.os }}-${{ matrix.arch }}
           path: release/taosgen-v*.tar.gz
