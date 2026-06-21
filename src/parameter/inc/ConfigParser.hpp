@@ -241,8 +241,8 @@ namespace YAML {
                 int64_t val = rows_per_table.value();
                 if (val == -1) {
                     rhs.rows_per_table = std::numeric_limits<int64_t>::max();
-                } else if (val <= 0) {
-                    throw std::runtime_error("rows_per_table must be positive or -1 (for unlimited).");
+                } else if (val < 0) {
+                    throw std::runtime_error("rows_per_table must be non-negative or -1 (for unlimited).");
                 } else {
                     rhs.rows_per_table = val;
                 }
@@ -289,6 +289,10 @@ namespace YAML {
                     rhs.data_cache.enabled = true;
                     rhs.data_cache.num_cached_batches = val;
                 }
+            }
+
+            if (rhs.rows_per_table == 0) {
+                rhs.data_cache.enabled = false;
             }
 
             if (rhs.data_cache.enabled) {
