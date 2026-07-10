@@ -10,6 +10,8 @@
 int main(int argc, char* argv[]) {
     LogUtils::LoggerGuard logger_guard(LogUtils::Level::Info, "");
 
+
+
     // Register signals to install our handler (sets SignalManager::interrupted())
     SignalManager::register_signal(SIGINT);
     SignalManager::register_signal(SIGTERM);
