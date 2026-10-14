@@ -1,3 +1,27 @@
+/*
+ * Copyright (c) 2025 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "MemoryPool.hpp"
 #include <cassert>
 #include <iostream>
@@ -694,6 +718,18 @@ void test_memory_pool_tags_management() {
     auto* tags_dup = pool.register_table_tags("t1", t1_tags);
     assert(tags_dup == nullptr); // Should fail
 
+    assert(pool.get_or_register_table_tags("t1", t1_tags) == tags);
+
+    try {
+        std::vector<ColumnType> t1_tags_mismatch = {int32_t(101)};
+        (void)pool.get_or_register_table_tags("t1", t1_tags_mismatch);
+    } catch (const std::runtime_error& e) {
+        assert(std::string(e.what()).find("inconsistent tags") != std::string::npos);
+        goto mismatch_done;
+    }
+    assert(false && "should reject inconsistent tags");
+mismatch_done:
+
     // Test invalid tag count
     std::vector<ColumnType> invalid_tags = {};
     auto* tags_invalid = pool.register_table_tags("t2", invalid_tags);
@@ -799,6 +835,36 @@ void test_memory_pool_bind_verification() {
 
     pool.release_block(block);
     std::cout << "test_memory_pool_bind_verification passed." << std::endl;
+}
+
+void test_memory_pool_timestamp_column_bind_type() {
+    ColumnConfigInstanceVector col_instances;
+    ColumnConfigInstanceVector tag_instances;
+    col_instances.emplace_back(ColumnConfig{"event_time", "TIMESTAMP"});
+
+    MemoryPool pool(1, 1, 2, col_instances, tag_instances);
+
+    auto* block = pool.acquire_block();
+    RowData row;
+    row.timestamp = 12345;
+    row.columns = {int64_t(1700000000000)};
+    block->tables[0].table_name = "t1";
+    block->tables[0].add_row(row);
+    block->used_tables = 1;
+
+    block->build_bindv();
+
+    TAOS_STMT2_BIND* binds = block->bindv_.bind_cols[0];
+    assert(binds[0].buffer_type == TSDB_DATA_TYPE_TIMESTAMP);
+    assert(binds[1].buffer_type == TSDB_DATA_TYPE_TIMESTAMP);
+
+    const int64_t* col_val_ptr = static_cast<const int64_t*>(binds[1].buffer);
+    (void)col_val_ptr;
+    assert(col_val_ptr != nullptr);
+    assert(col_val_ptr[0] == 1700000000000LL);
+
+    pool.release_block(block);
+    std::cout << "test_memory_pool_timestamp_column_bind_type passed." << std::endl;
 }
 
 void test_memory_pool_none_value() {
@@ -986,6 +1052,7 @@ int main() {
     test_memory_pool_tags_management();
     test_memory_pool_tags_edge_cases();
     test_memory_pool_bind_verification();
+    test_memory_pool_timestamp_column_bind_type();
     test_memory_pool_none_value();
     test_memory_pool_get_cell_none();
     test_memory_pool_add_rows_batch_null_none();

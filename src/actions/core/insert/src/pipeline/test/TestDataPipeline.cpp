@@ -1,3 +1,27 @@
+/*
+ * Copyright (c) 2025 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "DataPipeline.hpp"
 #include <cassert>
 #include <thread>
@@ -274,6 +298,28 @@ void test_timeout_fetch() {
     std::cout << "test_timeout_fetch passed." << std::endl;
 }
 
+void test_terminate_unblocks_independent_push() {
+    DataPipeline<int> pipeline(false, 1, 1, 1);
+    pipeline.push_data(0, 1);
+
+    std::atomic<bool> unblocked{false};
+    std::thread producer([&]() {
+        try {
+            pipeline.push_data(0, 2);
+            assert(false && "push_data should throw after termination");
+        } catch (const std::runtime_error&) {
+            unblocked.store(true);
+        }
+    });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    pipeline.terminate();
+    producer.join();
+
+    assert(unblocked.load());
+    std::cout << "test_terminate_unblocks_independent_push passed." << std::endl;
+}
+
 void test_terminate_twice() {
     DataPipeline<int> pipeline(false, 1, 1, 2);
     pipeline.terminate();
@@ -341,6 +387,7 @@ int main() {
     test_capacity_limit_independent();
     test_capacity_limit_shared();
     test_timeout_fetch();
+    test_terminate_unblocks_independent_push();
     test_terminate_twice();
     test_terminate_no_data();
     test_empty_total_queued();

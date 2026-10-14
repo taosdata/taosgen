@@ -1,3 +1,27 @@
+/*
+ * Copyright (c) 2026 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "TDengineSinkPlugin.hpp"
 #include "ConnectorFactory.hpp"
 #include "TimeRecorder.hpp"
@@ -120,15 +144,15 @@ bool TDengineSinkPlugin::write(const BaseInsertData& data) {
         if (data.type == SQL_TYPE_ID) {
             success = execute_with_retry([&] {
                 return handle_insert<SqlInsertData>(data);
-            }, "sql insert");
+            }, "sql_insert", data);
         } else if (data.type == STMTV2_TYPE_ID) {
             success = execute_with_retry([&] {
                 return handle_insert<StmtV2InsertData>(data);
-            }, "stmt v2 insert");
+            }, "stmt_v2_insert", data);
         } else if (data.type == SCHEMALESS_TYPE_ID) {
             success = execute_with_retry([&] {
                 return handle_insert<SchemalessInsertData>(data);
-            }, "schemaless insert");
+            }, "schemaless_insert", data);
         } else {
             throw std::runtime_error(
                 "Unsupported data type for TDengineSinkPlugin: " +
@@ -146,6 +170,31 @@ bool TDengineSinkPlugin::write(const BaseInsertData& data) {
     update_write_state(data, success);
     notify(data, success);
     return success;
+}
+
+std::string TDengineSinkPlugin::get_retry_error_context(std::string_view fallback_reason) const {
+    if (!connector_) {
+        return BaseSinkPlugin::get_retry_error_context(fallback_reason);
+    }
+
+    const auto& error = connector_->last_error();
+    if (error.message.empty()) {
+        return BaseSinkPlugin::get_retry_error_context(fallback_reason);
+    }
+
+    if (error.code) {
+        return fmt::format(
+            "error_code=0x{:08x} error={:?}",
+            static_cast<uint32_t>(*error.code),
+            error.message
+        );
+    }
+
+    return fmt::format("error={:?}", error.message);
+}
+
+void TDengineSinkPlugin::set_connector(std::unique_ptr<DatabaseConnector> connector) {
+    connector_ = std::move(connector);
 }
 
 template<typename PayloadT>

@@ -1,10 +1,34 @@
+/*
+ * Copyright (c) 2025 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "TDengineConnector.hpp"
 #include "LogUtils.hpp"
 #include "ProcessUtils.hpp"
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
-#include <filesystem>
+#include "FilesystemCompat.hpp"
 
 namespace {
     std::once_flag g_taos_lib_once;
@@ -25,7 +49,7 @@ namespace {
         std::call_once(g_taos_lib_once, [] {
             const char* libname = taos_lib_filename();
             std::string exe_dir = ProcessUtils::get_exe_directory();
-            std::filesystem::path p(exe_dir);
+            fs::path p(exe_dir);
             p /= "lib";
             p /= libname;
             std::string full_path = p.string();
@@ -40,8 +64,8 @@ namespace {
                 if (!g_taos_lib_handle) {
                     const char* dirs[] = { "/opt/homebrew/lib", "/usr/local/lib", "/usr/lib" };
                     for (auto* d : dirs) {
-                        std::filesystem::path cand = std::filesystem::path(d) / libname;
-                        if (std::filesystem::exists(cand)) {
+                        fs::path cand = fs::path(d) / libname;
+                        if (fs::exists(cand)) {
                             g_taos_lib_handle = DYNLIB_LOAD(cand.string().c_str());
                             if (g_taos_lib_handle) {
                                 break;
@@ -84,6 +108,10 @@ namespace {
 std::mutex TDengineConnector::driver_init_mutex_;
 std::map<std::string, std::once_flag> TDengineConnector::driver_init_flags;
 
+void TDengineConnector::record_error(std::optional<int64_t> code, const char* message) const {
+    set_last_error(code, message ? message : "unknown error");
+}
+
 TDengineConnector::TDengineConnector(const TDengineConfig& conn_info,
                                              const std::string& driver_type,
                                              const std::string& display_name)
@@ -103,6 +131,9 @@ void TDengineConnector::init_driver() {
 
     auto load_symbols = [this]() {
         taos_options_     = reinterpret_cast<taos_options_func>(DYNLIB_SYM(taos_lib_handle_, "taos_options"));
+        // Optional: may be absent on older libtaos. Guarded at the call site.
+        taos_options_connection_ = reinterpret_cast<taos_options_connection_func>(
+            DYNLIB_SYM(taos_lib_handle_, "taos_options_connection"));
         taos_errstr_      = reinterpret_cast<taos_errstr_func>(DYNLIB_SYM(taos_lib_handle_, "taos_errstr"));
         taos_errno_       = reinterpret_cast<taos_errno_func>(DYNLIB_SYM(taos_lib_handle_, "taos_errno"));
         taos_connect_     = reinterpret_cast<taos_connect_func>(DYNLIB_SYM(taos_lib_handle_, "taos_connect"));
@@ -157,7 +188,10 @@ TDengineConnector::~TDengineConnector() {
 }
 
 bool TDengineConnector::connect() {
-    if (is_connected_) return true;
+    if (is_connected_) {
+        clear_last_error();
+        return true;
+    }
 
     conn_ = taos_connect_(
         conn_info_.host.c_str(),
@@ -168,10 +202,13 @@ bool TDengineConnector::connect() {
     );
 
     if (!conn_) {
+        const int code = taos_errno_(nullptr);
+        const char* error = taos_errstr_(nullptr);
+        record_error(code, error);
         LogUtils::error(
             "{} connection failed: {} (host: {}, port: {}, user: {}, database: {})",
             display_name_,
-            taos_errstr_(nullptr),
+            last_error().message,
             conn_info_.host,
             conn_info_.port,
             conn_info_.user,
@@ -180,7 +217,12 @@ bool TDengineConnector::connect() {
         return false;
     }
 
+    if (taos_options_connection_) {
+        (void)taos_options_connection_(conn_, TSDB_OPTION_CONNECTION_USER_APP, "taosgen");
+    }
+
     is_connected_ = true;
+    clear_last_error();
     return true;
 }
 
@@ -189,14 +231,20 @@ bool TDengineConnector::is_connected() const {
 }
 
 bool TDengineConnector::is_valid() const {
-    if (!is_connected_) return false;
+    if (!is_connected_) {
+        record_error(std::nullopt, "connection is not available");
+        return false;
+    }
 
     TAOS_RES* res = taos_query_(conn_, "SELECT 1");
-    if (taos_errno_(res) != 0) {
+    const int code = taos_errno_(res);
+    if (code != 0) {
+        record_error(code, taos_errstr_(res));
         taos_free_result_(res);
         return false;
     }
     taos_free_result_(res);
+    clear_last_error();
     return true;
 }
 
@@ -205,17 +253,21 @@ bool TDengineConnector::select_db(const std::string& db_name) {
 
     int code = taos_select_db_(conn_, db_name.c_str());
     if (code != 0) {
-        LogUtils::error("{} select database failed: {}", display_name_, taos_errstr_(conn_));
+        const char* error = taos_errstr_(conn_);
+        record_error(code, error);
+        LogUtils::error("{} select database failed: {}", display_name_, last_error().message);
         return false;
     }
 
     current_db_ = db_name;
+    clear_last_error();
 
     return true;
 }
 
 bool TDengineConnector::prepare(const std::string& sql) {
     if (sql.empty()) {
+        clear_last_error();
         return true;
     }
 
@@ -232,20 +284,26 @@ bool TDengineConnector::prepare(const std::string& sql) {
     // Init
     stmt_ = taos_stmt2_init_(conn_, &option);
     if (!stmt_) {
-        LogUtils::error("{} init stmt failed: {}", display_name_, taos_errstr_(conn_));
+        const int code = taos_errno_(conn_);
+        const char* error = taos_errstr_(conn_);
+        record_error(code, error);
+        LogUtils::error("{} init stmt failed: {}", display_name_, last_error().message);
         return false;
     }
 
     // Prepare
     int code = taos_stmt2_prepare_(stmt_, sql.c_str(), sql.size());
     if (code != 0) {
-        LogUtils::error("{} prepare failed: {}, SQL: {}", display_name_, taos_stmt2_error_(stmt_), sql);
+        const char* error = taos_stmt2_error_(stmt_);
+        record_error(code, error);
+        LogUtils::error("{} prepare failed: {}, SQL: {}", display_name_, last_error().message, sql);
         taos_stmt2_close_(stmt_);
         stmt_ = nullptr;
         return false;
     }
 
     prepare_sql_ = sql;
+    clear_last_error();
     return true;
 }
 
@@ -257,9 +315,11 @@ bool TDengineConnector::execute(const std::string& sql) {
     const bool success = (code == 0);
 
     if (!success) {
+        const char* error = taos_errstr_(res);
+        record_error(code, error);
         constexpr size_t max_sql_preview = 300;
         const bool is_truncated = sql.length() > max_sql_preview;
-        LogUtils::error("{} execute failed [{}]: {}", display_name_, code, taos_errstr_(res));
+        LogUtils::error("{} execute failed [{}]: {}", display_name_, code, last_error().message);
         LogUtils::error(
             "{}SQL: {}{}, SQL length: {} bytes",
             is_truncated ? "(truncated) " : "",
@@ -270,6 +330,9 @@ bool TDengineConnector::execute(const std::string& sql) {
     }
 
     taos_free_result_(res);
+    if (success) {
+        clear_last_error();
+    }
     return success;
 }
 
@@ -278,9 +341,13 @@ bool TDengineConnector::execute(const SqlInsertData& data) {
 }
 
 bool TDengineConnector::execute(const StmtV2InsertData& data) {
-    if (!is_connected_) return false;
+    if (!is_connected_) {
+        record_error(std::nullopt, "connection is not available");
+        return false;
+    }
 
     if (!stmt_) {
+        record_error(std::nullopt, "statement is not prepared");
         LogUtils::error("{} statement is not prepared. Call prepare() first", display_name_);
         return false;
     }
@@ -292,10 +359,12 @@ bool TDengineConnector::execute(const StmtV2InsertData& data) {
         -1
     );
     if (code != 0) {
+        const char* error = taos_stmt2_error_(stmt_);
+        record_error(code, error);
         LogUtils::error(
             "{} failed to bind parameters: {} [code: 0x{:x}]",
             display_name_,
-            taos_stmt2_error_(stmt_),
+            last_error().message,
             static_cast<uint32_t>(code)
         );
         return false;
@@ -305,15 +374,18 @@ bool TDengineConnector::execute(const StmtV2InsertData& data) {
     int affected_rows = 0;
     code = taos_stmt2_exec_(stmt_, &affected_rows);
     if (code != 0) {
+        const char* error = taos_stmt2_error_(stmt_);
+        record_error(code, error);
         LogUtils::error(
             "{} execute failed: {} [code: 0x{:x}]",
             display_name_,
-            taos_stmt2_error_(stmt_),
+            last_error().message,
             static_cast<uint32_t>(code)
         );
         return false;
     }
 
+    clear_last_error();
     return true;
 }
 
@@ -327,6 +399,7 @@ bool TDengineConnector::execute(const SchemalessInsertData& data) {
     }
 
     if (data.total_rows <= 0) {
+        clear_last_error();
         LogUtils::warn("{} SchemalessInsertData has non-positive total_rows: {}", display_name_, data.total_rows);
         return true;
     }
@@ -347,9 +420,11 @@ bool TDengineConnector::execute(const SchemalessInsertData& data) {
     const bool success = (code == 0);
 
     if (!success) {
+        const char* error = taos_errstr_(res);
+        record_error(code, error);
         constexpr size_t max_preview = 300;
         const bool is_truncated = data.lines.length() > max_preview;
-        LogUtils::error("{} schemaless insert failed [{}]: {}", display_name_, code, taos_errstr_(res));
+        LogUtils::error("{} schemaless insert failed [{}]: {}", display_name_, code, last_error().message);
         LogUtils::error(
             "{}Lines: {}{}, total length: {} bytes",
             is_truncated ? "(truncated) " : "",
@@ -360,6 +435,9 @@ bool TDengineConnector::execute(const SchemalessInsertData& data) {
     }
 
     taos_free_result_(res);
+    if (success) {
+        clear_last_error();
+    }
     return success;
 }
 
@@ -369,6 +447,7 @@ void TDengineConnector::reset_state() noexcept {
         stmt_ = nullptr;
     }
     current_db_.clear();
+    clear_last_error();
 }
 
 void TDengineConnector::close() noexcept {

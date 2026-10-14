@@ -1,5 +1,29 @@
 #pragma once
 
+/*
+ * Copyright (c) 2025 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "DatabaseConnector.hpp"
 #include <taos.h>
 #if defined(_WIN32)
@@ -61,11 +85,13 @@ protected:
 
 private:
     void init_driver();
+    void record_error(std::optional<int64_t> code, const char* message) const;
 
     DYNLIB_HANDLE taos_lib_handle_{nullptr};
 
     // Base API
     using taos_options_func = int (*)(TSDB_OPTION, const void*, ...);
+    using taos_options_connection_func = int (*)(TAOS*, TSDB_OPTION_CONNECTION, const void*, ...);
     using taos_errstr_func = const char* (*)(TAOS_RES*);
     using taos_errno_func = int (*)(TAOS_RES*);
     using taos_connect_func = TAOS* (*)(const char*, const char*, const char*, const char*, uint16_t);
@@ -88,6 +114,7 @@ private:
 
     // Member function pointer
     taos_options_func taos_options_{nullptr};
+    taos_options_connection_func taos_options_connection_{nullptr};
     taos_errstr_func taos_errstr_{nullptr};
     taos_errno_func taos_errno_{nullptr};
     taos_connect_func taos_connect_{nullptr};

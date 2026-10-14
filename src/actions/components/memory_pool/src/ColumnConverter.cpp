@@ -1,3 +1,27 @@
+/*
+ * Copyright (c) 2025 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "ColumnConverter.hpp"
 #include <sstream>
 #include <fmt/format.h>
@@ -6,7 +30,10 @@ namespace ColumnConverter {
 
     size_t string_type_handler(const ColumnType& value, char* dest, size_t max_len) {
         const auto& str = std::get<std::string>(value);
-        size_t len = std::min(str.size(), max_len);
+        if (str.size() > max_len) {
+            throw std::runtime_error("variable-length value exceeds schema capacity");
+        }
+        size_t len = str.size();
         memcpy(dest, str.data(), len);
         return len;
     }
@@ -14,21 +41,30 @@ namespace ColumnConverter {
     size_t u16string_type_handler(const ColumnType& value, char* dest, size_t max_len) {
         const auto& str = std::get<std::u16string>(value);
         std::string utf8 = StringUtils::u16string_to_utf8(str);
-        size_t len = std::min(utf8.size(), max_len);
+        if (utf8.size() > max_len) {
+            throw std::runtime_error("variable-length value exceeds schema capacity");
+        }
+        size_t len = utf8.size();
         memcpy(dest, utf8.data(), len);
         return len;
     }
 
     size_t json_type_handler(const ColumnType& value, char* dest, size_t max_len) {
         const auto& json = std::get<JsonValue>(value);
-        size_t len = std::min(json.raw_json.size(), max_len);
+        if (json.raw_json.size() > max_len) {
+            throw std::runtime_error("variable-length value exceeds schema capacity");
+        }
+        size_t len = json.raw_json.size();
         memcpy(dest, json.raw_json.data(), len);
         return len;
     }
 
     size_t binary_type_handler(const ColumnType& value, char* dest, size_t max_len) {
         const auto& bin = std::get<std::vector<uint8_t>>(value);
-        size_t len = std::min(bin.size(), max_len);
+        if (bin.size() > max_len) {
+            throw std::runtime_error("variable-length value exceeds schema capacity");
+        }
+        size_t len = bin.size();
         memcpy(dest, bin.data(), len);
         return len;
     }
@@ -93,6 +129,7 @@ namespace ColumnConverter {
                     handler.to_fixed = fixed_type_handler<uint32_t>;
                     handler.to_column_fixed = fixed_to_column<uint32_t>;
                     break;
+                case ColumnTypeTag::TIMESTAMP:
                 case ColumnTypeTag::BIGINT:
                     handler.to_fixed = fixed_type_handler<int64_t>;
                     handler.to_column_fixed = fixed_to_column<int64_t>;

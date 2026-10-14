@@ -1,8 +1,34 @@
 #pragma once
 
+/*
+ * Copyright (c) 2025 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "GlobalConfig.hpp"
+#include "IngressConfig.hpp"
 #include "ActionConfigVariant.hpp"
 #include "PluginConfigRegistry.hpp"
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <optional>
@@ -11,6 +37,36 @@
 #include <yaml-cpp/yaml.h>
 
 namespace YAML {
+
+    inline AckMode parse_ack_mode(const std::string& value) {
+        if (value == "accept_only") return AckMode::AcceptOnly;
+        if (value == "enqueue_only") return AckMode::EnqueueOnly;
+        throw std::runtime_error("Invalid ack_mode value: " + value);
+    }
+
+    inline void check_positive_size(size_t value, const std::string& key) {
+        if (value == 0) {
+            throw std::runtime_error(key + " must be a positive integer.");
+        }
+    }
+
+    inline void check_max_size(size_t value, size_t max_value, const std::string& key) {
+        if (value > max_value) {
+            throw std::runtime_error(key + " exceeds supported maximum.");
+        }
+    }
+
+    inline void check_positive_int(int value, const std::string& key) {
+        if (value <= 0) {
+            throw std::runtime_error(key + " must be a positive integer.");
+        }
+    }
+
+    inline void check_nonnegative_int(int value, const std::string& key) {
+        if (value < 0) {
+            throw std::runtime_error(key + " must be a non-negative integer.");
+        }
+    }
 
     template<typename T>
     std::set<T> merge_keys(const std::initializer_list<std::set<T>>& sets) {
@@ -38,6 +94,95 @@ namespace YAML {
             }
         }
     }
+
+    template<>
+    struct convert<IngressConfig::Writer::FailureHandling> {
+        static bool decode(const Node& node, IngressConfig::Writer::FailureHandling& rhs) {
+            static const std::set<std::string> valid_keys = {
+                "max_retries", "retry_interval_ms", "on_failure"
+            };
+            check_unknown_keys(node, valid_keys, "ingress::writer::failure_handling");
+
+            if (node["max_retries"]) {
+                const int64_t parsed = node["max_retries"].as<int64_t>();
+                if (parsed < 0) {
+                    throw std::runtime_error(
+                        "ingress.writer.failure_handling.max_retries must be a non-negative integer.");
+                }
+                rhs.max_retries = static_cast<size_t>(parsed);
+            }
+            if (node["retry_interval_ms"]) rhs.retry_interval_ms = node["retry_interval_ms"].as<int>();
+            if (node["on_failure"]) rhs.on_failure = node["on_failure"].as<std::string>();
+
+            check_positive_int(rhs.retry_interval_ms, "ingress.writer.failure_handling.retry_interval_ms");
+            if (rhs.on_failure != "exit" && rhs.on_failure != "warn_and_continue") {
+                throw std::runtime_error("ingress.writer.failure_handling.on_failure must be 'exit' or 'warn_and_continue'.");
+            }
+            return true;
+        }
+    };
+
+    template<>
+    struct convert<IngressConfig::Writer> {
+        static bool decode(const Node& node, IngressConfig::Writer& rhs) {
+            static const std::set<std::string> valid_keys = {
+                "failure_handling"
+            };
+            check_unknown_keys(node, valid_keys, "ingress::writer");
+
+            if (node["failure_handling"]) {
+                rhs.failure_handling = node["failure_handling"].as<IngressConfig::Writer::FailureHandling>();
+            }
+
+            return true;
+        }
+    };
+
+    template<>
+    struct convert<IngressConfig> {
+        static bool decode(const Node& node, IngressConfig& rhs) {
+            static const std::set<std::string> valid_keys = {
+                "enabled", "listen", "service_concurrency", "max_message_bytes",
+                "rows_per_batch", "max_tables_per_request", "default_ack_mode",
+                "request_timeout_ms", "queue_capacity", "concurrency", "dry_run",
+                "auto_create_table", "writer"
+            };
+            check_unknown_keys(node, valid_keys, "ingress");
+
+            if (node["enabled"]) rhs.enabled = node["enabled"].as<bool>();
+            if (node["listen"]) rhs.listen = node["listen"].as<std::string>();
+            if (node["service_concurrency"]) rhs.service_concurrency = node["service_concurrency"].as<size_t>();
+            if (node["max_message_bytes"]) rhs.max_message_bytes = node["max_message_bytes"].as<size_t>();
+            const bool has_rows_per_batch = static_cast<bool>(node["rows_per_batch"]);
+            const bool has_concurrency = static_cast<bool>(node["concurrency"]);
+
+            if (has_rows_per_batch) {
+                rhs.rows_per_batch = node["rows_per_batch"].as<size_t>();
+            }
+            if (node["max_tables_per_request"]) rhs.max_tables_per_request = node["max_tables_per_request"].as<size_t>();
+            if (node["default_ack_mode"]) rhs.default_ack_mode = parse_ack_mode(node["default_ack_mode"].as<std::string>());
+            if (node["request_timeout_ms"]) rhs.request_timeout_ms = node["request_timeout_ms"].as<int>();
+            if (node["queue_capacity"]) rhs.queue_capacity = node["queue_capacity"].as<size_t>();
+            if (has_concurrency) rhs.concurrency = node["concurrency"].as<size_t>();
+            if (node["dry_run"]) rhs.dry_run = node["dry_run"].as<bool>();
+            if (node["auto_create_table"]) rhs.auto_create_table = node["auto_create_table"].as<bool>();
+            if (node["writer"]) rhs.writer = node["writer"].as<IngressConfig::Writer>();
+
+            check_positive_size(rhs.max_message_bytes, "ingress.max_message_bytes");
+            check_positive_size(rhs.rows_per_batch, "ingress.rows_per_batch");
+            check_positive_size(rhs.max_tables_per_request, "ingress.max_tables_per_request");
+            check_nonnegative_int(rhs.request_timeout_ms, "ingress.request_timeout_ms");
+            check_positive_size(rhs.queue_capacity, "ingress.queue_capacity");
+            check_positive_size(rhs.concurrency, "ingress.concurrency");
+            check_max_size(rhs.rows_per_batch, ::kIngressMaxRowsPerBatch, "ingress.rows_per_batch");
+            if (rhs.max_tables_per_request > rhs.rows_per_batch) {
+                throw std::runtime_error("ingress.max_tables_per_request must not exceed ingress.rows_per_batch.");
+            }
+            check_max_size(rhs.queue_capacity, ::kIngressMaxQueueCapacity, "ingress.queue_capacity");
+            check_max_size(rhs.concurrency, ::kIngressMaxConcurrency, "ingress.concurrency");
+            return true;
+        }
+    };
 
     inline std::string strip_backticks_if_wrapped(const std::string& s) {
         if (s.size() >= 2 && s.front() == '`' && s.back() == '`') {
@@ -116,6 +261,7 @@ namespace YAML {
 
                     if (columns_node["timestamp_precision"]) {
                         rhs.columns.timestamp_strategy.csv.timestamp_precision = columns_node["timestamp_precision"].as<std::string>();
+                        rhs.columns.timestamp_strategy.csv.timestamp_precision_configured = true;
                     }
 
                     if (columns_node["timestamp_offset"]) {
@@ -347,7 +493,7 @@ namespace YAML {
                     throw std::runtime_error("Schema must have at least one column defined.");
                 }
 
-                if (rhs.columns[0].type_tag != ColumnTypeTag::BIGINT) {
+                if (!ColumnTypeTraits::is_timestamp(rhs.columns[0].type_tag)) {
                     // throw std::runtime_error("The first column must be of type BIGINT or TIMESTAMP to serve as the timestamp column.");
                     rhs.columns.insert(rhs.columns.begin(), ColumnConfig("ts", "TIMESTAMP"));
                 }
@@ -480,18 +626,20 @@ namespace YAML {
 
             // Valid keys
             std::set<std::string> valid_keys = common_keys;
-            if (rhs.type_tag == ColumnTypeTag::BIGINT) {
+            if (ColumnTypeTraits::is_timestamp(rhs.type_tag)) {
                 valid_keys = merge_keys<std::string>({common_keys, random_allowed, order_allowed, expression_allowed, timestamp_allowed});
             } else {
                 valid_keys = merge_keys<std::string>({common_keys, random_allowed, order_allowed, expression_allowed});
             }
             check_unknown_keys(node, valid_keys, "columns or tags");
 
-            if (rhs.type_tag == ColumnTypeTag::BIGINT) {
+            if (ColumnTypeTraits::is_timestamp(rhs.type_tag)) {
                 // Parse timestamp config
                 if (node["precision"]) {
                     rhs.ts.generator.timestamp_precision = node["precision"].as<std::string>();
+                    rhs.ts.generator.timestamp_precision_configured = true;
                     rhs.ts.csv.timestamp_precision = rhs.ts.generator.timestamp_precision;
+                    rhs.ts.csv.timestamp_precision_configured = true;
                 }
                 if (node["start"]) {
                     rhs.ts.strategy_type = "generator";
@@ -501,6 +649,7 @@ namespace YAML {
                 if (node["step"]) {
                     rhs.ts.strategy_type = "generator";
                     rhs.ts.generator.timestamp_step = node["step"].as<std::string>();
+                    rhs.ts.generator.timestamp_step_literal = std::get<std::string>(rhs.ts.generator.timestamp_step);
                     rhs.ts.generator.timestamp_step = TimestampUtils::parse_step(rhs.ts.generator.timestamp_step, rhs.ts.generator.timestamp_precision);
                 }
             }
@@ -851,9 +1000,11 @@ namespace YAML {
             }
             if (node["timestamp_precision"]) {
                 rhs.timestamp_precision = node["timestamp_precision"].as<std::string>();
+                rhs.timestamp_precision_configured = true;
             }
             if (node["timestamp_step"]) {
                 rhs.timestamp_step = node["timestamp_step"].as<std::string>();
+                rhs.timestamp_step_literal = std::get<std::string>(rhs.timestamp_step);
                 rhs.timestamp_step = TimestampUtils::parse_step(rhs.timestamp_step, rhs.timestamp_precision);
             }
             return true;
@@ -912,6 +1063,7 @@ namespace YAML {
 
             if (node["precision"]) {
                 rhs.timestamp_precision = node["precision"].as<std::string>();
+                rhs.timestamp_precision_configured = true;
                 // Validate precision
                 if (rhs.timestamp_precision != "s" &&
                     rhs.timestamp_precision != "ms" &&

@@ -1,27 +1,88 @@
+/*
+ * Copyright (c) 2025 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "TypeConverter.hpp"
+#include "ColumnConfig.hpp"
 #include "StringUtils.hpp"
+#include "TimestampUtils.hpp"
 #include <codecvt>
 #include <sstream>
 #include <vector>
 #include <stdexcept>
-#include <charconv>
+#include <algorithm>
+#include <cctype>
+#include <cstdlib>
+#include <cerrno>
 #include <limits>
-#include <system_error>
 #include <string_view>
+
+#if defined(__has_include)
+#if __has_include(<charconv>)
+#include <charconv>
+#define TSGEN_HAS_CHARCONV 1
+#endif
+#endif
 
 namespace TypeConverter {
 
     namespace {
+        std::string timestamp_precision(const ColumnConfig& config) {
+            if (config.ts.csv.timestamp_precision.has_value()) {
+                return config.ts.csv.timestamp_precision.value();
+            }
+            if (!config.ts.generator.timestamp_precision.empty()) {
+                return config.ts.generator.timestamp_precision;
+            }
+            return "ms";
+        }
+
         template <typename T>
         T parse_integral(std::string_view sv) {
-            // std::from_chars does not accept leading '+' for any integer type,
-            // but std::stoi/stoll/stoull (the previous implementation) did. Skip it for compatibility.
             if (!sv.empty() && sv.front() == '+') {
                 sv.remove_prefix(1);
             }
+            // NUL-terminate for strto* functions
+            std::string s(sv);
+            char* end = nullptr;
+            errno = 0;
             T parsed{};
-            auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), parsed);
-            if (ec != std::errc()) {
+            if constexpr (std::is_unsigned_v<T>) {
+                unsigned long long val = std::strtoull(s.c_str(), &end, 10);
+                if (errno == ERANGE || val > static_cast<unsigned long long>(std::numeric_limits<T>::max())) {
+                    throw std::runtime_error("Invalid integer value");
+                }
+                parsed = static_cast<T>(val);
+            } else {
+                long long val = std::strtoll(s.c_str(), &end, 10);
+                if (errno == ERANGE ||
+                    val < static_cast<long long>(std::numeric_limits<T>::min()) ||
+                    val > static_cast<long long>(std::numeric_limits<T>::max())) {
+                    throw std::runtime_error("Invalid integer value");
+                }
+                parsed = static_cast<T>(val);
+            }
+            if (end == s.c_str()) {
                 throw std::runtime_error("Invalid integer value");
             }
             // Allow trailing non-digit characters (e.g. "221.5" → 221)
@@ -31,7 +92,8 @@ namespace TypeConverter {
 
         template <typename T>
         T parse_floating(std::string_view sv) {
-#if defined(__cpp_lib_to_chars) && (!defined(__GNUC__) || defined(__clang__) || (__GNUC__ >= 11))
+#if defined(TSGEN_HAS_CHARCONV) && defined(__cpp_lib_to_chars) && \
+    (!defined(__GNUC__) || defined(__clang__) || (__GNUC__ >= 11))
             T parsed{};
             auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), parsed);
             if (ec == std::errc() && ptr == sv.data() + sv.size()) {
@@ -91,6 +153,7 @@ namespace TypeConverter {
                     return convert_value<int32_t>(value);
                 case ColumnTypeTag::INT_UNSIGNED:
                     return convert_value<uint32_t>(value);
+                case ColumnTypeTag::TIMESTAMP:
                 case ColumnTypeTag::BIGINT:
                     return convert_value<int64_t>(value);
                 case ColumnTypeTag::BIGINT_UNSIGNED:
@@ -119,6 +182,13 @@ namespace TypeConverter {
             ss << "Failed to convert value '" << value << "' to target type: " << e.what();
             throw std::runtime_error(ss.str());
         }
+    }
+
+    ColumnType convert_to_type(const std::string& value, const ColumnConfig& config) {
+        if (config.type_tag == ColumnTypeTag::TIMESTAMP) {
+            return TimestampUtils::parse_timestamp(value, timestamp_precision(config));
+        }
+        return convert_to_type(value, config.type_tag);
     }
 
     template bool convert_value<bool>(const std::string& value);
