@@ -1,4 +1,29 @@
 #pragma once
+
+/*
+ * Copyright (c) 2026 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "ConfigParser.hpp"
 #include "TDengineConfig.hpp"
 #include <yaml-cpp/yaml.h>
@@ -11,7 +36,7 @@ namespace YAML {
         static bool decode(const Node& node, TDengineConfig& rhs) {
             // Detect unknown configuration keys
             static const std::set<std::string> valid_keys = {
-                "dsn", "drop_if_exists", "props", "pool"
+                "dsn", "drop_if_exists", "precision", "props", "pool"
             };
             check_unknown_keys(node, valid_keys, "tdengine config");
 
@@ -22,8 +47,16 @@ namespace YAML {
             if (node["drop_if_exists"]) {
                 rhs.drop_if_exists = node["drop_if_exists"].as<bool>();
             }
+            if (node["precision"]) {
+                rhs.set_precision(node["precision"].as<std::string>());
+            }
             if (node["props"]) {
+                const std::string configured_precision = rhs.precision;
                 rhs.properties = node["props"].as<std::string>();
+                rhs.apply_properties_precision();
+                if (node["precision"] && rhs.precision != configured_precision) {
+                    throw std::runtime_error("TDengine precision conflicts with props precision");
+                }
             }
             if (node["pool"]) {
                 const auto& pool_node = node["pool"];

@@ -1,4 +1,30 @@
+/*
+ * Copyright (c) 2025 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "MemoryPool.hpp"
+#include "TagUtils.hpp"
+#include <algorithm>
 #include <iostream>
 #include <cstring>
 #include <new>
@@ -17,7 +43,11 @@ inline void* platform_aligned_alloc(size_t alignment, size_t size) {
 #if defined(_WIN32)
     return _aligned_malloc(size, alignment);
 #else
-    return std::aligned_alloc(alignment, size);
+    void* ptr = nullptr;
+    if (posix_memalign(&ptr, alignment, size) != 0) {
+        return nullptr;
+    }
+    return ptr;
 #endif
 }
 
@@ -75,6 +105,9 @@ void MemoryPool::TableBase::fill_row(size_t row_index, const RowData& row) {
             // Variable-length column
             char* dest = col.var_data + col.current_offset;
             size_t data_len = handler.to_var(col_value, dest, col.max_length);
+            if (data_len > col.max_length) {
+                throw std::runtime_error("variable-length value exceeds schema capacity");
+            }
 
             // Update metadata
             col.lengths[row_index] = static_cast<int32_t>(data_len);
@@ -112,6 +145,7 @@ MemoryPool::TableBlock::Tags::~Tags() {
 
 MemoryPool::TableBlock::Tags::Tags(Tags&& other) noexcept
     : table_name(std::move(other.table_name)),
+      values(std::move(other.values)),
       columns(std::move(other.columns)),
       data_chunk(other.data_chunk),
       data_chunk_size(other.data_chunk_size),
@@ -128,6 +162,7 @@ MemoryPool::TableBlock::Tags& MemoryPool::TableBlock::Tags::operator=(Tags&& oth
         }
 
         table_name = std::move(other.table_name);
+        values = std::move(other.values);
         columns = std::move(other.columns);
         data_chunk = other.data_chunk;
         data_chunk_size = other.data_chunk_size;
@@ -251,6 +286,9 @@ void MemoryPool::TableBlock::add_rows(const std::vector<RowData>& rows) {
                 size_t data_len = handler.to_var(
                     col_value, dest, col_block.max_length
                 );
+                if (data_len > col_block.max_length) {
+                    throw std::runtime_error("variable-length value exceeds schema capacity");
+                }
 
                 // Update metadata
                 col_block.lengths[start_index + i] = static_cast<int32_t>(data_len);
@@ -324,6 +362,10 @@ std::string MemoryPool::TableBlock::get_tag_cell_as_string(size_t row_index, siz
 }
 
 // MemoryBlock
+MemoryPool::MemoryBlock::~MemoryBlock() {
+    free_data_chunk();
+}
+
 void MemoryPool::MemoryBlock::release() {
     if (owning_pool) {
         owning_pool->release_block(this);
@@ -347,6 +389,7 @@ void MemoryPool::MemoryBlock::init_bindv() {
 
     // Pre-allocate data structures
     tbnames_.resize(max_tables, nullptr);
+    table_name_storage_.reserve(max_tables);
     bind_cols_ptrs_.resize(max_tables, nullptr);
     bind_tags_ptrs_.resize(max_tables, nullptr);
     bind_lists_.resize(max_tables);
@@ -431,9 +474,12 @@ void MemoryPool::MemoryBlock::reset() {
     start_time = std::numeric_limits<int64_t>::max();
     end_time = std::numeric_limits<int64_t>::min();
     used_tables = 0;
+    table_name_storage_.clear();
 
     for (auto& table : tables) {
         table.used_rows = 0;
+        table.table_name = nullptr;
+        table.tags_ptr = nullptr;
         for (auto& col : table.columns) {
             col.current_offset = 0;
         }
@@ -581,6 +627,9 @@ void MemoryPool::TagsManager::init_table_tags(TableBlock::Tags& tags,
             size_t data_len = 0;
             if (!is_null) {
                 data_len = handler.to_var(tag_value, tag.var_data, tag.max_length);
+                if (data_len > tag.max_length) {
+                    throw std::runtime_error("variable-length value exceeds schema capacity");
+                }
             }
             tag.lengths[0] = static_cast<int32_t>(data_len);
             tag.var_offsets[0] = 0;
@@ -625,11 +674,110 @@ MemoryPool::TableBlock::Tags* MemoryPool::TagsManager::register_tags(const std::
     auto tags = std::make_unique<TableBlock::Tags>();
     auto ptr = tags.get();
     tags->table_name = table_name;
+    tags->values = tag_values;
 
     init_table_tags(*tags, tag_values);
     tags_map_[table_name] = std::move(tags);
 
     return ptr;
+}
+
+const MemoryPool::TableBlock::Tags* MemoryPool::TagsManager::get_or_register_tags(
+    const std::string& table_name,
+    const std::vector<ColumnType>& tag_values) {
+    if (tag_values.size() != tag_instances_.size()) {
+        return nullptr;
+    }
+
+    std::lock_guard<std::mutex> lock(tags_map_mutex_);
+    auto it = tags_map_.find(table_name);
+    if (it != tags_map_.end()) {
+        if (it->second && !TagUtils::row_type_equal(it->second->values, tag_values)) {
+            throw std::runtime_error("ingress request contains inconsistent tags for table '" + table_name + "'.");
+        }
+        return it->second.get();
+    }
+
+    auto tags = std::make_unique<TableBlock::Tags>();
+    auto ptr = tags.get();
+    tags->table_name = table_name;
+    tags->values = tag_values;
+
+    init_table_tags(*tags, tag_values);
+    tags_map_[table_name] = std::move(tags);
+
+    return ptr;
+}
+
+std::vector<const MemoryPool::TableBlock::Tags*> MemoryPool::TagsManager::get_or_register_tags_batch(
+    const std::vector<std::pair<std::string, std::vector<ColumnType>>>& table_tags) {
+    std::vector<const TableBlock::Tags*> result(table_tags.size(), nullptr);
+    if (table_tags.empty()) {
+        return result;
+    }
+
+    std::lock_guard<std::mutex> lock(tags_map_mutex_);
+    std::unordered_map<std::string, size_t> first_seen;
+    first_seen.reserve(table_tags.size());
+
+    for (size_t i = 0; i < table_tags.size(); ++i) {
+        const auto& table_name = table_tags[i].first;
+        const auto& tag_values = table_tags[i].second;
+        if (tag_values.size() != tag_instances_.size()) {
+            return {};
+        }
+
+        auto duplicate = first_seen.find(table_name);
+        if (duplicate != first_seen.end()) {
+            if (!TagUtils::row_type_equal(table_tags[duplicate->second].second, tag_values)) {
+                throw std::runtime_error("ingress request contains inconsistent tags for table '" + table_name + "'.");
+            }
+        } else {
+            first_seen.emplace(table_name, i);
+        }
+
+        auto cached = tags_map_.find(table_name);
+        if (cached != tags_map_.end()) {
+            if (cached->second && !TagUtils::row_type_equal(cached->second->values, tag_values)) {
+                throw std::runtime_error("ingress request contains inconsistent tags for table '" + table_name + "'.");
+            }
+            result[i] = cached->second.get();
+        }
+    }
+
+    std::unordered_map<std::string, const TableBlock::Tags*> staged_ptrs;
+    staged_ptrs.reserve(first_seen.size());
+    std::vector<std::pair<std::string, std::unique_ptr<TableBlock::Tags>>> staged_tags;
+    staged_tags.reserve(first_seen.size());
+
+    for (size_t i = 0; i < table_tags.size(); ++i) {
+        if (result[i] != nullptr) {
+            continue;
+        }
+
+        const auto& table_name = table_tags[i].first;
+        auto staged = staged_ptrs.find(table_name);
+        if (staged != staged_ptrs.end()) {
+            result[i] = staged->second;
+            continue;
+        }
+
+        auto tags = std::make_unique<TableBlock::Tags>();
+        auto ptr = tags.get();
+        tags->table_name = table_name;
+        tags->values = table_tags[i].second;
+
+        init_table_tags(*tags, table_tags[i].second);
+        staged_ptrs.emplace(table_name, ptr);
+        staged_tags.emplace_back(table_name, std::move(tags));
+        result[i] = ptr;
+    }
+
+    for (auto& staged : staged_tags) {
+        tags_map_[staged.first] = std::move(staged.second);
+    }
+
+    return result;
 }
 
 const MemoryPool::TableBlock::Tags* MemoryPool::TagsManager::get_tags(const std::string& table_name) const {
@@ -1013,6 +1161,18 @@ MemoryPool::MemoryBlock* MemoryPool::convert_to_memory_block(MultiBatch&& batch)
 
     // 1. Get memory block from pool
     auto* block = acquire_block();
+    struct BlockGuard {
+        MemoryPool* pool = nullptr;
+        MemoryBlock* block = nullptr;
+        ~BlockGuard() {
+            if (pool && block) {
+                pool->release_block(block);
+            }
+        }
+        void release() {
+            block = nullptr;
+        }
+    } guard{this, block};
     // if (!block) {
     //     throw std::runtime_error("Failed to acquire memory block from pool");
     // }
@@ -1025,22 +1185,22 @@ MemoryPool::MemoryBlock* MemoryPool::convert_to_memory_block(MultiBatch&& batch)
 
     // 3. Ensure enough table slots in memory block
     if (batch.table_batches.size() > block->tables.size()) {
-        release_block(block);
         throw std::runtime_error("Not enough table slots in memory block");
     }
 
     // 4. Process each table
     block->used_tables = batch.table_batches.size();
     for (size_t tbl_idx = 0; tbl_idx < batch.table_batches.size(); ++tbl_idx) {
-        const auto& [table_name, rows] = batch.table_batches[tbl_idx];
+        const auto& table_name = batch.table_batches[tbl_idx].first;
+        const auto& rows = batch.table_batches[tbl_idx].second;
         auto& table_block = block->tables[tbl_idx];
 
         // 5. Set table metadata
-        table_block.table_name = table_name.c_str();
+        block->table_name_storage_.push_back(table_name);
+        table_block.table_name = block->table_name_storage_.back().c_str();
 
         // 6. Ensure enough row space
         if (rows.size() > table_block.max_rows) {
-            release_block(block);
             throw std::runtime_error("Not enough row capacity in table block");
         }
 
@@ -1048,6 +1208,7 @@ MemoryPool::MemoryBlock* MemoryPool::convert_to_memory_block(MultiBatch&& batch)
         table_block.add_rows(rows);
     }
 
+    guard.release();
     return block;
 }
 
@@ -1105,6 +1266,23 @@ MemoryPool::TableBlock::Tags* MemoryPool::register_table_tags(const std::string&
         return nullptr;
     }
     return tags_manager_->register_tags(table_name, tag_values);
+}
+
+const MemoryPool::TableBlock::Tags* MemoryPool::get_or_register_table_tags(
+    const std::string& table_name,
+    const std::vector<ColumnType>& tag_values) {
+    if (!tags_manager_) {
+        return nullptr;
+    }
+    return tags_manager_->get_or_register_tags(table_name, tag_values);
+}
+
+std::vector<const MemoryPool::TableBlock::Tags*> MemoryPool::get_or_register_table_tags_batch(
+    const std::vector<std::pair<std::string, std::vector<ColumnType>>>& table_tags) {
+    if (!tags_manager_) {
+        return {};
+    }
+    return tags_manager_->get_or_register_tags_batch(table_tags);
 }
 
 const MemoryPool::TableBlock::Tags* MemoryPool::get_table_tags(const std::string& table_name) const {

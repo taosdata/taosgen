@@ -145,6 +145,16 @@ flowchart TB
 - Sink write failures: handled in consumer path and reflected into action/scheduler status.
 - End-of-stream signaling: producer side pushes sentinel/EOF markers for clean consumer completion.
 
+### 3.3 Structured retry status logs
+
+All sink plugins use `BaseSinkPlugin::execute_with_retry()` for retry handling. A write attempt that fails inside this helper emits a machine-readable `write_status` event. When retries are configured and the operation returns `false`, the helper also emits retry-related events; the exception path emits only the final failure event and records the exception reason. A normal write that succeeds on its first attempt does not construct these log contexts:
+
+- `event=retrying`: the next attempt is scheduled. `attempt` is the next attempt number and `retries` is the number of retries scheduled so far.
+- `event=recovered`: the write succeeds after one or more retries. `attempt` is the successful attempt number and `retries` is the number of retries used.
+- `event=failed`: the write cannot be completed. `attempt` is the final attempt number and `retries` is the number of retries used.
+
+Every event includes `operation`, `max_retries`, and, when batch data is available, `rows` and a bounded table summary (`table` for one table or `table_first`/`table_last` for multiple tables). Operation values use identifiers without spaces, such as `sql_insert`, `kafka_message_insert`, `mqtt_message_insert`, and `influxdb_write`. TDengine writes additionally include the connector error code and message when available; exception failures record only the exception reason.
+
 ## 4. Core Sequence (Recommended Reading)
 
 The following sequence keeps only **core control and data path**. Non-core details (for example, explicit resource release internals) are intentionally omitted here for readability.

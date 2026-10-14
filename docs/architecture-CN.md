@@ -145,6 +145,16 @@ flowchart TB
 - sink 写失败：在消费路径处理，并回传到 action/scheduler 状态。
 - 流结束信号：生产侧推送 sentinel/EOF，保证消费者有序退出。
 
+### 3.3 结构化重试状态日志
+
+所有 sink 插件都通过 `BaseSinkPlugin::execute_with_retry()` 处理重试。在该 helper 内失败的写入尝试会输出机器可解析的 `write_status` 事件；仅当配置了重试次数且操作返回 `false` 时，才会产生重试相关事件。异常失败直接产生最终失败事件，并只记录异常原因；首次尝试即正常成功的写入不会构造这些日志上下文：
+
+- `event=retrying`：已安排下一次尝试。`attempt` 表示下一次尝试序号，`retries` 表示截至当前已安排的重试次数。
+- `event=recovered`：经过一次或多次重试后写入成功。`attempt` 表示成功尝试序号，`retries` 表示实际使用的重试次数。
+- `event=failed`：写入最终失败。`attempt` 表示最终尝试序号，`retries` 表示实际使用的重试次数。
+
+每条事件都包含 `operation`、`max_retries`；批次数据可用时还包含 `rows` 和有界的表摘要（单表使用 `table`，多表使用 `table_first`/`table_last`）。`operation` 使用不含空格的标识符，例如 `sql_insert`、`kafka_message_insert`、`mqtt_message_insert` 和 `influxdb_write`。TDengine 写入在可用时还会输出 connector 错误码和错误信息；异常失败仅记录异常原因。
+
 ## 4. 核心时序（推荐先读）
 
 以下时序仅保留 **核心控制流与数据流**。如资源释放等非核心细节，刻意省略，以提高可读性。

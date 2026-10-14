@@ -1,0 +1,196 @@
+// Copyright (c) 2026 TAOS Data, Inc.
+//
+// SPDX-License-Identifier: MIT
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+syntax = "proto3";
+
+package taosgen.ingress;
+
+option java_multiple_files = true;
+option java_package = "com.taosdata.taosgen.ingress";
+option java_outer_classname = "TaosgenIngressProto";
+option go_package = "github.com/taosdata/taosgen/proto/taosgen/ingress;ingress";
+
+service IngestionService {
+  rpc Ingest(IngestRequest) returns (IngestResponse);
+  rpc Health(HealthRequest) returns (HealthResponse);
+  rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
+}
+
+enum AckMode {
+  ACK_MODE_UNSPECIFIED = 0;
+  ACK_MODE_ACCEPT_ONLY = 1;
+  ACK_MODE_ENQUEUE_ONLY = 2;
+  reserved 3, 4, 5;
+  reserved "ACK_MODE_DEQUEUE_ONLY", "ACK_MODE_FORMAT_ONLY", "ACK_MODE_WRITE_COMPLETE";
+}
+
+enum AckStage {
+  ACK_STAGE_UNSPECIFIED = 0;
+  ACK_STAGE_ACCEPTED = 2;
+  ACK_STAGE_ENQUEUED = 3;
+  ACK_STAGE_FAILED = 7;
+  reserved 1, 4, 5, 6;
+  reserved "ACK_STAGE_RECEIVED", "ACK_STAGE_DEQUEUED", "ACK_STAGE_FORMATTED", "ACK_STAGE_WRITTEN";
+}
+
+message IngestRequest {
+  string session_id = 1;
+  string request_id = 2;
+  AckMode ack_mode = 3;
+  repeated TableBatch tables = 4;
+  InterlaceBatch interlace_batch = 5;
+}
+
+message TableBatch {
+  string table_name = 1;
+  TimestampValues timestamps = 2;
+  repeated ColumnValues columns = 3;
+  repeated Value tags = 4;
+}
+
+// Column-oriented batch optimized for interlace-style writes.
+//
+// Values are table-major:
+//   table_names[0] row 0..rows_per_table-1,
+//   table_names[1] row 0..rows_per_table-1,
+//   ...
+//
+// For example, 10000 tables * 1 row carries one table-name set, one
+// timestamp array with 10000 values, and one value array per schema column.
+message InterlaceBatch {
+  TableNames table_names = 1;
+  uint32 rows_per_table = 2;
+  TimestampValues timestamps = 3;
+  repeated ColumnValues columns = 4;
+}
+
+message TableNames {
+  oneof source {
+    ExplicitTableNames explicit_names = 1;
+    TableNameRange range = 2;
+  }
+}
+
+message ExplicitTableNames {
+  repeated string values = 1;
+}
+
+message TableNameRange {
+  string prefix = 1;
+  uint64 start = 2;
+  uint32 count = 3;
+  uint32 step = 4;
+}
+
+message Value {
+  oneof kind {
+    bool bool_value = 1;
+    int32 int_value = 2;
+    int64 bigint_value = 3;
+    float float_value = 4;
+    double double_value = 5;
+    string string_value = 6;
+    bytes binary_value = 7;
+    int64 timestamp_value = 8;
+    NullValue null_value = 9;
+  }
+}
+
+message NullValue {}
+
+message ColumnValues {
+  oneof values {
+    BoolValues bool_values = 1;
+    IntValues int_values = 2;
+    BigintValues bigint_values = 3;
+    FloatValues float_values = 4;
+    DoubleValues double_values = 5;
+    StringValues string_values = 6;
+    BinaryValues binary_values = 7;
+    TimestampValues timestamp_values = 8;
+  }
+  reserved 9 to 14;
+  repeated bool nulls = 15;
+}
+
+message BoolValues {
+  repeated bool values = 1;
+}
+
+message IntValues {
+  repeated int32 values = 1;
+}
+
+message BigintValues {
+  repeated int64 values = 1;
+}
+
+message FloatValues {
+  repeated float values = 1;
+}
+
+message DoubleValues {
+  repeated double values = 1;
+}
+
+message StringValues {
+  repeated string values = 1;
+}
+
+message BinaryValues {
+  repeated bytes values = 1;
+}
+
+message TimestampValues {
+  repeated int64 values = 1;
+  repeated string string_values = 2;
+}
+
+message IngestResponse {
+  int32 code = 1;
+  string message = 2;
+  string session_id = 3;
+  string request_id = 4;
+  AckMode ack_mode = 5;
+  AckStage acked_stage = 6;
+  uint64 accepted_rows = 7;
+  uint64 accepted_tables = 8;
+  reserved 9, 10;
+  uint64 queue_depth = 11;
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  bool serving = 1;
+  string message = 2;
+}
+
+message GetStatsRequest {}
+
+message GetStatsResponse {
+  uint64 accepted_rows = 1;
+  uint64 written_rows = 2;
+  uint64 failed_rows = 3;
+  uint64 queue_depth = 4;
+  uint64 inflight_requests = 5;
+}

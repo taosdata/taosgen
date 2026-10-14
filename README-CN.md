@@ -147,6 +147,15 @@ claude
 
 >**注意：本项目使用 C++17 标准进行开发和编译。请确保您的编译器支持 C++17。**
 
+> **重要提示（GitHub 源码构建）：** 从 GitHub 克隆源码后，请使用宿主机 `cmake + make` 方式构建，并确保 Conan 使用公网源。外网环境不要使用内网 remote（例如 `nexus` / `nora`）。
+>
+> 建议先设置 Conan remote：
+> ```shell
+> conan remote remove nexus 2>/dev/null || true
+> conan remote remove nora 2>/dev/null || true
+> conan remote add conancenter https://center2.conan.io --force
+> ```
+
 ### Linux / macOS
 
 ```shell

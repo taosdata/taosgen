@@ -1,5 +1,29 @@
 #pragma once
 
+/*
+ * Copyright (c) 2025 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "ConfigParser.hpp"
 #include "ConfigData.hpp"
 #include "PluginConfigRegistry.hpp"
@@ -13,11 +37,18 @@
 
 class ParameterContext {
 public:
+    enum class ExecutionMode {
+        Jobs,
+        Ingress,
+    };
+
     ParameterContext();
 
     bool parse_args(int argc, char* argv[]);
 
     bool has_cli_param(const std::string& param) const;
+    bool is_ingress_mode() const;
+    ExecutionMode execution_mode() const;
 
     bool init_global(int argc, char* argv[]);
     void init_jobs();
@@ -45,6 +76,7 @@ public:
     // Get global config and connection info
     const ConfigData& get_config_data() const;
     const GlobalConfig& get_global_config() const;
+    const IngressConfig& get_ingress_config() const;
     const TDengineConfig& get_tdengine() const;
     const DatabaseInfo& get_database_info() const;
     const SuperTableInfo& get_super_table_info() const;

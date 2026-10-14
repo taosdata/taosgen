@@ -1,9 +1,34 @@
+/*
+ * Copyright (c) 2026 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include <iostream>
 #include <cassert>
 #include <fstream>
 #include <cmath>
 #include <cstdio>
 #include "StreamingCSVRowSource.hpp"
+#include "TimestampUtils.hpp"
 
 
 // Helper to create a dummy CSV file for tests
@@ -114,6 +139,42 @@ void test_basic_csv_with_csv_timestamp() {
 
     remove_test_file(filename);
     std::cout << "test_basic_csv_with_csv_timestamp passed\n";
+}
+
+void test_regular_timestamp_column_iso_string() {
+    const std::string filename = "streaming_regular_timestamp_col.csv";
+    const std::string iso_time = "2026-08-10T14:59:04.121Z";
+    create_test_file(filename,
+        "event_time,name\n"
+        + iso_time + ",Alice\n");
+
+    ColumnConfigVector col_configs = {
+        {"event_time", "timestamp"},
+        {"name", "varchar(20)"}
+    };
+    col_configs[0].ts.generator.timestamp_precision = "ms";
+    auto instances = ColumnConfigInstanceFactory::create(col_configs);
+
+    TimestampStrategy ts;
+    ts.strategy_type = "generator";
+    ts.generator = TimestampGeneratorConfig{};
+    ts.generator.timestamp_precision = "ms";
+
+    StreamingCSVRowSource source(
+        {filename}, /*has_header=*/true, /*delimiter=*/',',
+        instances, ts, "ms", "ms", /*repeat_read=*/false);
+
+    auto row = source.next();
+    assert(row.has_value());
+    assert(row->columns.size() == 2);
+    int64_t expected = TimestampUtils::parse_timestamp(iso_time, "ms");
+    (void)expected;
+    assert(std::get<int64_t>(row->columns[0]) == expected);
+    assert(std::get<int64_t>(row->columns[0]) != 2026);
+    assert(std::get<std::string>(row->columns[1]) == "Alice");
+
+    remove_test_file(filename);
+    std::cout << "test_regular_timestamp_column_iso_string passed\n";
 }
 
 void test_csv_timestamp_middle_column() {
@@ -980,6 +1041,7 @@ void test_csv_row_too_many_columns_throws() {
 int main() {
     test_basic_csv_with_generator_timestamp();
     test_basic_csv_with_csv_timestamp();
+    test_regular_timestamp_column_iso_string();
     test_csv_timestamp_middle_column();
     test_empty_csv_file();
     test_single_row_csv();

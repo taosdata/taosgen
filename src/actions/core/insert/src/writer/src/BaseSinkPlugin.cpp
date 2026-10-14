@@ -1,4 +1,29 @@
+/*
+ * Copyright (c) 2025 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "BaseSinkPlugin.hpp"
+#include <algorithm>
 #include <stdexcept>
 #include <chrono>
 #include <iostream>
@@ -58,6 +83,97 @@ void BaseSinkPlugin::notify(const BaseInsertData& data, bool success) {
             ptr->notify(payload);
         }
     }
+}
+
+std::string BaseSinkPlugin::get_retry_batch_context(const BaseInsertData& data) const {
+    const auto* block = data.get_block();
+    if (!block) {
+        return fmt::format(" rows={}", data.total_rows);
+    }
+
+    const size_t table_count = std::min(block->used_tables, block->tables.size());
+    if (table_count == 0) {
+        return fmt::format(" table_count=0 rows={}", data.total_rows);
+    }
+
+    const auto table_name = [](const MemoryPool::TableBlock& table) {
+        return table.table_name ? std::string_view(table.table_name) : std::string_view();
+    };
+
+    if (table_count == 1) {
+        return fmt::format(
+            " table_count=1 table={:?} rows={}",
+            table_name(block->tables.front()),
+            data.total_rows
+        );
+    }
+
+    return fmt::format(
+        " table_count={} table_first={:?} table_last={:?} rows={}",
+        table_count,
+        table_name(block->tables.front()),
+        table_name(block->tables[table_count - 1]),
+        data.total_rows
+    );
+}
+
+std::string BaseSinkPlugin::get_retry_error_context(std::string_view fallback_reason) const {
+    return fmt::format("reason={:?}", fallback_reason);
+}
+
+void BaseSinkPlugin::log_retrying(std::string_view operation,
+                                  std::string_view batch_context,
+                                  size_t attempt,
+                                  size_t retries,
+                                  size_t max_retries,
+                                  std::string_view error_context) const {
+    LogUtils::warn(
+        "write_status event=retrying operation={} attempt={} retries={} max_retries={}{} "
+        "{} retry_interval_ms={}",
+        operation,
+        attempt,
+        retries,
+        max_retries,
+        batch_context,
+        error_context,
+        config_.failure_handling.retry_interval_ms
+    );
+}
+
+void BaseSinkPlugin::log_recovered(std::string_view operation,
+                                   std::string_view batch_context,
+                                   size_t attempt,
+                                   size_t retries,
+                                   size_t max_retries,
+                                   std::chrono::milliseconds recovery_time) const {
+    LogUtils::info(
+        "write_status event=recovered operation={} attempt={} retries={} max_retries={}{} recovery_after_ms={}",
+        operation,
+        attempt,
+        retries,
+        max_retries,
+        batch_context,
+        recovery_time.count()
+    );
+}
+
+void BaseSinkPlugin::log_retry_failed(std::string_view operation,
+                                      std::string_view batch_context,
+                                      size_t attempt,
+                                      size_t retries,
+                                      size_t max_retries,
+                                      std::string_view error_context) const {
+    LogUtils::error(
+        "write_status event=failed operation={} attempt={} retries={} max_retries={}{} "
+        "{} on_failure={}",
+        operation,
+        attempt,
+        retries,
+        max_retries,
+        batch_context,
+        error_context,
+        config_.failure_handling.on_failure
+    );
 }
 
 void BaseSinkPlugin::update_play_metrics(const BaseInsertData& data) {

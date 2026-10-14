@@ -1,11 +1,36 @@
+/*
+ * Copyright (c) 2025 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "ParameterContext.hpp"
 #include "PluginRegistrar.hpp"
 #include "TDengineConfig.hpp"
 #include "LogUtils.hpp"
 #include "ScopedEnvVar.hpp"
+#undef NDEBUG
 #include <cassert>
 #include <iostream>
-#include <filesystem>
+#include "FilesystemCompat.hpp"
 
 // Test command line parameter parsing
 void test_commandline_merge() {
@@ -431,9 +456,117 @@ jobs:
     std::cout << "Insert action inheritance test passed.\n";
 }
 
+void test_insert_timestamp_precision_inherits_tdengine_database_precision() {
+    ParameterContext ctx;
+    YAML::Node config = YAML::Load(R"(
+tdengine:
+  dsn: taos+ws://root:taosdata@localhost:6041/precision_db
+  precision: us
+schema:
+  name: meters
+  columns:
+    - name: ts
+      type: timestamp
+    - name: event_time
+      type: timestamp
+    - name: explicit_time
+      type: timestamp
+      precision: ms
+    - name: value
+      type: double
+  from_csv:
+    columns:
+      file_path: data.csv
+      timestamp_index: 0
+jobs:
+  insert-job:
+    steps:
+      - uses: tdengine/insert
+        with:
+          concurrency: 1
+)");
+
+    ctx.merge_yaml(config);
+    const auto& data = ctx.get_config_data();
+    assert(data.jobs.size() == 1);
+    assert(data.jobs[0].steps.size() == 1);
+    const auto& insert_config = std::get<InsertDataConfig>(data.jobs[0].steps[0].action_config);
+    const auto* tc = get_plugin_config<TDengineConfig>(insert_config.extensions, "tdengine");
+    (void)tc;
+    assert(tc != nullptr);
+    assert(tc->precision == "us");
+    assert(insert_config.timestamp_precision == "us");
+
+    const auto& schema = insert_config.schema;
+    assert(schema.columns[0].ts.generator.timestamp_precision == "us");
+    assert(schema.columns[1].name == "event_time");
+    assert(schema.columns[1].ts.generator.timestamp_precision == "us");
+    assert(schema.columns[1].ts.csv.timestamp_precision.value() == "us");
+    assert(schema.columns[2].name == "explicit_time");
+    assert(schema.columns[2].ts.generator.timestamp_precision == "ms");
+    assert(schema.columns[2].ts.csv.timestamp_precision.value() == "ms");
+
+    const auto& csv = schema.columns_cfg.csv;
+    (void)csv;
+    assert(csv.timestamp_strategy.csv.timestamp_precision.value() == "us");
+    assert(csv.schema[0].name == "event_time");
+    assert(csv.schema[0].ts.generator.timestamp_precision == "us");
+    assert(csv.schema[1].name == "explicit_time");
+    assert(csv.schema[1].ts.generator.timestamp_precision == "ms");
+
+    std::cout << "Insert timestamp precision inheritance test passed.\n";
+}
+
+void test_default_schema_precision_inherits_tdengine_database_precision() {
+    ParameterContext ctx;
+    YAML::Node config = YAML::Load(R"(
+tdengine:
+  dsn: taos+ws://root:taosdata@localhost:6041/default_precision_db
+  precision: us
+jobs:
+  insert-job:
+    steps:
+      - uses: tdengine/insert
+        with:
+          concurrency: 1
+)");
+
+    ctx.merge_yaml(config);
+    const auto& data = ctx.get_config_data();
+    if (data.jobs.size() != 1 || data.jobs[0].steps.size() != 1) {
+        throw std::runtime_error("Expected exactly one insert job in default schema precision test");
+    }
+
+    const auto& global_schema = data.global.schema;
+    if (global_schema.columns.size() != 4 || global_schema.columns[0].name != "ts") {
+        throw std::runtime_error("Default schema timestamp column was not loaded as expected");
+    }
+    if (global_schema.columns[0].ts.generator.timestamp_precision != "us") {
+        throw std::runtime_error("Default schema timestamp precision did not inherit database precision");
+    }
+    if (global_schema.columns[0].ts.generator.timestamp_precision_configured) {
+        throw std::runtime_error("Default schema timestamp precision should remain unconfigured");
+    }
+    if (std::get<std::string>(global_schema.columns[0].ts.generator.start_timestamp) !=
+        "2025-01-01T00:00:00Z") {
+        throw std::runtime_error("Default schema timestamp start should stay precision-independent");
+    }
+
+    const auto& insert_config = std::get<InsertDataConfig>(data.jobs[0].steps[0].action_config);
+    if (insert_config.timestamp_precision != "us" ||
+        insert_config.schema.columns[0].ts.generator.timestamp_precision != "us") {
+        throw std::runtime_error("Insert config did not inherit default schema database precision");
+    }
+    if (insert_config.schema.columns[0].ts.generator.timestamp_precision_configured) {
+        throw std::runtime_error("Insert default schema timestamp precision should remain unconfigured");
+    }
+
+    std::cout << "Default schema precision inheritance test passed.\n";
+}
+
 void test_init_with_config_file() {
     // Use absolute path to avoid working directory issues with multi-config generators
-    auto abs_path = std::filesystem::absolute("file_test.yaml").string();
+    auto abs_path = fs::absolute("file_test.yaml").string();
     const char* config_content = "tdengine:\n  dsn: taos+ws://file.host:6041";
     FILE* fp = fopen(abs_path.c_str(), "w");
     fputs(config_content, fp);
@@ -506,6 +639,7 @@ void test_parse_args_help() {
     assert(!help_result); // Should return false for --help
     std::string output = buffer.str();
     assert(output.find("Usage: taosgen") != std::string::npos);
+    assert(output.find("taosgen ingest") == std::string::npos);
 
     std::cout << "parse_args with --help test passed.\n";
 }
@@ -549,6 +683,20 @@ void test_parse_args_normal() {
     assert(!ctx.has_cli_param("--user"));
 
     std::cout << "parse_args with normal arguments test passed.\n";
+}
+
+void test_parse_args_rejects_ingest_keyword() {
+    ParameterContext ctx;
+    const char* argv[] = {"dummy", "ingest"};
+
+    try {
+        ctx.parse_args(2, const_cast<char**>(argv));
+        assert(false && "ingest keyword should be rejected");
+    } catch (const std::runtime_error& e) {
+        assert(std::string(e.what()).find("Unknown argument: ingest") != std::string::npos);
+    }
+
+    std::cout << "parse_args rejects ingest keyword test passed.\n";
 }
 
 // Test has_cli_param
@@ -996,6 +1144,184 @@ jobs:
     std::cout << "schemaless without create-stb no validation test passed.\n";
 }
 
+void test_schemaless_regular_timestamp_column_rejected() {
+    ParameterContext ctx;
+    YAML::Node config = YAML::Load(R"(
+tdengine:
+  dsn: taos://root:taosdata@127.0.0.1:6030/testdb
+schema:
+  name: meters
+  tbname:
+    prefix: d
+    count: 10
+  columns:
+    - name: ts
+      type: timestamp
+    - name: event_time
+      type: timestamp
+  tags:
+    - name: region
+      type: varchar(20)
+jobs:
+  insert-job:
+    steps:
+      - uses: tdengine/insert
+        with:
+          format: schemaless
+)");
+    bool threw = false;
+    try {
+        ctx.merge_yaml(config);
+    } catch (const std::runtime_error& e) {
+        threw = true;
+        std::string msg = e.what();
+        if (msg.find("event_time") == std::string::npos ||
+            msg.find("TIMESTAMP") == std::string::npos ||
+            msg.find("schemaless") == std::string::npos) {
+            throw std::runtime_error("Unexpected schemaless TIMESTAMP validation error: " + msg);
+        }
+    }
+    if (!threw) {
+        throw std::runtime_error("Should throw for regular TIMESTAMP columns in schemaless format");
+    }
+    std::cout << "schemaless regular timestamp column rejected test passed.\n";
+}
+
+void test_schemaless_timestamp_column_rejected_before_sql_override() {
+    ParameterContext ctx;
+    YAML::Node config = YAML::Load(R"(
+tdengine:
+  dsn: taos://root:taosdata@127.0.0.1:6030/testdb
+schema:
+  name: meters
+  columns:
+    - name: ts
+      type: timestamp
+    - name: value
+      type: double
+jobs:
+  insert-job:
+    steps:
+      - uses: tdengine/insert
+        with:
+          format: schemaless
+          schema:
+            columns:
+              - name: ts
+                type: timestamp
+              - name: event_time
+                type: timestamp
+      - uses: tdengine/insert
+        with:
+          format: sql
+          schema:
+            columns:
+              - name: ts
+                type: timestamp
+              - name: value
+                type: double
+)");
+    bool threw = false;
+    try {
+        ctx.merge_yaml(config);
+    } catch (const std::runtime_error& e) {
+        threw = true;
+        std::string msg = e.what();
+        if (msg.find("event_time") == std::string::npos ||
+            msg.find("schemaless") == std::string::npos) {
+            throw std::runtime_error("Unexpected schemaless TIMESTAMP validation error: " + msg);
+        }
+    }
+    if (!threw) {
+        throw std::runtime_error("Should reject the schemaless step's own TIMESTAMP column");
+    }
+    std::cout << "schemaless timestamp before sql override rejected test passed.\n";
+}
+
+void test_schemaless_safe_before_sql_timestamp_column_passes() {
+    ParameterContext ctx;
+    YAML::Node config = YAML::Load(R"(
+tdengine:
+  dsn: taos://root:taosdata@127.0.0.1:6030/testdb
+schema:
+  name: meters
+  columns:
+    - name: ts
+      type: timestamp
+    - name: value
+      type: double
+jobs:
+  insert-job:
+    steps:
+      - uses: tdengine/insert
+        with:
+          format: schemaless
+          schema:
+            columns:
+              - name: ts
+                type: timestamp
+              - name: value
+                type: double
+      - uses: tdengine/insert
+        with:
+          format: sql
+          schema:
+            columns:
+              - name: ts
+                type: timestamp
+              - name: event_time
+                type: timestamp
+)");
+    ctx.merge_yaml(config);
+    const auto& data = ctx.get_config_data();
+    if (data.jobs.size() != 1 || data.jobs[0].steps.size() != 2) {
+        throw std::runtime_error("Expected schemaless-to-sql multi-step job to pass");
+    }
+    std::cout << "schemaless safe before sql timestamp column test passed.\n";
+}
+
+void test_sql_timestamp_column_before_schemaless_safe_passes() {
+    ParameterContext ctx;
+    YAML::Node config = YAML::Load(R"(
+tdengine:
+  dsn: taos://root:taosdata@127.0.0.1:6030/testdb
+schema:
+  name: meters
+  columns:
+    - name: ts
+      type: timestamp
+    - name: value
+      type: double
+jobs:
+  insert-job:
+    steps:
+      - uses: tdengine/insert
+        with:
+          format: sql
+          schema:
+            columns:
+              - name: ts
+                type: timestamp
+              - name: event_time
+                type: timestamp
+      - uses: tdengine/insert
+        with:
+          format: schemaless
+          schema:
+            columns:
+              - name: ts
+                type: timestamp
+              - name: value
+                type: double
+)");
+    ctx.merge_yaml(config);
+    const auto& data = ctx.get_config_data();
+    if (data.jobs.size() != 1 || data.jobs[0].steps.size() != 2) {
+        throw std::runtime_error("Expected sql-to-schemaless multi-step job to pass");
+    }
+    std::cout << "sql timestamp before schemaless safe test passed.\n";
+}
+
 void test_create_stb_without_schemaless_no_validation() {
     // create-super-table WITHOUT schemaless should NOT validate tag types
     ParameterContext ctx;
@@ -1213,6 +1539,318 @@ void test_load_config_yaml_syntax_error() {
     std::cout << "load_config YAML syntax error test passed.\n";
 }
 
+void test_ingress_mode_parses_ingress_without_jobs() {
+    const char* config_content = R"(
+tdengine:
+  dsn: taos+ws://root:taosdata@127.0.0.1:6041/tsbench
+  props: precision 'ms'
+schema:
+  name: meters
+  columns:
+    - name: ts
+      type: timestamp
+    - name: current
+      type: double
+ingress:
+  enabled: true
+  listen: 127.0.0.1:7600
+  default_ack_mode: enqueue_only
+  concurrency: 3
+  auto_create_table: true
+)";
+    FILE* fp = fopen("test_ingress_mode.yaml", "w");
+    fputs(config_content, fp);
+    fclose(fp);
+
+    ParameterContext ctx;
+    const char* argv[] = {
+        "dummy",
+        "--config-file=test_ingress_mode.yaml"
+    };
+
+    bool ok = ctx.init_global(2, const_cast<char**>(argv));
+    (void)ok;
+    assert(ok);
+    assert(ctx.is_ingress_mode());
+    ctx.init_jobs();
+    assert(ctx.get_config_data().jobs.empty());
+
+    const auto& ingress = ctx.get_ingress_config();
+    (void)ingress;
+    assert(ingress.enabled);
+    assert(ingress.listen == "127.0.0.1:7600");
+    assert(ingress.default_ack_mode == AckMode::EnqueueOnly);
+    assert(ingress.concurrency == 3);
+    assert(ingress.auto_create_table);
+
+    remove("test_ingress_mode.yaml");
+    std::cout << "ingress mode parse test passed.\n";
+}
+
+void test_ingress_max_tables_per_request_is_derived_from_schema_generation() {
+    const char* config_content = R"(
+tdengine:
+  dsn: taos+ws://root:taosdata@127.0.0.1:6041/tsbench
+schema:
+  name: meters
+  columns:
+    - name: ts
+      type: timestamp
+    - name: current
+      type: double
+  generation:
+    interlace: 1
+    rows_per_table: 100
+    rows_per_batch: 10000
+ingress:
+  enabled: true
+  listen: 127.0.0.1:7600
+)";
+    FILE* fp = fopen("test_ingress_derived_max_tables.yaml", "w");
+    fputs(config_content, fp);
+    fclose(fp);
+
+    ParameterContext ctx;
+    const char* argv[] = {
+        "dummy",
+        "--config-file=test_ingress_derived_max_tables.yaml"
+    };
+
+    bool ok = ctx.init_global(2, const_cast<char**>(argv));
+    (void)ok;
+    assert(ok);
+    assert(ctx.is_ingress_mode());
+    assert(ctx.get_ingress_config().max_tables_per_request == 10000);
+
+    remove("test_ingress_derived_max_tables.yaml");
+    std::cout << "ingress max_tables_per_request derived from schema generation test passed.\n";
+}
+
+void test_ingress_max_tables_per_request_explicit_value_wins() {
+    const char* config_content = R"(
+tdengine:
+  dsn: taos+ws://root:taosdata@127.0.0.1:6041/tsbench
+schema:
+  name: meters
+  columns:
+    - name: ts
+      type: timestamp
+    - name: current
+      type: double
+  generation:
+    interlace: 1
+    rows_per_table: 100
+    rows_per_batch: 10000
+ingress:
+  enabled: true
+  listen: 127.0.0.1:7600
+  max_tables_per_request: 64
+)";
+    FILE* fp = fopen("test_ingress_explicit_max_tables.yaml", "w");
+    fputs(config_content, fp);
+    fclose(fp);
+
+    ParameterContext ctx;
+    const char* argv[] = {
+        "dummy",
+        "--config-file=test_ingress_explicit_max_tables.yaml"
+    };
+
+    bool ok = ctx.init_global(2, const_cast<char**>(argv));
+    (void)ok;
+    assert(ok);
+    assert(ctx.is_ingress_mode());
+    assert(ctx.get_ingress_config().max_tables_per_request == 64);
+
+    remove("test_ingress_explicit_max_tables.yaml");
+    std::cout << "ingress explicit max_tables_per_request test passed.\n";
+}
+
+void test_ingress_rows_per_batch_is_derived_from_schema_generation() {
+    const char* config_content = R"(
+tdengine:
+  dsn: taos+ws://root:taosdata@127.0.0.1:6041/tsbench
+schema:
+  name: meters
+  columns:
+    - name: ts
+      type: timestamp
+    - name: current
+      type: double
+  generation:
+    rows_per_batch: 12000
+ingress:
+  enabled: true
+  listen: 127.0.0.1:7600
+)";
+    FILE* fp = fopen("test_ingress_derived_rows_per_batch.yaml", "w");
+    fputs(config_content, fp);
+    fclose(fp);
+
+    ParameterContext ctx;
+    const char* argv[] = {
+        "dummy",
+        "--config-file=test_ingress_derived_rows_per_batch.yaml"
+    };
+
+    bool ok = ctx.init_global(2, const_cast<char**>(argv));
+    (void)ok;
+    assert(ok);
+    assert(ctx.is_ingress_mode());
+    assert(ctx.get_ingress_config().rows_per_batch == 12000);
+
+    remove("test_ingress_derived_rows_per_batch.yaml");
+    std::cout << "ingress rows_per_batch derived from schema generation test passed.\n";
+}
+
+void test_ingress_rows_per_batch_explicit_value_wins() {
+    const char* config_content = R"(
+tdengine:
+  dsn: taos+ws://root:taosdata@127.0.0.1:6041/tsbench
+schema:
+  name: meters
+  columns:
+    - name: ts
+      type: timestamp
+    - name: current
+      type: double
+  generation:
+    rows_per_batch: 12000
+ingress:
+  enabled: true
+  listen: 127.0.0.1:7600
+  rows_per_batch: 4096
+)";
+    FILE* fp = fopen("test_ingress_explicit_rows_per_batch.yaml", "w");
+    fputs(config_content, fp);
+    fclose(fp);
+
+    ParameterContext ctx;
+    const char* argv[] = {
+        "dummy",
+        "--config-file=test_ingress_explicit_rows_per_batch.yaml"
+    };
+
+    bool ok = ctx.init_global(2, const_cast<char**>(argv));
+    (void)ok;
+    assert(ok);
+    assert(ctx.is_ingress_mode());
+    assert(ctx.get_ingress_config().rows_per_batch == 4096);
+
+    remove("test_ingress_explicit_rows_per_batch.yaml");
+    std::cout << "ingress explicit rows_per_batch test passed.\n";
+}
+
+void test_ingress_mode_accepts_startup_jobs() {
+    const char* config_content = R"(
+tdengine:
+  dsn: taos+ws://root:taosdata@127.0.0.1:6041/tsbench
+schema:
+  name: meters
+  columns:
+    - name: ts
+      type: timestamp
+    - name: current
+      type: double
+ingress:
+  enabled: true
+  listen: 127.0.0.1:7600
+jobs:
+  startup-create:
+    steps:
+      - uses: tdengine/create-super-table
+)";
+    FILE* fp = fopen("test_ingress_with_jobs.yaml", "w");
+    fputs(config_content, fp);
+    fclose(fp);
+
+    ParameterContext ctx;
+    const char* argv[] = {
+        "dummy",
+        "--config-file=test_ingress_with_jobs.yaml"
+    };
+
+    bool ok = ctx.init_global(2, const_cast<char**>(argv));
+    (void)ok;
+    assert(ok);
+    assert(ctx.is_ingress_mode());
+    assert(ctx.get_config_data().jobs.empty());
+
+    ctx.init_jobs();
+    const auto& data = ctx.get_config_data();
+    (void)data;
+    assert(data.jobs.size() == 1);
+    assert(data.jobs[0].key == "startup-create");
+    assert(data.jobs[0].steps.size() >= 1);
+    assert(data.jobs[0].steps.back().uses == "tdengine/create-super-table");
+    assert(ctx.get_ingress_config().enabled);
+
+    remove("test_ingress_with_jobs.yaml");
+    std::cout << "ingress mode accepts startup jobs test passed.\n";
+}
+
+void test_jobs_mode_without_ingress_config() {
+    const char* config_content = R"(
+tdengine:
+  dsn: taos+ws://root:taosdata@127.0.0.1:6041/tsbench
+schema:
+  columns:
+    - name: ts
+      type: timestamp
+jobs:
+  create:
+    steps:
+      - uses: tdengine/create-super-table
+)";
+    FILE* fp = fopen("test_ingress_missing.yaml", "w");
+    fputs(config_content, fp);
+    fclose(fp);
+
+    ParameterContext ctx;
+    const char* argv[] = {
+        "dummy",
+        "--config-file=test_ingress_missing.yaml"
+    };
+
+    bool ok = ctx.init_global(2, const_cast<char**>(argv));
+    (void)ok;
+    assert(ok);
+    assert(!ctx.is_ingress_mode());
+    ctx.init_jobs();
+    assert(ctx.get_config_data().jobs.size() == 1);
+
+    remove("test_ingress_missing.yaml");
+    std::cout << "jobs mode without ingress config test passed.\n";
+}
+
+void test_ingress_mode_requires_schema_config() {
+    const char* config_content = R"(
+tdengine:
+  dsn: taos+ws://root:taosdata@127.0.0.1:6041/tsbench
+ingress:
+  enabled: true
+)";
+    FILE* fp = fopen("test_ingress_missing_schema.yaml", "w");
+    fputs(config_content, fp);
+    fclose(fp);
+
+    ParameterContext ctx;
+    const char* argv[] = {
+        "dummy",
+        "--config-file=test_ingress_missing_schema.yaml"
+    };
+
+    try {
+        ctx.init_global(2, const_cast<char**>(argv));
+        assert(false && "ingress mode should require schema config");
+    } catch (const std::runtime_error& e) {
+        assert(std::string(e.what()).find("ingress.enabled=true requires top-level 'schema'") != std::string::npos);
+    }
+
+    remove("test_ingress_missing_schema.yaml");
+    std::cout << "ingress mode requires schema config test passed.\n";
+}
+
 int main() {
     register_plugin_hooks();
     test_commandline_merge();
@@ -1223,13 +1861,20 @@ int main() {
     test_nested_unknown_key_detection();
     test_load_default_schema();
     test_insert_action_inheritance();
+    test_insert_timestamp_precision_inherits_tdengine_database_precision();
+    test_default_schema_precision_inherits_tdengine_database_precision();
     test_init_with_config_file();
     test_auto_create_database_step();
     test_show_version();
+    test_ingress_max_tables_per_request_is_derived_from_schema_generation();
+    test_ingress_max_tables_per_request_explicit_value_wins();
+    test_ingress_rows_per_batch_is_derived_from_schema_generation();
+    test_ingress_rows_per_batch_explicit_value_wins();
 
     test_parse_args_help();
     test_parse_args_version();
     test_parse_args_normal();
+    test_parse_args_rejects_ingest_keyword();
     test_has_cli_param();
     test_get_log_file_path_with_file();
     test_get_log_file_path_with_dir();
@@ -1249,6 +1894,10 @@ int main() {
     test_schemaless_create_stb_tag_type_validation();
     test_schemaless_create_stb_nchar_tags_pass();
     test_schemaless_without_create_stb_no_validation();
+    test_schemaless_regular_timestamp_column_rejected();
+    test_schemaless_timestamp_column_rejected_before_sql_override();
+    test_schemaless_safe_before_sql_timestamp_column_passes();
+    test_sql_timestamp_column_before_schemaless_safe_passes();
     test_create_stb_without_schemaless_no_validation();
     test_init_global_then_init_jobs();
 
@@ -1256,6 +1905,10 @@ int main() {
     test_load_config_path_is_directory();
     test_load_config_status_error_falls_through_to_open();
     test_load_config_yaml_syntax_error();
+    test_ingress_mode_parses_ingress_without_jobs();
+    test_ingress_mode_accepts_startup_jobs();
+    test_jobs_mode_without_ingress_config();
+    test_ingress_mode_requires_schema_config();
 
     std::cout << "All tests passed!\n";
     return 0;

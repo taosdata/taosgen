@@ -1,3 +1,27 @@
+/*
+ * Copyright (c) 2026 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "StmtV2Data.hpp"
 #include <cassert>
 #include <cstring>
@@ -194,12 +218,40 @@ void test_stmt_v2_data_multi_table_null_none() {
     std::cout << "test_stmt_v2_data_multi_table_null_none passed." << std::endl;
 }
 
+void test_stmt_v2_data_timestamp_column_bind_type() {
+    ColumnConfigInstanceVector col_instances;
+    col_instances.emplace_back(ColumnConfig{"event_time", "TIMESTAMP"});
+
+    MultiBatch batch;
+    std::vector<RowData> rows;
+    rows.push_back({1000, {int64_t(1700000000000)}});
+    rows.push_back({2000, {int64_t(1700000001000)}});
+    batch.table_batches.emplace_back("t1", std::move(rows));
+    batch.update_metadata();
+
+    StmtV2Data data(col_instances, std::move(batch));
+
+    const auto* bindv = data.bindv_ptr();
+    assert(bindv != nullptr);
+    assert(bindv->count == 1);
+    assert(bindv->bind_cols[0][0].buffer_type == TSDB_DATA_TYPE_TIMESTAMP);
+    assert(bindv->bind_cols[0][1].buffer_type == TSDB_DATA_TYPE_TIMESTAMP);
+
+    const int64_t* col_buf = static_cast<const int64_t*>(bindv->bind_cols[0][1].buffer);
+    (void)col_buf;
+    assert(col_buf[0] == 1700000000000LL);
+    assert(col_buf[1] == 1700000001000LL);
+
+    std::cout << "test_stmt_v2_data_timestamp_column_bind_type passed." << std::endl;
+}
+
 int main() {
     test_stmt_v2_data_fixed_null_none();
     test_stmt_v2_data_varlen_null_none();
     test_stmt_v2_data_mixed_columns_null_none();
     test_stmt_v2_data_all_null_none_rows();
     test_stmt_v2_data_multi_table_null_none();
+    test_stmt_v2_data_timestamp_column_bind_type();
 
     std::cout << "All StmtV2Data tests passed." << std::endl;
     return 0;

@@ -1,3 +1,27 @@
+/*
+ * Copyright (c) 2025 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "LogUtils.hpp"
 #include <spdlog/spdlog.h>
 #include <spdlog/async.h>
@@ -6,7 +30,7 @@
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <memory>
 #include <vector>
-#include <filesystem>
+#include "FilesystemCompat.hpp"
 #include <fstream>
 #include <mutex>
 
@@ -75,13 +99,13 @@ void init_console(Level level) {
 void init(Level level, const std::string& log_file, size_t max_file_size, size_t max_files) {
     std::lock_guard<std::mutex> lock(logger_lifecycle_mutex);
 
-    std::filesystem::path log_path(log_file);
-    std::filesystem::path parent_dir = log_path.parent_path();
+    fs::path log_path(log_file);
+    fs::path parent_dir = log_path.parent_path();
 
-    if (!parent_dir.empty() && !std::filesystem::exists(parent_dir)) {
+    if (!parent_dir.empty() && !fs::exists(parent_dir)) {
         try {
-            std::filesystem::create_directories(parent_dir);
-        } catch (const std::filesystem::filesystem_error& e) {
+            fs::create_directories(parent_dir);
+        } catch (const fs::filesystem_error& e) {
             throw std::runtime_error("Failed to create log directory '" + parent_dir.string() + "': " + e.what());
         }
     }

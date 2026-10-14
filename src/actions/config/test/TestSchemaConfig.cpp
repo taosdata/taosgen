@@ -1,3 +1,27 @@
+/*
+ * Copyright (c) 2026 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "SchemaConfig.hpp"
 #include <iostream>
 #include <cassert>
@@ -10,7 +34,7 @@ void test_apply_prepends_timestamp_when_columns_empty() {
     cfg.apply();
     assert(!cfg.columns.empty());
     (void)cfg;
-    assert(cfg.columns[0].type_tag == ColumnTypeTag::BIGINT);
+    assert(cfg.columns[0].type_tag == ColumnTypeTag::TIMESTAMP);
     assert(cfg.columns[0].type == "TIMESTAMP");
     std::cout << "  PASSED: test_apply_prepends_timestamp_when_columns_empty\n";
 }
@@ -21,7 +45,7 @@ void test_apply_prepends_timestamp_when_first_col_not_bigint() {
     cfg.apply();
     assert(cfg.columns.size() == 2);
     (void)cfg;
-    assert(cfg.columns[0].type_tag == ColumnTypeTag::BIGINT);
+    assert(cfg.columns[0].type_tag == ColumnTypeTag::TIMESTAMP);
     assert(cfg.columns[0].type == "TIMESTAMP");
     assert(cfg.columns[1].name == "value");
     std::cout << "  PASSED: test_apply_prepends_timestamp_when_first_col_not_bigint\n";
@@ -39,6 +63,18 @@ void test_apply_no_prepend_when_first_col_is_bigint() {
     std::cout << "  PASSED: test_apply_no_prepend_when_first_col_is_bigint\n";
 }
 
+void test_apply_no_prepend_when_first_col_is_timestamp() {
+    SchemaConfig cfg;
+    cfg.columns.push_back(ColumnConfig("ts", "TIMESTAMP"));
+    cfg.columns.push_back(ColumnConfig("value", "DOUBLE"));
+    cfg.apply();
+    assert(cfg.columns.size() == 2);
+    (void)cfg;
+    assert(cfg.columns[0].name == "ts");
+    assert(cfg.columns[0].type_tag == ColumnTypeTag::TIMESTAMP);
+    std::cout << "  PASSED: test_apply_no_prepend_when_first_col_is_timestamp\n";
+}
+
 void test_apply_prepends_timestamp_when_first_col_is_int() {
     SchemaConfig cfg;
     cfg.columns.push_back(ColumnConfig("id", "INT"));
@@ -46,7 +82,7 @@ void test_apply_prepends_timestamp_when_first_col_is_int() {
     cfg.apply();
     assert(cfg.columns.size() == 3);
     (void)cfg;
-    assert(cfg.columns[0].type_tag == ColumnTypeTag::BIGINT);
+    assert(cfg.columns[0].type_tag == ColumnTypeTag::TIMESTAMP);
     assert(cfg.columns[0].type == "TIMESTAMP");
     assert(cfg.columns[1].name == "id");
     assert(cfg.columns[2].name == "value");
@@ -221,6 +257,7 @@ void test_apply_columns_cfg_csv_path_with_csv_ts_has_precision() {
     cfg.from_csv.columns.file_path = "data.csv";
     cfg.from_csv.columns.timestamp_strategy.csv.enabled = true;
     cfg.from_csv.columns.timestamp_strategy.csv.timestamp_precision = "us";
+    cfg.from_csv.columns.timestamp_strategy.csv.timestamp_precision_configured = true;
 
     cfg.apply();
 
@@ -316,6 +353,51 @@ void test_apply_columns_cfg_csv_schema_excludes_first_column() {
     assert(cfg.columns_cfg.csv.schema[1].name == "b");
     assert(cfg.columns_cfg.csv.schema[2].name == "c");
     std::cout << "  PASSED: test_apply_columns_cfg_csv_schema_excludes_first_column\n";
+}
+
+void test_apply_database_precision_defaults_timestamp_columns() {
+    SchemaConfig cfg;
+    cfg.columns.push_back(ColumnConfig("ts", "TIMESTAMP"));
+    cfg.columns.push_back(ColumnConfig("event_time", "TIMESTAMP"));
+    cfg.columns.push_back(ColumnConfig("v1", "DOUBLE"));
+    cfg.from_csv.enabled = true;
+    cfg.from_csv.columns.enabled = true;
+    cfg.from_csv.columns.file_path = "data.csv";
+    cfg.from_csv.columns.timestamp_strategy.csv.enabled = true;
+
+    cfg.apply(std::string("us"));
+
+    assert(cfg.columns[0].ts.generator.timestamp_precision == "us");
+    assert(cfg.columns[0].ts.csv.timestamp_precision.value() == "us");
+    assert(cfg.columns[1].ts.generator.timestamp_precision == "us");
+    assert(cfg.columns[1].ts.csv.timestamp_precision.value() == "us");
+    assert(cfg.columns_cfg.csv.timestamp_strategy.csv.timestamp_precision.value() == "us");
+    assert(cfg.columns_cfg.csv.schema[0].name == "event_time");
+    assert(cfg.columns_cfg.csv.schema[0].ts.generator.timestamp_precision == "us");
+    assert(cfg.columns_cfg.csv.schema[0].ts.csv.timestamp_precision.value() == "us");
+    std::cout << "  PASSED: test_apply_database_precision_defaults_timestamp_columns\n";
+}
+
+void test_apply_database_precision_keeps_explicit_timestamp_column_precision() {
+    SchemaConfig cfg;
+    cfg.columns.push_back(ColumnConfig("ts", "TIMESTAMP"));
+    cfg.columns.push_back(ColumnConfig("event_time", "TIMESTAMP"));
+    cfg.columns[1].ts.generator.timestamp_precision = "ms";
+    cfg.columns[1].ts.generator.timestamp_precision_configured = true;
+    cfg.columns[1].ts.csv.timestamp_precision = "ms";
+    cfg.columns[1].ts.csv.timestamp_precision_configured = true;
+    cfg.from_csv.enabled = true;
+    cfg.from_csv.columns.enabled = true;
+    cfg.from_csv.columns.file_path = "data.csv";
+
+    cfg.apply(std::string("us"));
+
+    assert(cfg.columns[0].ts.generator.timestamp_precision == "us");
+    assert(cfg.columns[1].ts.generator.timestamp_precision == "ms");
+    assert(cfg.columns_cfg.csv.schema[0].name == "event_time");
+    assert(cfg.columns_cfg.csv.schema[0].ts.generator.timestamp_precision == "ms");
+    assert(cfg.columns_cfg.csv.schema[0].ts.csv.timestamp_precision.value() == "ms");
+    std::cout << "  PASSED: test_apply_database_precision_keeps_explicit_timestamp_column_precision\n";
 }
 
 // ============================================================
@@ -649,7 +731,7 @@ void test_apply_default_config() {
     // Default: columns empty → ts prepended
     assert(cfg.columns.size() == 1);
     (void)cfg;
-    assert(cfg.columns[0].type_tag == ColumnTypeTag::BIGINT);
+    assert(cfg.columns[0].type_tag == ColumnTypeTag::TIMESTAMP);
     assert(cfg.columns[0].type == "TIMESTAMP");
 
     // tags_cfg defaults to generator (from_csv.tags.enabled = false)
@@ -678,7 +760,7 @@ void test_apply_columns_prepend_then_csv_schema() {
     // TIMESTAMP prepended
     assert(cfg.columns.size() == 3);
     (void)cfg;
-    assert(cfg.columns[0].type_tag == ColumnTypeTag::BIGINT);
+    assert(cfg.columns[0].type_tag == ColumnTypeTag::TIMESTAMP);
     assert(cfg.columns[0].type == "TIMESTAMP");
     assert(cfg.columns[1].name == "v1");
     assert(cfg.columns[2].name == "v2");
@@ -745,6 +827,7 @@ int main() {
     test_apply_prepends_timestamp_when_columns_empty();
     test_apply_prepends_timestamp_when_first_col_not_bigint();
     test_apply_no_prepend_when_first_col_is_bigint();
+    test_apply_no_prepend_when_first_col_is_timestamp();
     test_apply_prepends_timestamp_when_first_col_is_int();
 
     // 2. from_csv.tags tbname_index setup
@@ -765,6 +848,8 @@ int main() {
     test_apply_columns_cfg_csv_ts_precision_inherited_with_offset();
     test_apply_columns_cfg_generator_ts_config();
     test_apply_columns_cfg_csv_schema_excludes_first_column();
+    test_apply_database_precision_defaults_timestamp_columns();
+    test_apply_database_precision_keeps_explicit_timestamp_column_precision();
 
     // 5. data_cache validation
     test_apply_data_cache_disabled_by_tbname_index();

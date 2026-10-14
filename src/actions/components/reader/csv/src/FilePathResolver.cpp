@@ -1,10 +1,33 @@
+/*
+ * Copyright (c) 2026 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "FilePathResolver.hpp"
 #include "StringUtils.hpp"
-#include <filesystem>
+#include "FilesystemCompat.hpp"
 #include <algorithm>
 #include <stdexcept>
 
-namespace fs = std::filesystem;
 
 bool FilePathResolver::is_directory(const std::string& path) {
     return fs::is_directory(path);
@@ -42,7 +65,7 @@ bool FilePathResolver::glob_match(const std::string& pattern, const std::string&
 std::vector<std::string> FilePathResolver::resolve_directory(const std::string& dir_path) {
     std::vector<std::string> results;
     for (const auto& entry : fs::directory_iterator(dir_path)) {
-        if (entry.is_regular_file()) {
+        if (fs::is_regular_file(entry.path())) {
             auto ext = StringUtils::to_lower(entry.path().extension().string());
             if (ext == ".csv") {
                 results.push_back(entry.path().string());
@@ -68,7 +91,7 @@ std::vector<std::string> FilePathResolver::resolve_glob(const std::string& patte
 
     std::vector<std::string> results;
     for (const auto& entry : fs::directory_iterator(parent)) {
-        if (entry.is_regular_file()) {
+        if (fs::is_regular_file(entry.path())) {
             std::string name = entry.path().filename().string();
             if (glob_match(filename_pattern, name)) {
                 results.push_back(entry.path().string());
