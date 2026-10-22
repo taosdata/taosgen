@@ -382,7 +382,7 @@ jobs:
 
           # capture
           lcov "${IGNORE_ARGS[@]}" --gcov-tool "${GCOV_TOOL}" --capture \
-               --directory "${BUILD_DIR}" \
+               --directory "${BUILD_DIR}/src" \
                --base-directory "${BASE_DIR}" \
                --output-file "${BASE_DIR}/coverage.info" \
                --rc branch_coverage=1 \
