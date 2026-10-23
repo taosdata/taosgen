@@ -1,3 +1,27 @@
+/*
+ * Copyright (c) 2025 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "ParameterContext.hpp"
 #include "StepParserRegistry.hpp"
 #include "LogUtils.hpp"
@@ -12,7 +36,7 @@
 #include <stdexcept>
 #include <sstream>
 #include <system_error>
-#include <filesystem>
+#include "FilesystemCompat.hpp"
 
 
 ParameterContext::ParameterContext() {
@@ -33,6 +57,28 @@ const std::vector<ParameterContext::CommandOption> ParameterContext::valid_optio
     {"--help", '?', "Display this help message", false}
     // Add more command options here
 };
+
+namespace {
+std::optional<std::string> tdengine_database_precision(const PluginExtensions& extensions) {
+    const auto* tc = get_plugin_config<TDengineConfig>(extensions, "tdengine");
+    if (tc == nullptr) {
+        return std::nullopt;
+    }
+    return tc->precision;
+}
+
+size_t inferred_ingress_max_tables_per_request(const SchemaConfig& schema, size_t ingress_rows_per_batch) {
+    const size_t rows_per_batch = std::max<size_t>(ingress_rows_per_batch, 1);
+    const size_t rows_per_table = schema.generation.interlace_mode.enabled
+                                      ? std::max<size_t>(schema.generation.interlace_mode.rows, 1)
+                                      : static_cast<size_t>(std::max<int64_t>(schema.generation.rows_per_table, 1));
+    return std::max<size_t>((rows_per_batch + rows_per_table - 1) / rows_per_table, 1);
+}
+
+size_t inferred_ingress_rows_per_batch(const SchemaConfig& schema) {
+    return std::max<size_t>(schema.generation.rows_per_batch, 1);
+}
+}
 
 void ParameterContext::show_help() {
     LogUtils::info("Usage: taosgen [OPTIONS]...");
@@ -78,6 +124,7 @@ void ParameterContext::show_help() {
     LogUtils::info("");
     LogUtils::info("Examples:");
     LogUtils::info("  taosgen --config-file=example.yaml");
+    LogUtils::info("  taosgen --config-file=ingress.yaml");
     LogUtils::info("  taosgen -h localhost -P 6041 -u root -p taosdata");
     LogUtils::info("");
     LogUtils::info("For more information, visit: https://docs.taosdata.com/");
@@ -93,6 +140,7 @@ void ParameterContext::show_version() {
 void ParameterContext::parse_schema(const YAML::Node& schema_node) {
     auto& global_config = config_data.global;
     global_config.schema = schema_node.as<SchemaConfig>();
+    global_config.schema.apply(tdengine_database_precision(global_config.extensions));
 
     // if (!global_config.schema.tbname.enabled && !global_config.schema.from_csv.enabled) {
     //     throw std::runtime_error("Missing required field 'tbname' or 'from_csv' in schema.");
@@ -224,10 +272,28 @@ void ParameterContext::parse_steps(const YAML::Node& steps_node, Job& job) {
     // BINARY, INT), schemaless inserts will fail with type mismatch errors.
     bool has_schemaless = false;
     bool has_create_stb = false;
+    auto validate_schemaless_timestamp_columns = [](const SchemaConfig& schema) {
+        // The first TIMESTAMP column is the row timestamp. Regular TIMESTAMP
+        // fields cannot be encoded by the current Influx line protocol path:
+        // int64_t payloads are serialized with an i64 suffix and TDengine
+        // schemaless parses them as BIGINT fields.
+        for (size_t i = 1; i < schema.columns.size(); ++i) {
+            const auto& column = schema.columns[i];
+            if (column.type_tag == ColumnTypeTag::TIMESTAMP) {
+                throw std::runtime_error(
+                    "Column '" + column.name + "' has type '" + column.type +
+                    "', but TDengine schemaless (InfluxDB line protocol) does not "
+                    "support regular TIMESTAMP columns. Use a BIGINT column or a "
+                    "non-schemaless insert format for this column.");
+            }
+        }
+    };
+
     for (const auto& step : job.steps) {
         if (auto* cfg = std::get_if<InsertDataConfig>(&step.action_config)) {
             if (cfg->data_format.format_type == "schemaless") {
                 has_schemaless = true;
+                validate_schemaless_timestamp_columns(cfg->schema);
             }
         }
         if (std::holds_alternative<CreateSuperTableConfig>(step.action_config)) {
@@ -310,8 +376,8 @@ void ParameterContext::parse_td_create_super_table_action(Job& job, Step& step) 
         if (schema["generation"]) {
             create_stb_config.schema.generation = schema["generation"].as<GenerationConfig>();
         }
-        create_stb_config.schema.apply();
     }
+    create_stb_config.schema.apply(tc->precision);
 
     // Validate columns and tags
     if (create_stb_config.schema.columns.empty()) {
@@ -364,8 +430,8 @@ void ParameterContext::parse_td_create_child_table_action(Job& job, Step& step) 
         if (schema["generation"]) {
             create_ctb_config.schema.generation = schema["generation"].as<GenerationConfig>();
         }
-        create_ctb_config.schema.apply();
     }
+    create_ctb_config.schema.apply(tc->precision);
 
     // Parse batch (optional)
     if (step.with["batch"]) {
@@ -443,8 +509,8 @@ void ParameterContext::parse_insert_action(Job& job, Step& step, std::string tar
         if (schema["generation"]) {
             insert_config.schema.generation = schema["generation"].as<GenerationConfig>();
         }
-        insert_config.schema.apply();
     }
+    insert_config.schema.apply(tdengine_database_precision(insert_config.extensions));
 
     if (!step.with["timestamp_precision"]) {
         insert_config.timestamp_precision = insert_config.schema.columns[0].ts.get_precision();
@@ -545,6 +611,20 @@ void ParameterContext::merge_yaml_global(const YAML::Node& config) {
         parse_schema(schema);
     }
 
+    if (config["ingress"]) {
+        config_data.ingress = config["ingress"].as<IngressConfig>();
+        if (!config["ingress"]["rows_per_batch"]) {
+            config_data.ingress->rows_per_batch = inferred_ingress_rows_per_batch(config_data.global.schema);
+        }
+        if (!config["ingress"]["max_tables_per_request"]) {
+            config_data.ingress->max_tables_per_request =
+                inferred_ingress_max_tables_per_request(config_data.global.schema,
+                                                        config_data.ingress->rows_per_batch);
+        }
+    } else {
+        config_data.ingress.reset();
+    }
+
     // Parse job concurrency
     if (config["concurrency"]) {
         config_data.concurrency = config["concurrency"].as<int>();
@@ -596,8 +676,7 @@ schema:
   columns:
     - name: ts
       type: timestamp
-      start: 1735660800000
-      precision : ms
+      start: 2025-01-01T00:00:00Z
       step: 1
     - name: current
       type: float
@@ -656,14 +735,20 @@ YAML::Node ParameterContext::load_config(const std::string& file_path) {
     // Pre-check the path so we can return precise diagnostics instead of yaml-cpp's
     // generic "bad file" message. The original report ('bad file: <relative path>')
     // gave no hint whether the file was missing, unreadable, or had bad YAML syntax.
-    std::error_code ec;
-    auto abs_path = std::filesystem::absolute(file_path, ec);
-    std::string abs_str = ec ? file_path : abs_path.string();
-    std::string cwd_str = std::filesystem::current_path(ec).string();
-    if (ec) cwd_str = "<unknown>";
+    std::string abs_str = file_path;
+    try {
+        abs_str = fs::absolute(fs::path(file_path)).string();
+    } catch (const fs::filesystem_error&) {
+    }
+
+    std::string cwd_str = "<unknown>";
+    try {
+        cwd_str = fs::current_path().string();
+    } catch (const fs::filesystem_error&) {
+    }
 
     std::error_code exists_ec;
-    bool exists = std::filesystem::exists(file_path, exists_ec);
+    bool exists = fs::exists(file_path, exists_ec);
     if (!exists && (!exists_ec || exists_ec == std::errc::no_such_file_or_directory || exists_ec == std::errc::not_a_directory)) {
         throw std::runtime_error(
             "Failed to load yaml file: file not found. path='" + file_path +
@@ -671,8 +756,9 @@ YAML::Node ParameterContext::load_config(const std::string& file_path) {
             "'. Check that the path is correct and that you are running from the expected working directory.");
     }
 
-    auto status = std::filesystem::status(file_path, ec);
-    if (!ec && std::filesystem::is_directory(status)) {
+    std::error_code ec;
+    auto status = fs::status(file_path, ec);
+    if (!ec && fs::is_directory(status)) {
         throw std::runtime_error(
             "Failed to load yaml file: path is a directory, not a regular file. path='" +
             file_path + "', resolved='" + abs_str + "'.");
@@ -871,6 +957,11 @@ bool ParameterContext::init_global(int argc, char* argv[]) {
         return false;
     }
     merge_all_global();
+    if (is_ingress_mode()) {
+        if (!cached_config_["schema"]) {
+            throw std::runtime_error("ingress.enabled=true requires top-level 'schema' configuration.");
+        }
+    }
     return true;
 }
 
@@ -892,6 +983,22 @@ const ConfigData& ParameterContext::get_config_data() const {
 
 const GlobalConfig& ParameterContext::get_global_config() const {
     return config_data.global;
+}
+
+bool ParameterContext::is_ingress_mode() const {
+    return config_data.ingress.has_value() && config_data.ingress->enabled;
+}
+
+ParameterContext::ExecutionMode ParameterContext::execution_mode() const {
+    return is_ingress_mode() ? ExecutionMode::Ingress : ExecutionMode::Jobs;
+}
+
+const IngressConfig& ParameterContext::get_ingress_config() const {
+    if (!config_data.ingress.has_value()) {
+        throw std::runtime_error("Ingress configuration not found.");
+    }
+
+    return config_data.ingress.value();
 }
 
 const TDengineConfig& ParameterContext::get_tdengine() const {
@@ -925,8 +1032,8 @@ std::string ParameterContext::get_log_file_path() const {
 
 std::string ParameterContext::get_log_dir() const {
     if (!config_data.global.log_file.empty()) {
-        std::filesystem::path p(config_data.global.log_file);
-        std::filesystem::path parent = p.parent_path();
+        fs::path p(config_data.global.log_file);
+        fs::path parent = p.parent_path();
         return parent.empty() ? "." : parent.string();
     }
     return config_data.global.log_dir;

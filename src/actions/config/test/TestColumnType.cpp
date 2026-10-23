@@ -1,3 +1,27 @@
+/*
+ * Copyright (c) 2025 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "ColumnType.hpp"
 #include "StringUtils.hpp"
 #include <iostream>
@@ -84,12 +108,14 @@ void test_variant_index() {
 
 void test_column_type_traits() {
     // Test is_numeric
+    assert(ColumnTypeTraits::is_numeric(ColumnTypeTag::TIMESTAMP));
     assert(ColumnTypeTraits::is_numeric(ColumnTypeTag::INT));
     assert(ColumnTypeTraits::is_numeric(ColumnTypeTag::DOUBLE));
     assert(!ColumnTypeTraits::is_numeric(ColumnTypeTag::VARCHAR));
     assert(!ColumnTypeTraits::is_numeric(ColumnTypeTag::BOOL));
 
     // Test is_integer
+    assert(ColumnTypeTraits::is_integer(ColumnTypeTag::TIMESTAMP));
     assert(ColumnTypeTraits::is_integer(ColumnTypeTag::BIGINT));
     assert(ColumnTypeTraits::is_integer(ColumnTypeTag::SMALLINT_UNSIGNED));
     assert(!ColumnTypeTraits::is_integer(ColumnTypeTag::FLOAT));
@@ -99,6 +125,7 @@ void test_column_type_traits() {
     assert(ColumnTypeTraits::needs_quotes(ColumnTypeTag::VARCHAR));
     assert(ColumnTypeTraits::needs_quotes(ColumnTypeTag::JSON));
     assert(!ColumnTypeTraits::needs_quotes(ColumnTypeTag::INT));
+    assert(!ColumnTypeTraits::needs_quotes(ColumnTypeTag::TIMESTAMP));
     assert(!ColumnTypeTraits::needs_quotes(ColumnTypeTag::BOOL));
 
     std::cout << "test_column_type_traits passed!" << std::endl;

@@ -1,3 +1,27 @@
+/*
+ * Copyright (c) 2025 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "ColumnConfig.hpp"
 #include "StringUtils.hpp"
 #include "taos.h"
@@ -17,7 +41,7 @@ ColumnTypeTag ColumnConfig::get_type_tag(const std::string& type_str) {
         {"smallint unsigned",   ColumnTypeTag::SMALLINT_UNSIGNED},
         {"int",                 ColumnTypeTag::INT},
         {"int unsigned",        ColumnTypeTag::INT_UNSIGNED},
-        {"timestamp",           ColumnTypeTag::BIGINT},
+        {"timestamp",           ColumnTypeTag::TIMESTAMP},
         {"bigint",              ColumnTypeTag::BIGINT},
         {"bigint unsigned",     ColumnTypeTag::BIGINT_UNSIGNED},
         {"float",               ColumnTypeTag::FLOAT},
@@ -42,6 +66,7 @@ ColumnTypeTag ColumnConfig::get_type_tag(const std::string& type_str) {
 size_t ColumnConfig::get_type_index() const noexcept{
     static constexpr size_t type_indices[] = {
         0,                                                          // UNKNOWN
+        variant_index<int64_t, ColumnType>::value,                  // TIMESTAMP
         variant_index<bool, ColumnType>::value,                     // BOOL
         variant_index<int8_t, ColumnType>::value,                   // TINYINT
         variant_index<uint8_t, ColumnType>::value,                  // TINYINT_UNSIGNED
@@ -75,6 +100,7 @@ size_t ColumnConfig::get_type_index() const noexcept{
 double ColumnConfig::get_min_value() const noexcept {
     static constexpr double min_values[] = {
         -1.0,                             // UNKNOWN
+        static_cast<double>(INT16_MIN),   // TIMESTAMP
         0.0,                              // BOOL
         static_cast<double>(INT8_MIN),    // TINYINT
         0.0,                              // TINYINT_UNSIGNED
@@ -106,6 +132,7 @@ double ColumnConfig::get_min_value() const noexcept {
 double ColumnConfig::get_max_value() const noexcept {
     static constexpr double max_values[] = {
         -1.0,                             // UNKNOWN
+        static_cast<double>(INT16_MAX),   // TIMESTAMP
         1.0,                              // BOOL
         static_cast<double>(INT8_MAX),    // TINYINT
         static_cast<double>(UINT8_MAX),   // TINYINT_UNSIGNED
@@ -181,7 +208,13 @@ ColumnConfig::ColumnConfig(
     const std::string& ts_step
 ) : name(name), type(type) {
     ts.strategy_type = "generator";
-    ts.generator = TimestampGeneratorConfig{ts_start, ts_precision, ts_step};
+    ts.generator.start_timestamp = ts_start;
+    ts.generator.timestamp_precision = ts_precision;
+    ts.generator.timestamp_step = ts_step;
+    ts.generator.timestamp_precision_configured = true;
+    ts.generator.timestamp_step_literal = ts_step;
+    ts.csv.timestamp_precision = ts_precision;
+    ts.csv.timestamp_precision_configured = true;
     parse_type();
 }
 
@@ -292,6 +325,7 @@ void ColumnConfig::parse_type() {
 bool ColumnConfig::is_var_length() const noexcept {
     static constexpr bool varlen_flags[] = {
         false, // UNKNOWN
+        false, // TIMESTAMP
         false, // BOOL
         false, // TINYINT
         false, // TINYINT_UNSIGNED
@@ -332,6 +366,7 @@ size_t ColumnConfig::get_fixed_type_size() const noexcept{
     // Static lookup table
     static constexpr size_t type_sizes[] = {
         0,                 // UNKNOWN
+        sizeof(int64_t),   // TIMESTAMP
         sizeof(bool),      // BOOL
         sizeof(int8_t),    // TINYINT
         sizeof(int8_t),    // TINYINT_UNSIGNED
@@ -372,6 +407,7 @@ int ColumnConfig::get_taos_type() const noexcept {
     // Static lookup table
     static constexpr int taos_types[] = {
         TSDB_DATA_TYPE_NULL,      // UNKNOWN
+        TSDB_DATA_TYPE_TIMESTAMP, // TIMESTAMP
         TSDB_DATA_TYPE_BOOL,      // BOOL
         TSDB_DATA_TYPE_TINYINT,   // TINYINT
         TSDB_DATA_TYPE_UTINYINT,  // TINYINT_UNSIGNED
@@ -398,6 +434,25 @@ int ColumnConfig::get_taos_type() const noexcept {
         return taos_types[idx];
     }
     return TSDB_DATA_TYPE_NULL;
+}
+
+void ColumnConfig::apply_timestamp_precision_default(const std::string& timestamp_precision) {
+    if (!ColumnTypeTraits::is_timestamp(type_tag)) {
+        return;
+    }
+
+    if (!ts.generator.timestamp_precision_configured) {
+        ts.generator.timestamp_precision = timestamp_precision;
+        if (ts.generator.timestamp_step_literal.has_value()) {
+            ts.generator.timestamp_step = TimestampUtils::parse_step(
+                ts.generator.timestamp_step_literal.value(),
+                ts.generator.timestamp_precision);
+        }
+    }
+
+    if (!ts.csv.timestamp_precision_configured) {
+        ts.csv.timestamp_precision = timestamp_precision;
+    }
 }
 
 void ColumnConfig::set_values_from_strings(const std::vector<std::string>& values) {

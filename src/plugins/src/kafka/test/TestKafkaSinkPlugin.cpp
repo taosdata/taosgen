@@ -1,11 +1,39 @@
+/*
+ * Copyright (c) 2025 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "KafkaSinkPlugin.hpp"
 #include "KafkaInsertData.hpp"
 #include "KafkaClient.hpp"
 #include "FormatterRegistrar.hpp"
 #include "KafkaInsertDataFormatter.hpp"
+#include "FilesystemCompat.hpp"
+#include "LogUtils.hpp"
 
 #include <cassert>
+#include <fstream>
 #include <iostream>
+#include <iterator>
 #include <optional>
 #include <memory>
 #include <stdexcept>
@@ -350,6 +378,12 @@ void test_write_operations() {
 }
 
 void test_write_with_retry() {
+    const std::string log_file = "testlog/test_kafka_retry.log";
+    if (fs::exists(log_file)) {
+        fs::remove(log_file);
+    }
+    LogUtils::init(LogUtils::Level::Debug, log_file, 1024 * 1024, 1);
+
     auto config = create_test_config();
     config.failure_handling.max_retries = 1;
     auto col_instances = create_col_instances();
@@ -390,11 +424,25 @@ void test_write_with_retry() {
     auto base_data = BaseInsertData::make_with_payload(block, col_instances, tag_instances, std::move(msg_batch));
     assert(base_data != nullptr);
 
-    assert(plugin.write(*base_data));
+    const bool write_success = plugin.write(*base_data);
+    (void)write_success;
+    assert(write_success);
     assert(mock_ptr->produce_count == 2);           // Called twice: 1 fail + 1 success
     assert(mock_ptr->total_rows_produced == 1);     // Only succeeded once
 
     (void)mock_ptr;
+
+    LogUtils::shutdown();
+    std::ifstream input(log_file);
+    const std::string log{
+        std::istreambuf_iterator<char>(input),
+        std::istreambuf_iterator<char>()
+    };
+    (void)log;
+    assert(log.find("event=retrying operation=kafka_message_insert") != std::string::npos);
+    assert(log.find("table_count=1 table=\"tb1\" rows=1") != std::string::npos);
+    assert(log.find("operation=kafka message insert") == std::string::npos);
+    fs::remove_all("testlog");
 
     std::cout << "test_write_with_retry passed." << std::endl;
 }

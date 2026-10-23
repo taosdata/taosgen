@@ -1,8 +1,33 @@
+/*
+ * Copyright (c) 2025 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "TDengineConfig.hpp"
 
 #include <vector>
 #include <stdexcept>
 #include <algorithm>
+#include <regex>
 #include "StringUtils.hpp"
 
 TDengineConfig::TDengineConfig() {
@@ -84,5 +109,30 @@ void TDengineConfig::parse_dsn() {
     // 5. Parse database name
     if (path_start != std::string::npos) {
         database = post_protocol.substr(path_start + 1);
+    }
+}
+
+bool TDengineConfig::is_valid_precision(const std::string& value) {
+    return value == "ms" || value == "us" || value == "ns";
+}
+
+void TDengineConfig::set_precision(const std::string& value) {
+    std::string lower = StringUtils::to_lower(value);
+    if (!is_valid_precision(lower)) {
+        throw std::runtime_error("Invalid TDengine database precision: " + value);
+    }
+    precision = lower;
+}
+
+void TDengineConfig::apply_properties_precision() {
+    if (!properties.has_value()) {
+        return;
+    }
+
+    static const std::regex precision_regex(R"(\bprecision\s+['"]?(ms|us|ns)['"]?)",
+                                            std::regex_constants::icase);
+    std::smatch match;
+    if (std::regex_search(properties.value(), match, precision_regex)) {
+        set_precision(match[1].str());
     }
 }

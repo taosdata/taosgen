@@ -1,3 +1,27 @@
+/*
+ * Copyright (c) 2025 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "InsertDataAction.hpp"
 #include "ColumnsCSVReader.hpp"
 #include "LogUtils.hpp"
@@ -85,6 +109,9 @@ void InsertDataAction::set_thread_affinity(size_t thread_id, bool reverse, const
 
 void InsertDataAction::execute() {
     std::optional<ConnectorSource> conn_source;
+    auto stop_requested = [this]() {
+        return stop_execution_.load() || SignalManager::interrupted();
+    };
 
     try {
         // Generate all child table names and split by producer thread count
@@ -213,7 +240,8 @@ void InsertDataAction::execute() {
                     producer_thread_function(i, split_names[i], pipeline, data_manager, sink_plugins[0].get());
                     producer_finished[i].store(true);
                 } catch (const std::exception& e) {
-                    throw std::runtime_error("Producer thread " + std::to_string(i) + " failed: " + e.what());
+                    LogUtils::error("Producer thread {} failed: {}", i, e.what());
+                    stop_execution_.store(true);
                 }
                 active_producers--;
             });
@@ -221,9 +249,16 @@ void InsertDataAction::execute() {
 
         (void)ProcessUtils::get_cpu_usage_percent();
         int64_t wait_seconds = std::min(static_cast<int64_t>(5), static_cast<int64_t>(producer_thread_count));
-        std::this_thread::sleep_for(std::chrono::seconds(wait_seconds));
+        auto warmup_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(wait_seconds);
+        while (std::chrono::steady_clock::now() < warmup_deadline) {
+            if (stop_requested()) {
+                stop_execution_.store(true);
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
 
-        while (true) {
+        while (!stop_requested()) {
             size_t total_queued = pipeline.total_queued();
             double queue_ratio = std::min(static_cast<double>(total_queued) / num_blocks, 1.0);
 
@@ -233,8 +268,12 @@ void InsertDataAction::execute() {
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
 
+        if (SignalManager::interrupted()) {
+            stop_execution_.store(true);
+        }
+
         // Start consumer threads
-        if (config_.target_type == "tdengine") {
+        if (!stop_execution_.load() && config_.target_type == "tdengine") {
             const auto* tc = get_plugin_config<TDengineConfig>(config_.extensions, config_.target_type);
             if (tc == nullptr) {
                 throw std::invalid_argument("Unsupported target type: " + config_.target_type);
@@ -243,20 +282,25 @@ void InsertDataAction::execute() {
             conn_source.emplace(*tc);
         }
 
-        for (size_t i = 0; i < consumer_thread_count; i++) {
-            consumer_threads.emplace_back([this, i, &pipeline, &consumer_running, &sink_plugins, &conn_source, &gc, &startup_latch] {
-                if (config_.thread_affinity) {
-                    set_thread_affinity(i, true, "Consumer");
-                }
-                if (config_.thread_realtime) {
-                    set_realtime_priority();
-                }
-                consumer_thread_function(i, pipeline, consumer_running[i], sink_plugins[i].get(), conn_source, gc, startup_latch);
-            });
+        if (!stop_execution_.load()) {
+            for (size_t i = 0; i < consumer_thread_count; i++) {
+                consumer_threads.emplace_back([this, i, &pipeline, &consumer_running, &sink_plugins, &conn_source, &gc, &startup_latch] {
+                    if (config_.thread_affinity) {
+                        set_thread_affinity(i, true, "Consumer");
+                    }
+                    if (config_.thread_realtime) {
+                        set_realtime_priority();
+                    }
+                    consumer_thread_function(i, pipeline, consumer_running[i], sink_plugins[i].get(), conn_source, gc, startup_latch);
+                });
+            }
         }
 
         // Wait for consumers to be ready
         startup_latch.wait([this] { return stop_execution_.load() || SignalManager::interrupted(); });
+        if (SignalManager::interrupted()) {
+            stop_execution_.store(true);
+        }
         const auto start_time = std::chrono::steady_clock::now();
 
         // Monitor
@@ -315,43 +359,46 @@ void InsertDataAction::execute() {
         }
 
         // Wait for all data to be sent
-        size_t last_queue_size = pipeline.total_queued();
-        auto last_check_time = std::chrono::steady_clock::now();
+        if (!stop_execution_.load()) {
+            size_t last_queue_size = pipeline.total_queued();
+            auto last_check_time = std::chrono::steady_clock::now();
 
-        while (pipeline.total_queued() > 0 && !stop_execution_.load()) {
-            if (SignalManager::interrupted()) {
-                stop_execution_.store(true);
-                break;
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            while (pipeline.total_queued() > 0 && !stop_execution_.load()) {
+                if (SignalManager::interrupted()) {
+                    stop_execution_.store(true);
+                    break;
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-            auto current_time = std::chrono::steady_clock::now();
-            auto interval = std::chrono::duration<double>(current_time - last_check_time).count();
-            auto duration = std::chrono::duration_cast<std::chrono::seconds>(current_time - start_time).count();
+                auto current_time = std::chrono::steady_clock::now();
+                auto interval = std::chrono::duration<double>(current_time - last_check_time).count();
+                auto duration = std::chrono::duration_cast<std::chrono::seconds>(current_time - start_time).count();
 
-            if (interval >= 1.0) {
-                size_t current_queue_size = pipeline.total_queued();
-                double process_rate = (last_queue_size - current_queue_size) / interval;
+                if (interval >= 1.0) {
+                    size_t current_queue_size = pipeline.total_queued();
+                    double process_rate = (last_queue_size - current_queue_size) / interval;
 
-                LogUtils::info(
-                    "Runtime: {:4}s | Remaining Queue: {:3} items | Processing Rate: {:6.2f} items/s | CPU Usage: {:7.2f}% | Memory Usage: {} | Thread Count: {:3}",
-                    duration,
-                    current_queue_size,
-                    process_rate,
-                    ProcessUtils::get_cpu_usage_percent(),
-                    ProcessUtils::get_memory_usage_human_readable(),
-                    ProcessUtils::get_thread_count()
-                );
+                    LogUtils::info(
+                        "Runtime: {:4}s | Remaining Queue: {:3} items | Processing Rate: {:6.2f} items/s | CPU Usage: {:7.2f}% | Memory Usage: {} | Thread Count: {:3}",
+                        duration,
+                        current_queue_size,
+                        process_rate,
+                        ProcessUtils::get_cpu_usage_percent(),
+                        ProcessUtils::get_memory_usage_human_readable(),
+                        ProcessUtils::get_thread_count()
+                    );
 
-                last_queue_size = current_queue_size;
-                last_check_time = current_time;
+                    last_queue_size = current_queue_size;
+                    last_check_time = current_time;
+                }
             }
         }
 
-        const auto end_time = std::chrono::steady_clock::now();
-        (void)end_time;
+        if (SignalManager::interrupted()) {
+            stop_execution_.store(true);
+        }
 
-        // Terminate pipeline
+        // Terminate pipeline before joining threads so blocked producers/consumers can exit.
         pipeline.terminate();
 
         // Wait for producers to finish

@@ -1,3 +1,27 @@
+/*
+ * Copyright (c) 2026 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "ConfigParser.hpp"
 #include "TDengineConfigParser.hpp"
 #include "TDengineRegistrar.hpp"
@@ -24,10 +48,22 @@ pool:
     assert(conn.dsn == "taos+ws://root:taosdata@127.0.0.1:6041/test");
     assert(conn.drop_if_exists == false);
     assert(conn.properties.has_value() && *conn.properties == "precision 'ms' vgroups 4");
+    assert(conn.precision == "ms");
     assert(conn.pool.enabled == true);
     assert(conn.pool.max_size == 10);
     assert(conn.pool.min_size == 2);
     assert(conn.pool.timeout == 1000);
+}
+
+void test_TDengine_precision_field() {
+    std::string yaml = R"(
+dsn: "taos+ws://root:taosdata@127.0.0.1:6041/test"
+precision: us
+props: "vgroups 4"
+)";
+    YAML::Node node = YAML::Load(yaml);
+    TDengineConfig conn = node.as<TDengineConfig>();
+    assert(conn.precision == "us");
 }
 
 
@@ -147,6 +183,7 @@ schema:
 int main() {
     register_tdengine_plugin_config_hooks();
     test_TDengine();
+    test_TDengine_precision_field();
     test_InsertDataConfig_tdengine();
     test_TDengine_schemaless_tbname_key();
 

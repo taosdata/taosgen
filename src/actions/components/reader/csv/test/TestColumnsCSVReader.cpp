@@ -1,7 +1,32 @@
+/*
+ * Copyright (c) 2025 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include <iostream>
 #include <cassert>
 #include <fstream>
 #include "ColumnsCSVReader.hpp"
+#include "TimestampUtils.hpp"
 
 
 void test_validate_config_empty_file_path() {
@@ -121,6 +146,47 @@ void test_generate_table_data_with_timestamp() {
     assert(std::get<std::string>(table.rows[0][0]) == "Alice" && "Expected first column to be 'Alice'");
     assert(std::get<std::string>(table.rows[0][1]) == "New York" && "Expected second column to be 'New York'");
     std::cout << "test_generate_table_data_with_timestamp passed\n";
+}
+
+void test_generate_table_data_regular_timestamp_column_iso_string() {
+    ColumnsCSV config;
+    config.enabled = true;
+    config.timestamp_strategy.strategy_type = "csv";
+    config.timestamp_strategy.csv.enabled = true;
+    config.timestamp_strategy.csv.timestamp_index = 0;
+    config.timestamp_strategy.csv.timestamp_precision = "ms";
+    config.file_path = "regular_timestamp_col.csv";
+    config.has_header = true;
+
+    const std::string iso_time = "2026-08-10T14:59:04.121Z";
+    std::ofstream test_file("regular_timestamp_col.csv");
+    test_file << "ts,event_time,name\n";
+    test_file << "1700000000000," << iso_time << ",Alice\n";
+    test_file.close();
+
+    ColumnConfigVector col_configs = {
+        {"event_time", "timestamp"},
+        {"name", "varchar(20)"}
+    };
+    col_configs[0].ts.generator.timestamp_precision = "ms";
+    auto instances = ColumnConfigInstanceFactory::create(col_configs);
+
+    ColumnsCSVReader columns_csv(config, instances);
+    auto table_data = columns_csv.generate();
+
+    assert(table_data.size() == 1 && "Expected 1 table");
+    const auto& table = table_data.begin()->second;
+    (void)table;
+    int64_t expected = TimestampUtils::parse_timestamp(iso_time, "ms");
+    (void)expected;
+
+    assert(table.rows.size() == 1);
+    assert(std::get<int64_t>(table.rows[0][0]) == expected);
+    assert(std::get<int64_t>(table.rows[0][0]) != 2026);
+    assert(std::get<std::string>(table.rows[0][1]) == "Alice");
+
+    std::remove("regular_timestamp_col.csv");
+    std::cout << "test_generate_table_data_regular_timestamp_column_iso_string passed\n";
 }
 
 void test_generate_table_data_with_generated_timestamp() {
@@ -570,6 +636,7 @@ int main() {
     test_validate_config_mismatched_column_types();
     test_generate_table_data_with_default_timestamp();
     test_generate_table_data_with_timestamp();
+    test_generate_table_data_regular_timestamp_column_iso_string();
     test_generate_table_data_with_generated_timestamp();
     test_generate_table_data_include_tbname();
     test_generate_table_data_default_column_types();

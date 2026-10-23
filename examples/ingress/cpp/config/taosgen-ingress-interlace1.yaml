@@ -1,0 +1,99 @@
+# Copyright (c) 2026 TAOS Data, Inc.
+#
+# SPDX-License-Identifier: MIT
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+tdengine:
+  dsn: taos://root:taosdata@127.0.0.1:6030/tsbench
+  drop_if_exists: true
+  props: precision 'ms' vgroups 16
+
+schema:
+  name: meters
+  tbname:
+    prefix: d
+    count: 1000000
+    from: 0
+  columns:
+    - name: ts
+      type: timestamp
+      start: now
+      precision: ms
+      step: 1
+    - name: current
+      type: float
+      min: 0
+      max: 100
+    - name: voltage
+      type: int
+      min: 200
+      max: 240
+    - name: phase
+      type: float
+      expr: _i * math.pi % 180
+  tags:
+    - name: groupid
+      type: int
+      min: 1
+      max: 10
+    - name: location
+      type: binary(24)
+      values:
+        - New York
+        - Los Angeles
+        - Chicago
+        - Houston
+        - Phoenix
+        - Philadelphia
+        - San Antonio
+        - San Diego
+        - Dallas
+        - Austin
+  generation:
+    interlace: 1
+    rows_per_table: 100
+    rows_per_batch: 10000
+    num_cached_batches: 100
+
+ingress:
+  enabled: true
+  listen: 127.0.0.1:7600
+  service_concurrency: 10
+  max_message_bytes: 16777216
+  default_ack_mode: enqueue_only
+  request_timeout_ms: 30000
+  concurrency: 10
+  dry_run: false
+  auto_create_table: false
+  writer:
+    failure_handling:
+      max_retries: 0
+      retry_interval_ms: 1000
+      on_failure: warn_and_continue
+
+jobs:
+  startup:
+    steps:
+      - uses: tdengine/create-super-table
+      - uses: tdengine/create-child-table
+        with:
+          batch:
+            size: 1000
+            concurrency: 10

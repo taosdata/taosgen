@@ -1,4 +1,29 @@
 #pragma once
+
+/*
+ * Copyright (c) 2025 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "LogUtils.hpp"
 #include "TableNameConfig.hpp"
 #include "ColumnConfig.hpp"
@@ -6,6 +31,7 @@
 #include "FromCSVConfig.hpp"
 #include "ColumnsConfig.hpp"
 #include "TagsConfig.hpp"
+#include <optional>
 
 struct SchemaConfig {
     bool enabled = false;
@@ -20,8 +46,22 @@ struct SchemaConfig {
     TagsConfig tags_cfg;
 
     void apply() {
-        if (columns.empty() || columns[0].type_tag != ColumnTypeTag::BIGINT) {
+        apply(std::nullopt);
+    }
+
+    void apply(const std::string& default_timestamp_precision) {
+        apply(std::optional<std::string>(default_timestamp_precision));
+    }
+
+    void apply(const std::optional<std::string>& default_timestamp_precision) {
+        if (columns.empty() || !ColumnTypeTraits::is_timestamp(columns[0].type_tag)) {
             columns.insert(columns.begin(), ColumnConfig("ts", "TIMESTAMP"));
+        }
+
+        if (default_timestamp_precision.has_value()) {
+            for (auto& column : columns) {
+                column.apply_timestamp_precision_default(default_timestamp_precision.value());
+            }
         }
 
         if (from_csv.enabled && from_csv.tags.enabled && from_csv.tags.tbname_index >= 0) {
@@ -48,7 +88,7 @@ struct SchemaConfig {
             columns_cfg.csv.schema = ColumnConfigVector(columns.begin() + 1, columns.end());
 
             if (from_csv.columns.timestamp_strategy.csv.enabled) {
-                if(!from_csv.columns.timestamp_strategy.csv.timestamp_precision.has_value()) {
+                if(!from_csv.columns.timestamp_strategy.csv.timestamp_precision_configured) {
                     from_csv.columns.timestamp_strategy.csv.timestamp_precision = columns[0].ts.generator.timestamp_precision;
                     if (from_csv.columns.timestamp_strategy.csv.offset_config.has_value()) {
                         from_csv.columns.timestamp_strategy.csv.offset_config->parse_offset(from_csv.columns.timestamp_strategy.csv.timestamp_precision.value());

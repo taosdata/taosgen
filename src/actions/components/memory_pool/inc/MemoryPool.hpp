@@ -1,5 +1,29 @@
 #pragma once
 
+/*
+ * Copyright (c) 2025 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "ColumnConfigInstance.hpp"
 #include "concurrentqueue.hpp"
 #include "blockingconcurrentqueue.hpp"
@@ -14,6 +38,8 @@
 #include <cstring>
 #include <limits>
 #include <stdexcept>
+#include <unordered_map>
+#include <utility>
 
 class MemoryPool {
 public:
@@ -55,6 +81,7 @@ public:
     struct TableBlock : public TableBase {
         struct Tags {
             std::string table_name;
+            RowType values;
             std::vector<TableBase::Column> columns;
             void* data_chunk = nullptr;
             size_t data_chunk_size = 0;
@@ -109,6 +136,7 @@ public:
 
         TAOS_STMT2_BINDV bindv_{};
         std::vector<const char*> tbnames_;                      // Table name pointer array
+        std::vector<std::string> table_name_storage_;            // Own table names for external ingress batches
         std::vector<TAOS_STMT2_BIND*> bind_tags_ptrs_;          // Bind tags pointer array
         std::vector<TAOS_STMT2_BIND*> bind_cols_ptrs_;          // Bind cols pointer array
         std::vector<std::vector<TAOS_STMT2_BIND>> bind_lists_;  // Bind data storage
@@ -116,6 +144,7 @@ public:
 
         void release();
         void free_data_chunk();
+        ~MemoryBlock();
 
         void init_bindv();
         void build_bindv(bool is_checkpoint_recover = false);
@@ -169,6 +198,10 @@ public:
     bool is_cache_unit_prefilled(size_t cache_index) const;
 
     MemoryPool::TableBlock::Tags* register_table_tags(const std::string& table_name, const std::vector<ColumnType>& tag_values);
+    const TableBlock::Tags* get_or_register_table_tags(const std::string& table_name,
+                                                       const std::vector<ColumnType>& tag_values);
+    std::vector<const TableBlock::Tags*> get_or_register_table_tags_batch(
+        const std::vector<std::pair<std::string, std::vector<ColumnType>>>& table_tags);
     const TableBlock::Tags* get_table_tags(const std::string& table_name) const;
     bool has_table_tags(const std::string& table_name) const;
 
@@ -190,6 +223,10 @@ private:
         void calculate_memory_size();
         void init_table_tags(TableBlock::Tags& tags, const std::vector<ColumnType>& tag_values);
         MemoryPool::TableBlock::Tags* register_tags(const std::string& table_name, const std::vector<ColumnType>& tag_values);
+        const TableBlock::Tags* get_or_register_tags(const std::string& table_name,
+                                                     const std::vector<ColumnType>& tag_values);
+        std::vector<const TableBlock::Tags*> get_or_register_tags_batch(
+            const std::vector<std::pair<std::string, std::vector<ColumnType>>>& table_tags);
         const TableBlock::Tags* get_tags(const std::string& table_name) const;
         bool has_tags(const std::string& table_name) const;
     };
@@ -216,6 +253,10 @@ private:
     size_t var_data_size_ = 0;
     size_t total_cache_size_ = 0;
 
+    // Keep tag metadata alive for the runtime lifetime so repeated table lookups stay O(1).
+    // Ingress currently prefers steady-state write latency over cache eviction bookkeeping.
+    // The tag cache is therefore intentionally unbounded within the runtime lifetime; the
+    // request shape and schema-level table caps are expected to bound practical growth.
     std::unique_ptr<TagsManager> tags_manager_;
 
     void init_cache_units();

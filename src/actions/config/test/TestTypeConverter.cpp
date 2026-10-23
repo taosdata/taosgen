@@ -1,4 +1,30 @@
+/*
+ * Copyright (c) 2025 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "TypeConverter.hpp"
+#include "ColumnConfig.hpp"
+#include "TimestampUtils.hpp"
 #include <cassert>
 #include <iostream>
 #include <string>
@@ -89,6 +115,7 @@ void test_convert_to_type() {
     assert(std::get<uint16_t>(convert_to_type("65535", ColumnTypeTag::SMALLINT_UNSIGNED)) == 65535);
     assert(std::get<int32_t>(convert_to_type("2147483647", ColumnTypeTag::INT)) == 2147483647);
     assert(std::get<uint32_t>(convert_to_type("4294967295", ColumnTypeTag::INT_UNSIGNED)) == 4294967295u);
+    assert(std::get<int64_t>(convert_to_type("1700000000000", ColumnTypeTag::TIMESTAMP)) == 1700000000000LL);
     assert(std::get<int64_t>(convert_to_type("-9223372036854775808", ColumnTypeTag::BIGINT)) == INT64_MIN);
     assert(std::get<uint64_t>(convert_to_type("18446744073709551615", ColumnTypeTag::BIGINT_UNSIGNED)) == UINT64_MAX);
     assert(std::get<float>(convert_to_type("1.23", ColumnTypeTag::FLOAT)) == 1.23f);
@@ -103,6 +130,22 @@ void test_convert_to_type() {
     std::cout << "test_convert_to_type passed" << std::endl;
 }
 
+void test_convert_timestamp_column_iso_string() {
+    ColumnConfig config("event_time", "timestamp");
+    config.ts.generator.timestamp_precision = "ms";
+
+    const std::string iso_time = "2026-08-10T14:59:04.121Z";
+    ColumnType value = convert_to_type(iso_time, config);
+    int64_t expected = TimestampUtils::parse_timestamp(iso_time, "ms");
+    (void)expected;
+
+    assert(std::holds_alternative<int64_t>(value));
+    assert(std::get<int64_t>(value) == expected);
+    assert(std::get<int64_t>(value) != 2026);
+
+    std::cout << "test_convert_timestamp_column_iso_string passed" << std::endl;
+}
+
 int main() {
     test_convert_bool();
     test_convert_bool_case_insensitive();
@@ -112,6 +155,7 @@ int main() {
     test_convert_u16string();
     test_convert_vector_uint8();
     test_convert_to_type();
+    test_convert_timestamp_column_iso_string();
     test_convert_trim_behavior();
 
     std::cout << "All TypeConverter tests passed!" << std::endl;

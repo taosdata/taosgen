@@ -1,8 +1,33 @@
+/*
+ * Copyright (c) 2025 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "ConfigParser.hpp"
 #include "PluginRegistrar.hpp"
 #include <iostream>
 #include <sstream>
 #include <cassert>
+#include <climits>
 #include <yaml-cpp/yaml.h>
 
 void test_FromCSVConfig_tags_columns() {
@@ -402,6 +427,22 @@ max: 50.0
     assert(col.distribution.has_value() && *col.distribution == "normal");
     assert(col.min.has_value() && *col.min == 10.0);
     assert(col.max.has_value() && *col.max == 50.0);
+}
+
+void test_ColumnConfig_timestamp_random_defaults() {
+    std::string yaml = R"(
+name: event_time
+type: timestamp
+)";
+    YAML::Node node = YAML::Load(yaml);
+    ColumnConfig col = node.as<ColumnConfig>();
+
+    assert(col.name == "event_time");
+    assert(col.type == "timestamp");
+    assert(col.type_tag == ColumnTypeTag::TIMESTAMP);
+    assert(col.gen_type.has_value() && *col.gen_type == "random");
+    assert(col.min.has_value() && *col.min == static_cast<double>(INT16_MIN));
+    assert(col.max.has_value() && *col.max == static_cast<double>(INT16_MAX));
 }
 
 void test_ColumnConfig_order() {
@@ -1472,6 +1513,135 @@ unknown_key: "some_value"
     }
 }
 
+void test_IngressConfig_base() {
+    std::string yaml = R"(
+enabled: true
+listen: 127.0.0.1:7600
+service_concurrency: 4
+max_message_bytes: 8388608
+rows_per_batch: 20000
+max_tables_per_request: 2000
+default_ack_mode: enqueue_only
+request_timeout_ms: 15000
+queue_capacity: 2048
+concurrency: 6
+dry_run: true
+auto_create_table: true
+writer:
+  failure_handling:
+    max_retries: 2
+    retry_interval_ms: 500
+    on_failure: warn_and_continue
+)";
+    YAML::Node node = YAML::Load(yaml);
+    IngressConfig cfg = node.as<IngressConfig>();
+    assert(cfg.enabled == true);
+    assert(cfg.listen == "127.0.0.1:7600");
+    assert(cfg.service_concurrency == 4);
+    assert(cfg.max_message_bytes == 8388608);
+    assert(cfg.rows_per_batch == 20000);
+    assert(cfg.max_tables_per_request == 2000);
+    assert(cfg.default_ack_mode == AckMode::EnqueueOnly);
+    assert(cfg.request_timeout_ms == 15000);
+    assert(cfg.queue_capacity == 2048);
+    assert(cfg.concurrency == 6);
+    assert(cfg.dry_run == true);
+    assert(cfg.auto_create_table == true);
+    assert(cfg.writer.failure_handling.max_retries == 2);
+    assert(cfg.writer.failure_handling.retry_interval_ms == 500);
+    assert(cfg.writer.failure_handling.on_failure == "warn_and_continue");
+}
+
+void test_IngressConfig_defaults_match_insert_action_queue_capacity() {
+    std::string yaml = R"(
+enabled: true
+)";
+    YAML::Node node = YAML::Load(yaml);
+    IngressConfig cfg = node.as<IngressConfig>();
+    assert(cfg.queue_capacity == 10);
+}
+
+void test_IngressConfig_rejects_legacy_writer_concurrency() {
+    std::string yaml = R"(
+concurrency: 4
+writer:
+  concurrency: 9
+)";
+    YAML::Node node = YAML::Load(yaml);
+    try {
+        node.as<IngressConfig>();
+        assert(false && "Should throw for legacy ingress writer concurrency");
+    } catch (const std::runtime_error& e) {
+        assert(std::string(e.what()).find("Unknown configuration key in ingress::writer") != std::string::npos);
+    }
+}
+
+void test_IngressConfig_invalid_ack_mode() {
+    std::string yaml = R"(
+default_ack_mode: invalid
+)";
+    YAML::Node node = YAML::Load(yaml);
+    try {
+        node.as<IngressConfig>();
+        assert(false && "Should throw for invalid ingress ack_mode");
+    } catch (const std::runtime_error& e) {
+        assert(std::string(e.what()).find("Invalid ack_mode value") != std::string::npos);
+    }
+}
+
+void test_IngressConfig_rejects_legacy_max_rows_per_request() {
+    std::string yaml = R"(
+max_rows_per_request: 100
+)";
+    YAML::Node node = YAML::Load(yaml);
+    try {
+        node.as<IngressConfig>();
+        assert(false && "Should throw for legacy ingress max_rows_per_request");
+    } catch (const std::runtime_error& e) {
+        assert(std::string(e.what()).find("Unknown configuration key in ingress") != std::string::npos);
+    }
+}
+
+void test_IngressConfig_rejects_queue_capacity_over_limit() {
+    std::string yaml = R"(
+queue_capacity: 10001
+)";
+    YAML::Node node = YAML::Load(yaml);
+    try {
+        node.as<IngressConfig>();
+        assert(false && "Should throw for oversized ingress queue_capacity");
+    } catch (const std::runtime_error& e) {
+        assert(std::string(e.what()).find("ingress.queue_capacity exceeds supported maximum") != std::string::npos);
+    }
+}
+
+void test_IngressConfig_rejects_concurrency_over_limit() {
+    std::string yaml = R"(
+concurrency: 1001
+)";
+    YAML::Node node = YAML::Load(yaml);
+    try {
+        node.as<IngressConfig>();
+        assert(false && "Should throw for oversized ingress concurrency");
+    } catch (const std::runtime_error& e) {
+        assert(std::string(e.what()).find("ingress.concurrency exceeds supported maximum") != std::string::npos);
+    }
+}
+
+void test_IngressConfig_rejects_more_tables_than_rows_per_batch() {
+    std::string yaml = R"(
+rows_per_batch: 100
+max_tables_per_request: 101
+)";
+    YAML::Node node = YAML::Load(yaml);
+    try {
+        node.as<IngressConfig>();
+        assert(false && "Should throw when max_tables_per_request exceeds rows_per_batch");
+    } catch (const std::runtime_error& e) {
+        assert(std::string(e.what()).find("ingress.max_tables_per_request must not exceed ingress.rows_per_batch") != std::string::npos);
+    }
+}
+
 int main() {
     register_plugin_hooks();
     test_FromCSVConfig_tags_columns();
@@ -1489,6 +1659,7 @@ int main() {
     test_DataChannel();
     test_DatabaseInfo();
     test_ColumnConfig_random();
+    test_ColumnConfig_timestamp_random_defaults();
     test_ColumnConfig_order();
     test_ColumnConfig_expression();
     test_ColumnConfig_min_max_length_varchar();
@@ -1557,6 +1728,14 @@ int main() {
 
     test_InsertDataConfig_invalid_target();
     test_InsertDataConfig_unknown_key();
+    test_IngressConfig_base();
+    test_IngressConfig_defaults_match_insert_action_queue_capacity();
+    test_IngressConfig_rejects_legacy_writer_concurrency();
+    test_IngressConfig_invalid_ack_mode();
+    test_IngressConfig_rejects_legacy_max_rows_per_request();
+    test_IngressConfig_rejects_queue_capacity_over_limit();
+    test_IngressConfig_rejects_concurrency_over_limit();
+    test_IngressConfig_rejects_more_tables_than_rows_per_batch();
 
     std::cout << "All ConfigParser YAML tests passed!" << std::endl;
     return 0;

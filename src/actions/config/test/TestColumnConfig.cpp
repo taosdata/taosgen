@@ -1,10 +1,36 @@
+/*
+ * Copyright (c) 2025 TAOS Data, Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "ColumnConfig.hpp"
+#include "taos.h"
 #include <iostream>
 #include <cassert>
 
 void test_get_type_tag() {
     assert(ColumnConfig::get_type_tag("bool") == ColumnTypeTag::BOOL);
     assert(ColumnConfig::get_type_tag("tinyint") == ColumnTypeTag::TINYINT);
+    assert(ColumnConfig::get_type_tag("timestamp") == ColumnTypeTag::TIMESTAMP);
     assert(ColumnConfig::get_type_tag("varchar") == ColumnTypeTag::VARCHAR);
     assert(ColumnConfig::get_type_tag("json") == ColumnTypeTag::JSON);
 
@@ -31,6 +57,16 @@ void test_column_config_with_name_type() {
     assert(config.type == "int");
     assert(config.gen_type == "random");
     assert(config.type_tag == ColumnTypeTag::INT);
+}
+
+void test_timestamp_column_config() {
+    ColumnConfig config("ts_col", "timestamp");
+    assert(config.type_tag == ColumnTypeTag::TIMESTAMP);
+    constexpr size_t int64_type_index = variant_index<int64_t, ColumnType>::value;
+    (void)int64_type_index;
+    assert(config.type_index == int64_type_index);
+    assert(config.get_fixed_type_size() == sizeof(int64_t));
+    assert(config.get_taos_type() == TSDB_DATA_TYPE_TIMESTAMP);
 }
 
 void test_column_config_with_name_type_gen_type() {
@@ -73,6 +109,7 @@ int main() {
     test_get_type_tag();
     test_column_config_default_constructor();
     test_column_config_with_name_type();
+    test_timestamp_column_config();
     test_column_config_with_name_type_gen_type();
     test_column_config_with_name_type_gen_type_len();
     test_column_config_with_name_type_gen_type_min_max();
