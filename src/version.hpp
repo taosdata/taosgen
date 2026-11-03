@@ -24,4 +24,4 @@
  * SOFTWARE.
  */
 
-inline constexpr const char* TAOSGEN_VERSION = "0.8.7";
+inline constexpr const char* TAOSGEN_VERSION = "0.8.8";
